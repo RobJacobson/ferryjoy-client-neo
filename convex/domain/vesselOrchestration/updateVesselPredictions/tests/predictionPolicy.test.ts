@@ -1,26 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { TripComputation } from "domain/vesselOrchestration/updateVesselTrips/contracts";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
-  computeShouldRunPredictionFallback,
-  computeVesselPredictionGates,
-  derivePredictionGatesForComputation,
-  PREDICTION_ATTEMPT_MODE,
+  predictionModelTypesForTrip,
+  shouldRunAtDockPredictions,
+  shouldRunAtSeaPredictions,
 } from "../predictionPolicy";
 
 const ms = (iso: string) => new Date(iso).getTime();
-
-const defaultEvents: TripEvents = {
-  isFirstTrip: false,
-  isTripStartReady: false,
-  shouldStartTrip: false,
-  isCompletedTrip: false,
-  didJustArriveAtDock: false,
-  didJustLeaveDock: false,
-  scheduleKeyChanged: false,
-};
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTrip> = {}
@@ -58,80 +45,37 @@ const makeTrip = (
   }) as ConvexVesselTrip;
 
 describe("predictionPolicy", () => {
-  it("PREDICTION_ATTEMPT_MODE is refill-when-gates (Phase C default)", () => {
-    expect(PREDICTION_ATTEMPT_MODE).toBe("refill-when-gates");
-  });
-
-  it("refill-when-gates attempts at-dock when legacy gates would skip (no events, outside fallback window)", () => {
+  it("runs at-dock predictions whenever the trip is docked and origin-ready", () => {
     const trip = makeTrip();
-    const tickLate = new Date("2026-04-19T12:00:15.000Z").getTime();
-    expect(computeShouldRunPredictionFallback(tickLate)).toBe(false);
-
-    const refill = computeVesselPredictionGates(
-      trip,
-      defaultEvents,
-      false,
-      false,
-      "refill-when-gates"
-    );
-    const legacy = computeVesselPredictionGates(
-      trip,
-      defaultEvents,
-      false,
-      false,
-      "empty-slot-only"
-    );
-
-    expect(refill.shouldAttemptAtDockPredictions).toBe(true);
-    expect(legacy.shouldAttemptAtDockPredictions).toBe(false);
+    expect(shouldRunAtDockPredictions(trip)).toBe(true);
+    expect(predictionModelTypesForTrip(trip)).toEqual([
+      "at-dock-depart-curr",
+      "at-dock-arrive-next",
+      "at-dock-depart-next",
+    ]);
   });
 
-  it("computeShouldRunPredictionFallback matches first 10s of UTC minute", () => {
-    const early = new Date("2026-04-19T12:00:05.000Z").getTime();
-    const late = new Date("2026-04-19T12:00:15.000Z").getTime();
-    expect(computeShouldRunPredictionFallback(early)).toBe(true);
-    expect(computeShouldRunPredictionFallback(late)).toBe(false);
-  });
-
-  it("derivePredictionGatesForComputation matches computeVesselPredictionGates fixed vector", () => {
-    const trip = makeTrip();
-    const tickStartedAt = new Date("2026-03-13T12:00:03.000Z").getTime();
-    const expected = computeVesselPredictionGates(
-      trip,
-      defaultEvents,
-      false,
-      computeShouldRunPredictionFallback(tickStartedAt)
-    );
-    const computation: TripComputation = {
-      vesselAbbrev: trip.VesselAbbrev,
-      branch: "current",
-      events: defaultEvents,
-      activeTrip: trip,
-      tripCore: {
-        withFinalSchedule: trip,
-      },
-    };
-    const derived = derivePredictionGatesForComputation(
-      computation,
-      tickStartedAt
-    );
-    expect(derived).toEqual(expected);
-  });
-
-  it("returns no-op gates for current branch when events are undefined", () => {
-    const trip = makeTrip();
-    const computation: TripComputation = {
-      vesselAbbrev: trip.VesselAbbrev,
-      branch: "current",
-      activeTrip: trip,
-      tripCore: { withFinalSchedule: trip },
-    };
-    expect(
-      derivePredictionGatesForComputation(computation, trip.TimeStamp)
-    ).toEqual({
-      shouldAttemptAtDockPredictions: false,
-      shouldAttemptAtSeaPredictions: false,
-      didJustLeaveDock: false,
+  it("runs at-sea predictions whenever the trip is underway with departure context", () => {
+    const trip = makeTrip({
+      AtDock: false,
+      LeftDockActual: ms("2026-03-13T09:31:00-07:00"),
+      LeftDock: ms("2026-03-13T09:31:00-07:00"),
     });
+    expect(shouldRunAtSeaPredictions(trip)).toBe(true);
+    expect(predictionModelTypesForTrip(trip)).toEqual([
+      "at-sea-arrive-next",
+      "at-sea-depart-next",
+    ]);
+  });
+
+  it("returns no prediction model types when the trip is not ready for a prediction phase", () => {
+    const trip = makeTrip({
+      AtDock: true,
+      ArrivedCurrActual: undefined,
+      AtDockActual: undefined,
+    });
+    expect(shouldRunAtDockPredictions(trip)).toBe(false);
+    expect(shouldRunAtSeaPredictions(trip)).toBe(false);
+    expect(predictionModelTypesForTrip(trip)).toEqual([]);
   });
 });

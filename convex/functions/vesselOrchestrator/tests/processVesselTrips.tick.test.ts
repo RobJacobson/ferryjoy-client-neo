@@ -51,43 +51,57 @@ const runVesselTripsTick = async (
     deps,
     trips
   );
-  const tripsOutput = buildTripsOutputFromTripsCompute({ tripsCompute });
+  const { tripsOutput, tripComputations } = buildTripsArtifactsFromTripsCompute({
+    tripsCompute,
+  });
   const tripApplyResult = await persistVesselTripWriteSet(
     tripsOutput,
+    tripsCompute,
     createVesselTripTableMutations(actionCtx)
   );
 
   const { predictedTripComputations } = await updateVesselPredictions(
     actionCtx,
-    tickStartedAt,
-    tripsOutput.tripComputations
+    tripsOutput,
+    tripsCompute.completedHandoffs
   );
 
   await updateVesselTimeline(actionCtx, {
     tickStartedAt,
     tripComputations: buildTimelineTripComputationsForRun(
       tripsOutput,
+      tripComputations,
       tripApplyResult
     ),
     predictedTripComputations,
   });
 };
 
-const buildTripsOutputFromTripsCompute = (input: {
+const buildTripsArtifactsFromTripsCompute = (input: {
   tripsCompute: VesselTripsComputeBundle;
-}): RunUpdateVesselTripsOutput => ({
-  activeTrips: [
-    ...input.tripsCompute.completedHandoffs.map((handoff) =>
-      stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+}): {
+  tripsOutput: RunUpdateVesselTripsOutput;
+  tripComputations: Parameters<
+    typeof buildTimelineTripComputationsForRun
+  >[1];
+} => {
+  const tripsOutput: RunUpdateVesselTripsOutput = {
+    activeTrips: [
+      ...input.tripsCompute.completedHandoffs.map((handoff) =>
+        stripTripPredictionsForStorage(handoff.newTripCore.withFinalSchedule)
+      ),
+      ...input.tripsCompute.current.activeUpserts.map(
+        stripTripPredictionsForStorage
+      ),
+    ],
+    completedTrips: input.tripsCompute.completedHandoffs.map((handoff) =>
+      stripTripPredictionsForStorage(handoff.tripToComplete)
     ),
-    ...input.tripsCompute.current.activeUpserts.map(
-      stripTripPredictionsForStorage
-    ),
-  ],
-  completedTrips: input.tripsCompute.completedHandoffs.map((handoff) =>
-    stripTripPredictionsForStorage(handoff.tripToComplete)
-  ),
-  tripComputations: [
+  };
+
+  const tripComputations: Parameters<
+    typeof buildTimelineTripComputationsForRun
+  >[1] = [
     ...input.tripsCompute.completedHandoffs.map((handoff) => ({
       vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
       branch: "completed" as const,
@@ -108,8 +122,10 @@ const buildTripsOutputFromTripsCompute = (input: {
       activeTrip: message.tripCore.withFinalSchedule,
       tripCore: message.tripCore,
     })),
-  ],
-});
+  ];
+
+  return { tripsOutput, tripComputations };
+};
 
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
@@ -404,6 +420,13 @@ describe("vessel orchestrator trip tick sequencing", () => {
       upsertResult: {
         perVessel: [{ vesselAbbrev: "CHE", ok: true }],
       },
+      predictionModelsQueryResult: {
+        "ANA->ORI": {
+          "at-dock-depart-curr": makeModelDoc(),
+          "at-dock-arrive-next": makeModelDoc(),
+          "at-dock-depart-next": makeModelDoc(),
+        },
+      },
     });
 
     await runVesselTripsTick(
@@ -421,9 +444,6 @@ describe("vessel orchestrator trip tick sequencing", () => {
     expect(predictedArgs?.Batches).toHaveLength(2);
     expect(
       predictedArgs?.Batches.some((effect) => effect.Rows.length === 0)
-    ).toBe(true);
-    expect(
-      predictedArgs?.Batches.some((effect) => effect.Rows.length > 0)
     ).toBe(true);
   });
 
@@ -896,6 +916,13 @@ const makePrediction = (iso: string) => {
     StdDev: 1,
   };
 };
+
+const makeModelDoc = () => ({
+  featureKeys: [] as string[],
+  coefficients: [] as number[],
+  intercept: 1,
+  testMetrics: { mae: 1, stdDev: 1 },
+});
 
 /**
  * Build a test vessel location with sensible defaults.

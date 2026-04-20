@@ -22,7 +22,10 @@ export {
   computeVesselTripsBundle,
   type ProcessVesselTripsDeps,
 } from "./processTick/processVesselTrips";
-export { runUpdateVesselTrips } from "./runUpdateVesselTrips";
+export {
+  computeUpdateVesselTripsTickArtifacts,
+  runUpdateVesselTrips,
+} from "./runUpdateVesselTrips";
 export type { TripEvents } from "./tripLifecycle/tripEventTypes";
 export type {
   ActiveTripsBranch,

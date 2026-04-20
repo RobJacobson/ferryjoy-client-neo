@@ -109,6 +109,42 @@ const tripComputationsFromBundle = (
   ...currentTripComputationsFromBundle(bundle.current),
 ];
 
+type UpdateVesselTripsTickArtifacts = {
+  trips: RunUpdateVesselTripsOutput;
+  bundle: VesselTripsComputeBundle;
+  tripComputations: TripComputation[];
+};
+
+export const computeUpdateVesselTripsTickArtifacts = async (
+  input: RunUpdateVesselTripsInput
+): Promise<UpdateVesselTripsTickArtifacts> => {
+  const tripDeps = createDefaultProcessVesselTripsDeps(
+    createScheduledSegmentLookupFromSnapshot(input.scheduleContext)
+  );
+  const { bundle } = await computeVesselTripsBundle(
+    input.vesselLocations,
+    tripDeps,
+    input.existingActiveTrips
+  );
+  const trips = {
+    activeTrips: [
+      ...bundle.completedHandoffs.map(
+        (handoff) => handoff.newTripCore.withFinalSchedule
+      ),
+      ...bundle.current.activeUpserts,
+    ],
+    completedTrips: bundle.completedHandoffs.map(
+      (handoff) => handoff.tripToComplete
+    ),
+  };
+
+  return {
+    trips,
+    bundle,
+    tripComputations: tripComputationsFromBundle(bundle),
+  };
+};
+
 /**
  * Stage A canonical public runner for the trips concern.
  *
@@ -118,28 +154,6 @@ const tripComputationsFromBundle = (
 export const runUpdateVesselTrips = async (
   input: RunUpdateVesselTripsInput
 ): Promise<RunUpdateVesselTripsOutput> => {
-  const tripDeps = createDefaultProcessVesselTripsDeps(
-    createScheduledSegmentLookupFromSnapshot(input.scheduleContext)
-  );
-  const { bundle: tripsCompute } = await computeVesselTripsBundle(
-    input.vesselLocations,
-    tripDeps,
-    input.existingActiveTrips
-  );
-  const activeTrips = [
-    ...tripsCompute.completedHandoffs.map(
-      (handoff) => handoff.newTripCore.withFinalSchedule
-    ),
-    ...tripsCompute.current.activeUpserts,
-  ];
-  const completedTrips = tripsCompute.completedHandoffs.map(
-    (handoff) => handoff.tripToComplete
-  );
-  const tripComputations = tripComputationsFromBundle(tripsCompute);
-
-  return {
-    activeTrips,
-    completedTrips,
-    tripComputations,
-  };
+  const { trips } = await computeUpdateVesselTripsTickArtifacts(input);
+  return trips;
 };

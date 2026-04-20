@@ -4,17 +4,18 @@
 
 The public story for this concern is:
 
-- `runUpdateVesselTrips(input) -> { activeTrips, completedTrips, tripComputations }`
+- `runUpdateVesselTrips(input) -> { activeTrips, completedTrips }`
 
-Functions-layer persistence may translate those DTOs into Convex mutations, but
-that persistence shape is not the concern's public contract.
+Function-layer persistence may consume the internal tick bundle that powers
+those arrays, but that write-shaping detail is not part of this concern's
+public contract.
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `buildTrip` (test-only composer: core + `applyVesselPredictions`), `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**; ML attaches in **updateVesselPredictions**. |
-| [`processTick/`](./processTick/) | `computeVesselTripsBundle`, adapters; ML fallback clock policy lives in **updateVesselPredictions** (`predictionPolicy.ts`) |
+| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `buildTrip` (test-only composer: core + `applyVesselPredictions`), `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**; ML attaches later in **updateVesselPredictions**. |
+| [`processTick/`](./processTick/) | `computeVesselTripsBundle`, adapters, and the internal bundle consumed by function-layer persistence |
 | [`continuity/`](./continuity/) | Docked identity continuity |
 | [`vesselTripsBuildTripAdapters.ts`](./vesselTripsBuildTripAdapters.ts) | Adapter types for `buildTrip` |
 

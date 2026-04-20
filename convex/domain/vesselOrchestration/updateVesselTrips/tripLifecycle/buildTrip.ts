@@ -7,10 +7,7 @@
  * remains the composer for tests and non-orchestrator callers.
  */
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import {
-  applyVesselPredictions,
-  computeVesselPredictionGates,
-} from "domain/vesselOrchestration/updateVesselPredictions";
+import { applyVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -25,35 +22,23 @@ import type { TripEvents } from "./tripEventTypes";
  * Schedule/lifecycle trips never persist prediction columns; optional keys here
  * are in-memory hints for schedule enrichment only.
  */
-type TripGateState = ConvexVesselTrip & {
-  readonly AtDockDepartCurr?: unknown;
-  readonly AtDockArriveNext?: unknown;
-  readonly AtDockDepartNext?: unknown;
-  readonly AtSeaArriveNext?: unknown;
-  readonly AtSeaDepartNext?: unknown;
-};
-
 /**
  * Build complete vessel trip from raw location data with all enrichments.
  *
  * Composes {@link buildTripCore} (effective location, base trip, schedule
- * enrichment) with {@link computeVesselPredictionGates} and
- * {@link applyVesselPredictions} (ML tail: at-dock / at-sea appenders and
+ * enrichment) with {@link applyVesselPredictions} (ML tail: at-dock / at-sea appenders and
  * leave-dock actualization).
  * - Calls `baseTripFromLocation` for base trip
  * - Uses provided events for enrichment decisions
- * - Runs schedule lookups then `computeVesselPredictionGates` (see
- *   `PREDICTION_ATTEMPT_MODE` in `updateVesselPredictions` — default refill when
- *   phase allows; `empty-slot-only` restores legacy gate math) and
- *   `applyVesselPredictions`
+ * - Runs schedule lookups then `applyVesselPredictions`
  * - Returns fully enriched trip ready for persistence
  *
  * @param currLocation - Latest vessel location from REST/API
  * @param existingTrip - Previous trip for event detection (undefined for new trips)
  * @param tripStart - True for new trip (boundary or first), false for continuing
  * @param events - Detected trip events from detectTripEvents
- * @param shouldRunPredictionFallback - True when this tick should attempt
- * any missing fallback predictions
+ * @param _shouldRunPredictionFallback - Legacy parameter retained temporarily for
+ *   test-call compatibility; predictions now re-run every tick by trip phase
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
  * @param predictionModelAccess - Production ML model reads (functions-layer `runQuery`)
  * @returns Fully enriched vessel trip
@@ -67,7 +52,7 @@ export const buildTrip = async (
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  shouldRunPredictionFallback: boolean,
+  _shouldRunPredictionFallback: boolean,
   adapters: VesselTripsBuildTripAdapters,
   predictionModelAccess: VesselTripPredictionModelAccess
 ): Promise<ConvexVesselTripWithML> => {
@@ -78,17 +63,7 @@ export const buildTrip = async (
     events,
     adapters
   );
-  const gates = computeVesselPredictionGates(
-    core.withFinalSchedule,
-    events,
-    tripStart,
-    shouldRunPredictionFallback
-  );
-  return applyVesselPredictions(
-    predictionModelAccess,
-    core.withFinalSchedule,
-    gates
-  );
+  return applyVesselPredictions(predictionModelAccess, core.withFinalSchedule);
 };
 
 /**
@@ -149,15 +124,15 @@ export const buildTripCore = async (
       ? clearDerivedStateOnScheduleKeyChange(withArriveDest)
       : withArriveDest;
 
-  const gateTrip = withScheduleKeyChangeClearedDerivedState as TripGateState;
+  const tripForScheduleEnrichment = withScheduleKeyChangeClearedDerivedState;
 
   // Schedule enrichment is segment-key-based. Docked identity bootstrap now
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
 
   const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(gateTrip, existingTrip)
-    : gateTrip;
+    ? await appendFinalSchedule(tripForScheduleEnrichment, existingTrip)
+    : tripForScheduleEnrichment;
 
   return {
     withFinalSchedule,

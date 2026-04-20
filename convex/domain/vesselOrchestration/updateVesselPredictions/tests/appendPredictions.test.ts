@@ -1,6 +1,5 @@
 /**
- * {@link appendArriveDockPredictions} / refill behavior with default
- * {@link PREDICTION_ATTEMPT_MODE} (`refill-when-gates`).
+ * {@link appendArriveDockPredictions} re-runs phase-valid models on every tick.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -10,7 +9,6 @@ import type {
 } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
 import { appendArriveDockPredictions } from "domain/vesselOrchestration/updateVesselPredictions/appendPredictions";
-import { PREDICTION_ATTEMPT_MODE } from "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -70,11 +68,7 @@ const makeAtDockTrip = (): ConvexVesselTripWithPredictions => ({
   AtSeaDepartNext: undefined,
 });
 
-describe("appendArriveDockPredictions (refill mode)", () => {
-  it("default mode is refill-when-gates", () => {
-    expect(PREDICTION_ATTEMPT_MODE).toBe("refill-when-gates");
-  });
-
+describe("appendArriveDockPredictions", () => {
   it("re-runs at-dock specs when slots already hold full predictions (batch load once)", async () => {
     let batchCalls = 0;
     const modelAccess: VesselTripPredictionModelAccess = {

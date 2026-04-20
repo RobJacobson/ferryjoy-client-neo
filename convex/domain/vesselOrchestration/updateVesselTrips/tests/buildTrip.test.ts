@@ -21,7 +21,6 @@ import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/sch
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import {
   applyVesselPredictions,
-  computeVesselPredictionGates,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   buildTrip,
@@ -221,16 +220,9 @@ const expectBuildTripParity = async (
     events,
     testBuildTripAdapters
   );
-  const gates = computeVesselPredictionGates(
-    core.withFinalSchedule,
-    events,
-    tripStart,
-    shouldRunPredictionFallback
-  );
   const manual = await applyVesselPredictions(
     predictionModelAccess,
-    core.withFinalSchedule,
-    gates
+    core.withFinalSchedule
   );
   const composed = await buildTrip(
     currLocation,

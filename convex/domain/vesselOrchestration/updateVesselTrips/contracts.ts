@@ -49,5 +49,4 @@ export type RunUpdateVesselTripsInput = {
 export type RunUpdateVesselTripsOutput = {
   activeTrips: ConvexVesselTrip[];
   completedTrips: ConvexVesselTrip[];
-  tripComputations: TripComputation[];
 };

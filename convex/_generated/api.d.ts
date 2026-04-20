@@ -101,7 +101,6 @@ import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnap
 import type * as domain_vesselOrchestration_shared_tickHandshake_index from "../domain/vesselOrchestration/shared/tickHandshake/index.js";
 import type * as domain_vesselOrchestration_shared_tickHandshake_projectionWire from "../domain/vesselOrchestration/shared/tickHandshake/projectionWire.js";
 import type * as domain_vesselOrchestration_shared_tickHandshake_types from "../domain/vesselOrchestration/shared/tickHandshake/types.js";
-import type * as domain_vesselOrchestration_shared_tripComputationPersistMapping from "../domain/vesselOrchestration/shared/tripComputationPersistMapping.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput from "../domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput.js";
 import type * as domain_vesselOrchestration_updateTimeline_contracts from "../domain/vesselOrchestration/updateTimeline/contracts.js";
@@ -120,6 +119,7 @@ import type * as domain_vesselOrchestration_updateVesselPredictions_contracts fr
 import type * as domain_vesselOrchestration_updateVesselPredictions_index from "../domain/vesselOrchestration/updateVesselPredictions/index.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_orchestratorPredictionWrites from "../domain/vesselOrchestration/updateVesselPredictions/orchestratorPredictionWrites.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_predictionCompare from "../domain/vesselOrchestration/updateVesselPredictions/predictionCompare.js";
+import type * as domain_vesselOrchestration_updateVesselPredictions_predictionPolicy from "../domain/vesselOrchestration/updateVesselPredictions/predictionPolicy.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_stripTripPredictionsForStorage from "../domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionPersistPlan from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionPersistPlan.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip.js";
@@ -237,6 +237,7 @@ import type * as functions_vessels_actions from "../functions/vessels/actions.js
 import type * as functions_vessels_schemas from "../functions/vessels/schemas.js";
 import type * as shared_activeTimelineInterval from "../shared/activeTimelineInterval.js";
 import type * as shared_convertDates from "../shared/convertDates.js";
+import type * as shared_deepEqual from "../shared/deepEqual.js";
 import type * as shared_distanceUtils from "../shared/distanceUtils.js";
 import type * as shared_durationUtils from "../shared/durationUtils.js";
 import type * as shared_effectiveTripIdentity from "../shared/effectiveTripIdentity.js";
@@ -349,7 +350,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/tickHandshake/index": typeof domain_vesselOrchestration_shared_tickHandshake_index;
   "domain/vesselOrchestration/shared/tickHandshake/projectionWire": typeof domain_vesselOrchestration_shared_tickHandshake_projectionWire;
   "domain/vesselOrchestration/shared/tickHandshake/types": typeof domain_vesselOrchestration_shared_tickHandshake_types;
-  "domain/vesselOrchestration/shared/tripComputationPersistMapping": typeof domain_vesselOrchestration_shared_tripComputationPersistMapping;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
   "domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput": typeof domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput;
   "domain/vesselOrchestration/updateTimeline/contracts": typeof domain_vesselOrchestration_updateTimeline_contracts;
@@ -368,6 +368,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselPredictions/index": typeof domain_vesselOrchestration_updateVesselPredictions_index;
   "domain/vesselOrchestration/updateVesselPredictions/orchestratorPredictionWrites": typeof domain_vesselOrchestration_updateVesselPredictions_orchestratorPredictionWrites;
   "domain/vesselOrchestration/updateVesselPredictions/predictionCompare": typeof domain_vesselOrchestration_updateVesselPredictions_predictionCompare;
+  "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy": typeof domain_vesselOrchestration_updateVesselPredictions_predictionPolicy;
   "domain/vesselOrchestration/updateVesselPredictions/stripTripPredictionsForStorage": typeof domain_vesselOrchestration_updateVesselPredictions_stripTripPredictionsForStorage;
   "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionPersistPlan": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionPersistPlan;
   "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip;
@@ -485,6 +486,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vessels/schemas": typeof functions_vessels_schemas;
   "shared/activeTimelineInterval": typeof shared_activeTimelineInterval;
   "shared/convertDates": typeof shared_convertDates;
+  "shared/deepEqual": typeof shared_deepEqual;
   "shared/distanceUtils": typeof shared_distanceUtils;
   "shared/durationUtils": typeof shared_durationUtils;
   "shared/effectiveTripIdentity": typeof shared_effectiveTripIdentity;

@@ -55,7 +55,7 @@ const defaultEvents: TripEvents = {
 };
 
 describe("runUpdateVesselTrips", () => {
-  it("derives public trip rows and additive tripCore handoffs from internal lifecycle output", async () => {
+  it("derives only public active/completed trip rows from internal lifecycle output", async () => {
     const completedExisting = makeTrip();
     const completedTrip = makeTrip({
       TripEnd: ms("2026-03-13T06:29:56-07:00"),
@@ -161,19 +161,7 @@ describe("runUpdateVesselTrips", () => {
         "TAC",
       ]);
       expect("AtDockDepartCurr" in (result.activeTrips[0] ?? {})).toBe(false);
-      expect(result.tripComputations).toHaveLength(3);
-
-      const completedComputation = result.tripComputations.find(
-        (computation) => computation.branch === "completed"
-      );
-      expect(completedComputation?.tripCore.withFinalSchedule).toBeDefined();
-
-      const overlayComputation = result.tripComputations.find(
-        (computation) => computation.vesselAbbrev === "KIT"
-      );
-      expect(overlayComputation?.branch).toBe("current");
-      expect(overlayComputation?.activeTrip?.VesselAbbrev).toBe("KIT");
-      expect(overlayComputation?.events?.didJustLeaveDock).toBe(true);
+      expect("tripComputations" in result).toBe(false);
     } finally {
       bundleSpy.mockRestore();
     }

@@ -1,20 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { runUpdateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
-
-const defaultEvents: TripEvents = {
-  isFirstTrip: false,
-  isTripStartReady: false,
-  shouldStartTrip: false,
-  isCompletedTrip: false,
-  didJustArriveAtDock: false,
-  didJustLeaveDock: false,
-  scheduleKeyChanged: false,
-};
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTripWithPredictions> = {}
@@ -56,23 +45,12 @@ const makeTrip = (
 });
 
 describe("runUpdateVesselPredictions", () => {
-  it("computes predictions from tripComputations using plain-data model preload", async () => {
+  it("computes predictions from active trips using plain-data model preload", async () => {
     const trip = makeTrip();
 
     const output = await runUpdateVesselPredictions({
-      tickStartedAt: ms("2026-03-13T09:10:00-07:00"),
-      tripComputations: [
-        {
-          vesselAbbrev: trip.VesselAbbrev,
-          branch: "current",
-          events: defaultEvents,
-          existingTrip: undefined,
-          activeTrip: trip,
-          tripCore: {
-            withFinalSchedule: trip,
-          },
-        },
-      ],
+      activeTrips: [trip],
+      completedHandoffs: [],
       predictionContext: {
         productionModelsByPair: {
           "ORI->LOP": {
@@ -107,19 +85,32 @@ describe("runUpdateVesselPredictions", () => {
     ).toBe(ms("2026-03-13T09:33:00-07:00"));
   });
 
-  it("derives gates from tripCore.withFinalSchedule when Stage C omits ML gate fields", async () => {
+  it("computes completed-handoff replacement predictions from the replacement trip", async () => {
     const trip = makeTrip();
+    const completedTrip = makeTrip({
+      LeftDockActual: ms("2026-03-13T09:31:00-07:00"),
+      ArrivedNextActual: ms("2026-03-13T10:05:00-07:00"),
+      TripEnd: ms("2026-03-13T10:05:00-07:00"),
+    });
 
     const output = await runUpdateVesselPredictions({
-      tickStartedAt: trip.TimeStamp,
-      tripComputations: [
+      activeTrips: [],
+      completedHandoffs: [
         {
-          vesselAbbrev: trip.VesselAbbrev,
-          branch: "current",
-          events: defaultEvents,
-          existingTrip: undefined,
-          activeTrip: trip,
-          tripCore: {
+          existingTrip: trip,
+          tripToComplete: completedTrip,
+          // CompletedTripBoundaryFact still requires this legacy shape, but
+          // prediction runs now ignore it and operate on trip rows directly.
+          events: {
+            isFirstTrip: false,
+            isTripStartReady: false,
+            shouldStartTrip: false,
+            isCompletedTrip: true,
+            didJustArriveAtDock: true,
+            didJustLeaveDock: false,
+            scheduleKeyChanged: false,
+          },
+          newTripCore: {
             withFinalSchedule: trip,
           },
         },
@@ -151,28 +142,19 @@ describe("runUpdateVesselPredictions", () => {
     });
 
     expect(output.predictedTripComputations).toHaveLength(1);
-    expect(
-      output.predictedTripComputations[0]?.finalPredictedTrip
-    ).toBeDefined();
+    expect(output.predictedTripComputations[0]?.branch).toBe("completed");
+    expect(output.predictedTripComputations[0]?.completedTrip?.TripKey).toBe(
+      completedTrip.TripKey
+    );
+    expect(output.predictedTripComputations[0]?.finalPredictedTrip).toBeDefined();
   });
 
   it("gracefully returns no predictions when the preload has no models", async () => {
     const trip = makeTrip();
 
     const output = await runUpdateVesselPredictions({
-      tickStartedAt: trip.TimeStamp,
-      tripComputations: [
-        {
-          vesselAbbrev: trip.VesselAbbrev,
-          branch: "current",
-          events: undefined,
-          existingTrip: undefined,
-          activeTrip: trip,
-          tripCore: {
-            withFinalSchedule: trip,
-          },
-        },
-      ],
+      activeTrips: [trip],
+      completedHandoffs: [],
       predictionContext: {},
     });
 
