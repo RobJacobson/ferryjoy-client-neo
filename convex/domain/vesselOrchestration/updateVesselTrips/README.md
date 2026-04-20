@@ -14,10 +14,10 @@ public contract.
 
 | Path | Role |
 | --- | --- |
-| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `buildTrip` (test-only composer: core + `applyVesselPredictions`), `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**; ML attaches later in **updateVesselPredictions**. |
+| [`tripLifecycle/`](./tripLifecycle/) | **Core lifecycle** — `detectTripEvents`, `buildTripCore`, `processCompletedTrips`, `processCurrentTrips`, equality. Production **`createDefaultProcessVesselTripsDeps`** wires **`buildTripCore` only**. |
 | [`processTick/`](./processTick/) | `computeVesselTripsBundle`, adapters, and the internal bundle consumed by function-layer persistence |
 | [`continuity/`](./continuity/) | Docked identity continuity |
-| [`vesselTripsBuildTripAdapters.ts`](./vesselTripsBuildTripAdapters.ts) | Adapter types for `buildTrip` |
+| [`vesselTripsBuildTripAdapters.ts`](./vesselTripsBuildTripAdapters.ts) | Adapter types for `buildTripCore` |
 
 ## See also
 

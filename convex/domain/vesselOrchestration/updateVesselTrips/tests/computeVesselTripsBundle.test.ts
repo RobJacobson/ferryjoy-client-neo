@@ -1,6 +1,5 @@
 /**
- * Tests for {@link computeVesselTripsBundle}: empty compute shape with stub schedule
- * and prediction deps.
+ * Tests for {@link computeVesselTripsBundle}: empty batch → empty bundle (smoke).
  */
 
 import { describe, expect, it } from "bun:test";

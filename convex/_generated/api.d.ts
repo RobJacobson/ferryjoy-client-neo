@@ -102,6 +102,7 @@ import type * as domain_vesselOrchestration_shared_tickHandshake_index from "../
 import type * as domain_vesselOrchestration_shared_tickHandshake_projectionWire from "../domain/vesselOrchestration/shared/tickHandshake/projectionWire.js";
 import type * as domain_vesselOrchestration_shared_tickHandshake_types from "../domain/vesselOrchestration/shared/tickHandshake/types.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
+import type * as domain_vesselOrchestration_updateTimeline_assembleTripComputationsFromBundle from "../domain/vesselOrchestration/updateTimeline/assembleTripComputationsFromBundle.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput from "../domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput.js";
 import type * as domain_vesselOrchestration_updateTimeline_contracts from "../domain/vesselOrchestration/updateTimeline/contracts.js";
 import type * as domain_vesselOrchestration_updateTimeline_index from "../domain/vesselOrchestration/updateTimeline/index.js";
@@ -131,7 +132,6 @@ import type * as domain_vesselOrchestration_updateVesselTrips_index from "../dom
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters from "../domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps from "../domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips from "../domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_processTick_tickEnvelope from "../domain/vesselOrchestration/updateVesselTrips/processTick/tickEnvelope.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_runUpdateVesselTrips from "../domain/vesselOrchestration/updateVesselTrips/runUpdateVesselTrips.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_baseTripFromLocation from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_buildCompletedTrip from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip.js";
@@ -351,6 +351,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/tickHandshake/projectionWire": typeof domain_vesselOrchestration_shared_tickHandshake_projectionWire;
   "domain/vesselOrchestration/shared/tickHandshake/types": typeof domain_vesselOrchestration_shared_tickHandshake_types;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
+  "domain/vesselOrchestration/updateTimeline/assembleTripComputationsFromBundle": typeof domain_vesselOrchestration_updateTimeline_assembleTripComputationsFromBundle;
   "domain/vesselOrchestration/updateTimeline/buildTimelineTickProjectionInput": typeof domain_vesselOrchestration_updateTimeline_buildTimelineTickProjectionInput;
   "domain/vesselOrchestration/updateTimeline/contracts": typeof domain_vesselOrchestration_updateTimeline_contracts;
   "domain/vesselOrchestration/updateTimeline/index": typeof domain_vesselOrchestration_updateTimeline_index;
@@ -380,7 +381,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters": typeof domain_vesselOrchestration_updateVesselTrips_processTick_buildTripRuntimeAdapters;
   "domain/vesselOrchestration/updateVesselTrips/processTick/defaultProcessVesselTripsDeps": typeof domain_vesselOrchestration_updateVesselTrips_processTick_defaultProcessVesselTripsDeps;
   "domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips": typeof domain_vesselOrchestration_updateVesselTrips_processTick_processVesselTrips;
-  "domain/vesselOrchestration/updateVesselTrips/processTick/tickEnvelope": typeof domain_vesselOrchestration_updateVesselTrips_processTick_tickEnvelope;
   "domain/vesselOrchestration/updateVesselTrips/runUpdateVesselTrips": typeof domain_vesselOrchestration_updateVesselTrips_runUpdateVesselTrips;
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_baseTripFromLocation;
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_buildCompletedTrip;

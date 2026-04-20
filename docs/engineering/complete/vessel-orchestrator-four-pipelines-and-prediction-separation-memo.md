@@ -292,7 +292,7 @@ materializers and/or `ctx.runMutation` with the payloads for that phase.
   O1 handoff document.
 - **O1 shipped:** `orchestratorPipelines.ts` + thin `actions.ts`; §8 marked Done.
 - **O2 handoff added:** `buildTripCore` export + parity tests (`docs/handoffs/…o2…`).
-- **O2 shipped:** `buildTripCore` / `BuildTripCoreResult` exported; `buildTrip.test.ts` parity coverage; §8 updated.
+- **O2 shipped:** `buildTripCore` / `BuildTripCoreResult` exported; §8 updated.
 - **O3 handoff added:** predictions storage + compare-then-write writer (`docs/handoffs/…o3…`).
 - **O3 shipped:** `vesselTripPredictions` table, `functions/vesselTripPredictions` internal API, overlay-aligned compare-then-write + tests; §7.1 item 1 closed; §8 updated.
 - **O4 shipped:** Orchestrator uses `buildTripCore` for trip planning; `updateVesselPredictions` runs `applyVesselPredictions`, merges ML for timeline, `batchUpsertProposals`; §8 updated.

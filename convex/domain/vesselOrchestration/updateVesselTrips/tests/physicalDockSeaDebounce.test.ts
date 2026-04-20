@@ -8,7 +8,7 @@ import {
   resolveDebouncedPhysicalBoundaries,
 } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/physicalDockSeaDebounce";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("resolveDebouncedPhysicalBoundaries", () => {
@@ -85,8 +85,8 @@ const makeLocation = (
 });
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -112,10 +112,5 @@ const makeTrip = (
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });

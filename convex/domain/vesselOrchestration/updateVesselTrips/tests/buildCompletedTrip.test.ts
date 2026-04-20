@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 describe("buildCompletedTrip", () => {
   it("preserves a valid ArriveDest when it occurs after departure", () => {
@@ -123,8 +123,8 @@ const makeLocation = (
 });
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -152,10 +152,5 @@ const makeTrip = (
   AtDockActual: undefined,
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });

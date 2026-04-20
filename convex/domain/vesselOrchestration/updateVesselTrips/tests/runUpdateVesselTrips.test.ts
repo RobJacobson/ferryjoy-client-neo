@@ -2,14 +2,10 @@
  * Tests for the canonical public trips runner.
  */
 
-import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-
-afterEach(() => {
-  mock.restore();
-});
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -81,10 +77,6 @@ describe("runUpdateVesselTrips", () => {
       ...defaultEvents,
       didJustLeaveDock: true,
     };
-
-    mock.module("../processTick/defaultProcessVesselTripsDeps", () => ({
-      createDefaultProcessVesselTripsDeps: () => ({ mocked: true }),
-    }));
 
     const bundleMod = await import("../processTick/processVesselTrips");
     const tripsComputeStub = {

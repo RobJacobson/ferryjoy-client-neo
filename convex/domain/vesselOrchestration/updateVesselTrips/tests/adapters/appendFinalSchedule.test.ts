@@ -7,7 +7,7 @@ import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import { buildAppendFinalSchedule } from "domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("appendFinalSchedule", () => {
@@ -89,8 +89,8 @@ const createTestLookup = (options: {
 const ms = (iso: string) => new Date(iso).getTime();
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
@@ -116,11 +116,6 @@ const makeTrip = (
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });
 

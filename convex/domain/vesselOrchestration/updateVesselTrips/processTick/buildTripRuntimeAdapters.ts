@@ -14,7 +14,7 @@ import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 import type { VesselTripsBuildTripAdapters } from "../vesselTripsBuildTripAdapters";
 
 /**
- * Build schedule and effective-location adapters for `buildTrip`.
+ * Build schedule and effective-location adapters for `buildTripCore`.
  *
  * @param lookup - Schedule segment lookup callbacks owned by functions-layer wiring
  * @returns Adapter bag consumed by vessel trip lifecycle helpers

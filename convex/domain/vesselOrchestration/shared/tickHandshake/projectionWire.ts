@@ -1,7 +1,7 @@
 /**
  * Wire shapes for sparse `eventsActual` / `eventsPredicted` table updates per
- * orchestrator tick. Shared by `updateVesselTrips` (`tickEnvelope`) and
- * `updateTimeline` without coupling the trip tree to timeline internals.
+ * orchestrator tick. Shared by trip compute and `updateTimeline` without
+ * coupling the trip tree to timeline internals.
  */
 
 import type { ConvexActualDockEvent } from "domain/events/actual/schemas";

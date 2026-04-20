@@ -1,5 +1,5 @@
 /**
- * Injected boundary adapters for {@link buildTrip}.
+ * Injected boundary adapters for {@link buildTripCore}.
  *
  * Schedule continuity decisions live in `domain/vesselOrchestration/updateVesselTrips/continuity/`; these
  * hooks use {@link ScheduledSegmentLookup} wired by the functions layer via

@@ -241,15 +241,12 @@ What it means:
   - Builds runtime adapters for:
     - effective location resolution,
     - schedule enrichment (`appendFinalSchedule`).
-- `tickEnvelope.ts`
-  - Return type of one trip tick; references `TimelineTickProjectionInput` from
-    **`vesselOrchestration/updateTimeline/tickEventWrites`**.
 - `computeVesselTripsBundle` in `processTick/processVesselTrips.ts`
   - Produces the internal tick bundle consumed by persistence and downstream phases.
 
 ## `vesselOrchestration/updateVesselTrips/tripLifecycle/` (**updateVesselTrips** — core state machine)
 
-Cron-driven trip lifecycle for one tick: detection, **`buildTripCore`** (orchestrator) or `buildTrip` (composer), completed vs current
+Cron-driven trip lifecycle for one tick: detection, **`buildTripCore`**, completed vs current
 branches, equality, and strip-for-storage. ML overlay for the orchestrator tick runs in **updateVesselPredictions** over the Stage C handoff, not inside trip lifecycle. Wired by
 `updateVesselTrips/processTick/processVesselTrips.ts`, `processTick/defaultProcessVesselTripsDeps.ts`, and `updateVesselOrchestrator` (`getScheduleSnapshotForTick` + `createScheduledSegmentLookupFromSnapshot` for **ScheduledSegmentLookup**).
 

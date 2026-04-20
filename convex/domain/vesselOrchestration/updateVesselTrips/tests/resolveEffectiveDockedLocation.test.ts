@@ -7,7 +7,7 @@ import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 
 describe("resolveEffectiveDockedLocation", () => {
@@ -160,8 +160,8 @@ const makeLocation = (
 });
 
 const makeTrip = (
-  overrides: Partial<ConvexVesselTripWithPredictions> = {}
-): ConvexVesselTripWithPredictions => ({
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "CLI",
   ArrivingTerminalAbbrev: "MUK",
@@ -189,11 +189,6 @@ const makeTrip = (
   TimeStamp: ms("2026-03-13T11:08:00-07:00"),
   PrevScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
   PrevLeftDock: ms("2026-03-13T09:34:00-07:00"),
-  AtDockDepartCurr: undefined,
-  AtDockArriveNext: undefined,
-  AtDockDepartNext: undefined,
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
   ...overrides,
 });
 
