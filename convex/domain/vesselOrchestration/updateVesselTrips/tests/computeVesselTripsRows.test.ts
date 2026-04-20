@@ -3,12 +3,15 @@
  */
 
 import { describe, expect, it, spyOn } from "bun:test";
+import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
+
+const emptyScheduleSnapshot: ScheduleSnapshot = { eventsByVesselAbbrev: {} };
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTrip> = {}
@@ -79,13 +82,13 @@ const makeLocation = (
 });
 
 describe("computeVesselTripsRows", () => {
-  it("returns empty arrays when the tick has no realtime inputs or active trips", async () => {
+  it("returns empty arrays when the ping has no realtime inputs or active trips", async () => {
     const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
 
     const result = computeVesselTripsRows({
       vesselLocations: [],
       existingActiveTrips: [],
-      scheduleContext: { records: [] } as never,
+      scheduleContext: emptyScheduleSnapshot,
     });
 
     expect(result).toEqual({
@@ -118,7 +121,7 @@ describe("computeVesselTripsRows", () => {
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [makeTrip(), untouchedTrip],
-        scheduleContext: { records: [] } as never,
+        scheduleContext: emptyScheduleSnapshot,
       });
 
       expect(result.completedTrips).toEqual([]);
@@ -173,7 +176,7 @@ describe("computeVesselTripsRows", () => {
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
         existingActiveTrips: [completedExisting],
-        scheduleContext: { records: [] } as never,
+        scheduleContext: emptyScheduleSnapshot,
       });
 
       expect(result.completedTrips).toEqual([completedTrip]);
@@ -205,7 +208,7 @@ describe("computeVesselTripsRows", () => {
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [existingTrip],
-        scheduleContext: { records: [] } as never,
+        scheduleContext: emptyScheduleSnapshot,
       });
 
       expect(result.completedTrips).toEqual([]);

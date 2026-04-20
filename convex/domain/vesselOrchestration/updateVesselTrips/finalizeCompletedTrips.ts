@@ -9,7 +9,7 @@ import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/up
 import type { CompletedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-/** One completion tick: closed row plus optional replacement active trip. */
+/** One completion ping: closed row plus optional replacement active trip. */
 type CompletedTripResolution = {
   completedVesselTrip?: ConvexVesselTrip;
   replacementActiveTrip?: ConvexVesselTrip;

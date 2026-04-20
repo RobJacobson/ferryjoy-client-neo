@@ -15,7 +15,7 @@ import type {
 import { updateActiveTrips } from "./updateActiveTrips";
 
 /**
- * Runs one orchestrator tick: derives completed rows and merged active trips.
+ * Runs one orchestrator ping: derives completed rows and merged active trips.
  */
 export const computeVesselTripsRows = (
   input: RunUpdateVesselTripsInput

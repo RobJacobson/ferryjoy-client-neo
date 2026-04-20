@@ -1,5 +1,5 @@
 /**
- * Schedule adapter wiring for one trip-update tick.
+ * Schedule adapter wiring for one trip-update ping.
  */
 
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
@@ -10,12 +10,12 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 
-/** Snapshot-backed lookup used by the trip tick (same type as `createScheduledSegmentLookupFromSnapshot`). */
+/** Snapshot-backed lookup used by the trip ping (same type as `createScheduledSegmentLookupFromSnapshot`). */
 export type ScheduleSegmentLookup = ReturnType<
   typeof createScheduledSegmentLookupFromSnapshot
 >;
 
-/** Build schedule adapters from one tick's schedule snapshot. */
+/** Build schedule adapters from one ping's schedule snapshot. */
 export const createScheduleTripAdaptersFromSnapshot = (
   scheduleContext: Parameters<typeof createScheduledSegmentLookupFromSnapshot>[0]
 ): VesselTripsBuildTripAdapters =>

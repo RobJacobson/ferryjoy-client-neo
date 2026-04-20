@@ -131,7 +131,7 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(false);
   });
 
-  it("suppresses departure when LeftDock appears but the tick still looks physically docked", () => {
+  it("suppresses departure when LeftDock appears but the ping still looks physically docked", () => {
     const existingTrip = makeTrip({
       AtDock: true,
       LeftDock: undefined,

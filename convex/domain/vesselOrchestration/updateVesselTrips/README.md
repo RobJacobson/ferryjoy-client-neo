@@ -1,6 +1,6 @@
 # updateVesselTrips
 
-Pure trip-update pipeline for one orchestrator tick.
+Pure trip-update pipeline for one orchestrator ping.
 
 The public boundary is intentionally small:
 
@@ -20,6 +20,6 @@ back into trip-internal artifacts.
 | [`finalizeCompletedTrips.ts`](./finalizeCompletedTrips.ts) | Complete prior trips and build replacement active trips when needed |
 | [`updateActiveTrips.ts`](./updateActiveTrips.ts) | Build the authoritative active-trip rows for non-completed vessels |
 | [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Compose the pipeline and return the two public arrays |
-| [`scheduleTripAdapters.ts`](./scheduleTripAdapters.ts) | Schedule snapshot lookups + `VesselTripsBuildTripAdapters` for one tick |
+| [`scheduleTripAdapters.ts`](./scheduleTripAdapters.ts) | Schedule snapshot lookups + `VesselTripsBuildTripAdapters` for one ping |
 | [`continuity/`](./continuity/) | Docked identity continuity helpers |
 | [`tripLifecycle/`](./tripLifecycle/) | Remaining low-level trip-building helpers that still directly support the pipeline |

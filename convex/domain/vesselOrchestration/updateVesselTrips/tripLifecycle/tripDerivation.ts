@@ -1,7 +1,7 @@
 /**
  * Shared trip-derivation helpers for vessel trip updates.
  *
- * Centralizes the normalized per-tick values used by both event detection and
+ * Centralizes the normalized per-ping values used by both event detection and
  * base trip construction so the two paths stay in sync.
  */
 
@@ -63,7 +63,7 @@ export const hasTripEvidence = (
  *
  * @param existingTrip - Previous trip state for the vessel
  * @param currLocation - Current vessel location from the live feed
- * @returns Normalized departure timestamp and whether this tick is the departure tick
+ * @returns Normalized departure timestamp and whether this ping records departure
  */
 export const getDockDepartureState = (
   existingTrip: ConvexVesselTrip | undefined,
@@ -93,7 +93,7 @@ export const getDockDepartureState = (
  *
  * @param existingTrip - Previous trip state for the vessel
  * @param currLocation - Current vessel location from the live feed
- * @returns Normalized trip inputs for this tick
+ * @returns Normalized trip inputs for this ping
  */
 export const deriveTripInputs = (
   existingTrip: ConvexVesselTrip | undefined,
@@ -109,7 +109,7 @@ export const deriveTripInputs = (
       // While the vessel remains docked, preserve the boundary owner for the
       // current dock interval so feed omissions do not churn the active trip.
       ((persistedDeparture === undefined && currLocation.AtDock) ||
-        // On the exact leave-dock tick, write the departure actual to the
+        // On the exact leave-dock ping, write the departure actual to the
         // boundary that ended the dock interval and starts the sea interval.
         // Raw feed identity fields can transiently jump ahead as LeftDock first
         // appears, but that should not reassign ownership of the departure.
@@ -161,12 +161,12 @@ export const deriveTripInputs = (
 };
 
 /**
- * Pick the base-trip construction mode for the current tick.
+ * Pick the base-trip construction mode for the current ping.
  *
  * @param existingTrip - Previous trip state for the vessel
  * @param currLocation - Current vessel location from the live feed
  * @param isTripStart - True when the caller is explicitly starting a new trip
- * @returns Explicit base-trip mode for this tick
+ * @returns Explicit base-trip mode for this ping
  */
 export const determineBaseTripMode = (
   _existingTrip: ConvexVesselTrip | undefined,

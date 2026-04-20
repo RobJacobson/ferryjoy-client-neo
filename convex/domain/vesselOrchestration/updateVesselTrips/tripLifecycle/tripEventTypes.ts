@@ -1,5 +1,5 @@
 /**
- * Trip event bundle for one vessel tick; produced by {@link detectTripEvents}.
+ * Trip event bundle for one vessel ping; produced by {@link detectTripEvents}.
  *
  * Lives in its own module so lifecycle code and callers share one shape without
  * depending on the detector implementation.
@@ -13,7 +13,7 @@ export type TripEvents = {
   isTripStartReady: boolean;
   /**
    * Legacy surface: `detectTripEvents` currently sets this to `false` every
-   * tick; trip start is driven by `isTripStartReady` and related flags. Kept
+   * ping; trip start is driven by `isTripStartReady` and related flags. Kept
    * for fixtures and gradual audit (see `architecture.md` section 9).
    */
   shouldStartTrip: boolean;

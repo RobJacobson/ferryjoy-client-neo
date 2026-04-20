@@ -52,7 +52,7 @@ export const prepareTripUpdates = (
 
   return {
     completedTripUpdates,
-    // Non-completing ticks stay on the active path (includes open sea legs).
+    // Non-completing pings stay on the active path (includes open sea legs).
     activeTripUpdates: preparedUpdates.filter(
       (update) => !update.events.isCompletedTrip
     ),

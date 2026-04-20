@@ -3,7 +3,7 @@
  *
  * Uses persisted next-leg hints (`NextScheduleKey` on vessel trips) and
  * same-terminal rollover after a known departure. Does not re-merge the full
- * timeline backbone on every tick; UI labels and structure come from
+ * timeline backbone on every ping; UI labels and structure come from
  * `eventsScheduled`.
  */
 

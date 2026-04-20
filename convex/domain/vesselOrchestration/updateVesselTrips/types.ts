@@ -16,9 +16,9 @@ export type RunUpdateVesselTripsInput = {
   scheduleContext: ScheduleSnapshot;
 };
 
-/** Pure pipeline output: trips completed this tick and the merged active set. */
+/** Pure pipeline output: trips completed this ping and the merged active set. */
 export type RunUpdateVesselTripsOutput = {
-  /** Authoritative active rows after this tick (names align with `functions/vesselTrips`). */
+  /** Authoritative active rows after this ping (names align with `functions/vesselTrips`). */
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
   completedTrips: ReadonlyArray<ConvexVesselTrip>;
 };

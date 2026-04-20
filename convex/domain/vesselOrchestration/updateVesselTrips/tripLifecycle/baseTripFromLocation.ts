@@ -1,7 +1,7 @@
 /**
  * Base vessel trip from raw location data.
  *
- * Builds the location-derived base {@link ConvexVesselTrip} for a single vessel tick.
+ * Builds the location-derived base {@link ConvexVesselTrip} for a single vessel ping.
  * The builder uses an explicit mode and shared derived inputs so the same
  * carry-forward rules apply consistently across newly created and continuing
  * updates.
@@ -50,7 +50,7 @@ export const baseTripFromLocation = (
  *
  * @param currLocation - Latest vessel location from the live feed
  * @param existingTrip - Previous trip state, when present
- * @param tripInputs - Shared derived values for this tick
+ * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a newly started trip
  */
 const baseTripForStart = (
@@ -100,9 +100,9 @@ const baseTripForStart = (
 };
 
 /**
- * Resolves the immutable physical trip key for a continuing tick.
+ * Resolves the immutable physical trip key for a continuing ping.
  *
- * First-seen trips (no prior row) get a new key from the current tick even if
+ * First-seen trips (no prior row) get a new key from the current ping even if
  * the vessel is already mid-voyage. That synthetic anchor is only for physical
  * identity; it must not be interpreted as an observed departure boundary.
  *
@@ -110,7 +110,7 @@ const baseTripForStart = (
  * invalid and must not be silently repaired.
  *
  * @param existingTrip - Prior active trip row, if any
- * @param currLocation - Latest vessel location for this tick
+ * @param currLocation - Latest vessel location for this ping
  * @returns Physical trip key for this instance
  */
 const tripKeyForContinuing = (
@@ -134,7 +134,7 @@ const tripKeyForContinuing = (
  *
  * @param currLocation - Latest vessel location from the live feed
  * @param existingTrip - Current ongoing trip, when one exists
- * @param tripInputs - Shared derived values for this tick
+ * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a continuing or first-seen trip
  */
 const baseTripForContinuing = (

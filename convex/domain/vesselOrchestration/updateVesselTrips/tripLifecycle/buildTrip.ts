@@ -1,5 +1,5 @@
 /**
- * Schedule-half trip build for one live location tick: effective location, base
+ * Schedule-half trip build for one live location ping: effective location, base
  * trip, schedule enrichment. ML runs in **updateVesselPredictions**; production
  * injects {@link buildTripCore} via `ProcessVesselTripsDeps`.
  */
@@ -10,7 +10,7 @@ import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
 /**
- * Schedule enrichment only — no ML gates or ML attachment. Production ticks
+ * Schedule enrichment only — no ML gates or ML attachment. Production pings
  * inject this via `ProcessVesselTripsDeps`.
  *
  * @param currLocation - Latest vessel location from REST/API
@@ -108,8 +108,8 @@ const didLoseScheduleAttachment = (
  * prediction state because the current implementation intentionally preserves
  * it across bounded schedule reattachment on the same trip.
  *
- * @param events - Detected trip events for the current tick
- * @param physicalIdentityReplaced - Whether `TripKey` changed this tick
+ * @param events - Detected trip events for the current ping
+ * @param physicalIdentityReplaced - Whether `TripKey` changed this ping
  * @param scheduleAttachmentLost - Whether `ScheduleKey` changed to `undefined`
  * @returns True when carried schedule-derived fields should be cleared
  */

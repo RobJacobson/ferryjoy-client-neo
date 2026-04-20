@@ -1,5 +1,5 @@
 /**
- * Projects active trip rows for vessels that are not completing this tick.
+ * Projects active trip rows for vessels that are not completing this ping.
  */
 
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
