@@ -1,6 +1,6 @@
 /**
- * One-tick prediction pass: ML overlay per active trip and completed handoff,
- * then derive table proposals. Orchestrator uses {@link runVesselPredictionTick};
+ * One-ping prediction pass: ML overlay per active trip and completed handoff,
+ * then derive table proposals. Orchestrator uses {@link runVesselPredictionPing};
  * callers that only need upsert DTOs use {@link computeVesselPredictionRows}.
  */
 
@@ -14,7 +14,7 @@ import type {
 } from "./contracts";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
-export type RunVesselPredictionTickOutput = RunUpdateVesselPredictionsOutput & {
+export type RunVesselPredictionPingOutput = RunUpdateVesselPredictionsOutput & {
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
@@ -78,9 +78,9 @@ const buildPredictedCompletedHandoff = async (
   };
 };
 
-export const runVesselPredictionTick = async (
+export const runVesselPredictionPing = async (
   input: RunUpdateVesselPredictionsInput
-): Promise<RunVesselPredictionTickOutput> => {
+): Promise<RunVesselPredictionPingOutput> => {
   const modelAccess = predictionModelAccessFromContext(input.predictionContext);
   const predictedTripComputations = [
     ...(await Promise.all(
@@ -110,7 +110,7 @@ export const runVesselPredictionTick = async (
 export const computeVesselPredictionRows = async (
   input: RunUpdateVesselPredictionsInput
 ): Promise<RunUpdateVesselPredictionsOutput> => {
-  const { predictionRows } = await runVesselPredictionTick(input);
+  const { predictionRows } = await runVesselPredictionPing(input);
   return { predictionRows };
 };
 

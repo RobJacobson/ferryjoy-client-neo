@@ -1,5 +1,5 @@
 /**
- * {@link appendAtDockPredictions} re-runs phase-valid models on every tick.
+ * {@link appendAtDockPredictions} re-runs phase-valid models on every ping.
  */
 
 import { describe, expect, it } from "bun:test";

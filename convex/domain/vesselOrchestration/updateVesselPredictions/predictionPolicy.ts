@@ -1,21 +1,21 @@
 /**
  * Simple phase helpers for prediction runs.
  *
- * Predictions now re-run every tick whenever a trip is in the right phase for
+ * Predictions now re-run every ping whenever a trip is in the right phase for
  * that model family. There is no event/timer gate on the orchestrator path.
  */
 
 import type { ModelType } from "domain/ml/shared/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-/** Trip shape needed to decide which prediction family can run this tick. */
+/** Trip shape needed to decide which prediction family can run this ping. */
 type PredictionPhaseTrip = ConvexVesselTrip;
 
-/** Route dock-phase predictions by physical phase only (every-tick model). */
+/** Route dock-phase predictions by physical phase only (every-ping model). */
 export const isAtDockPhase = (trip: PredictionPhaseTrip): boolean =>
   trip.AtDock === true;
 
-/** Route sea-phase predictions by physical phase only (every-tick model). */
+/** Route sea-phase predictions by physical phase only (every-ping model). */
 export const isAtSeaPhase = (trip: PredictionPhaseTrip): boolean =>
   trip.AtDock === false;
 

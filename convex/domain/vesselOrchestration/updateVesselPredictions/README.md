@@ -1,7 +1,7 @@
 # updateVesselPredictions (orchestrator concern)
 
 ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
-leave-dock actualization for one tick. On the **orchestrator** path this runs in
+leave-dock actualization for one ping. On the **orchestrator** path this runs in
 **Stage D** after trip persistence, over the trip rows produced by
 `updateVesselTrips` (not inside `buildTripCore`).
 
@@ -15,10 +15,10 @@ leave-dock actualization for one tick. On the **orchestrator** path this runs in
 
 ## Handoff types
 
-- **`VesselTripCoreProposal`** — Trip **immediately before this tick’s**
+- **`VesselTripCoreProposal`** — Trip **immediately before this ping’s**
   `appendArriveDock` / `appendLeaveDock` phases. The row may still carry **prior**
   ML or joined minimal fields from storage; the boundary is not a stripped row.
-- **`PredictedTripComputation`** — defined in [`../shared/tickHandshake/types.ts`](../shared/tickHandshake/types.ts); ML merge input for timeline (same tick as prediction rows).
+- **`PredictedTripComputation`** — defined in [`../shared/pingHandshake/types.ts`](../shared/pingHandshake/types.ts); ML merge input for timeline (same ping as prediction rows).
 
 ## Persistence vs overlay
 

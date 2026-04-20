@@ -30,7 +30,7 @@ named these sequential steps in **`actions.ts`** without changing mutation order
    snapshot for this tick).
 2. **`updateVesselTrips`** — `computeVesselTripsRows` → function-layer `persistVesselTripWriteSet`
    (trip truth is the domain output `{ activeTrips, completedTrips }`; persistence consumes the internal bundle privately).
-3. **`runAndPersistVesselPredictionTick`** — `runVesselPredictionTick`
+3. **`runAndPersistVesselPredictionPing`** — `runVesselPredictionPing`
    (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`updateVesselTimeline`** — `runUpdateVesselTimeline` (input built with
    `buildTimelineTripComputationsForRun` after persist), then projection mutations
@@ -63,7 +63,7 @@ Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture
 
 - **Live `vesselLocations`** — `bulkUpsert` in **`actions.ts`** (first step each tick).
 - **updateVesselTrips** — `computeVesselTripsRows`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
-- **runAndPersistVesselPredictionTick** — `runVesselPredictionTick` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
+- **runAndPersistVesselPredictionPing** — `runVesselPredictionPing` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `runUpdateVesselTimeline` from **`domain/vesselOrchestration/updateTimeline`**
   plus `eventsActual` / `eventsPredicted` writes (mutations from **`actions.ts`**).
 
@@ -328,7 +328,7 @@ The timeline overlay path is designed to stay lightweight:
 - `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location bulk upsert, schedule snapshot query, shared trip deps, then `updateVesselTrips` / `updateVesselPredictions` / `updateVesselTimeline`.
 - `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed handoffs, active upserts, and leave-dock follow-ups.
 - `utils.ts` — `createVesselOrchestratorConvexBindings` (**`createVesselTripTableMutations`**, **`createVesselTripPredictionModelAccess`**); schedule data comes from **`getScheduleSnapshotForTick`** in `queries.ts`, not from this module.
-- `computeVesselPredictionRows` / `runVesselPredictionTick` (domain `updateVesselPredictions`) — prediction proposals + ML overlay; **`runAndPersistVesselPredictionTick`** persists proposals then returns `mlFull` for timeline.
+- `computeVesselPredictionRows` / `runVesselPredictionPing` (domain `updateVesselPredictions`) — prediction proposals + ML overlay; **`runAndPersistVesselPredictionPing`** persists proposals then returns `mlFull` for timeline.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one tick); **`getScheduleSnapshotForTick`** (bounded `eventsScheduled` snapshot for trip deps).
 - `schemas.ts` — orchestrator-related schemas.
 

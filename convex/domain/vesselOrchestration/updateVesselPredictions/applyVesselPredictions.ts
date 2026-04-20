@@ -1,5 +1,5 @@
 /**
- * **updateVesselPredictions** (domain): ML attachment for one vessel-trip tick.
+ * **updateVesselPredictions** (domain): ML attachment for one vessel-trip ping.
  *
  * Callers should invoke this with schedule/lifecycle trip rows from
  * **`buildTripCore`** (schedule-enriched `ConvexVesselTrip`). Canonical prediction logic lives in
@@ -20,7 +20,7 @@ import {
 import { isAtDockPhase, isAtSeaPhase } from "./predictionPolicy";
 
 /**
- * Trip state immediately before this tick’s `appendAtDockPredictions` /
+ * Trip state immediately before this ping’s `appendAtDockPredictions` /
  * `appendAtSeaPredictions` (and leave-dock actualize): schedule + lifecycle
  * fields from **updateVesselTrips** (`buildTripCore`), storage-shaped only.
  */
@@ -30,12 +30,12 @@ export type VesselTripCoreProposal = ConvexVesselTrip;
  * Append at-dock / at-sea predictions and actualize on leave-dock.
  *
  * Order is fixed: at-dock attempts → at-sea attempts → leave-dock
- * actualization. Predictions re-run every tick whenever the trip is in the
+ * actualization. Predictions re-run every ping whenever the trip is in the
  * matching physical phase; unchanged results are deduped at persistence time.
  *
- * @param modelAccess - Production ML model reads for this tick
+ * @param modelAccess - Production ML model reads for this ping
  * @param coreTrip - Schedule-enriched proposal (see {@link VesselTripCoreProposal})
- * @returns Trip with ML fields applied for this tick
+ * @returns Trip with ML fields applied for this ping
  */
 export const applyVesselPredictions = async (
   modelAccess: VesselTripPredictionModelAccess,

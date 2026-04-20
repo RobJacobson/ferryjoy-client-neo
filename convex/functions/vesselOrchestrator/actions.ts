@@ -24,7 +24,7 @@ import {
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
   predictionModelTypesForTrip,
-  runVesselPredictionTick,
+  runVesselPredictionPing,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
@@ -162,14 +162,14 @@ export const updateVesselTrips = (
  * @param completedHandoffs - Completed-trip rollover pairings for replacement-trip predictions
  * @returns Prediction rows plus timeline ML merge handoffs (shared type)
  */
-export const runAndPersistVesselPredictionTick = async (
+export const runAndPersistVesselPredictionPing = async (
   ctx: ActionCtx,
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Promise<{
   predictionRows: ReadonlyArray<
     Awaited<
-      ReturnType<typeof runVesselPredictionTick>
+      ReturnType<typeof runVesselPredictionPing>
     >["predictionRows"][number]
   >;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
@@ -179,20 +179,20 @@ export const runAndPersistVesselPredictionTick = async (
     trips.activeTrips,
     completedHandoffs
   );
-  const tick = await runVesselPredictionTick({
+  const ping = await runVesselPredictionPing({
     activeTrips: trips.activeTrips,
     completedHandoffs,
     predictionContext,
   });
-  if (tick.predictionRows.length > 0) {
+  if (ping.predictionRows.length > 0) {
     await ctx.runMutation(
       internal.functions.vesselTripPredictions.mutations.batchUpsertProposals,
-      { proposals: [...tick.predictionRows] }
+      { proposals: [...ping.predictionRows] }
     );
   }
   return {
-    predictionRows: tick.predictionRows,
-    predictedTripComputations: tick.predictedTripComputations,
+    predictionRows: ping.predictionRows,
+    predictedTripComputations: ping.predictedTripComputations,
   };
 };
 

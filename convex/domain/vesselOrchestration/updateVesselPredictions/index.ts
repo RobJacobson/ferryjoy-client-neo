@@ -1,10 +1,10 @@
 /**
  * **updateVesselPredictions** — ML attachment and `vesselTripPredictions` row DTOs
- * for one tick. Compare-then-write is in `functions/vesselTripPredictions`.
+ * for one ping. Compare-then-write is in `functions/vesselTripPredictions`.
  *
  * **Public surface**
  * - {@link computeVesselPredictionRows} — `{ predictionRows }` only
- * - {@link runVesselPredictionTick} — same pass plus timeline ML handoff (orchestrator)
+ * - {@link runVesselPredictionPing} — same pass plus timeline ML handoff (orchestrator)
  * - {@link predictionModelTypesForTrip} — terminal-pair preload requests (orchestrator)
  *
  * Other helpers (`applyVesselPredictions`, `appendPredictions`, policy gates, etc.)
@@ -13,9 +13,9 @@
 
 export {
   computeVesselPredictionRows,
-  type RunVesselPredictionTickOutput,
+  type RunVesselPredictionPingOutput,
   runUpdateVesselPredictions,
-  runVesselPredictionTick,
+  runVesselPredictionPing,
 } from "./computeVesselPredictionRows";
 export type {
   RunUpdateVesselPredictionsInput,
