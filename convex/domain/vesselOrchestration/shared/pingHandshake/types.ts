@@ -1,11 +1,11 @@
 /**
- * Handshake DTOs for the vessel orchestrator tick: trip lifecycle outputs that
+ * Handshake DTOs for the vessel orchestrator ping: trip lifecycle outputs that
  * feed predictions and timeline projection. Owned in `shared/` so
  * `updateVesselTrips` does not depend on `updateTimeline` for primary typing.
  *
  * Branch processors emit facts and per-vessel messages; assembly into
- * `TickEventWrites` happens in `updateTimeline` (`timelineEventAssembler`,
- * `tickEventWrites`).
+ * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler`;
+ * see `updateTimeline/tickEventWrites.ts`).
  */
 
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
@@ -19,13 +19,13 @@ import type {
  *
  * `scheduleTrip` is the replacement active row from {@link buildTripCore} (schedule
  * fields applied, no ML). **updateVesselPredictions** attaches ML into {@link newTrip}
- * before `buildTimelineTickProjectionInput`.
+ * before timeline projection (`buildTimelineTickProjectionInput`).
  */
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTrip;
   tripToComplete: ConvexVesselTrip;
   /**
-   * Trip events for the boundary tick (same bundle passed to {@link buildTripCore}).
+   * Trip events for the boundary ping (same bundle passed to {@link buildTripCore}).
    * Required for prediction gate derivation and timeline parity.
    */
   events: TripEvents;
@@ -78,7 +78,7 @@ export type CurrentTripLifecycleBranchResult = {
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
 };
 
-/** Leave-dock effect bundled with the tick compute for depart-next actualization. */
+/** Leave-dock effect bundled with the ping compute for depart-next actualization. */
 export type PendingLeaveDockEffect = {
   vesselAbbrev: string;
   trip: ConvexVesselTrip;
@@ -93,7 +93,7 @@ export type ActiveTripsBranch = {
 };
 
 /**
- * Trip + lifecycle messages for one tick, before trip-table mutations.
+ * Trip + lifecycle messages for one ping, before trip-table mutations.
  * Feeds storage row builders and `assembleTripComputationsFromBundle`.
  */
 export type VesselTripsComputeBundle = {
@@ -126,7 +126,7 @@ export type TripComputation =
     };
 
 /**
- * ML overlay for one vessel’s prediction tick, used to merge `finalProposed` /
+ * ML overlay for one vessel’s prediction ping, used to merge `finalProposed` /
  * replacement-trip ML into timeline projection (`buildTimelineTickProjectionInput`).
  *
  * Produced in the same pass as prediction table rows (`computeVesselPredictionRows`
@@ -141,13 +141,13 @@ export type PredictedTripComputation = {
 };
 
 /**
- * Canonical merged shape for one trip tick after lifecycle mutations (before
+ * Canonical merged shape for one trip ping after lifecycle mutations (before
  * optional ML overlay for `vesselTripPredictions` / timeline projection).
  */
-export type TripTickLifecycleOutcome = {
+export type TripPingLifecycleOutcome = {
   completedFacts: CompletedTripBoundaryFact[];
   currentBranch: CurrentTripLifecycleBranchResult;
 };
 
-/** Persist/handshake label for one tick's trip-table mutation result. */
-export type VesselTripPersistResult = TripTickLifecycleOutcome;
+/** Persist/handshake label for one ping's trip-table mutation result. */
+export type VesselTripPersistResult = TripPingLifecycleOutcome;

@@ -4,15 +4,15 @@
  */
 
 export {
-  mergeTickEventWrites,
-  type TickEventWrites,
-  type TimelineTickProjectionInput,
+  mergePingEventWrites,
+  type PingEventWrites,
+  type TimelinePingProjectionInput,
 } from "./projectionWire";
 export type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
-  TripTickLifecycleOutcome,
+  TripPingLifecycleOutcome,
   VesselTripPersistResult,
 } from "./types";

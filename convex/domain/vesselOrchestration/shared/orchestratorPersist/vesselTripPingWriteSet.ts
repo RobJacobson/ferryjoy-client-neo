@@ -1,5 +1,5 @@
 /**
- * Serializable **write set** for one vessel-trips tick: storage-shaped trip rows
+ * Serializable **write set** for one vessel-trips ping: storage-shaped trip rows
  * plus leave-dock **intents** for depart-next actualization.
  *
  * Step 2 contract toward "pure domain -> idempotent persistence" (Step 3). Rows
@@ -27,9 +27,9 @@ import { actualDepartMsForLeaveDockEffect } from "./leaveDockActualization";
 import { buildTripsComputeStorageRows } from "./tripsComputeStorageRows";
 
 /**
- * Storage-oriented trip writes for one orchestrator tick (two buckets + leave-dock intents).
+ * Storage-oriented trip writes for one orchestrator ping (two buckets + leave-dock intents).
  */
-type VesselTripTickWriteSet = {
+type VesselTripPingWriteSet = {
   /**
    * Attempted complete-and-start handoffs (`completeAndStartNewTrip`), one per
    * bundle completed handoff.
@@ -53,12 +53,12 @@ type VesselTripTickWriteSet = {
 };
 
 /**
- * Builds a {@link VesselTripTickWriteSet} from the same strip/group rules as
+ * Builds a {@link VesselTripPingWriteSet} from the same strip/group rules as
  * {@link buildTripsComputeStorageRows}.
  */
-export const buildVesselTripTickWriteSetFromBundle = (
+export const buildVesselTripPingWriteSetFromBundle = (
   tripsCompute: VesselTripsComputeBundle
-): VesselTripTickWriteSet => {
+): VesselTripPingWriteSet => {
   const payload = buildTripsComputeStorageRows(tripsCompute);
   const leaveDockIntents: Array<{
     vesselAbbrev: string;

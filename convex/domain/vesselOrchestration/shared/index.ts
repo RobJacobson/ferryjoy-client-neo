@@ -1,7 +1,3 @@
-export type {
-  DockedScheduledSegmentSource,
-  ScheduledSegmentLookup,
-} from "./scheduleContinuity";
 export {
   DEPART_NEXT_ML_PREDICTION_TYPES,
   resolveDepartNextLegContext,
@@ -9,18 +5,14 @@ export {
 export {
   actualDepartMsForLeaveDockEffect,
   buildTripsComputeStorageRows,
+  buildVesselTripPingWriteSetFromBundle,
   stripTripPredictionsForStorage,
-  buildVesselTripTickWriteSetFromBundle,
 } from "./orchestratorPersist";
-export { createScheduledSegmentLookupFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentLookupFromSnapshot";
-export type {
-  ScheduleSnapshot,
-} from "./scheduleSnapshot/scheduleSnapshotTypes";
 export {
-  mergeTickEventWrites,
-  type TickEventWrites,
-  type TimelineTickProjectionInput,
-} from "./tickHandshake/projectionWire";
+  mergePingEventWrites,
+  type PingEventWrites,
+  type TimelinePingProjectionInput,
+} from "./pingHandshake/projectionWire";
 export type {
   ActiveTripsBranch,
   CompletedTripBoundaryFact,
@@ -30,7 +22,13 @@ export type {
   PendingLeaveDockEffect,
   PredictedTripComputation,
   TripComputation,
-  TripTickLifecycleOutcome,
+  TripPingLifecycleOutcome,
   VesselTripPersistResult,
   VesselTripsComputeBundle,
-} from "./tickHandshake/types";
+} from "./pingHandshake/types";
+export type {
+  DockedScheduledSegmentSource,
+  ScheduledSegmentLookup,
+} from "./scheduleContinuity";
+export { createScheduledSegmentLookupFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentLookupFromSnapshot";
+export type { ScheduleSnapshot } from "./scheduleSnapshot/scheduleSnapshotTypes";

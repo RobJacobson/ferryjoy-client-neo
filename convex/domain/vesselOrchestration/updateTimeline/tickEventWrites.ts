@@ -6,7 +6,7 @@
  */
 
 export {
-  mergeTickEventWrites,
-  type TickEventWrites,
-  type TimelineTickProjectionInput,
+  mergePingEventWrites as mergeTickEventWrites,
+  type PingEventWrites as TickEventWrites,
+  type TimelinePingProjectionInput as TimelineTickProjectionInput,
 } from "domain/vesselOrchestration/shared";
