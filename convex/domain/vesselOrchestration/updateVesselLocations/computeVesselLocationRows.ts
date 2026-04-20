@@ -18,7 +18,7 @@ import {
  * The functions layer owns the external WSF fetch and persistence. This concern
  * owns normalization, enrichment, and batch validation for raw feed rows.
  */
-export const runUpdateVesselLocations = async (
+export const computeVesselLocationRows = async (
   input: RunUpdateVesselLocationsInput
 ): Promise<RunUpdateVesselLocationsOutput> => {
   const vesselLocations = mapWsfVesselLocations(

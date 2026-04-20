@@ -18,12 +18,12 @@ A focused refactor aligned the code with the boundaries in this PRD. Summary of 
 ### Changes made
 
 - **`runUpdateVesselPredictions`** now returns only **`{ predictionRows }`** (contract rename from `vesselTripPredictions` on that output).
-- **`runVesselPredictionTick`** (replacing the old orchestrator file) performs the **single ML pass** and returns **`predictionRows`** plus **`predictedTripComputations`** for the orchestrator/timeline seam.
+- **`computeVesselPredictionRows`** is the canonical rows-only runner, while **`runVesselPredictionTick`** performs the same pass plus **`predictedTripComputations`** for the orchestrator/timeline seam.
 - **`PredictedTripComputation`** moved to **`domain/vesselOrchestration/shared/tickHandshake`** (re-exported from **`shared`**); timeline imports it from there.
 - **Overlay comparison and upsert decisions** moved to **`convex/functions/vesselTripPredictions`** (`predictionOverlayCompare`, `vesselTripPredictionPersistPlan`); mutations import those modules.
 - **`stripTripPredictionsForStorage`** moved to **`domain/vesselOrchestration/shared`**; call sites import **`shared`** or a **relative path** inside `shared` to avoid barrel cycles.
 - **`updateVesselPredictions/index.ts`** was trimmed to: runners, contract types, and **`predictionModelTypesForTrip`** for preload; other symbols are internal (tests use relative imports).
-- **`updateVesselPredictions`** in **`actions.ts`** calls **`runVesselPredictionTick`**, upserts **`predictionRows`**, and returns **`predictionRows`** plus **`predictedTripComputations`**.
+- **`runAndPersistVesselPredictionTick`** in **`actions.ts`** calls **`runVesselPredictionTick`**, upserts **`predictionRows`**, and returns **`predictionRows`** plus **`predictedTripComputations`**.
 
 ### Not fully addressed here
 

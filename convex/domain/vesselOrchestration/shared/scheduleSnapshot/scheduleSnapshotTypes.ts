@@ -15,7 +15,6 @@ export type ScheduleSnapshot = {
 };
 
 export type ScheduleSnapshotQueryArgs = {
-  vesselAbbrevs: string[];
   sailingDays: string[];
   segmentKeys: string[];
 };

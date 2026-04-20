@@ -9,4 +9,4 @@ export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
 } from "./types";
-export { runUpdateVesselTrips } from "./runUpdateVesselTrips";
+export { computeVesselTripsRows } from "./computeVesselTripsRows";

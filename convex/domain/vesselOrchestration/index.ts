@@ -4,7 +4,7 @@
  *
  * Post-fetch DB writes for one pass are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * {@link runUpdateVesselTrips} for the trip branch. The orchestrator still owns
+ * {@link computeVesselTripsRows} for the trip branch. The orchestrator still owns
  * `tickStartedAt` for predictions, timeline, and schedule snapshot queries —
  * not for the trips domain input.
  */
@@ -13,7 +13,7 @@ export * as shared from "./shared";
 export * as updateTimeline from "./updateTimeline";
 export * as updateVesselLocations from "./updateVesselLocations";
 export * as updateVesselPredictions from "./updateVesselPredictions";
-export { runUpdateVesselTrips } from "./updateVesselTrips";
+export { computeVesselTripsRows } from "./updateVesselTrips";
 
 /**
  * Top-level export style:

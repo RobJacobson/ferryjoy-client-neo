@@ -1,7 +1,7 @@
 /**
  * One-tick prediction pass: ML overlay per active trip and completed handoff,
  * then derive table proposals. Orchestrator uses {@link runVesselPredictionTick};
- * callers that only need upsert DTOs use {@link runUpdateVesselPredictions}.
+ * callers that only need upsert DTOs use {@link computeVesselPredictionRows}.
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
@@ -15,26 +15,36 @@ import type {
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
 export type RunVesselPredictionTickOutput = RunUpdateVesselPredictionsOutput & {
-  predictedTripComputations: PredictedTripComputation[];
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
 const predictionModelAccessFromContext = (
   context: VesselPredictionContext
-): VesselTripPredictionModelAccess => ({
-  loadModelForProductionPair: async (pairKey, modelType) =>
-    context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
-  loadModelsForProductionPairBatch: async (pairKey, modelTypes) =>
-    Object.fromEntries(
-      modelTypes.map((modelType) => [
-        modelType,
-        context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
-      ])
-    ) as Awaited<
-      ReturnType<
-        VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"]
-      >
-    >,
-});
+): VesselTripPredictionModelAccess => {
+  const loadModelForProductionPair: VesselTripPredictionModelAccess["loadModelForProductionPair"] =
+    async (pairKey, modelType) =>
+      context.productionModelsByPair?.[pairKey]?.[modelType] ?? null;
+
+  const loadModelsForProductionPairBatch: VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"] =
+    async (pairKey, modelTypes) =>
+      // Access interface expects `Record<ModelType, ...>` even when callers pass
+      // a subset of `ModelType[]`; build only requested keys and narrow once.
+      (Object.fromEntries(
+        modelTypes.map((modelType) => [
+          modelType,
+          context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
+        ])
+      ) as Awaited<
+        ReturnType<
+          VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"]
+        >
+      >);
+
+  return {
+    loadModelForProductionPair,
+    loadModelsForProductionPairBatch,
+  };
+};
 
 const buildPredictedCurrentTrip = async (
   trip: RunUpdateVesselPredictionsInput["activeTrips"][number],
@@ -97,9 +107,12 @@ export const runVesselPredictionTick = async (
   };
 };
 
-export const runUpdateVesselPredictions = async (
+export const computeVesselPredictionRows = async (
   input: RunUpdateVesselPredictionsInput
 ): Promise<RunUpdateVesselPredictionsOutput> => {
   const { predictionRows } = await runVesselPredictionTick(input);
   return { predictionRows };
 };
+
+/** @deprecated Use {@link computeVesselPredictionRows}. */
+export const runUpdateVesselPredictions = computeVesselPredictionRows;

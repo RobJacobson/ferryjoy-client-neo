@@ -1,5 +1,5 @@
 /**
- * {@link appendArriveDockPredictions} re-runs phase-valid models on every tick.
+ * {@link appendAtDockPredictions} re-runs phase-valid models on every tick.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -8,7 +8,7 @@ import type {
   VesselTripPredictionModelAccess,
 } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import { appendArriveDockPredictions } from "domain/vesselOrchestration/updateVesselPredictions/appendPredictions";
+import { appendAtDockPredictions } from "domain/vesselOrchestration/updateVesselPredictions/appendPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -68,7 +68,7 @@ const makeAtDockTrip = (): ConvexVesselTripWithPredictions => ({
   AtSeaDepartNext: undefined,
 });
 
-describe("appendArriveDockPredictions", () => {
+describe("appendAtDockPredictions", () => {
   it("re-runs at-dock specs when slots already hold full predictions (batch load once)", async () => {
     let batchCalls = 0;
     const modelAccess: VesselTripPredictionModelAccess = {
@@ -82,7 +82,7 @@ describe("appendArriveDockPredictions", () => {
     };
 
     const trip = makeAtDockTrip();
-    await appendArriveDockPredictions(modelAccess, trip);
+    await appendAtDockPredictions(modelAccess, trip);
 
     expect(batchCalls).toBe(1);
   });

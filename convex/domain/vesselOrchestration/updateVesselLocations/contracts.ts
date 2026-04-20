@@ -21,7 +21,7 @@ export type RunUpdateVesselLocationsInput = {
 };
 
 /**
- * Canonical normalized row emitted by `runUpdateVesselLocations`.
+ * Canonical normalized row emitted by `computeVesselLocationRows`.
  */
 export type VesselLocationRow = ConvexVesselLocation;
 

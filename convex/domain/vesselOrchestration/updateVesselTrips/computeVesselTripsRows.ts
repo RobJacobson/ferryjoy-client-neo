@@ -17,7 +17,7 @@ import { updateActiveTrips } from "./updateActiveTrips";
 /**
  * Runs one orchestrator tick: derives completed rows and merged active trips.
  */
-export const runUpdateVesselTrips = (
+export const computeVesselTripsRows = (
   input: RunUpdateVesselTripsInput
 ): RunUpdateVesselTripsOutput => {
   const buildTripAdapters = createScheduleTripAdaptersFromSnapshot(

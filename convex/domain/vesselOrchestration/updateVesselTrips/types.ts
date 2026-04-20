@@ -9,7 +9,7 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-/** Arguments for {@link runUpdateVesselTrips}: one feed batch plus schedule snapshot. */
+/** Arguments for {@link computeVesselTripsRows}: one feed batch plus schedule snapshot. */
 export type RunUpdateVesselTripsInput = {
   vesselLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;

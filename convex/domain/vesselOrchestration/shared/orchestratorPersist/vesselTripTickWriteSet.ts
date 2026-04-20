@@ -29,7 +29,7 @@ import { buildTripsComputeStorageRows } from "./tripsComputeStorageRows";
 /**
  * Storage-oriented trip writes for one orchestrator tick (two buckets + leave-dock intents).
  */
-export type VesselTripTickWriteSet = {
+type VesselTripTickWriteSet = {
   /**
    * Attempted complete-and-start handoffs (`completeAndStartNewTrip`), one per
    * bundle completed handoff.

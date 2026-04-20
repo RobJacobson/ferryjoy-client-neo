@@ -12,9 +12,6 @@ import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import {
   MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
-  MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
   scheduleSnapshotCompositeKey,
 } from "domain/vesselOrchestration/shared";
 import { loadScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
@@ -89,29 +86,23 @@ const scheduleSnapshotReturnSchema = v.object({
  */
 export const getScheduleSnapshotForTick = internalQuery({
   args: {
-    vesselAbbrevs: v.array(v.string()),
     sailingDays: v.array(v.string()),
     segmentKeys: v.array(v.string()),
   },
   returns: scheduleSnapshotReturnSchema,
   handler: async (ctx, args) => {
-    if (args.vesselAbbrevs.length > MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS) {
-      throw new Error(
-        `getScheduleSnapshotForTick: vesselAbbrevs length exceeds ${MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS}`
-      );
-    }
     if (args.sailingDays.length > MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS) {
       throw new Error(
         `getScheduleSnapshotForTick: sailingDays length exceeds ${MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS}`
       );
     }
-    if (args.segmentKeys.length > MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS) {
-      throw new Error(
-        `getScheduleSnapshotForTick: segmentKeys length exceeds ${MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS}`
-      );
-    }
-
-    const vesselAbbrevs = [...new Set(args.vesselAbbrevs)];
+    const vesselAbbrevs = [
+      ...new Set(
+        (await ctx.db.query("vesselsIdentity").collect()).map(
+          (vessel) => vessel.VesselAbbrev
+        )
+      ),
+    ];
     const sailingDays = [...new Set(args.sailingDays)];
     const segmentKeys = [...new Set(args.segmentKeys)];
 
@@ -125,12 +116,6 @@ export const getScheduleSnapshotForTick = internalQuery({
       })
     );
     const pairs = [...new Map(pairEntries).values()];
-
-    if (pairs.length > MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS) {
-      throw new Error(
-        `getScheduleSnapshotForTick: vessel×sailingDay pairs ${pairs.length} exceeds ${MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS}`
-      );
-    }
 
     const sameDayEntries = await Promise.all(
       pairs.map(async (pair) => {

@@ -15,20 +15,6 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  * terminal pair); domain receives only this POJO, not Convex query ports.
  */
 export type VesselPredictionContext = {
-  vesselTripPredictions?: ReadonlyArray<{
-    VesselAbbrev: string;
-    TripKey: string;
-    PredictionType: string;
-    PredTime: number;
-    MinTime: number;
-    MaxTime: number;
-    MAE: number;
-    StdDev: number;
-    Actual?: number;
-    DeltaTotal?: number;
-    DeltaRange?: number;
-    UpdatedAt?: number;
-  }>;
   productionModelsByPair?: Readonly<
     Record<string, Partial<Record<ModelType, ProductionModelParameters | null>>>
   >;
@@ -53,5 +39,5 @@ export type RunUpdateVesselPredictionsInput = {
  * Timeline ML merge handoffs are returned only from `runVesselPredictionTick`.
  */
 export type RunUpdateVesselPredictionsOutput = {
-  predictionRows: VesselTripPredictionRow[];
+  predictionRows: ReadonlyArray<VesselTripPredictionRow>;
 };

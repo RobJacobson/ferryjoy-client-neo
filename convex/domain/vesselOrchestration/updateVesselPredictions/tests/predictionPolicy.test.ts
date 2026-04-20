@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
+  isAtDockPhase,
+  isAtSeaPhase,
   predictionModelTypesForTrip,
-  shouldRunAtDockPredictions,
-  shouldRunAtSeaPredictions,
 } from "../predictionPolicy";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -45,9 +45,9 @@ const makeTrip = (
   }) as ConvexVesselTrip;
 
 describe("predictionPolicy", () => {
-  it("runs at-dock predictions whenever the trip is docked and origin-ready", () => {
+  it("routes at-dock predictions whenever the trip is physically docked", () => {
     const trip = makeTrip();
-    expect(shouldRunAtDockPredictions(trip)).toBe(true);
+    expect(isAtDockPhase(trip)).toBe(true);
     expect(predictionModelTypesForTrip(trip)).toEqual([
       "at-dock-depart-curr",
       "at-dock-arrive-next",
@@ -55,27 +55,25 @@ describe("predictionPolicy", () => {
     ]);
   });
 
-  it("runs at-sea predictions whenever the trip is underway with departure context", () => {
+  it("routes at-sea predictions whenever the trip is physically at sea", () => {
     const trip = makeTrip({
       AtDock: false,
       LeftDockActual: ms("2026-03-13T09:31:00-07:00"),
       LeftDock: ms("2026-03-13T09:31:00-07:00"),
     });
-    expect(shouldRunAtSeaPredictions(trip)).toBe(true);
+    expect(isAtSeaPhase(trip)).toBe(true);
     expect(predictionModelTypesForTrip(trip)).toEqual([
       "at-sea-arrive-next",
       "at-sea-depart-next",
     ]);
   });
 
-  it("returns no prediction model types when the trip is not ready for a prediction phase", () => {
+  it("returns no model types only when phase cannot be determined", () => {
     const trip = makeTrip({
-      AtDock: true,
-      ArrivedCurrActual: undefined,
-      AtDockActual: undefined,
+      AtDock: undefined as unknown as boolean,
     });
-    expect(shouldRunAtDockPredictions(trip)).toBe(false);
-    expect(shouldRunAtSeaPredictions(trip)).toBe(false);
+    expect(isAtDockPhase(trip)).toBe(false);
+    expect(isAtSeaPhase(trip)).toBe(false);
     expect(predictionModelTypesForTrip(trip)).toEqual([]);
   });
 });

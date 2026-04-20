@@ -13,7 +13,6 @@ export type {
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
-  TripLifecycleApplyOutcome,
   TripTickLifecycleOutcome,
   VesselTripPersistResult,
 } from "./types";

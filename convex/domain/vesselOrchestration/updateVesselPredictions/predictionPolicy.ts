@@ -9,26 +9,15 @@ import type { ModelType } from "domain/ml/shared/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /** Trip shape needed to decide which prediction family can run this tick. */
-type PredictionPhaseTrip = ConvexVesselTrip & {
-  readonly AtDockDepartCurr?: unknown;
-  readonly AtDockArriveNext?: unknown;
-  readonly AtDockDepartNext?: unknown;
-  readonly AtSeaArriveNext?: unknown;
-  readonly AtSeaDepartNext?: unknown;
-};
+type PredictionPhaseTrip = ConvexVesselTrip;
 
-export const shouldRunAtDockPredictions = (
-  trip: PredictionPhaseTrip
-): boolean => {
-  const canonicalStartAndOriginReady =
-    Boolean(trip.StartTime ?? trip.TripStart) &&
-    Boolean(trip.ArrivedCurrActual ?? trip.AtDockActual);
+/** Route dock-phase predictions by physical phase only (every-tick model). */
+export const isAtDockPhase = (trip: PredictionPhaseTrip): boolean =>
+  trip.AtDock === true;
 
-  return Boolean(trip.AtDock) && !trip.LeftDock && canonicalStartAndOriginReady;
-};
-
-export const shouldRunAtSeaPredictions = (trip: PredictionPhaseTrip): boolean =>
-  !trip.AtDock && Boolean(trip.LeftDockActual ?? trip.LeftDock);
+/** Route sea-phase predictions by physical phase only (every-tick model). */
+export const isAtSeaPhase = (trip: PredictionPhaseTrip): boolean =>
+  trip.AtDock === false;
 
 const AT_DOCK_MODEL_TYPES = [
   "at-dock-depart-curr",
@@ -44,6 +33,6 @@ const AT_SEA_MODEL_TYPES = [
 export const predictionModelTypesForTrip = (
   trip: PredictionPhaseTrip
 ): ModelType[] => [
-  ...(shouldRunAtDockPredictions(trip) ? AT_DOCK_MODEL_TYPES : []),
-  ...(shouldRunAtSeaPredictions(trip) ? AT_SEA_MODEL_TYPES : []),
+  ...(isAtDockPhase(trip) ? AT_DOCK_MODEL_TYPES : []),
+  ...(isAtSeaPhase(trip) ? AT_SEA_MODEL_TYPES : []),
 ];

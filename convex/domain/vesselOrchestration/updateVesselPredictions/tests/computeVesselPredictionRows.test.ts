@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
-  runUpdateVesselPredictions,
+  computeVesselPredictionRows,
   runVesselPredictionTick,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
@@ -72,10 +72,10 @@ const richContext = {
   },
 };
 
-describe("runUpdateVesselPredictions", () => {
+describe("computeVesselPredictionRows", () => {
   it("returns only predictionRows (no timeline handoff array)", async () => {
     const trip = makeTrip();
-    const output = await runUpdateVesselPredictions({
+    const output = await computeVesselPredictionRows({
       activeTrips: [trip],
       completedHandoffs: [],
       predictionContext: richContext,

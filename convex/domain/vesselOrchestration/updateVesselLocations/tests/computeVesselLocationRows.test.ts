@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { runUpdateVesselLocations } from "../runUpdateVesselLocations";
+import { computeVesselLocationRows } from "../computeVesselLocationRows";
 
 const vesselsFixture: VesselIdentity[] = [
   { VesselID: 101, VesselName: "Kittitas", VesselAbbrev: "KIT" },
@@ -33,11 +33,11 @@ afterEach(() => {
   mock.restore();
 });
 
-describe("runUpdateVesselLocations", () => {
+describe("computeVesselLocationRows", () => {
   it("returns one location and skips rows that fail conversion", async () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await runUpdateVesselLocations({
+    const result = await computeVesselLocationRows({
       tickStartedAt: Date.now(),
       rawFeedLocations: [validRawRow(), unknownVesselRow()],
       vesselsIdentity: vesselsFixture,
@@ -53,7 +53,7 @@ describe("runUpdateVesselLocations", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(
-      runUpdateVesselLocations({
+      computeVesselLocationRows({
         tickStartedAt: Date.now(),
         rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
         vesselsIdentity: vesselsFixture,
@@ -67,7 +67,7 @@ describe("runUpdateVesselLocations", () => {
   it("preserves raw marine terminal values when the terminal abbrev is unknown", async () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await runUpdateVesselLocations({
+    const result = await computeVesselLocationRows({
       tickStartedAt: Date.now(),
       rawFeedLocations: [
         validRawRow({
@@ -90,7 +90,7 @@ describe("runUpdateVesselLocations", () => {
   it("skips rows missing a departing terminal abbreviation", async () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await runUpdateVesselLocations({
+    const result = await computeVesselLocationRows({
       tickStartedAt: Date.now(),
       rawFeedLocations: [
         validRawRow({

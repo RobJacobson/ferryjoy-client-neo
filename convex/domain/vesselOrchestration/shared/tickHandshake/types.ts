@@ -129,7 +129,7 @@ export type TripComputation =
  * ML overlay for one vessel’s prediction tick, used to merge `finalProposed` /
  * replacement-trip ML into timeline projection (`buildTimelineTickProjectionInput`).
  *
- * Produced in the same pass as prediction table rows (`runVesselPredictionTick`
+ * Produced in the same pass as prediction table rows (`computeVesselPredictionRows`
  * in `updateVesselPredictions`); not a persistence DTO.
  */
 export type PredictedTripComputation = {
@@ -149,13 +149,5 @@ export type TripTickLifecycleOutcome = {
   currentBranch: CurrentTripLifecycleBranchResult;
 };
 
-/**
- * Persist / handshake label for the result of applying trip-table mutations in one
- * tick. Timeline projection consumes orchestrator `TimelineTripComputation`
- * handoffs; do not use this alias as the primary type for timeline ML merge (see
- * `updateTimeline` / `TimelineProjectionAssembly`).
- */
-export type TripLifecycleApplyOutcome = TripTickLifecycleOutcome;
-
-/** Same struct as {@link TripLifecycleApplyOutcome} (functions-layer naming). */
+/** Persist/handshake label for one tick's trip-table mutation result. */
 export type VesselTripPersistResult = TripTickLifecycleOutcome;

@@ -1,7 +1,7 @@
 /**
  * Vessel orchestrator actions.
  *
- * The trip step now uses a pure `runUpdateVesselTrips` boundary. Persistence,
+ * The trip step now uses a pure `computeVesselTripsRows` boundary. Persistence,
  * predictions, and timeline wiring still need follow-up refactors before this
  * orchestrator regains its full end-to-end flow.
  */
@@ -24,15 +24,15 @@ import {
   type RunUpdateVesselTimelineInput,
   runUpdateVesselTimeline,
 } from "domain/vesselOrchestration/updateTimeline";
-import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
   predictionModelTypesForTrip,
   runVesselPredictionTick,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
+  computeVesselTripsRows,
   type RunUpdateVesselTripsOutput,
-  runUpdateVesselTrips,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -78,9 +78,7 @@ export const updateVesselOrchestrator = internalAction({
         terminalsIdentity
       );
 
-      const scheduleSnapshotQueryStartedAt = Date.now();
       const scheduleQueryArgs = buildScheduleSnapshotQueryArgs(
-        vesselsIdentity,
         activeTrips,
         convexLocations,
         tickStartedAt
@@ -90,19 +88,6 @@ export const updateVesselOrchestrator = internalAction({
           .getScheduleSnapshotForTick,
         scheduleQueryArgs
       );
-      const scheduleSnapshotQueryMs =
-        Date.now() - scheduleSnapshotQueryStartedAt;
-      const snapshotJsonSize = JSON.stringify(scheduleSnapshot).length;
-      const SNAPSHOT_LOG_MAX_BYTES = 400_000;
-      if (snapshotJsonSize <= SNAPSHOT_LOG_MAX_BYTES) {
-        console.log(
-          `[updateVesselOrchestrator] scheduleSnapshot bytes=${snapshotJsonSize} durationMs=${scheduleSnapshotQueryMs}`
-        );
-      } else {
-        console.log(
-          `[updateVesselOrchestrator] scheduleSnapshot bytes=(omitted,>${SNAPSHOT_LOG_MAX_BYTES}) durationMs=${scheduleSnapshotQueryMs}`
-        );
-      }
 
       // Step 2: Pure trip update. Downstream persistence, predictions, and
       // timeline still need their own boundary refactors to consume only these
@@ -116,7 +101,7 @@ export const updateVesselOrchestrator = internalAction({
       void tickStartedAt;
       throw new Error(
         "updateVesselOrchestrator downstream persistence/predictions/timeline " +
-          "has not been adapted yet to the pure runUpdateVesselTrips output."
+          "has not been adapted yet to the pure computeVesselTripsRows output."
       );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -142,7 +127,7 @@ export const updateVesselLocations = async (
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
-  const { vesselLocations: convexLocations } = await runUpdateVesselLocations({
+  const { vesselLocations: convexLocations } = await computeVesselLocationRows({
     tickStartedAt,
     rawFeedLocations,
     vesselsIdentity,
@@ -169,7 +154,7 @@ export const updateVesselTrips = (
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleContext: ScheduleSnapshot
 ): RunUpdateVesselTripsOutput =>
-  runUpdateVesselTrips({
+  computeVesselTripsRows({
     vesselLocations: vesselLocations,
     existingActiveTrips: existingActiveTrips,
     scheduleContext,
@@ -185,7 +170,7 @@ export const updateVesselTrips = (
  * @param completedHandoffs - Completed-trip rollover pairings for replacement-trip predictions
  * @returns Prediction rows plus timeline ML merge handoffs (shared type)
  */
-export const updateVesselPredictions = async (
+export const runAndPersistVesselPredictionTick = async (
   ctx: ActionCtx,
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>

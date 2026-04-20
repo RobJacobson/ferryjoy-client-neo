@@ -78,11 +78,11 @@ const makeLocation = (
   ...overrides,
 });
 
-describe("runUpdateVesselTrips", () => {
+describe("computeVesselTripsRows", () => {
   it("returns empty arrays when the tick has no realtime inputs or active trips", async () => {
-    const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
+    const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
 
-    const result = runUpdateVesselTrips({
+    const result = computeVesselTripsRows({
       vesselLocations: [],
       existingActiveTrips: [],
       scheduleContext: { records: [] } as never,
@@ -114,8 +114,8 @@ describe("runUpdateVesselTrips", () => {
     buildTripSpy.mockImplementation(() => updatedTrip);
 
     try {
-      const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
-      const result = runUpdateVesselTrips({
+      const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+      const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [makeTrip(), untouchedTrip],
         scheduleContext: { records: [] } as never,
@@ -169,8 +169,8 @@ describe("runUpdateVesselTrips", () => {
     buildTripSpy.mockImplementation(() => replacementTrip);
 
     try {
-      const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
-      const result = runUpdateVesselTrips({
+      const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+      const result = computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
         existingActiveTrips: [completedExisting],
         scheduleContext: { records: [] } as never,
@@ -201,8 +201,8 @@ describe("runUpdateVesselTrips", () => {
     });
 
     try {
-      const { runUpdateVesselTrips } = await import("../runUpdateVesselTrips");
-      const result = runUpdateVesselTrips({
+      const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+      const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [existingTrip],
         scheduleContext: { records: [] } as never,

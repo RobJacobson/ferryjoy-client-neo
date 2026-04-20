@@ -6,7 +6,7 @@ import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
 import { v } from "convex/values";
-import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import { loadTerminalIdentities } from "functions/terminals/actions";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
@@ -40,7 +40,7 @@ export const captureHistoricVesselLocations = internalAction({
     const vesselIdentities = await loadVesselIdentities(ctx);
     const terminalIdentities = await loadTerminalIdentities(ctx);
     const rawFeedLocations = await fetchRawWsfVesselLocations();
-    const { vesselLocations: convexLocations } = await runUpdateVesselLocations(
+    const { vesselLocations: convexLocations } = await computeVesselLocationRows(
       {
         tickStartedAt: Date.now(),
         rawFeedLocations,

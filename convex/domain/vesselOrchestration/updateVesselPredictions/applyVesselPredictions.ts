@@ -3,8 +3,8 @@
  *
  * Callers should invoke this with schedule/lifecycle trip rows from
  * **`buildTripCore`** (schedule-enriched `ConvexVesselTrip`). Canonical prediction logic lives in
- * {@link ./appendPredictions}; this module sequences at-dock → at-sea →
- * leave-dock actualization only.
+ * {@link ./appendPredictions}; this module routes by physical phase
+ * (`AtDock` vs `AtSea`) and then applies leave-dock actualization.
  */
 
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
@@ -14,17 +14,14 @@ import type {
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import {
-  appendArriveDockPredictions,
-  appendLeaveDockPredictions,
+  appendAtDockPredictions,
+  appendAtSeaPredictions,
 } from "./appendPredictions";
-import {
-  shouldRunAtDockPredictions,
-  shouldRunAtSeaPredictions,
-} from "./predictionPolicy";
+import { isAtDockPhase, isAtSeaPhase } from "./predictionPolicy";
 
 /**
- * Trip state immediately before this tick’s `appendArriveDockPredictions` /
- * `appendLeaveDockPredictions` (and leave-dock actualize): schedule + lifecycle
+ * Trip state immediately before this tick’s `appendAtDockPredictions` /
+ * `appendAtSeaPredictions` (and leave-dock actualize): schedule + lifecycle
  * fields from **updateVesselTrips** (`buildTripCore`), storage-shaped only.
  */
 export type VesselTripCoreProposal = ConvexVesselTrip;
@@ -44,11 +41,11 @@ export const applyVesselPredictions = async (
   modelAccess: VesselTripPredictionModelAccess,
   coreTrip: VesselTripCoreProposal
 ): Promise<ConvexVesselTripWithML> => {
-  const withAtDockPredictions = shouldRunAtDockPredictions(coreTrip)
-    ? await appendArriveDockPredictions(modelAccess, coreTrip)
+  const withAtDockPredictions = isAtDockPhase(coreTrip)
+    ? await appendAtDockPredictions(modelAccess, coreTrip)
     : coreTrip;
-  const withAtSeaPredictions = shouldRunAtSeaPredictions(withAtDockPredictions)
-    ? await appendLeaveDockPredictions(modelAccess, withAtDockPredictions)
+  const withAtSeaPredictions = isAtSeaPhase(withAtDockPredictions)
+    ? await appendAtSeaPredictions(modelAccess, withAtDockPredictions)
     : withAtDockPredictions;
 
   return actualizePredictionsOnLeaveDock(withAtSeaPredictions);

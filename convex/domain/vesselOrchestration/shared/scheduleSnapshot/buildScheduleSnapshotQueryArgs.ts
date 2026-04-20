@@ -1,15 +1,13 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
+import { getSailingDay } from "shared/time";
 
-import {
-  MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS,
-  MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS,
-  MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS,
-} from "./scheduleSnapshotLimits";
 import type { ScheduleSnapshotQueryArgs } from "./scheduleSnapshotTypes";
+/**
+ * Hard caps for schedule snapshot bulk loads (orchestrator tick).
+ * Keep aligned with {@link getScheduleSnapshotForTick} validators and handler checks.
+ */
+export const MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS = 2;
 
 /**
  * Builds bounded args for {@link getScheduleSnapshotForTick} from orchestrator tick context.
@@ -17,31 +15,21 @@ import type { ScheduleSnapshotQueryArgs } from "./scheduleSnapshotTypes";
  * @throws When deduped inputs exceed documented caps (fail fast for tuning)
  */
 export const buildScheduleSnapshotQueryArgs = (
-  vesselsIdentity: ReadonlyArray<VesselIdentity>,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
   convexLocations: ReadonlyArray<ConvexVesselLocation>,
   tickStartedAt: number
 ): ScheduleSnapshotQueryArgs => {
-  const vesselAbbrevs = uniqueSortedStrings(
-    vesselsIdentity.map((v) => v.VesselAbbrev)
-  );
-  if (vesselAbbrevs.length > MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS) {
-    throw new Error(
-      `schedule snapshot: vesselAbbrevs ${vesselAbbrevs.length} exceeds max ${MAX_SCHEDULE_SNAPSHOT_VESSEL_ABBREVS}`
-    );
-  }
-
   const tickDay = getSailingDay(new Date(tickStartedAt));
-  const paddedSailingDays = [
-    tickDay,
-    addDaysToYyyyMmDd(tickDay, -1),
-    addDaysToYyyyMmDd(tickDay, 1),
-  ];
-  const tripSailingDays = activeTrips
-    .map((trip) => trip.ScheduledDeparture)
-    .filter((ms): ms is number => ms !== undefined)
-    .map((ms) => getSailingDay(new Date(ms)));
-  const sailingDaySet = new Set([...paddedSailingDays, ...tripSailingDays]);
+  const tripSailingDays = activeTrips.flatMap((trip) => {
+    if (trip.SailingDay !== undefined) {
+      return [trip.SailingDay];
+    }
+    if (trip.ScheduledDeparture !== undefined) {
+      return [getSailingDay(new Date(trip.ScheduledDeparture))];
+    }
+    return [];
+  });
+  const sailingDaySet = new Set([tickDay, ...tripSailingDays]);
 
   if (sailingDaySet.size > MAX_SCHEDULE_SNAPSHOT_SAILING_DAYS) {
     throw new Error(
@@ -62,25 +50,8 @@ export const buildScheduleSnapshotQueryArgs = (
     ...segmentKeysFromLocations,
   ]);
 
-  if (segmentKeySet.size > MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS) {
-    throw new Error(
-      `schedule snapshot: segmentKeys ${segmentKeySet.size} exceeds max ${MAX_SCHEDULE_SNAPSHOT_SEGMENT_KEYS}`
-    );
-  }
-
-  const pairCount = vesselAbbrevs.length * sailingDaySet.size;
-  if (pairCount > MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS) {
-    throw new Error(
-      `schedule snapshot: vessel×sailingDay pairs ${pairCount} exceeds max ${MAX_SCHEDULE_SNAPSHOT_VESSEL_SAILING_PAIRS}`
-    );
-  }
-
   return {
-    vesselAbbrevs,
     sailingDays: [...sailingDaySet].sort(),
     segmentKeys: [...segmentKeySet].sort(),
   };
 };
-
-const uniqueSortedStrings = (values: string[]): string[] =>
-  [...new Set(values)].sort((a, b) => a.localeCompare(b));
