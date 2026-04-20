@@ -38,7 +38,7 @@ describe("computeVesselLocationRows", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
     const result = await computeVesselLocationRows({
-      tickStartedAt: Date.now(),
+      pingStartedAt: Date.now(),
       rawFeedLocations: [validRawRow(), unknownVesselRow()],
       vesselsIdentity: vesselsFixture,
       terminalsIdentity: terminalsFixture,
@@ -54,7 +54,7 @@ describe("computeVesselLocationRows", () => {
 
     await expect(
       computeVesselLocationRows({
-        tickStartedAt: Date.now(),
+        pingStartedAt: Date.now(),
         rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
         vesselsIdentity: vesselsFixture,
         terminalsIdentity: terminalsFixture,
@@ -68,7 +68,7 @@ describe("computeVesselLocationRows", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
     const result = await computeVesselLocationRows({
-      tickStartedAt: Date.now(),
+      pingStartedAt: Date.now(),
       rawFeedLocations: [
         validRawRow({
           DepartingTerminalAbbrev: "QQQ",
@@ -91,7 +91,7 @@ describe("computeVesselLocationRows", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
     const result = await computeVesselLocationRows({
-      tickStartedAt: Date.now(),
+      pingStartedAt: Date.now(),
       rawFeedLocations: [
         validRawRow({
           DepartingTerminalAbbrev: "",

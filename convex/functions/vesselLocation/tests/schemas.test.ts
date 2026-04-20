@@ -111,7 +111,7 @@ const convertOne = async (
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ) => {
   const result = await computeVesselLocationRows({
-    tickStartedAt: Date.now(),
+    pingStartedAt: Date.now(),
     rawFeedLocations: [rawFeedLocation],
     vesselsIdentity: [
       {

@@ -76,7 +76,8 @@ export const updateVesselOrchestrator = internalAction({
       );
 
       const scheduleSnapshot = await ctx.runQuery(
-        internal.functions.vesselOrchestrator.queries.getScheduleSnapshotForTick,
+        internal.functions.vesselOrchestrator.queries
+          .getScheduleSnapshotForTick,
         { tickStartedAt }
       );
 
@@ -119,7 +120,7 @@ export const updateVesselLocations = async (
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
   const { vesselLocations: convexLocations } = await computeVesselLocationRows({
-    tickStartedAt,
+    pingStartedAt: tickStartedAt,
     rawFeedLocations,
     vesselsIdentity,
     terminalsIdentity,
