@@ -35,12 +35,16 @@ export {
   type TimelineTickProjectionInput,
 } from "./tickHandshake/projectionWire";
 export type {
+  ActiveTripsBranch,
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
+  PendingLeaveDockEffect,
   PredictedTripComputation,
+  TripComputation,
   TripLifecycleApplyOutcome,
   TripTickLifecycleOutcome,
   VesselTripPersistResult,
+  VesselTripsComputeBundle,
 } from "./tickHandshake/types";

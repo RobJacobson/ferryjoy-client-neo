@@ -8,7 +8,7 @@ import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/share
 import type {
   PendingLeaveDockEffect,
   VesselTripsComputeBundle,
-} from "domain/vesselOrchestration/updateVesselTrips";
+} from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "../stripTripPredictionsForStorage";
 
 export type TripsComputeStorageRows = {
@@ -25,7 +25,7 @@ export const buildTripsComputeStorageRows = (
 ): TripsComputeStorageRows => ({
   handoffMutations: tripsCompute.completedHandoffs.map((f) => ({
     completedTrip: stripTripPredictionsForStorage(f.tripToComplete),
-    newTrip: stripTripPredictionsForStorage(f.newTripCore.withFinalSchedule),
+    newTrip: stripTripPredictionsForStorage(f.scheduleTrip),
   })),
   activeUpsertBatch:
     tripsCompute.current.activeUpserts.length > 0

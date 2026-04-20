@@ -55,7 +55,7 @@ const currentTripProposedForActuals = (
   message: CurrentTripActualEventMessage
 ): ConvexVesselTripWithML =>
   message.finalProposed ??
-  (message.tripCore.withFinalSchedule as ConvexVesselTripWithML);
+  (message.scheduleTrip as ConvexVesselTripWithML);
 
 /**
  * Trip shape for current-branch predicted batches (needs ML when present).
@@ -67,7 +67,7 @@ const currentTripProposedForPredicted = (
   message: CurrentTripPredictedEventMessage
 ): ConvexVesselTripWithML =>
   message.finalProposed ??
-  (message.tripCore.withFinalSchedule as ConvexVesselTripWithML);
+  (message.scheduleTrip as ConvexVesselTripWithML);
 
 type TaggedActualDockRow = {
   vesselAbbrev: string;

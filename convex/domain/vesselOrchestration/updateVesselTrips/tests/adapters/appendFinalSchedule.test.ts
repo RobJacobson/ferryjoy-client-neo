@@ -6,12 +6,12 @@ import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
-import { buildAppendFinalSchedule } from "domain/vesselOrchestration/updateVesselTrips/createTripUpdateRuntime";
+import { createScheduleTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("appendFinalSchedule", () => {
-  it("reuses existing next-trip schedule fields when the schedule segment is unchanged", async () => {
+  it("reuses existing next-trip schedule fields when the schedule segment is unchanged", () => {
     const existingTrip = makeTrip({
       ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI",
       NextScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -23,8 +23,10 @@ describe("appendFinalSchedule", () => {
       NextScheduledDeparture: undefined,
     });
 
-    const appendFinalSchedule = buildAppendFinalSchedule(createTestLookup({}));
-    const enriched = await appendFinalSchedule(baseTrip, existingTrip);
+    const { appendFinalSchedule } = createScheduleTripAdapters(
+      createTestLookup({})
+    );
+    const enriched = appendFinalSchedule(baseTrip, existingTrip);
 
     expect(enriched.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
     expect(enriched.NextScheduledDeparture).toBe(
@@ -32,7 +34,7 @@ describe("appendFinalSchedule", () => {
     );
   });
 
-  it("loads the next-trip schedule fields when the schedule segment changed", async () => {
+  it("loads the next-trip schedule fields when the schedule segment changed", () => {
     const scheduledEvent = makeScheduledEvent({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
     });
@@ -53,7 +55,7 @@ describe("appendFinalSchedule", () => {
       NextScheduledDeparture: undefined,
     });
 
-    const appendFinalSchedule = buildAppendFinalSchedule(
+    const { appendFinalSchedule } = createScheduleTripAdapters(
       createTestLookup({
         scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
         scheduledEventsByScope: new Map([
@@ -61,7 +63,7 @@ describe("appendFinalSchedule", () => {
         ]),
       })
     );
-    const enriched = await appendFinalSchedule(
+    const enriched = appendFinalSchedule(
       baseTrip,
       makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );

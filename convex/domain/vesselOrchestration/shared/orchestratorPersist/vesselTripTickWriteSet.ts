@@ -21,7 +21,7 @@
  * `persistVesselTripWriteSet`); this type does not encode that gate.
  */
 
-import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/updateVesselTrips";
+import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { actualDepartMsForLeaveDockEffect } from "./leaveDockActualization";
 import { buildTripsComputeStorageRows } from "./tripsComputeStorageRows";

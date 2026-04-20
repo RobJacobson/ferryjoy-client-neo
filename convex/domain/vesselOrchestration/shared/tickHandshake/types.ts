@@ -8,10 +8,7 @@
  * `tickEventWrites`).
  */
 
-import type {
-  TripEvents,
-  TripScheduleCoreResult,
-} from "domain/vesselOrchestration/updateVesselTrips";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -20,8 +17,9 @@ import type {
 /**
  * One successful trip-boundary transition: trips ready for timeline writes.
  *
- * `newTripCore` is schedule/lifecycle output from {@link buildTripCore}; ML is
- * attached in **updateVesselPredictions** before `buildTimelineTickProjectionInput`.
+ * `scheduleTrip` is the replacement active row from {@link buildTripCore} (schedule
+ * fields applied, no ML). **updateVesselPredictions** attaches ML into {@link newTrip}
+ * before `buildTimelineTickProjectionInput`.
  */
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTrip;
@@ -31,7 +29,8 @@ export type CompletedTripBoundaryFact = {
    * Required for prediction gate derivation and timeline parity.
    */
   events: TripEvents;
-  newTripCore: TripScheduleCoreResult;
+  /** Replacement active row after schedule enrichment (pre-ML). */
+  scheduleTrip: ConvexVesselTrip;
   /**
    * ML-enriched replacement row for `buildPredictedDockWriteBatch`. Optional on
    * the wire until `updateVesselPredictions` merge; **required** before timeline
@@ -45,7 +44,8 @@ export type CompletedTripBoundaryFact = {
  */
 export type CurrentTripActualEventMessage = {
   events: TripEvents;
-  tripCore: TripScheduleCoreResult;
+  /** Schedule-enriched trip row from {@link buildTripCore} (pre-ML overlay). */
+  scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
   /**
@@ -59,7 +59,7 @@ export type CurrentTripActualEventMessage = {
  */
 export type CurrentTripPredictedEventMessage = {
   existingTrip: ConvexVesselTrip | undefined;
-  tripCore: TripScheduleCoreResult;
+  scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
   /**
@@ -77,6 +77,53 @@ export type CurrentTripLifecycleBranchResult = {
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
 };
+
+/** Leave-dock effect bundled with the tick compute for depart-next actualization. */
+export type PendingLeaveDockEffect = {
+  vesselAbbrev: string;
+  trip: ConvexVesselTrip;
+};
+
+/** Current-branch payload grouped for persistence and timeline assembly. */
+export type ActiveTripsBranch = {
+  activeUpserts: ConvexVesselTrip[];
+  pendingActualMessages: CurrentTripActualEventMessage[];
+  pendingPredictedMessages: CurrentTripPredictedEventMessage[];
+  pendingLeaveDockEffects: PendingLeaveDockEffect[];
+};
+
+/**
+ * Trip + lifecycle messages for one tick, before trip-table mutations.
+ * Feeds storage row builders and `assembleTripComputationsFromBundle`.
+ */
+export type VesselTripsComputeBundle = {
+  completedHandoffs: CompletedTripBoundaryFact[];
+  current: ActiveTripsBranch;
+};
+
+/**
+ * One vessel’s row for timeline projection (Stage C), derived from the compute bundle.
+ */
+export type TripComputation =
+  | {
+      branch: "completed";
+      vesselAbbrev: string;
+      events: TripEvents;
+      existingTrip: ConvexVesselTrip;
+      completedTrip: ConvexVesselTrip;
+      /** Replacement active row used for persist gates (same as `scheduleTrip` today). */
+      activeTrip: ConvexVesselTrip;
+      /** Schedule-enriched row from {@link buildTripCore} (pre-ML). */
+      scheduleTrip: ConvexVesselTrip;
+    }
+  | {
+      branch: "current";
+      vesselAbbrev: string;
+      events?: TripEvents;
+      existingTrip?: ConvexVesselTrip;
+      activeTrip: ConvexVesselTrip;
+      scheduleTrip: ConvexVesselTrip;
+    };
 
 /**
  * ML overlay for one vessel’s prediction tick, used to merge `finalProposed` /

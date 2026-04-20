@@ -126,9 +126,10 @@ import type * as domain_vesselOrchestration_updateVesselTrips_continuity_index f
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolveDockedScheduledSegment from "../domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolveEffectiveDockedLocation from "../domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_contracts from "../domain/vesselOrchestration/updateVesselTrips/contracts.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_createTripUpdateRuntime from "../domain/vesselOrchestration/updateVesselTrips/createTripUpdateRuntime.js";
+import type * as domain_vesselOrchestration_updateVesselTrips_createTripPipelineDeps from "../domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_finalizeCompletedTrips from "../domain/vesselOrchestration/updateVesselTrips/finalizeCompletedTrips.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_index from "../domain/vesselOrchestration/updateVesselTrips/index.js";
+import type * as domain_vesselOrchestration_updateVesselTrips_logTripPipelineFailure from "../domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_prepareTripUpdates from "../domain/vesselOrchestration/updateVesselTrips/prepareTripUpdates.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_runUpdateVesselTrips from "../domain/vesselOrchestration/updateVesselTrips/runUpdateVesselTrips.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_baseTripFromLocation from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation.js";
@@ -372,9 +373,10 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment": typeof domain_vesselOrchestration_updateVesselTrips_continuity_resolveDockedScheduledSegment;
   "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation": typeof domain_vesselOrchestration_updateVesselTrips_continuity_resolveEffectiveDockedLocation;
   "domain/vesselOrchestration/updateVesselTrips/contracts": typeof domain_vesselOrchestration_updateVesselTrips_contracts;
-  "domain/vesselOrchestration/updateVesselTrips/createTripUpdateRuntime": typeof domain_vesselOrchestration_updateVesselTrips_createTripUpdateRuntime;
+  "domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps": typeof domain_vesselOrchestration_updateVesselTrips_createTripPipelineDeps;
   "domain/vesselOrchestration/updateVesselTrips/finalizeCompletedTrips": typeof domain_vesselOrchestration_updateVesselTrips_finalizeCompletedTrips;
   "domain/vesselOrchestration/updateVesselTrips/index": typeof domain_vesselOrchestration_updateVesselTrips_index;
+  "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure": typeof domain_vesselOrchestration_updateVesselTrips_logTripPipelineFailure;
   "domain/vesselOrchestration/updateVesselTrips/prepareTripUpdates": typeof domain_vesselOrchestration_updateVesselTrips_prepareTripUpdates;
   "domain/vesselOrchestration/updateVesselTrips/runUpdateVesselTrips": typeof domain_vesselOrchestration_updateVesselTrips_runUpdateVesselTrips;
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_baseTripFromLocation;

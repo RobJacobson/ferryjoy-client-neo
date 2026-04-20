@@ -23,7 +23,7 @@ See [Target reorganization: orchestrator concerns](#target-reorganization-orches
 | Concern | What it owns | Main code today (illustrative) |
 | --- | --- | --- |
 | **Live `vesselLocations`** | Snapshot bulk upsert each tick | `functions/vesselOrchestrator/actions.ts` (`bulkUpsert` mutation; first step in the action) |
-| **updateVesselTrips** | Authoritative lifecycle: `activeVesselTrips` / `completedVesselTrips` | `runUpdateVesselTrips` / `computeVesselTripsBundle` → `processCompletedTrips` / `processCurrentTrips` → storage-shaped write set; function-layer `persistVesselTripWriteSet` applies it |
+| **updateVesselTrips** | Authoritative lifecycle rows: domain output `activeTrips` / `completedTrips` (same `ConvexVesselTrip` shape as tables `activeVesselTrips` / `completedVesselTrips`) | `runUpdateVesselTrips` → `VesselTripsComputeBundle` + storage-shaped write set; function-layer `persistVesselTripWriteSet` applies it |
 | **updateVesselPredictions** | ML over trip rows every tick; proposal rows for **`vesselTripPredictions`** | `runUpdateVesselPredictions` in `orchestratorPredictionWrites.ts`, `applyVesselPredictions.ts`, `vesselTripPredictionProposalsFromMlTrip.ts`; `appendPredictions.ts` for shared ML append helpers |
 | **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `TickEventWrites` / `TimelineTickProjectionInput`; **`updateVesselTimeline`** in `actions.ts` applies them |
 

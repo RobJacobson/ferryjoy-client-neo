@@ -2,7 +2,7 @@
  * **updateVesselPredictions** (domain): ML attachment for one vessel-trip tick.
  *
  * Callers should invoke this with schedule/lifecycle trip rows from
- * **`buildTripCore`** (`withFinalSchedule`). Canonical prediction logic lives in
+ * **`buildTripCore`** (schedule-enriched `ConvexVesselTrip`). Canonical prediction logic lives in
  * {@link ./appendPredictions}; this module sequences at-dock → at-sea →
  * leave-dock actualization only.
  */

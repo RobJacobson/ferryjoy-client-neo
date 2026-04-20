@@ -465,10 +465,10 @@ keys** and the normalized `eventsScheduled` read model (not the old lazy
 - `buildTrip` (`convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip.ts`) calls
   `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
   `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-  - Runtime adapter builder:
-    `convex/domain/vesselOrchestration/updateVesselTrips/processTick/buildTripRuntimeAdapters.ts`
-    (`buildAppendFinalSchedule`, wired via `createScheduledSegmentLookup` in
-    `updateVesselOrchestrator`; trip ML uses `createVesselTripPredictionModelAccess` there as well)
+  - Schedule adapters: `createScheduleTripAdapters` in
+    `convex/domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps.ts`
+    (snapshot lookup from `createScheduledSegmentLookupFromSnapshot` in the orchestrator;
+    trip ML uses `createVesselTripPredictionModelAccess` there as well)
   - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state

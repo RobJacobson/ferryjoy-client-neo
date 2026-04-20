@@ -3,7 +3,7 @@
  */
 
 import type { RunUpdateVesselTripsInput } from "domain/vesselOrchestration/updateVesselTrips/contracts";
-import type { TripUpdateRuntime } from "domain/vesselOrchestration/updateVesselTrips/createTripUpdateRuntime";
+import type { TripPipelineDeps } from "domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps";
 import type {
   PreparedTripUpdate,
   TripUpdatePartition,
@@ -13,7 +13,7 @@ import type {
  * Builds one prepared update per realtime row and splits completion vs active paths.
  *
  * @param input - Live locations and existing active trips for overlap lookup
- * @param runtime - Provides `detectTripEvents` for each prepared row
+ * @param deps - Provides `detectTripEvents` for each prepared row
  * @returns Completing updates, continuing updates, and vessels seen this tick
  */
 export const prepareTripUpdates = (
@@ -21,7 +21,7 @@ export const prepareTripUpdates = (
     RunUpdateVesselTripsInput,
     "vesselLocations" | "existingActiveTrips"
   >,
-  runtime: Pick<TripUpdateRuntime, "detectTripEvents">
+  deps: Pick<TripPipelineDeps, "detectTripEvents">
 ): TripUpdatePartition => {
   const existingTripsByVessel = new Map(
     input.existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
@@ -37,12 +37,14 @@ export const prepareTripUpdates = (
       return {
         vesselLocation,
         existingActiveTrip,
-        events: runtime.detectTripEvents(existingActiveTrip, vesselLocation),
+        events: deps.detectTripEvents(existingActiveTrip, vesselLocation),
       };
     }
   );
 
   // Completion path: arrival signaled and an existing trip row exists to close.
+  // Rows with `isCompletedTrip` but no prior active are intentionally omitted
+  // (cannot close a trip we are not tracking).
   const completedTripUpdates = preparedUpdates.filter(
     (update): update is TripUpdatePartition["completedTripUpdates"][number] =>
       update.events.isCompletedTrip && update.existingActiveTrip !== undefined

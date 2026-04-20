@@ -56,14 +56,14 @@ const buildPredictedCompletedHandoff = async (
 ): Promise<PredictedTripComputation> => {
   const finalPredictedTrip = await applyVesselPredictions(
     modelAccess,
-    handoff.newTripCore.withFinalSchedule
+    handoff.scheduleTrip
   );
 
   return {
     vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
     branch: "completed",
     completedTrip: handoff.tripToComplete,
-    activeTrip: handoff.newTripCore.withFinalSchedule,
+    activeTrip: handoff.scheduleTrip,
     finalPredictedTrip,
   };
 };

@@ -164,11 +164,11 @@ export const updateVesselLocations = async (
  * @param scheduleContext - Plain-data schedule snapshot for this tick
  * @returns The resulting completed and active trip rows for this tick
  */
-export const updateVesselTrips = async (
+export const updateVesselTrips = (
   vesselLocations: ReadonlyArray<ConvexVesselLocation>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleContext: ScheduleSnapshot
-): Promise<RunUpdateVesselTripsOutput> =>
+): RunUpdateVesselTripsOutput =>
   runUpdateVesselTrips({
     vesselLocations: vesselLocations,
     existingActiveTrips: existingActiveTrips,
@@ -199,11 +199,11 @@ export const updateVesselPredictions = async (
 }> => {
   const predictionContext = await loadPredictionContext(
     ctx,
-    trips.activeVesselTrips,
+    trips.activeTrips,
     completedHandoffs
   );
   const tick = await runVesselPredictionTick({
-    activeTrips: trips.activeVesselTrips,
+    activeTrips: trips.activeTrips,
     completedHandoffs,
     predictionContext,
   });
@@ -226,9 +226,7 @@ const buildPredictionContextRequests = (
   const requestMap = new Map<string, Set<ModelType>>();
 
   const tripsToPredict = [
-    ...completedHandoffs.map(
-      (handoff) => handoff.newTripCore.withFinalSchedule
-    ),
+    ...completedHandoffs.map((handoff) => handoff.scheduleTrip),
     ...activeTrips,
   ];
 

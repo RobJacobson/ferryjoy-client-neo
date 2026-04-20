@@ -126,9 +126,7 @@ describe("runVesselPredictionTick", () => {
             didJustLeaveDock: false,
             scheduleKeyChanged: false,
           },
-          newTripCore: {
-            withFinalSchedule: trip,
-          },
+          scheduleTrip: trip,
         },
       ],
       predictionContext: richContext,

@@ -4,12 +4,12 @@
  * Lives in **updateTimeline** because consumers are downstream of trip-table compute.
  */
 
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type {
   ActiveTripsBranch,
+  CompletedTripBoundaryFact,
   TripComputation,
   VesselTripsComputeBundle,
-} from "domain/vesselOrchestration/updateVesselTrips";
+} from "domain/vesselOrchestration/shared";
 
 const completedTripComputationsFromHandoffs = (
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
@@ -20,8 +20,8 @@ const completedTripComputationsFromHandoffs = (
     events: handoff.events,
     existingTrip: handoff.existingTrip,
     completedTrip: handoff.tripToComplete,
-    activeTrip: handoff.newTripCore.withFinalSchedule,
-    tripCore: handoff.newTripCore,
+    activeTrip: handoff.scheduleTrip,
+    scheduleTrip: handoff.scheduleTrip,
   }));
 
 const currentTripComputationsFromBranch = (
@@ -52,8 +52,8 @@ const currentTripComputationsFromBranch = (
     const predictedMessage = predictedByVessel.get(vesselAbbrev);
     const activeTrip =
       activeByVessel.get(vesselAbbrev) ??
-      actualMessage?.tripCore.withFinalSchedule ??
-      predictedMessage?.tripCore.withFinalSchedule;
+      actualMessage?.scheduleTrip ??
+      predictedMessage?.scheduleTrip;
 
     if (activeTrip === undefined) {
       return [];
@@ -66,10 +66,10 @@ const currentTripComputationsFromBranch = (
         events: actualMessage?.events,
         existingTrip: predictedMessage?.existingTrip,
         activeTrip,
-        tripCore: actualMessage?.tripCore ??
-          predictedMessage?.tripCore ?? {
-            withFinalSchedule: activeTrip,
-          },
+        scheduleTrip:
+          actualMessage?.scheduleTrip ??
+          predictedMessage?.scheduleTrip ??
+          activeTrip,
       },
     ];
   });

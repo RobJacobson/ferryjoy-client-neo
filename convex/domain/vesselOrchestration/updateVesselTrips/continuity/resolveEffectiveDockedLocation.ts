@@ -31,11 +31,11 @@ export type ResolveEffectiveDockedLocationResult = {
  * @param existingTrip - Active persisted trip for this vessel, if any
  * @returns Effective location plus fields needed for observability
  */
-export const resolveEffectiveDockedLocation = async (
+export const resolveEffectiveDockedLocation = (
   lookup: ScheduledSegmentLookup,
   location: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined
-): Promise<ResolveEffectiveDockedLocationResult> => {
+): ResolveEffectiveDockedLocationResult => {
   const stableDockedIdentity = hasStableDockedTripIdentity(
     location,
     existingTrip

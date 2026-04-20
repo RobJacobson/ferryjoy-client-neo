@@ -3,7 +3,6 @@
  * trip, schedule enrichment. ML runs in **updateVesselPredictions**; production
  * injects {@link buildTripCore} via `ProcessVesselTripsDeps`.
  */
-import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
 import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -19,17 +18,17 @@ import type { TripEvents } from "./tripEventTypes";
  * @param tripStart - True for new trip (boundary or first), false for continuing
  * @param events - Detected trip events from detectTripEvents
  * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
- * @returns Final schedule-shaped trip proposal for downstream stages
+ * @returns Schedule-enriched trip row (storage shape, predictions stripped upstream of ML)
  */
-export const buildTripCore = async (
+export const buildTripCore = (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
   adapters: VesselTripsBuildTripAdapters
-): Promise<TripScheduleCoreResult> => {
+): ConvexVesselTrip => {
   const { resolveEffectiveLocation, appendFinalSchedule } = adapters;
-  const effectiveLocation = await resolveEffectiveLocation(
+  const effectiveLocation = resolveEffectiveLocation(
     currLocation,
     existingTrip
   );
@@ -73,13 +72,9 @@ export const buildTripCore = async (
   // happens once in `resolveEffectiveLocation`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
 
-  const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(tripForScheduleEnrichment, existingTrip)
+  return shouldAppendFinalSchedule
+    ? appendFinalSchedule(tripForScheduleEnrichment, existingTrip)
     : tripForScheduleEnrichment;
-
-  return {
-    withFinalSchedule,
-  };
 };
 
 /**

@@ -11,7 +11,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { resolveEffectiveDockedLocation } from "../continuity/resolveEffectiveDockedLocation";
 
 describe("resolveEffectiveDockedLocation", () => {
-  it("CAT later scheduled departure while docked reuses the active trip identity", async () => {
+  it("CAT later scheduled departure while docked reuses the active trip identity", () => {
     let lookupCount = 0;
     const location = makeLocation({
       VesselAbbrev: "CAT",
@@ -43,7 +43,7 @@ describe("resolveEffectiveDockedLocation", () => {
       getScheduledDockEventsForSailingDay: () => [],
     };
 
-    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+    const { effectiveLocation } = resolveEffectiveDockedLocation(
       lookup,
       location,
       existingTrip
@@ -59,7 +59,7 @@ describe("resolveEffectiveDockedLocation", () => {
     );
   });
 
-  it("prefers the carried NextScheduleKey when it matches the current departing terminal", async () => {
+  it("prefers the carried NextScheduleKey when it matches the current departing terminal", () => {
     const nextScheduledEvent = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
     });
@@ -76,7 +76,7 @@ describe("resolveEffectiveDockedLocation", () => {
       getScheduledDockEventsForSailingDay: () => [nextScheduledEvent],
     };
 
-    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+    const { effectiveLocation } = resolveEffectiveDockedLocation(
       lookup,
       makeLocation({
         ScheduleKey: undefined,
@@ -100,7 +100,7 @@ describe("resolveEffectiveDockedLocation", () => {
     );
   });
 
-  it("skips schedule lookups for a first-seen keyless docked trip without continuity hints", async () => {
+  it("skips schedule lookups for a first-seen keyless docked trip without continuity hints", () => {
     let lookupCount = 0;
     const lookup: ScheduledSegmentLookup = {
       getScheduledDepartureEventBySegmentKey: () => {
@@ -110,7 +110,7 @@ describe("resolveEffectiveDockedLocation", () => {
       getScheduledDockEventsForSailingDay: () => [],
     };
 
-    const { effectiveLocation } = await resolveEffectiveDockedLocation(
+    const { effectiveLocation } = resolveEffectiveDockedLocation(
       lookup,
       makeLocation({
         ScheduleKey: undefined,

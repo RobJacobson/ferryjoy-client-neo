@@ -50,9 +50,7 @@ const completedFactFromComputationOrThrow = (
     existingTrip: computation.existingTrip,
     tripToComplete: computation.completedTrip,
     events: computation.events,
-    newTripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-    },
+    scheduleTrip: computation.scheduleTrip,
   };
 };
 
@@ -65,9 +63,7 @@ const currentActualMessageFromComputation = (
 
   return {
     events: computation.events,
-    tripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-    },
+    scheduleTrip: computation.scheduleTrip,
     vesselAbbrev: computation.vesselAbbrev,
   };
 };
@@ -84,9 +80,7 @@ const currentPredictedMessageFromComputation = (
 
   return {
     existingTrip: computation.existingTrip,
-    tripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-    },
+    scheduleTrip: computation.scheduleTrip,
     vesselAbbrev: computation.vesselAbbrev,
   };
 };

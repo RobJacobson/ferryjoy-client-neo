@@ -3,22 +3,22 @@
  *
  * Schedule continuity helpers live in `continuity/`; the trip pipeline supplies
  * concrete `resolveEffectiveLocation` and `appendFinalSchedule` (see
- * `createTripUpdateRuntime` for default wiring).
+ * `createTripPipelineDeps` for default wiring).
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Boundary hooks required to assemble one enriched trip proposal.
+ * Schedule continuity hooks for {@link buildTripCore} (pure, synchronous).
  */
 export type VesselTripsBuildTripAdapters = {
   resolveEffectiveLocation: (
     location: ConvexVesselLocation,
     existingTrip: ConvexVesselTrip | undefined
-  ) => Promise<ConvexVesselLocation>;
+  ) => ConvexVesselLocation;
   appendFinalSchedule: (
     baseTrip: ConvexVesselTrip,
     existingTrip: ConvexVesselTrip | undefined
-  ) => Promise<ConvexVesselTrip>;
+  ) => ConvexVesselTrip;
 };
