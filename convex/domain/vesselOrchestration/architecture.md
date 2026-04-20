@@ -25,7 +25,7 @@ See [Target reorganization: orchestrator concerns](#target-reorganization-orches
 | **Live `vesselLocations`** | Snapshot bulk upsert each tick | `functions/vesselOrchestrator/actions.ts` (`bulkUpsert` mutation; first step in the action) |
 | **updateVesselTrips** | Authoritative lifecycle rows: domain output `activeTrips` / `completedTrips` (same `ConvexVesselTrip` shape as tables `activeVesselTrips` / `completedVesselTrips`) | `computeVesselTripsRows` only (pure trip arrays). Downstream layers own persistence and handoff DTO shaping. |
 | **updateVesselPredictions** | ML over trip rows every ping; proposal rows for **`vesselTripPredictions`** | `computeVesselPredictionRows` / `runVesselPredictionPing`, `applyVesselPredictions.ts`, `vesselTripPredictionProposalsFromMlTrip.ts`; `appendPredictions.ts` for shared ML append helpers |
-| **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `TickEventWrites` / `TimelineTickProjectionInput`; **`updateVesselTimeline`** in `actions.ts` applies them |
+| **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `PingEventWrites` / `TimelinePingProjectionInput`; **`updateVesselTimeline`** in `actions.ts` applies them |
 
 **Per tick, in one sentence:** Persist the location snapshot → for each vessel, detect events → **`buildTripCore`** (schedule enrichment; no ML in trip compute on orchestrator path) → strip predictions for DB where needed → trip mutations → **updateVesselPredictions** (`applyVesselPredictions` + proposal upserts from current trip phase) → assemble timeline writes → **`updateVesselTimeline`** persists `eventsActual` / `eventsPredicted`.
 
@@ -236,7 +236,7 @@ What it means:
 
 - `processVesselTrips.ts`
   - Main domain entrypoint. Splits transitions into completed/current, runs both
-    paths, calls `buildTimelineTickProjectionInput` (**`updateTimeline`**).
+    paths, calls `buildTimelinePingProjectionInput` (**`updateTimeline`**).
 - `buildTripRuntimeAdapters.ts`
   - Builds runtime adapters for:
     - effective location resolution,
@@ -284,13 +284,13 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (domain merge). **Apply** runs from **`updateVesselTimeline`** in **`functions/vesselOrchestrator/actions.ts`** (internal projection mutations after **`runUpdateVesselTimeline`**; see `updateTimeline/README.md`).
 
-- `tickEventWrites.ts` — `TickEventWrites` / `TimelineTickProjectionInput`, `mergeTickEventWrites`.
-- `timelineEventAssembler.ts` — Converts lifecycle branch outputs into tick write payloads.
+- `pingEventWrites.ts` — `PingEventWrites` / `TimelinePingProjectionInput`, `mergePingEventWrites`.
+- `timelineEventAssembler.ts` — Converts lifecycle branch outputs into ping write payloads.
 - `actualDockWritesFromTrip.ts` — Sparse dep/arv actual dock writes from trip rows.
-- `buildTimelineTickProjectionInput.ts` — Merges completed + current branch writes per tick.
+- `buildTimelinePingProjectionInput.ts` — Merges completed + current branch writes per ping.
 - `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
 
-The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimeline`, types, `buildTimelineTickProjectionInput`); tick merge helpers also live on `domain/vesselOrchestration/shared`. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-tick pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
+The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimeline`, types, `buildTimelinePingProjectionInput`); ping merge helpers also live on `domain/vesselOrchestration/shared`. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-ping pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
 
 ## `functions/vesselTrips/read/` (query-time enrichment)
 
@@ -332,7 +332,7 @@ The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`ru
 - `convex/domain/vesselOrchestration/updateVesselTrips/tests/`
   - Unit coverage for trip lifecycle, continuity, projections, and adapters.
 - `convex/domain/vesselOrchestration/updateTimeline/tests/`
-  - Timeline assembly and merge coverage (for example `buildTimelineTickProjectionInput`, completed-trip timeline projection).
+  - Timeline assembly and merge coverage (for example `buildTimelinePingProjectionInput`, completed-trip timeline projection).
 
 ---
 
@@ -411,7 +411,7 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
 **updateTimeline**
 
 - **Input:** Facts / projection intents after lifecycle (and prediction attachment when relevant): e.g. boundary facts, current-branch messages, upsert success flags (as encoded in branch results).
-- **Output (domain):** `TickEventWrites` / `TimelineTickProjectionInput` — assembled by `timelineEventAssembler` + merge; **not** direct DB writes in this step.
+- **Output (domain):** `PingEventWrites` / `TimelinePingProjectionInput` — assembled by `timelineEventAssembler` + merge; **not** direct DB writes in this step.
 - **Output (apply):** `eventsActual` / `eventsPredicted` persistence via **`updateVesselTimeline`** in **`actions.ts`**, **after** lifecycle mutations and predictions merge for the tick.
 - **Non-goals:** Re-deriving full trip state from raw locations; consume **authoritative** trip + tick outputs.
 
@@ -422,7 +422,7 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
 | Orchestrator location bulk upsert (first step in `actions.updateVesselOrchestrator`) | **functions** (`vesselLocation.mutations.bulkUpsert`), not a domain folder |
 | `processCompletedTrips`, `processCurrentTrips`, `buildTripCore` / lifecycle half of `buildTrip`, `detectTripEvents`, continuity, storage equality | **updateVesselTrips** |
 | `appendPredictions` / `applyVesselPredictions` (orchestrator **updateVesselPredictions** phase, or composed `buildTrip`) | **updateVesselPredictions** (`vesselOrchestration/updateVesselPredictions` barrel) |
-| `timelineEventAssembler`, merge → `TickEventWrites` / `TimelineTickProjectionInput` | **updateTimeline** (domain assembly; e.g. `vesselOrchestration/updateTimeline`) |
+| `timelineEventAssembler`, merge → `PingEventWrites` / `TimelinePingProjectionInput` | **updateTimeline** (domain assembly; e.g. `vesselOrchestration/updateTimeline`) |
 | `actions.updateVesselTimeline` | **updateTimeline** apply path (runs after lifecycle + predictions merge) |
 
 **Gray zone (unchanged fact):** predictions produce **trip-shaped fields** and **inputs to timeline projection**; explicit DTOs between **updateVesselPredictions** and **updateTimeline** reduce coupling.
@@ -436,8 +436,8 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
 - Domain concern folders exist under `domain/vesselOrchestration/` (`updateVesselTrips`, `updateVesselPredictions`, `updateTimeline`); live locations stay in **functions**. Remaining work is incremental import cleanup and boundary tightening, not greenfield scaffolding.
 
 **Phase 3 — Extract updateTimeline**  
-- Split “lifecycle result → `TickEventWrites` / `TimelineTickProjectionInput` **assembly**” from “run mutations” so **updateVesselTrips** yields authoritative trip outcomes and **updateTimeline** (domain) builds the projection payload; **apply** runs in **`updateVesselTimeline`** after mutations and predictions merge settle. Keeps ordering: mutations settle before timeline apply when required.  
-- **Shipped layout:** `buildTimelineTickProjectionInput` and related projection code live in **`domain/vesselOrchestration/updateTimeline/`** (canonical). `processVesselTrips` imports the builder from that path; the barrel `updateTimeline/index.ts` re-exports for tests and named-concern imports.
+- Split “lifecycle result → `PingEventWrites` / `TimelinePingProjectionInput` **assembly**” from “run mutations” so **updateVesselTrips** yields authoritative trip outcomes and **updateTimeline** (domain) builds the projection payload; **apply** runs in **`updateVesselTimeline`** after mutations and predictions merge settle. Keeps ordering: mutations settle before timeline apply when required.  
+- **Shipped layout:** `buildTimelinePingProjectionInput` and related projection code live in **`domain/vesselOrchestration/updateTimeline/`** (canonical). `processVesselTrips` imports the builder from that path; the barrel `updateTimeline/index.ts` re-exports for tests and named-concern imports.
 
 **Phase 4 — Extract updateVesselPredictions** (**shipped**)  
 - ML attachment is `applyVesselPredictions` after `buildTripCore`, with handoff types `VesselTripCoreProposal` / `VesselPredictionGates`; implementation files under `vesselOrchestration/updateVesselPredictions/` (barrel `index.ts`).
@@ -492,7 +492,7 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
   - Existing active trip becomes completed, and a new active trip starts.
 - `Current transition`
   - Existing active trip continues and may be updated.
-- `TickEventWrites`
+- `PingEventWrites`
   - Per-tick timeline payload returned by trip processing, then persisted by orchestrator.
 - `Effective docked identity`
   - Corrected identity used while docked when feed identity is unstable or missing.
@@ -584,7 +584,7 @@ This aligns with **Phased cleanup / reorg** under [Target reorganization: orches
 **Phase 1 — Four-concern composition without changing behavior**
 
 3. Name the orchestrator concerns in code comments or thin wrappers (live location upsert in **`actions.ts`**, then `updateVesselTrips`, `updateVesselPredictions`, `updateVesselTimeline`).
-4. Introduce explicit types: structured trip-tick result → `TickEventWrites` (or equivalent) for **updateTimeline**.
+4. Introduce explicit types: structured trip-tick result → `PingEventWrites` (or equivalent) for **updateTimeline**.
 
 **Phase 2 — Folder scaffolding (domain)** (**shipped**)
 
@@ -592,7 +592,7 @@ This aligns with **Phased cleanup / reorg** under [Target reorganization: orches
 
 **Phase 3 — Extract updateTimeline**
 
-6. Lifecycle returns facts; **updateTimeline** (domain) **builds** `TickEventWrites` / `TimelineTickProjectionInput` (assembler + merge) only after required mutations and predictions merge settle; **`updateVesselTimeline`** **applies** them to `eventsActual` / `eventsPredicted`.
+6. Lifecycle returns facts; **updateTimeline** (domain) **builds** `PingEventWrites` / `TimelinePingProjectionInput` (assembler + merge) only after required mutations and predictions merge settle; **`updateVesselTimeline`** **applies** them to `eventsActual` / `eventsPredicted`.
 
 **Phase 4 — Extract updateVesselPredictions** (**done**)
 

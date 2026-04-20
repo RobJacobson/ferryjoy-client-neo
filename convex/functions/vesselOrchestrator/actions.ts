@@ -257,13 +257,13 @@ const loadPredictionContext = async (
 };
 
 /**
- * Dock projection for this tick: calls domain {@link runUpdateVesselTimeline} with
+ * Dock projection for this ping: calls domain {@link runUpdateVesselTimeline} with
  * the same {@link RunUpdateVesselTimelineInput} shape the PRD specifies (orchestrator
  * builds {@link TimelineTripComputation} rows via
  * {@link buildTimelineTripComputationsForRun} after persist).
  *
  * @param ctx - Action context for timeline mutations
- * @param input - Canonical timeline handoff (`tickStartedAt`, annotated trip rows, predictions)
+ * @param input - Canonical timeline handoff (`pingStartedAt`, annotated trip rows, predictions)
  */
 export const updateVesselTimeline = async (
   ctx: ActionCtx,

@@ -5,7 +5,7 @@
  *
  * Branch processors emit facts and per-vessel messages; assembly into
  * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler`;
- * see `updateTimeline/tickEventWrites.ts`).
+ * see `updateTimeline/pingEventWrites.ts`).
  */
 
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
@@ -19,7 +19,7 @@ import type {
  *
  * `scheduleTrip` is the replacement active row from {@link buildTripCore} (schedule
  * fields applied, no ML). **updateVesselPredictions** attaches ML into {@link newTrip}
- * before timeline projection (`buildTimelineTickProjectionInput`).
+ * before timeline projection (`buildTimelinePingProjectionInput`).
  */
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTrip;
@@ -127,7 +127,7 @@ export type TripComputation =
 
 /**
  * ML overlay for one vessel’s prediction ping, used to merge `finalProposed` /
- * replacement-trip ML into timeline projection (`buildTimelineTickProjectionInput`).
+ * replacement-trip ML into timeline projection (`buildTimelinePingProjectionInput`).
  *
  * Produced in the same pass as prediction table rows (`computeVesselPredictionRows`
  * in `updateVesselPredictions`); not a persistence DTO.

@@ -1,12 +1,12 @@
 /**
- * Vessel orchestration domain: top-level package surface for trip-tick entry
+ * Vessel orchestration domain: top-level package surface for trip-ping entry
  * points plus peer concern namespaces.
  *
  * Post-fetch DB writes for one pass are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
  * {@link computeVesselTripsRows} for the trip branch. The orchestrator still owns
- * `tickStartedAt` for predictions, timeline, and schedule snapshot queries —
- * not for the trips domain input.
+ * a wall-clock anchor for predictions, timeline (`pingStartedAt`), and schedule
+ * snapshot queries — not for the trips domain input alone.
  */
 
 export * as shared from "./shared";

@@ -43,7 +43,7 @@ export type ActualDockEventRow = ConvexActualDockEvent;
 export type PredictedDockEventRow = ConvexPredictedDockWriteBatch;
 
 export type RunUpdateVesselTimelineInput = {
-  tickStartedAt: number;
+  pingStartedAt: number;
   tripComputations: ReadonlyArray<TimelineTripComputation>;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };

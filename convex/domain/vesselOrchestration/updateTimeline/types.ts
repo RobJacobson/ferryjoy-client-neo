@@ -9,6 +9,6 @@ export type {
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
-  TripPingLifecycleOutcome as TripTickLifecycleOutcome,
+  TripPingLifecycleOutcome,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";

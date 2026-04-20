@@ -1,8 +1,8 @@
 /**
  * Builds sparse `eventsActual` dock writes from a finalized active or completed
- * {@link ConvexVesselTripWithPredictions}. Used on steady-state current-trip ticks
+ * {@link ConvexVesselTripWithPredictions}. Used on steady-state current-trip pings
  * (leave-dock / arrive-dock events) and again at trip completion so departure
- * actuals can recover if an earlier leave-dock tick was missed.
+ * actuals can recover if an earlier leave-dock ping was missed.
  */
 
 import type { ConvexActualDockWritePersistable } from "domain/events/actual/schemas";

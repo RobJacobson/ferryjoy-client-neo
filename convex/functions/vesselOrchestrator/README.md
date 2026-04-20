@@ -291,7 +291,7 @@ The orchestrator keeps external API usage efficient:
 Within `processVesselTrips`, per-vessel trip build/enrichment work is also
 parallelized before persistence, while database writes remain batched where
 possible (`upsertVesselTripsBatch`). `updateVesselTimeline` applies batched
-timeline mutations from `buildTimelineTickProjectionInput`.
+timeline mutations from `buildTimelinePingProjectionInput`.
 
 The timeline overlay path is designed to stay lightweight:
 

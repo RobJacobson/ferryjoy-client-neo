@@ -1,14 +1,14 @@
 /**
- * Same-tick timeline projection from Stage C/D handoffs plus orchestrator persist
+ * Same-ping timeline projection from Stage C/D handoffs plus orchestrator persist
  * gates on {@link TimelineTripComputation}.
  */
 
 import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import {
-  buildTimelineTickProjectionInput,
+  buildTimelinePingProjectionInput,
   type TimelineProjectionAssembly,
-} from "./buildTimelineTickProjectionInput";
+} from "./buildTimelinePingProjectionInput";
 import type {
   RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
@@ -109,7 +109,7 @@ const finalProposedByVesselFromPredictedComputations = (
  * Builds projection assembly from orchestrator handoff rows (no ML overlay).
  *
  * @param tripComputations - {@link RunUpdateVesselTimelineInput.tripComputations}
- * @returns Facts and current-branch messages for timeline tick assembly
+ * @returns Facts and current-branch messages for timeline ping assembly
  */
 export const buildTimelineProjectionAssemblyFromTripComputations = (
   tripComputations: ReadonlyArray<TimelineTripComputation>
@@ -168,7 +168,7 @@ export const buildTimelineProjectionAssemblyFromTripComputations = (
 
 /**
  * Matching uses vessel + completed-trip schedule identity, not object identity
- * between ticks.
+ * between pings.
  *
  * @param assembly - Projection assembly from {@link buildTimelineProjectionAssemblyFromTripComputations}
  * @param predictedTripComputations - ML handoff from predictions stage
@@ -242,10 +242,10 @@ export const runUpdateVesselTimeline = (
     assembly,
     input.predictedTripComputations
   );
-  const tl = buildTimelineTickProjectionInput({
+  const tl = buildTimelinePingProjectionInput({
     completedFacts: merged.completedFacts,
     currentBranch: merged.currentBranch,
-    tickStartedAt: input.tickStartedAt,
+    pingStartedAt: input.pingStartedAt,
   });
   return {
     actualEvents: tl.actualDockWrites,
