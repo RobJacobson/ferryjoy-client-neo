@@ -28,8 +28,11 @@ export type {
 } from "./pingHandshake/types";
 export {
   type DockedScheduledSegmentSource,
-  getScheduledDockEventsForVesselAndSailingDay,
+  getScheduledDeparturesForVesselAndSailingDay,
   type ScheduledSegmentTables,
 } from "./scheduleContinuity";
 export { createScheduledSegmentTablesFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentTablesFromSnapshot";
-export type { ScheduleSnapshot } from "./scheduleSnapshot/scheduleSnapshotTypes";
+export type {
+  CompactScheduledDepartureEvent,
+  ScheduleSnapshot,
+} from "./scheduleSnapshot/scheduleSnapshotTypes";

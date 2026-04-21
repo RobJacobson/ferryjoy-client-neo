@@ -8,13 +8,10 @@
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import {
-  findNextDepartureEvent,
-  inferScheduledSegmentFromDepartureEvent,
-} from "domain/timelineRows/scheduledSegmentResolvers";
+import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
 import {
   type DockedScheduledSegmentSource,
-  getScheduledDockEventsForVesselAndSailingDay,
+  getScheduledDeparturesForVesselAndSailingDay,
   type ScheduledSegmentTables,
 } from "domain/vesselOrchestration/shared";
 import { getSailingDay } from "shared/time";
@@ -53,20 +50,10 @@ export const resolveDockedScheduledSegment = (
 ): DockedScheduledSegmentResolution | null => {
   // 1) Exact next leg from the prior row when the terminal still matches.
   if (args.existingTrip?.NextScheduleKey) {
-    const exactNextEvent =
+    const exactNextSegment =
       tables.scheduledDepartureBySegmentKey[args.existingTrip.NextScheduleKey];
 
-    if (exactNextEvent) {
-      const sameDayEvents = getScheduledDockEventsForVesselAndSailingDay(
-        tables,
-        exactNextEvent.VesselAbbrev,
-        exactNextEvent.SailingDay
-      );
-      const exactNextSegment = inferScheduledSegmentFromDepartureEvent(
-        exactNextEvent,
-        sameDayEvents
-      );
-
+    if (exactNextSegment) {
       if (
         exactNextSegment.DepartingTerminalAbbrev ===
         args.departingTerminalAbbrev
@@ -84,22 +71,30 @@ export const resolveDockedScheduledSegment = (
     const sailingDay = getSailingDay(
       new Date(args.existingTrip.ScheduledDeparture)
     );
-    const sameDayEvents = getScheduledDockEventsForVesselAndSailingDay(
+    const sameDayDepartures = getScheduledDeparturesForVesselAndSailingDay(
       tables,
       args.vesselAbbrev,
       sailingDay
     );
-    const rolloverEvent = findNextDepartureEvent(sameDayEvents, {
-      terminalAbbrev: args.departingTerminalAbbrev,
-      afterTime: args.existingTrip.ScheduledDeparture,
-    });
+    const rolloverDeparture =
+      sameDayDepartures.find(
+        (event) =>
+          event.TerminalAbbrev === args.departingTerminalAbbrev &&
+          event.ScheduledDeparture > args.existingTrip!.ScheduledDeparture!
+      ) ?? null;
 
-    if (rolloverEvent) {
+    if (rolloverDeparture) {
+      const rolloverSegment =
+        tables.scheduledDepartureBySegmentKey[
+          getSegmentKeyFromBoundaryKey(rolloverDeparture.Key)
+        ];
+
+      if (!rolloverSegment) {
+        return null;
+      }
+
       return {
-        segment: inferScheduledSegmentFromDepartureEvent(
-          rolloverEvent,
-          sameDayEvents
-        ),
+        segment: rolloverSegment,
         source: "rollover_schedule",
       };
     }

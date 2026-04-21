@@ -3,8 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
-import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import { appendFinalScheduleForLookup } from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -37,30 +36,31 @@ describe("appendFinalScheduleForLookup", () => {
   });
 
   it("loads the next-trip schedule fields when the schedule segment changed", () => {
-    const scheduledEvent = makeScheduledEvent({
+    const scheduledSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
     });
-    const nextScheduledEvent = makeScheduledEvent({
+    const nextScheduledSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--MUK-CLI",
-      TerminalAbbrev: "MUK",
-      NextTerminalAbbrev: "CLI",
-      ScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
-      EventScheduledTime: ms("2026-03-13T12:30:00-07:00"),
+      DepartingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: "CLI",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
-    const expectedSegment = inferScheduledSegmentFromDepartureEvent(
-      scheduledEvent,
-      [scheduledEvent, nextScheduledEvent]
-    );
     const baseTrip = makeTrip({
-      ScheduleKey: scheduledEvent.Key,
+      ScheduleKey: scheduledSegment.Key,
       NextScheduleKey: undefined,
       NextScheduledDeparture: undefined,
     });
 
     const lookup = createTestLookup({
-      scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
-      scheduledEventsByScope: new Map([
-        ["CHE|2026-03-13", [scheduledEvent, nextScheduledEvent]],
+      scheduledSegmentByKey: new Map([
+        [
+          scheduledSegment.Key,
+          {
+            ...scheduledSegment,
+            NextKey: nextScheduledSegment.Key,
+            NextDepartingTime: nextScheduledSegment.DepartingTime,
+          },
+        ],
       ]),
     });
     const enriched = appendFinalScheduleForLookup(
@@ -69,31 +69,22 @@ describe("appendFinalScheduleForLookup", () => {
       makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );
 
-    expect(enriched.ScheduleKey).toBe(expectedSegment.Key);
-    expect(enriched.NextScheduleKey).toBe(expectedSegment.NextKey);
+    expect(enriched.ScheduleKey).toBe(scheduledSegment.Key);
+    expect(enriched.NextScheduleKey).toBe(nextScheduledSegment.Key);
     expect(enriched.NextScheduledDeparture).toBe(
-      expectedSegment.NextDepartingTime
+      nextScheduledSegment.DepartingTime
     );
   });
 });
 
 const createTestLookup = (options: {
-  scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
-  scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
+  scheduledSegmentByKey?: Map<string, ConvexInferredScheduledSegment>;
 }): ScheduledSegmentTables => ({
   sailingDay: "2026-03-13",
   scheduledDepartureBySegmentKey: Object.fromEntries(
-    options.scheduledEventByKey ?? new Map()
+    options.scheduledSegmentByKey ?? new Map()
   ),
-  scheduledDockEventsByVesselAbbrev: Object.fromEntries(
-    [...(options.scheduledEventsByScope ?? new Map()).entries()].map(
-      ([scope, events]) => {
-        const pipe = scope.indexOf("|");
-        const vesselAbbrev = pipe === -1 ? scope : scope.slice(0, pipe);
-        return [vesselAbbrev, events] as const;
-      }
-    )
-  ),
+  scheduledDeparturesByVesselAbbrev: {},
 });
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -129,18 +120,15 @@ const makeTrip = (
   ...overrides,
 });
 
-const makeScheduledEvent = (
-  overrides: Partial<ConvexScheduledDockEvent> = {}
-): ConvexScheduledDockEvent => ({
+const makeScheduledSegment = (
+  overrides: Partial<ConvexInferredScheduledSegment> = {}
+): ConvexInferredScheduledSegment => ({
   Key: "CHE--2026-03-13--05:30--ANA-ORI",
-  VesselAbbrev: "CHE",
   SailingDay: "2026-03-13",
-  UpdatedAt: ms("2026-03-13T04:33:00-07:00"),
-  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
-  TerminalAbbrev: "ANA",
-  NextTerminalAbbrev: "ORI",
-  EventType: "dep-dock",
-  EventScheduledTime: ms("2026-03-13T05:30:00-07:00"),
-  IsLastArrivalOfSailingDay: false,
+  DepartingTerminalAbbrev: "ANA",
+  ArrivingTerminalAbbrev: "ORI",
+  DepartingTime: ms("2026-03-13T05:30:00-07:00"),
+  NextKey: undefined,
+  NextDepartingTime: undefined,
   ...overrides,
 });

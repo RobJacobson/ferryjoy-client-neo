@@ -96,7 +96,7 @@ import type * as domain_vesselOrchestration_shared_orchestratorPersist_vesselTri
 import type * as domain_vesselOrchestration_shared_pingHandshake_index from "../domain/vesselOrchestration/shared/pingHandshake/index.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_projectionWire from "../domain/vesselOrchestration/shared/pingHandshake/projectionWire.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_types from "../domain/vesselOrchestration/shared/pingHandshake/types.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDockEventsForVesselAndSailingDay from "../domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDockEventsForVesselAndSailingDay.js";
+import type * as domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay from "../domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay.js";
 import type * as domain_vesselOrchestration_shared_scheduleContinuity_index from "../domain/vesselOrchestration/shared/scheduleContinuity/index.js";
 import type * as domain_vesselOrchestration_shared_scheduleContinuity_types from "../domain/vesselOrchestration/shared/scheduleContinuity/types.js";
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createScheduledSegmentTablesFromSnapshot from "../domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot.js";
@@ -193,6 +193,7 @@ import type * as functions_vesselLocationsUpdates_mutations from "../functions/v
 import type * as functions_vesselLocationsUpdates_queries from "../functions/vesselLocationsUpdates/queries.js";
 import type * as functions_vesselLocationsUpdates_schemas from "../functions/vesselLocationsUpdates/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
+import type * as functions_vesselOrchestrator_materializeScheduleSnapshot from "../functions/vesselOrchestrator/materializeScheduleSnapshot.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_schemas from "../functions/vesselOrchestrator/schemas.js";
@@ -341,7 +342,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/pingHandshake/index": typeof domain_vesselOrchestration_shared_pingHandshake_index;
   "domain/vesselOrchestration/shared/pingHandshake/projectionWire": typeof domain_vesselOrchestration_shared_pingHandshake_projectionWire;
   "domain/vesselOrchestration/shared/pingHandshake/types": typeof domain_vesselOrchestration_shared_pingHandshake_types;
-  "domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDockEventsForVesselAndSailingDay": typeof domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDockEventsForVesselAndSailingDay;
+  "domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay": typeof domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay;
   "domain/vesselOrchestration/shared/scheduleContinuity/index": typeof domain_vesselOrchestration_shared_scheduleContinuity_index;
   "domain/vesselOrchestration/shared/scheduleContinuity/types": typeof domain_vesselOrchestration_shared_scheduleContinuity_types;
   "domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot": typeof domain_vesselOrchestration_shared_scheduleSnapshot_createScheduledSegmentTablesFromSnapshot;
@@ -438,6 +439,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsUpdates/queries": typeof functions_vesselLocationsUpdates_queries;
   "functions/vesselLocationsUpdates/schemas": typeof functions_vesselLocationsUpdates_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
+  "functions/vesselOrchestrator/materializeScheduleSnapshot": typeof functions_vesselOrchestrator_materializeScheduleSnapshot;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/schemas": typeof functions_vesselOrchestrator_schemas;

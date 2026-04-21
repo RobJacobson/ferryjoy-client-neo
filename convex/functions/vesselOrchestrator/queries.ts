@@ -10,9 +10,8 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import { loadScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
-import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
+import { orchestratorScheduleSnapshotSchema } from "functions/vesselOrchestrator/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -56,19 +55,12 @@ export const getOrchestratorModelData = internalQuery({
 });
 
 /** Return validator for {@link getScheduleSnapshotForPing}. */
-const scheduleSnapshotReturnSchema = v.object({
-  scheduledDockEventsByVesselAbbrev: v.record(
-    v.string(),
-    v.array(eventsScheduledSchema)
-  ),
-});
+const scheduleSnapshotReturnSchema = orchestratorScheduleSnapshotSchema;
 
 /**
  * Bulk `eventsScheduled` read for one vessel orchestrator ping.
  *
- * Loads one sailing day (derived from `pingStartedAt`) for all vessels and
- * returns rows grouped by vessel abbreviation. Downstream lookup adapters
- * derive both same-day reads and departure-by-segment lookups from this map.
+ * Loads the pre-materialized schedule snapshot for the ping’s sailing day.
  */
 export const getScheduleSnapshotForPing = internalQuery({
   args: {
@@ -76,31 +68,19 @@ export const getScheduleSnapshotForPing = internalQuery({
   },
   returns: scheduleSnapshotReturnSchema,
   handler: async (ctx, args) => {
-    const vesselAbbrevs = [
-      ...new Set(
-        (await ctx.db.query("vesselsIdentity").collect()).map(
-          (vessel) => vessel.VesselAbbrev
-        )
-      ),
-    ];
     const sailingDay = getSailingDay(new Date(args.pingStartedAt));
-    const eventsByVesselEntries = await Promise.all(
-      vesselAbbrevs.map(async (vesselAbbrev) => [
-        vesselAbbrev,
-        (
-          await loadScheduledDockEventsForVesselSailingDay(ctx, {
-            vesselAbbrev,
-            sailingDay,
-          })
-        ).map(stripConvexMeta),
-      ])
-    );
-    const scheduledDockEventsByVesselAbbrev = Object.fromEntries(
-      eventsByVesselEntries
-    );
+    const snapshot = await ctx.db
+      .query("vesselOrchestratorScheduleSnapshots")
+      .withIndex("by_sailing_day", (q) => q.eq("SailingDay", sailingDay))
+      .unique();
 
-    return {
-      scheduledDockEventsByVesselAbbrev,
-    };
+    return snapshot
+      ? stripConvexMeta(snapshot)
+      : {
+          SailingDay: sailingDay,
+          UpdatedAt: 0,
+          scheduledDepartureBySegmentKey: {},
+          scheduledDeparturesByVesselAbbrev: {},
+        };
   },
 });

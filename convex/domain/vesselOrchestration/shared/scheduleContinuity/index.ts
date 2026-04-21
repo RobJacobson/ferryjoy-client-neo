@@ -1,4 +1,4 @@
-export { getScheduledDockEventsForVesselAndSailingDay } from "./getScheduledDockEventsForVesselAndSailingDay";
+export { getScheduledDeparturesForVesselAndSailingDay } from "./getScheduledDeparturesForVesselAndSailingDay";
 export type {
   DockedScheduledSegmentSource,
   ScheduledSegmentTables,

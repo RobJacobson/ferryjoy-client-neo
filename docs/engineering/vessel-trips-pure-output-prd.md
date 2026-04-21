@@ -3,6 +3,72 @@
 **Date:** 2026-04-19  
 **Audience:** Engineers and coding agents working in `convex/domain/vesselOrchestration/updateVesselTrips`, `convex/functions/vesselOrchestrator`, `updateVesselPredictions`, and `updateVesselTimeline`
 
+## 0. Implementation status (2026-04-21 follow-up pass)
+
+The trip-output boundary from this PRD remains intact, and a follow-up
+orchestrator cost-reduction pass narrowed the schedule side of the trip input.
+
+### What changed in this follow-up
+
+- The orchestrator no longer feeds `updateVesselTrips` a grouped blob of raw
+  same-day `eventsScheduled` rows on every ping.
+- The shared `ScheduleSnapshot` contract used by
+  `computeVesselTripsRows` was narrowed to a compact, materialized schedule
+  read model.
+
+The schedule input now carries only:
+
+- `SailingDay`
+- `scheduledDepartureBySegmentKey`
+  - inferred schedule segments keyed by `ScheduleKey`
+- `scheduledDeparturesByVesselAbbrev`
+  - ordered same-day departure continuity rows per vessel
+
+That change was implemented in:
+
+- [`convex/domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.ts`](../../convex/domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.ts)
+- [`convex/domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot.ts`](../../convex/domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot.ts)
+- [`convex/domain/vesselOrchestration/shared/scheduleContinuity/types.ts`](../../convex/domain/vesselOrchestration/shared/scheduleContinuity/types.ts)
+
+### Why this matters for this PRD
+
+This PRD explicitly called for:
+
+- a compact schedule input
+- a small lookup helper
+- no schedule-specific ceremony beyond what is required to compute the trip
+  arrays
+
+The new compact schedule snapshot is closer to that intended end state than the
+previous grouped `eventsScheduled` payload. The trip pipeline still returns
+only:
+
+- `completedTrips`
+- `activeTrips`
+
+and it now receives a smaller, more purpose-built schedule input while keeping
+the same public output boundary.
+
+### Trip continuity behavior preserved
+
+The follow-up kept the current trip continuity behavior by preserving the two
+capabilities the trip pipeline actually uses:
+
+- exact schedule lookup by `ScheduleKey`
+- same-vessel same-day departure ordering for docked rollover continuity
+
+That behavior now flows through:
+
+- [`convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts)
+- [`convex/domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters.ts)
+
+### What is still pending relative to the broader orchestrator refactor
+
+- The hot write path still needs to be collapsed into one orchestrator-owned
+  mutation.
+- Prediction and timeline work should still be restricted to changed vessels
+  only.
+
 ## 1. Problem statement
 
 `updateVesselTrips` is currently doing too much.

@@ -12,7 +12,9 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 const ms = (iso: string) => new Date(iso).getTime();
 
 const emptyScheduleSnapshot: ScheduleSnapshot = {
-  scheduledDockEventsByVesselAbbrev: {},
+  SailingDay: "2026-03-13",
+  scheduledDepartureBySegmentKey: {},
+  scheduledDeparturesByVesselAbbrev: {},
 };
 
 const testSailingDay = "2026-03-13";
