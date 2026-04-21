@@ -4,10 +4,12 @@
  * each row (Option B); domain does not read Convex.
  */
 
-import type { VesselTripPersistResult } from "domain/vesselOrchestration/shared";
+import type {
+  TripComputation,
+  VesselTripPersistResult,
+} from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import type { TimelineTripComputation } from "domain/vesselOrchestration/updateTimeline";
-import type { TripComputation } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 
 const completedTripBoundaryMatchKeyFromFact = (
@@ -15,23 +17,36 @@ const completedTripBoundaryMatchKeyFromFact = (
   scheduleKey: string | undefined
 ): string => `${vesselAbbrev}::${scheduleKey}`;
 
+/**
+ * Builds the dedupe key used to match persisted active rows.
+ */
 const persistedActiveTripKey = (
   vesselAbbrev: string,
   tripKey: string | undefined
 ): string => `${vesselAbbrev}::${tripKey ?? "no-trip-key"}`;
 
+/**
+ * Narrows a computation row to completed-branch shape.
+ */
 const isCompletedTripBranchComputation = (
   computation: TripComputation
 ): computation is TripComputation & {
   branch: "completed";
 } => computation.branch === "completed";
 
+/**
+ * Narrows a computation row to current-branch shape.
+ */
 const isCurrentTripBranchComputation = (
   computation: TripComputation
 ): computation is TripComputation & {
   branch: "current";
 } => computation.branch === "current";
 
+/**
+ * Checks whether a current-branch computation corresponds to an active row that
+ * was part of the persisted active set for this ping.
+ */
 const isPersistedCurrentTripComputation = (
   computation: TripComputation & {
     activeTrip?: NonNullable<TripComputation["activeTrip"]>;

@@ -26,6 +26,9 @@ type TripEvents = {
   scheduleKeyChanged: boolean;
 };
 
+/**
+ * Result payload returned by `upsertVesselTripsBatch`.
+ */
 export type VesselTripUpsertBatchResult = {
   perVessel: Array<{
     vesselAbbrev: string;
@@ -239,6 +242,9 @@ const completionTripEvents = (
   scheduleKeyChanged: existingTrip.ScheduleKey !== completedTrip.ScheduleKey,
 });
 
+/**
+ * Derives current-branch event flags from existing and next active rows.
+ */
 const currentTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip
@@ -260,6 +266,12 @@ const currentTripEvents = (
   scheduleKeyChanged: existingTrip?.ScheduleKey !== nextTrip.ScheduleKey,
 });
 
+/**
+ * Collects vessel abbrevs whose active-trip upsert succeeded.
+ *
+ * @param upsertResult - Per-vessel upsert outcomes from batch mutation
+ * @returns Set of vessel abbrevs that can pass upsert-gated downstream writes
+ */
 const successfulVesselAbbrevsFromUpsert = (
   upsertResult: VesselTripUpsertBatchResult
 ): Set<string> =>

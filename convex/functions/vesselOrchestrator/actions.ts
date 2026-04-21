@@ -36,9 +36,9 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
-import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { assembleTripComputationsFromPersistResult } from "./assembleTripComputationsFromPersistResult";
 import { buildTimelineTripComputationsForRun } from "./buildTimelineTripComputationsForRun";
+import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { createVesselOrchestratorConvexBindings } from "./utils";
 
 /**
@@ -53,75 +53,7 @@ export const updateVesselOrchestrator = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     try {
-      const snapshot = await ctx.runQuery(
-        internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
-      );
-      if (
-        snapshot.vesselsIdentity.length === 0 ||
-        snapshot.terminalsIdentity.length === 0
-      ) {
-        throw new Error(
-          "vesselsIdentity or terminalsIdentity empty; skipping ping."
-        );
-      }
-
-      const { vesselsIdentity, terminalsIdentity, activeTrips } = snapshot;
-
-      // One wall-clock anchor for this entire orchestrator run (locations → trips →
-      // predictions → timeline). Sub-minute policy (e.g. prediction fallback) keys off
-      // this instant—not "start of trip compute after WSF fetch."
-      const pingStartedAt = Date.now();
-
-      // Step 1: WSF fetch → Convex `vesselLocations` bulk upsert.
-      const convexLocations = await updateVesselLocations(
-        ctx,
-        pingStartedAt,
-        vesselsIdentity,
-        terminalsIdentity
-      );
-
-      const scheduleSnapshot = await ctx.runQuery(
-        internal.functions.vesselOrchestrator.queries
-          .getScheduleSnapshotForPing,
-        { pingStartedAt }
-      );
-      const sailingDay = getSailingDay(new Date(pingStartedAt));
-
-      // Step 2: Pure trip compute from locations + schedule snapshot.
-      const tripRows = await updateVesselTrips(
-        convexLocations,
-        activeTrips,
-        scheduleSnapshot,
-        sailingDay
-      );
-      const { vesselTripMutations } = createVesselOrchestratorConvexBindings(ctx);
-      // Persist only changed active rows plus every completed-row rollover.
-      const tripPersistResult = await persistVesselTripWriteSet(
-        tripRows,
-        activeTrips,
-        vesselTripMutations
-      );
-
-      const predictionResult = await runAndPersistVesselPredictionPing(
-        ctx,
-        tripRows,
-        tripPersistResult.completedFacts
-      );
-
-      const tripComputations = assembleTripComputationsFromPersistResult(
-        tripRows,
-        tripPersistResult
-      );
-      const timelineTripComputations = buildTimelineTripComputationsForRun(
-        tripRows,
-        tripComputations,
-        tripPersistResult
-      );
-      await updateVesselTimeline(ctx, {
-        pingStartedAt,
-        tripComputations: timelineTripComputations,
-        predictedTripComputations: predictionResult.predictedTripComputations,
-      });
+      await runOrchestratorPing(ctx);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       console.error("[updateVesselOrchestrator]", err);
@@ -129,6 +61,150 @@ export const updateVesselOrchestrator = internalAction({
     }
   },
 });
+
+/**
+ * Runs one full orchestrator ping from location ingest through timeline writes.
+ *
+ * @param ctx - Convex action context for all ping-side reads and writes
+ */
+const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
+  const snapshot = await loadOrchestratorSnapshot(ctx);
+  const { vesselsIdentity, terminalsIdentity, activeTrips } = snapshot;
+  const pingStartedAt = Date.now();
+
+  // Step 1: WSF fetch and persist `vesselLocations`.
+  const vesselLocations = await updateVesselLocations(
+    ctx,
+    pingStartedAt,
+    vesselsIdentity,
+    terminalsIdentity
+  );
+
+  // Step 2: Compute trip rows, then persist only material changes.
+  const { tripRows, tripPersistResult } = await runTripStep(
+    ctx,
+    pingStartedAt,
+    vesselLocations,
+    activeTrips
+  );
+
+  // Step 3: Run prediction models and persist prediction proposals.
+  const predictionResult = await runAndPersistVesselPredictionPing(
+    ctx,
+    tripRows,
+    tripPersistResult.completedFacts
+  );
+
+  // Step 4: Build gated timeline rows and project them to events tables.
+  await runTimelineStep(
+    ctx,
+    pingStartedAt,
+    tripRows,
+    tripPersistResult,
+    predictionResult.predictedTripComputations
+  );
+};
+
+/**
+ * Loads the baseline read model required for one orchestrator ping.
+ *
+ * @param ctx - Convex action context for internal snapshot query
+ * @returns Identity tables plus current active trips
+ * @throws When identity tables are empty and the ping should be skipped
+ */
+const loadOrchestratorSnapshot = async (
+  ctx: ActionCtx
+): Promise<{
+  vesselsIdentity: ReadonlyArray<VesselIdentity>;
+  terminalsIdentity: ReadonlyArray<TerminalIdentity>;
+  activeTrips: ReadonlyArray<ConvexVesselTrip>;
+}> => {
+  const snapshot = await ctx.runQuery(
+    internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
+  );
+  if (
+    snapshot.vesselsIdentity.length === 0 ||
+    snapshot.terminalsIdentity.length === 0
+  ) {
+    throw new Error(
+      "vesselsIdentity or terminalsIdentity empty; skipping ping."
+    );
+  }
+  return snapshot;
+};
+
+/**
+ * Runs Step 2 by loading schedule context, computing trip rows, and persisting
+ * trip-table writes.
+ *
+ * @param ctx - Convex action context for schedule query and trip mutations
+ * @param pingStartedAt - Shared ping timestamp anchor for this run
+ * @param vesselLocations - Step 1 location rows persisted for this ping
+ * @param activeTrips - Active-trip snapshot from ping start
+ * @returns Computed trip rows plus persistence outcomes used by later steps
+ */
+const runTripStep = async (
+  ctx: ActionCtx,
+  pingStartedAt: number,
+  vesselLocations: ReadonlyArray<ConvexVesselLocation>,
+  activeTrips: ReadonlyArray<ConvexVesselTrip>
+): Promise<{
+  tripRows: RunUpdateVesselTripsOutput;
+  tripPersistResult: Awaited<ReturnType<typeof persistVesselTripWriteSet>>;
+}> => {
+  // Reuse one schedule snapshot for all trip rows in this ping.
+  const scheduleSnapshot = await ctx.runQuery(
+    internal.functions.vesselOrchestrator.queries.getScheduleSnapshotForPing,
+    { pingStartedAt }
+  );
+  const sailingDay = getSailingDay(new Date(pingStartedAt));
+  const tripRows = updateVesselTrips(
+    vesselLocations,
+    activeTrips,
+    scheduleSnapshot,
+    sailingDay
+  );
+  const { vesselTripMutations } = createVesselOrchestratorConvexBindings(ctx);
+  const tripPersistResult = await persistVesselTripWriteSet(
+    tripRows,
+    activeTrips,
+    vesselTripMutations
+  );
+  return { tripRows, tripPersistResult };
+};
+
+/**
+ * Runs Step 4 by translating persisted trip outcomes into timeline computations,
+ * applying persist gates, and projecting timeline writes.
+ *
+ * @param ctx - Convex action context for timeline mutations
+ * @param pingStartedAt - Shared ping timestamp anchor for this run
+ * @param tripRows - Step 2 trip rows (authoritative active/completed arrays)
+ * @param tripPersistResult - Step 2 persistence result including branch handoffs
+ * @param predictedTripComputations - Step 3 ML overlay handoffs
+ */
+const runTimelineStep = async (
+  ctx: ActionCtx,
+  pingStartedAt: number,
+  tripRows: RunUpdateVesselTripsOutput,
+  tripPersistResult: Awaited<ReturnType<typeof persistVesselTripWriteSet>>,
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>
+): Promise<void> => {
+  const tripComputations = assembleTripComputationsFromPersistResult(
+    tripRows,
+    tripPersistResult
+  );
+  const timelineTripComputations = buildTimelineTripComputationsForRun(
+    tripRows,
+    tripComputations,
+    tripPersistResult
+  );
+  await updateVesselTimeline(ctx, {
+    pingStartedAt,
+    tripComputations: timelineTripComputations,
+    predictedTripComputations,
+  });
+};
 
 /**
  * Fetches live vessel locations from WSF and persists them via `bulkUpsert`.
@@ -226,6 +302,13 @@ export const runAndPersistVesselPredictionPing = async (
   };
 };
 
+/**
+ * Builds terminal-pair model-load requests for Step 3 prediction context.
+ *
+ * @param activeTrips - Active trips from this ping
+ * @param completedHandoffs - Completed rollover facts from Step 2 persistence
+ * @returns Distinct terminal-pair requests with model types merged per pair
+ */
 const buildPredictionContextRequests = (
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
@@ -251,6 +334,8 @@ const buildPredictionContextRequests = (
 
     const pairKey = formatTerminalPairKey(departing, arriving);
     const modelTypes = requestMap.get(pairKey) ?? new Set<ModelType>();
+    // Merge model requests by terminal pair so one query can load all needed
+    // model variants for that pair.
     for (const modelType of modelTypesForTrip) {
       modelTypes.add(modelType);
     }
@@ -266,6 +351,14 @@ const buildPredictionContextRequests = (
   }));
 };
 
+/**
+ * Loads production ML model parameters needed by Step 3 for this ping.
+ *
+ * @param ctx - Convex action context for prediction model query
+ * @param activeTrips - Active trips to evaluate this ping
+ * @param completedHandoffs - Completed rollover handoffs from Step 2
+ * @returns Terminal-pair keyed production model payloads (or empty context)
+ */
 const loadPredictionContext = async (
   ctx: ActionCtx,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,

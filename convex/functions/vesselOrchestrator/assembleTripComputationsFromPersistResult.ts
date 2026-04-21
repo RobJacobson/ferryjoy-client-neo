@@ -60,6 +60,7 @@ export const assembleTripComputationsFromPersistResult = (
         predictedMessage?.scheduleTrip;
 
       if (activeTrip === undefined) {
+        // Skip vessels that have no usable row in either branch input.
         return [];
       }
 
