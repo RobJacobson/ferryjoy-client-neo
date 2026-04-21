@@ -26,7 +26,7 @@ export const getPhysicalDepartureStamp = (
  * @param location - Current vessel location sample
  * @returns True when AtDock reads docked and speed is not clearly underway
  */
-export const rawPingSuggestsDocked = (
+const rawPingSuggestsDocked = (
   location: ConvexVesselLocation
 ): boolean => location.AtDock && !(location.Speed > 1);
 
@@ -55,7 +55,7 @@ export const rawDepartureIsContradictory = (
  * @param currLocation - Current vessel location
  * @returns True when arrival should not commit yet
  */
-export const rawArrivalIsContradictory = (
+const rawArrivalIsContradictory = (
   currLocation: ConvexVesselLocation
 ): boolean => Boolean(currLocation.AtDock && currLocation.Speed > 1);
 
@@ -66,7 +66,7 @@ export const rawArrivalIsContradictory = (
  * @param currLocation - Current vessel location
  * @returns True when the feed introduces a departure timestamp
  */
-export const rawDidJustLeaveDock = (
+const rawDidJustLeaveDock = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean =>
@@ -83,7 +83,7 @@ export const rawDidJustLeaveDock = (
  * @param currLocation - Current vessel location
  * @returns True when a completion boundary is credibly observed
  */
-export const rawDidJustArriveAtDock = (
+const rawDidJustArriveAtDock = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean => {

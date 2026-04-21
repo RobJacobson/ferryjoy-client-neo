@@ -13,7 +13,8 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  * ping. Does not build stored trip rows.
  *
  * @param vesselLocation - Current row for one vessel
- * @param activesByVessel - Output of {@link activeTripsByVesselAbbrev}
+ * @param activesByVessel - Prior actives keyed by `VesselAbbrev` (later
+ *   duplicates win); built in {@link computeVesselTripsRows}
  * @returns {@link CalculatedTripUpdate} for {@link tripRowsForVesselPing}
  */
 export const calculatedTripUpdateForFeedRow = (
@@ -28,18 +29,3 @@ export const calculatedTripUpdateForFeedRow = (
     events: detectTripEvents(existingActiveTrip, vesselLocation),
   };
 };
-
-/**
- * Builds a vessel-abbrev lookup for prior active trips (later duplicates win by
- * `VesselAbbrev`, matching plain object merge semantics).
- *
- * @param existingActiveTrips - Prior active trips for the batch
- * @returns Partial map from vessel abbrev to trip (missing key means no prior
- *   active for that vessel)
- */
-export const activeTripsByVesselAbbrev = (
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
-): Partial<Record<string, ConvexVesselTrip>> =>
-  Object.fromEntries(
-    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
-  );

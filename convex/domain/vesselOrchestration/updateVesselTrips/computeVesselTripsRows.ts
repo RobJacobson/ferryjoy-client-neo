@@ -10,10 +10,8 @@
  */
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
-import {
-  activeTripsByVesselAbbrev,
-  calculatedTripUpdateForFeedRow,
-} from "./calculatedTripUpdate";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { calculatedTripUpdateForFeedRow } from "./calculatedTripUpdate";
 import { tripRowsForVesselPing } from "./tripRowsForVesselPing";
 import type {
   RunUpdateVesselTripsInput,
@@ -48,20 +46,31 @@ export const computeVesselTripsRows = (
     return tripRowsForVesselPing(update, scheduleTables);
   });
 
-  const processedActiveTrips = pingRows.flatMap((rows) =>
-    rows.activeVesselTrip !== undefined ? [rows.activeVesselTrip] : []
-  );
+  const processedActiveTrips = pingRows
+    .map((rows) => rows.activeVesselTrip)
+    .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
 
   return {
-    completedTrips: pingRows.flatMap((rows) =>
-      rows.completedVesselTrip !== undefined ? [rows.completedVesselTrip] : []
-    ),
+    completedTrips: pingRows
+      .map((rows) => rows.completedVesselTrip)
+      .filter((trip): trip is ConvexVesselTrip => trip !== undefined),
     activeTrips: mergeActiveTripRows(
       input.existingActiveTrips,
       processedActiveTrips
     ),
   };
 };
+
+/**
+ * Prior active trips keyed by vessel abbrev (later duplicates win, matching
+ * plain object merge semantics).
+ */
+const activeTripsByVesselAbbrev = (
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
+): Partial<Record<string, ConvexVesselTrip>> =>
+  Object.fromEntries(
+    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
+  );
 
 /**
  * Merges prior actives with rows produced this ping; later entries win by
