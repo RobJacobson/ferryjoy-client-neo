@@ -1,7 +1,7 @@
 /**
- * Types for the pure `updateVesselTrips` pipeline:
- * - public I/O (`RunUpdateVesselTripsInput` / `RunUpdateVesselTripsOutput`)
- * - internal partitioning of per-vessel updates.
+ * Types for the pure `updateVesselTrips` pipeline: public runner I/O
+ * (`RunUpdateVesselTripsInput` / `RunUpdateVesselTripsOutput`) and intermediate
+ * shapes from {@link calculateTripUpdates} through {@link TripUpdatesRouting}.
  */
 
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
@@ -9,7 +9,10 @@ import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tr
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-/** Arguments for {@link computeVesselTripsRows}: one feed batch plus schedule snapshot. */
+/**
+ * Arguments for {@link computeVesselTripsRows}: one feed batch plus schedule
+ * snapshot for segment lookups.
+ */
 export type RunUpdateVesselTripsInput = {
   vesselLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
@@ -18,27 +21,43 @@ export type RunUpdateVesselTripsInput = {
   sailingDay: string;
 };
 
-/** Pure pipeline output: trips completed this ping and the merged active set. */
+/**
+ * Pure pipeline output: trips completed this ping and the merged authoritative
+ * active set (including vessels not in the batch).
+ */
 export type RunUpdateVesselTripsOutput = {
   /** Authoritative active rows after this ping (names align with `functions/vesselTrips`). */
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
   completedTrips: ReadonlyArray<ConvexVesselTrip>;
 };
 
-/** One realtime row plus optional prior trip and detected lifecycle events. */
-export type PreparedTripUpdate = {
+/**
+ * One feed row joined with optional prior active trip and {@link TripEvents}.
+ *
+ * Produced by {@link calculateTripUpdates}; consumed when building or routing
+ * trip rows.
+ */
+export type CalculatedTripUpdate = {
   vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
   events: TripEvents;
 };
 
-/** Prepared update that is guaranteed to have a prior active trip (completion path). */
-export type CompletedTripUpdate = PreparedTripUpdate & {
+/**
+ * {@link CalculatedTripUpdate} with a definite prior active row.
+ *
+ * Required to emit a completed trip close in {@link finalizeCompletedTrips}.
+ */
+export type CompletedTripUpdate = CalculatedTripUpdate & {
   existingActiveTrip: ConvexVesselTrip;
 };
 
-/** Split of completing vs continuing vessels for one realtime batch. */
-export type TripUpdatePartition = {
+/**
+ * Same batch of {@link CalculatedTripUpdate} rows split for pipeline branches.
+ *
+ * Output of {@link calculateUpdatedVesselTrips} (and {@link prepareTripUpdates}).
+ */
+export type TripUpdatesRouting = {
   completedTripUpdates: ReadonlyArray<CompletedTripUpdate>;
-  activeTripUpdates: ReadonlyArray<PreparedTripUpdate>;
+  activeTripUpdates: ReadonlyArray<CalculatedTripUpdate>;
 };

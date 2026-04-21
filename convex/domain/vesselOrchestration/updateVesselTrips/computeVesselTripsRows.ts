@@ -1,13 +1,21 @@
 /**
  * Pure trip-update pipeline for one orchestrator ping.
  *
- * Flow: build schedule lookup → prepare per-vessel updates → finalize completions
- * → project actives → merge with carry-forward so untouched vessels keep rows.
+ * Orchestrates schedule tables, per-feed lifecycle events, completion vs active
+ * branches, and a last-write-wins merge so vessels absent from the batch keep
+ * prior actives.
+ *
+ * Flow: schedule lookup → {@link calculateTripUpdates} →
+ * {@link calculateUpdatedVesselTrips} → finalize completions → project actives →
+ * merge carry-forward.
  */
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import { finalizeCompletedTrips } from "./finalizeCompletedTrips";
-import { prepareTripUpdates } from "./prepareTripUpdates";
+import {
+  calculateTripUpdates,
+  calculateUpdatedVesselTrips,
+} from "./prepareTripUpdates";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
@@ -17,37 +25,46 @@ import { updateActiveTrips } from "./updateActiveTrips";
 /**
  * Derives completed trip rows and the full active set for one feed batch.
  *
+ * Completion and active projection run on disjoint subsets of the same feed;
+ * replacement actives from completions are concatenated with continuing
+ * actives before merging into the authoritative active set.
+ *
  * @param input - Live locations, prior actives, and today’s schedule snapshot
- * @returns Completed rows plus merged active rows (one per vessel after merge)
+ * @returns Completed closes plus merged active rows (one per vessel after merge)
  */
 export const computeVesselTripsRows = (
   input: RunUpdateVesselTripsInput
 ): RunUpdateVesselTripsOutput => {
-  // Segment-key and same-day schedule rows for this ping.
+  // Build segment-key index and same-day scheduled rows for enrichment lookups.
   const scheduleTables = createScheduledSegmentTablesFromSnapshot(
     input.scheduleSnapshot,
     input.sailingDay
   );
 
-  // One prepared row per feed vessel: events + optional prior active trip.
-  const prepared = prepareTripUpdates(
+  // Join each feed row to its prior active and compute lifecycle flags (no trip
+  // rows yet).
+  const tripUpdates = calculateTripUpdates(
     input.vesselLocations,
     input.existingActiveTrips
   );
 
-  // Completing vessels: closed row + optional replacement active from same ping.
+  // Split updates into completion handling vs active projection branches.
+  const { completedTripUpdates, activeTripUpdates } =
+    calculateUpdatedVesselTrips(tripUpdates);
+
+  // Close completing trips and build replacement actives from the same ping.
   const completionResolutions = finalizeCompletedTrips(
-    prepared.completedTripUpdates,
+    completedTripUpdates,
     scheduleTables
   );
 
-  // Non-completing vessels: next active projection for this ping only.
+  // Project next active rows for pings that did not complete a trip.
   const continuingActives = updateActiveTrips(
-    prepared.activeTripUpdates,
+    activeTripUpdates,
     scheduleTables
   );
 
-  // All active rows produced this ping (completions then continuing).
+  // Collect replacement actives from completions, then from continuing projection.
   const processedActiveTrips = [
     ...completionResolutions.flatMap((resolution) =>
       resolution.replacementActiveTrip !== undefined
@@ -57,7 +74,7 @@ export const computeVesselTripsRows = (
     ...continuingActives,
   ];
 
-  // Public contract: completed closes plus full active set (merge carry-forward).
+  // Return completed closes plus merged actives (carry-forward for untouched vessels).
   const outputTrips: RunUpdateVesselTripsOutput = {
     completedTrips: completionResolutions.flatMap((resolution) =>
       resolution.completedVesselTrip !== undefined
@@ -77,12 +94,14 @@ export const computeVesselTripsRows = (
  * Merges prior actives with rows produced this ping; later entries win by
  * vessel key.
  *
+ * Vessels not present in `processedActiveTrips` keep their prior row unchanged.
+ *
  * @param existingActiveTrips - Actives before this ping (including vessels not
  *   in the feed batch)
  * @param processedActiveTrips - Replacement actives from completion and active
  *   paths
  * @returns One row per vessel so downstream upserts can compare `TimeStamp`
- *   (and similar) for material changes
+ *   and related fields for material changes
  */
 const mergeActiveTripRows = (
   existingActiveTrips: ReadonlyArray<
@@ -92,7 +111,7 @@ const mergeActiveTripRows = (
     RunUpdateVesselTripsOutput["activeTrips"][number]
   >
 ): ReadonlyArray<RunUpdateVesselTripsOutput["activeTrips"][number]> => {
-  // Map last-write-wins: processed rows override stale actives for same vessel.
+  // Merge by vessel with last-write-wins (processed overrides prior for same key).
   const mergedByVessel = new Map<
     string,
     RunUpdateVesselTripsOutput["activeTrips"][number]

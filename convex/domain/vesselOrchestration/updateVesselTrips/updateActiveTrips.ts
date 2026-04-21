@@ -7,21 +7,24 @@
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
-import type { PreparedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
+import type { CalculatedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Builds updated active trips from prepared rows.
+ * Builds updated active trips from non-completing {@link CalculatedTripUpdate}
+ * rows.
  *
- * On failure for a vessel, returns the previous active row when one exists so
- * a bad ping does not drop tracking.
+ * Each row is projected through {@link buildTripCore} with `tripStart: false`.
+ * On failure for a vessel, returns the previous active row when one exists so a
+ * bad ping does not drop tracking.
  *
- * @param activeTripUpdates - Non-completing prepared rows (may lack prior active)
+ * @param activeTripUpdates - Non-completing calculated rows (may lack prior
+ *   active)
  * @param scheduleTables - Prefetched segment tables for schedule enrichment
  * @returns Zero or one trip row per input update
  */
 export const updateActiveTrips = (
-  activeTripUpdates: ReadonlyArray<PreparedTripUpdate>,
+  activeTripUpdates: ReadonlyArray<CalculatedTripUpdate>,
   scheduleTables: ScheduledSegmentTables
 ): ReadonlyArray<ConvexVesselTrip> =>
   activeTripUpdates.flatMap((update, index) => {

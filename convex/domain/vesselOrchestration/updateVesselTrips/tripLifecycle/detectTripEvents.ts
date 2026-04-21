@@ -1,5 +1,10 @@
 /**
  * Centralized trip event detection for vessel updates.
+ *
+ * Produces a {@link TripEvents} bundle per ping from the prior active row (if
+ * any) and the **raw** feed location. Callers use these flags before building
+ * normalized `ConvexVesselTrip` rows so physical boundaries stay independent of
+ * schedule-resolved docked identity.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -24,10 +29,12 @@ export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): TripEvents => {
+  // Resolve debounced physical boundaries from feed signals (AtDock, LeftDock, …).
   const physical = resolveDebouncedPhysicalBoundaries(
     existingTrip,
     currLocation
   );
+  // Derive continuing schedule key for the raw sample to compare to the stored key.
   const continuingScheduleKey = deriveContinuingScheduleKey(
     existingTrip,
     currLocation
@@ -42,9 +49,8 @@ export const detectTripEvents = (
     ),
     didJustArriveAtDock: physical.didJustArriveAtDock,
     didJustLeaveDock: physical.didJustLeaveDock,
-    // Treat detachment from schedule identity (`some-key -> undefined`) as a
-    // real transition. Otherwise stale next-leg context can linger on a trip
-    // that should now be physical-only.
+    // Detect schedule-key transitions (including detachment) so stale next-leg
+    // context does not linger on physical-only trips.
     scheduleKeyChanged: computeScheduleKeyChanged(
       existingTrip,
       continuingScheduleKey

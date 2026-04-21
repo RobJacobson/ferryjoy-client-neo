@@ -13,8 +13,8 @@ import type { CompletedTripUpdate } from "domain/vesselOrchestration/updateVesse
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * One vessel in the completion batch: stored closed row and optional follow-on
- * active row.
+ * Result of processing one completion update: optional closed trip row and
+ * optional replacement active from the same ping.
  */
 type CompletedTripResolution = {
   completedVesselTrip?: ConvexVesselTrip;
@@ -24,12 +24,16 @@ type CompletedTripResolution = {
 /**
  * Builds completed trip rows and replacement active rows for completing vessels.
  *
- * On failure, returns the prior active row as `replacementActiveTrip` so the
- * vessel does not disappear from the active set.
+ * Runs {@link buildCompletedTrip} then {@link buildTripCore} with
+ * `tripStart: true` for the replacement active. On failure, returns the prior
+ * active row as `replacementActiveTrip` so the vessel does not disappear from
+ * the active set.
  *
- * @param completedTripUpdates - Vessels closing a trip this ping (prior active required)
+ * @param completedTripUpdates - Vessels closing a trip this ping (prior active
+ *   required)
  * @param scheduleTables - Prefetched segment tables for schedule enrichment
- * @returns One resolution per completion update (completed row may be omitted on error)
+ * @returns One resolution per completion update (completed row may be omitted on
+ *   error)
  */
 export const finalizeCompletedTrips = (
   completedTripUpdates: ReadonlyArray<CompletedTripUpdate>,
