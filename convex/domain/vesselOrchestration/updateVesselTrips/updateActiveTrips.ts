@@ -1,30 +1,38 @@
 /**
- * Projects active trip rows for vessels that are not completing this ping.
+ * Active branch of the trip-update pipeline.
+ *
+ * Updates active trip rows for vessels that did not close a trip this ping.
  */
 
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
-import type { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
-import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
+import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { PreparedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Builds updated active trips from prepared rows; failures fall back to prior active.
+ * Builds updated active trips from prepared rows.
+ *
+ * On failure for a vessel, returns the previous active row when one exists so
+ * a bad ping does not drop tracking.
+ *
+ * @param activeTripUpdates - Non-completing prepared rows (may lack prior active)
+ * @param scheduleLookup - Prefetched segment lookup for schedule enrichment
+ * @returns Zero or one trip row per input update
  */
 export const updateActiveTrips = (
   activeTripUpdates: ReadonlyArray<PreparedTripUpdate>,
-  buildTrip: typeof buildTripCore,
-  buildTripAdapters: VesselTripsBuildTripAdapters
+  scheduleLookup: ScheduledSegmentLookup
 ): ReadonlyArray<ConvexVesselTrip> =>
   activeTripUpdates.flatMap((update, index) => {
     try {
       return [
-        buildTrip(
+        buildTripCore(
           update.vesselLocation,
           update.existingActiveTrip,
           false,
           update.events,
-          buildTripAdapters
+          scheduleLookup
         ),
       ];
     } catch (error) {

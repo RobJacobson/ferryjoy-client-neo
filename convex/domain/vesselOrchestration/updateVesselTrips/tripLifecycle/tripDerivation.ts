@@ -8,6 +8,7 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
+import type { DebouncedPhysicalBoundaryResult } from "./physicalDockSeaDebounce";
 import {
   getPhysicalDepartureStamp,
   rawDepartureIsContradictory,
@@ -33,6 +34,7 @@ export type DerivedTripInputs = {
   currentIsTripStartReady: boolean;
   leftDockTime: number | undefined;
   didJustLeaveDock: boolean;
+  didJustArriveAtDock: boolean;
   previousCompletedTrip: ConvexVesselTrip | undefined;
 };
 
@@ -63,17 +65,16 @@ export const hasTripEvidence = (
  *
  * @param existingTrip - Previous trip state for the vessel
  * @param currLocation - Current vessel location from the live feed
+ * @param physicalBoundaries - Result of a single {@link resolveDebouncedPhysicalBoundaries} call for this ping
  * @returns Normalized departure timestamp and whether this ping records departure
  */
 export const getDockDepartureState = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation
+  currLocation: ConvexVesselLocation,
+  physicalBoundaries: DebouncedPhysicalBoundaryResult
 ): DockDepartureState => {
   const persistedDeparture = getPhysicalDepartureStamp(existingTrip);
-  const { didJustLeaveDock } = resolveDebouncedPhysicalBoundaries(
-    existingTrip,
-    currLocation
-  );
+  const { didJustLeaveDock } = physicalBoundaries;
   const leftDockTime = rawDepartureIsContradictory(existingTrip, currLocation)
     ? persistedDeparture
     : (currLocation.LeftDock ?? persistedDeparture);
@@ -85,20 +86,29 @@ export const getDockDepartureState = (
 };
 
 /**
- * Normalize the shared inputs needed by event detection and base trip
- * construction.
+ * Normalizes inputs shared by event detection and base trip construction.
  *
- * `current*` values use only the current feed payload. `continuing*` values
- * apply carry-forward protection for transient feed omissions.
+ * `current*` fields reflect the `currLocation` payload. `continuing*` fields
+ * apply carry-forward rules when the feed drops fields while still docked.
+ *
+ * Call twice per ping in the typical path: once with **raw** locations in
+ * {@link detectTripEvents}, again with **effective** locations inside
+ * {@link baseTripFromLocation} after schedule resolution.
  *
  * @param existingTrip - Previous trip state for the vessel
- * @param currLocation - Current vessel location from the live feed
+ * @param currLocation - Location for this derivation (raw or effective)
  * @returns Normalized trip inputs for this ping
  */
 export const deriveTripInputs = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): DerivedTripInputs => {
+  // Single debounced boundary resolution per call; `detectTripEvents` reuses
+  // the result via `DerivedTripInputs` to avoid duplicate work.
+  const physicalBoundaries = resolveDebouncedPhysicalBoundaries(
+    existingTrip,
+    currLocation
+  );
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
   const persistedDeparture = getPhysicalDepartureStamp(existingTrip);
@@ -124,7 +134,8 @@ export const deriveTripInputs = (
     : (currentScheduledDeparture ?? existingTrip?.ScheduledDeparture);
   const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
     existingTrip,
-    currLocation
+    currLocation,
+    physicalBoundaries
   );
   const currentIdentity = deriveTripIdentity({
     vesselAbbrev: currLocation.VesselAbbrev,
@@ -154,6 +165,7 @@ export const deriveTripInputs = (
     currentIsTripStartReady: currentIdentity.isTripStartReady,
     leftDockTime,
     didJustLeaveDock,
+    didJustArriveAtDock: physicalBoundaries.didJustArriveAtDock,
     previousCompletedTrip: hasTripEvidence(existingTrip)
       ? existingTrip
       : undefined,

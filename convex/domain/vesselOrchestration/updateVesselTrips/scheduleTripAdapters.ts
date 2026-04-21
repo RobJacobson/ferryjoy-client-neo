@@ -1,42 +1,60 @@
 /**
- * Schedule adapter wiring for one trip-update ping.
+ * Schedule lookup helpers for one trip-update ping: effective docked location
+ * and final schedule leg attachment, keyed by {@link ScheduledSegmentLookup}.
  */
 
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
 import { resolveEffectiveDockedLocation } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation";
-import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { EffectiveTripIdentity } from "shared/effectiveTripIdentity";
 
-/** Snapshot-backed lookup used by the trip ping (same type as `createScheduledSegmentLookupFromSnapshot`). */
-export type ScheduleSegmentLookup = ReturnType<
-  typeof createScheduledSegmentLookupFromSnapshot
->;
+/**
+ * Adjusts a docked live sample to a consistent schedule identity when the feed
+ * omits or contradicts `ScheduleKey` / terminals.
+ *
+ * Non-docked pings and pings that already carry `LeftDock` pass through unchanged.
+ *
+ * @param lookup - Snapshot-backed segment index for this ping
+ * @param location - Current vessel location (docked-at-terminal branch handled here)
+ * @param existingTrip - Prior active trip row for continuity, if any
+ * @returns Location fields aligned with the chosen effective identity
+ */
+export const resolveEffectiveLocationForLookup = (
+  lookup: ScheduledSegmentLookup,
+  location: ConvexVesselLocation,
+  existingTrip: ConvexVesselTrip | undefined
+): ConvexVesselLocation => {
+  if (!location.AtDock || location.LeftDock !== undefined) {
+    return location;
+  }
 
-/** Build schedule adapters from one ping's schedule snapshot. */
-export const createScheduleTripAdaptersFromSnapshot = (
-  scheduleContext: Parameters<typeof createScheduledSegmentLookupFromSnapshot>[0]
-): VesselTripsBuildTripAdapters =>
-  createScheduleTripAdapters(
-    createScheduledSegmentLookupFromSnapshot(scheduleContext)
-  );
+  const result = resolveEffectiveDockedLocation(lookup, location, existingTrip);
+
+  logDockedIdentityResolution({
+    location,
+    existingTrip,
+    stableDockedIdentity: result.stableDockedIdentity,
+    scheduledSegmentKey: result.scheduledResolution?.segment.Key,
+    effectiveIdentity: result.effectiveIdentity,
+    effectiveLocation: result.effectiveLocation,
+  });
+
+  return result.effectiveLocation;
+};
 
 /**
- * Schedule continuity adapters for one snapshot lookup (plain object, not curried).
+ * Fills `NextScheduleKey` / `NextScheduledDeparture` from the lookup or from
+ * the prior row when the current segment key matches.
+ *
+ * @param lookup - Snapshot-backed segment index for this ping
+ * @param baseTrip - Trip after base derivation (typically has `ScheduleKey`)
+ * @param existingTrip - Prior row for same-vessel carry-forward of next-leg fields
+ * @returns Trip with next-leg schedule fields set when derivable
  */
-export const createScheduleTripAdapters = (
-  lookup: ScheduleSegmentLookup
-): VesselTripsBuildTripAdapters => ({
-  resolveEffectiveLocation: (location, existingTrip) =>
-    resolveEffectiveLocationForLookup(lookup, location, existingTrip),
-  appendFinalSchedule: (baseTrip, existingTrip) =>
-    appendFinalScheduleForLookup(lookup, baseTrip, existingTrip),
-});
-
-const appendFinalScheduleForLookup = (
-  lookup: ScheduleSegmentLookup,
+export const appendFinalScheduleForLookup = (
+  lookup: ScheduledSegmentLookup,
   baseTrip: ConvexVesselTrip,
   existingTrip: ConvexVesselTrip | undefined
 ): ConvexVesselTrip => {
@@ -63,6 +81,7 @@ const appendFinalScheduleForLookup = (
     };
   }
 
+  // Infer next leg from today’s scheduled departure row + same-day events.
   const scheduledEvent =
     lookup.getScheduledDepartureEventBySegmentKey(segmentKey);
   if (!scheduledEvent) {
@@ -92,33 +111,10 @@ const appendFinalScheduleForLookup = (
   };
 };
 
-const resolveEffectiveLocationForLookup = (
-  lookup: ScheduleSegmentLookup,
-  location: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip | undefined
-): ConvexVesselLocation => {
-  if (!location.AtDock || location.LeftDock !== undefined) {
-    return location;
-  }
-
-  const result = resolveEffectiveDockedLocation(
-    lookup,
-    location,
-    existingTrip
-  );
-
-  logDockedIdentityResolution({
-    location,
-    existingTrip,
-    stableDockedIdentity: result.stableDockedIdentity,
-    scheduledSegmentKey: result.scheduledResolution?.segment.Key,
-    effectiveIdentity: result.effectiveIdentity,
-    effectiveLocation: result.effectiveLocation,
-  });
-
-  return result.effectiveLocation;
-};
-
+/**
+ * Warns when effective docked identity diverges from feed or stored trip, or
+ * when schedule rollover conflicts with live fields (observability only).
+ */
 const logDockedIdentityResolution = ({
   location,
   existingTrip,

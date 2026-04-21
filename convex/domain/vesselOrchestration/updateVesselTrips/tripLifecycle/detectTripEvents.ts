@@ -4,19 +4,18 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { resolveDebouncedPhysicalBoundaries } from "./physicalDockSeaDebounce";
 import { deriveTripInputs, hasTripEvidence } from "./tripDerivation";
 import type { TripEvents } from "./tripEventTypes";
 
 /**
- * Detect all trip events for a vessel update.
+ * Detects lifecycle flags for one ping from the prior trip and raw location.
  *
- * Centralized event detection that determines what events occurred
- * between the existing trip state and the current location.
+ * Uses {@link deriveTripInputs} with the **raw** feed row so schedule
+ * resolution in `buildTripCore` does not affect completion detection.
  *
- * @param existingTrip - Previous trip state (undefined for first appearance)
- * @param currLocation - Current vessel location from REST/API
- * @returns Object with all event flags
+ * @param existingTrip - Previous trip state (`undefined` for first appearance)
+ * @param currLocation - Current vessel location from REST/API (unresolved)
+ * @returns {@link TripEvents} bundle for downstream builders
  */
 export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
@@ -24,8 +23,7 @@ export const detectTripEvents = (
 ): TripEvents => {
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const isTripStartReady = tripInputs.currentIsTripStartReady;
-  const { didJustLeaveDock, didJustArriveAtDock } =
-    resolveDebouncedPhysicalBoundaries(existingTrip, currLocation);
+  const { didJustLeaveDock, didJustArriveAtDock } = tripInputs;
 
   return {
     isFirstTrip: !existingTrip,

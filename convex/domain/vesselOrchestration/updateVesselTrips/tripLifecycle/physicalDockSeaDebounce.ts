@@ -141,6 +141,7 @@ export const resolveDebouncedPhysicalBoundaries = (
     rawDidJustArriveAtDock(existingTrip, currLocation) &&
     !rawArrivalIsContradictory(currLocation);
 
+  // One transition per ping: both raw signals would churn ownership twice.
   if (didJustLeaveDock && didJustArriveAtDock) {
     didJustLeaveDock = false;
     didJustArriveAtDock = false;

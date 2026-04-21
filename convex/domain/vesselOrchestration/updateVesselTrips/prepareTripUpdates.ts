@@ -13,7 +13,7 @@ import type {
  * Builds one prepared update per realtime row and splits completion vs active paths.
  *
  * @param input - Live locations and existing active trips for overlap lookup
- * @param deps - Provides `detectTripEvents` for each prepared row
+ * @param detectEvents - Event detector (typically {@link detectTripEvents})
  * @returns Completing updates plus non-completing updates for active projection
  */
 export const prepareTripUpdates = (

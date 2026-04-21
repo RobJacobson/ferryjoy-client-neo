@@ -121,7 +121,6 @@ import type * as domain_vesselOrchestration_updateVesselPredictions_index from "
 import type * as domain_vesselOrchestration_updateVesselPredictions_predictionPolicy from "../domain/vesselOrchestration/updateVesselPredictions/predictionPolicy.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_computeVesselTripsRows from "../domain/vesselOrchestration/updateVesselTrips/computeVesselTripsRows.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_continuity_index from "../domain/vesselOrchestration/updateVesselTrips/continuity/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolveDockedScheduledSegment from "../domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_continuity_resolveEffectiveDockedLocation from "../domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_finalizeCompletedTrips from "../domain/vesselOrchestration/updateVesselTrips/finalizeCompletedTrips.js";
@@ -138,7 +137,6 @@ import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_trip
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_tripEventTypes from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_types from "../domain/vesselOrchestration/updateVesselTrips/types.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_updateActiveTrips from "../domain/vesselOrchestration/updateVesselTrips/updateActiveTrips.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_vesselTripsBuildTripAdapters from "../domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters.js";
 import type * as functions_events_eventsActual_index from "../functions/events/eventsActual/index.js";
 import type * as functions_events_eventsActual_mutations from "../functions/events/eventsActual/mutations.js";
 import type * as functions_events_eventsActual_queries from "../functions/events/eventsActual/queries.js";
@@ -365,7 +363,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy": typeof domain_vesselOrchestration_updateVesselPredictions_predictionPolicy;
   "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip;
   "domain/vesselOrchestration/updateVesselTrips/computeVesselTripsRows": typeof domain_vesselOrchestration_updateVesselTrips_computeVesselTripsRows;
-  "domain/vesselOrchestration/updateVesselTrips/continuity/index": typeof domain_vesselOrchestration_updateVesselTrips_continuity_index;
   "domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment": typeof domain_vesselOrchestration_updateVesselTrips_continuity_resolveDockedScheduledSegment;
   "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation": typeof domain_vesselOrchestration_updateVesselTrips_continuity_resolveEffectiveDockedLocation;
   "domain/vesselOrchestration/updateVesselTrips/finalizeCompletedTrips": typeof domain_vesselOrchestration_updateVesselTrips_finalizeCompletedTrips;
@@ -382,7 +379,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_tripEventTypes;
   "domain/vesselOrchestration/updateVesselTrips/types": typeof domain_vesselOrchestration_updateVesselTrips_types;
   "domain/vesselOrchestration/updateVesselTrips/updateActiveTrips": typeof domain_vesselOrchestration_updateVesselTrips_updateActiveTrips;
-  "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters": typeof domain_vesselOrchestration_updateVesselTrips_vesselTripsBuildTripAdapters;
   "functions/events/eventsActual/index": typeof functions_events_eventsActual_index;
   "functions/events/eventsActual/mutations": typeof functions_events_eventsActual_mutations;
   "functions/events/eventsActual/queries": typeof functions_events_eventsActual_queries;

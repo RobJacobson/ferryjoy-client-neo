@@ -1,10 +1,10 @@
 /**
- * Base vessel trip from raw location data.
+ * Base vessel trip from location-shaped inputs.
  *
- * Builds the location-derived base {@link ConvexVesselTrip} for a single vessel ping.
- * The builder uses an explicit mode and shared derived inputs so the same
- * carry-forward rules apply consistently across newly created and continuing
- * updates.
+ * Builds the location-derived base {@link ConvexVesselTrip} for a single ping.
+ * Callers pass either raw feed locations (event detection path) or
+ * schedule-resolved locations after docked identity resolution in `buildTripCore`.
+ * Shared {@link deriveTripInputs} keeps both paths aligned.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -18,18 +18,20 @@ import {
 } from "./tripDerivation";
 
 /**
- * Build the base trip from the current location and previous trip state.
+ * Builds the base trip from the current location and previous trip state.
  *
- * @param currLocation - Latest vessel location from the live feed
- * @param existingTrip - Current trip, when one already exists for the vessel
- * @param isTripStart - True when the caller is explicitly starting a new trip
- * @returns Location-derived trip state before schedule and prediction enrichments
+ * @param currLocation - Feed or effective location for this step (see module doc)
+ * @param existingTrip - Current trip when one exists for the vessel
+ * @param isTripStart - True when starting a new trip row (replacement active or boundary)
+ * @returns Location-derived trip before next-leg schedule merge in `buildTripCore`
  */
 export const baseTripFromLocation = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
   isTripStart = false
 ): ConvexVesselTrip => {
+  // Second `deriveTripInputs` in the ping pipeline: `currLocation` is often
+  // effective (post–docked resolution), unlike `detectTripEvents` (raw).
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const tripMode = determineBaseTripMode(
     existingTrip,

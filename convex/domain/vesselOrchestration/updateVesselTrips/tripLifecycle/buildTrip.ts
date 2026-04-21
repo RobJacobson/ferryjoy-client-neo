@@ -1,37 +1,45 @@
 /**
  * Schedule-half trip build for one live location ping: effective location, base
- * trip, schedule enrichment. ML runs in **updateVesselPredictions**; production
- * injects {@link buildTripCore} via `ProcessVesselTripsDeps`.
+ * trip, then schedule leg enrichment.
+ *
+ * ML prediction overlays run in **updateVesselPredictions** after rows persist;
+ * this module does not attach prediction fields.
  */
-import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
+import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import {
+  appendFinalScheduleForLookup,
+  resolveEffectiveLocationForLookup,
+} from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
 /**
- * Schedule enrichment only — no ML gates or ML attachment. Production pings
- * inject this via `ProcessVesselTripsDeps`.
+ * Schedule enrichment only — no ML gates or ML attachment.
  *
- * @param currLocation - Latest vessel location from REST/API
- * @param existingTrip - Previous trip for event detection (undefined for new trips)
- * @param tripStart - True for new trip (boundary or first), false for continuing
- * @param events - Detected trip events from detectTripEvents
- * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
- * @returns Schedule-enriched trip row (storage shape, predictions stripped upstream of ML)
+ * @param currLocation - Latest vessel location from REST/API (raw feed)
+ * @param existingTrip - Prior active trip for carry-forward and identity
+ *   (undefined only when starting from a completion row as the “existing” context)
+ * @param tripStart - True for a new trip instance, false for continuing
+ * @param events - Flags from {@link detectTripEvents} for the **raw** ping
+ * @param scheduleLookup - Prefetched segment lookup for this orchestrator ping
+ * @returns Storage-shaped trip row (prediction fields not applied here)
  */
 export const buildTripCore = (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  adapters: VesselTripsBuildTripAdapters
+  scheduleLookup: ScheduledSegmentLookup
 ): ConvexVesselTrip => {
-  const { resolveEffectiveLocation, appendFinalSchedule } = adapters;
-  const effectiveLocation = resolveEffectiveLocation(
+  const effectiveLocation = resolveEffectiveLocationForLookup(
+    scheduleLookup,
     currLocation,
     existingTrip
   );
+  // `deriveTripInputs` in base-trip construction uses this effective location;
+  // event detection uses raw `currLocation` — they can differ for docked identity.
   const baseTrip = baseTripFromLocation(
     effectiveLocation,
     existingTrip,
@@ -68,12 +76,16 @@ export const buildTripCore = (
 
   const tripForScheduleEnrichment = withScheduleKeyChangeClearedDerivedState;
 
-  // Schedule enrichment is segment-key-based. Docked identity bootstrap now
-  // happens once in `resolveEffectiveLocation`.
+  // Schedule enrichment is segment-key-based. Docked identity bootstrap happens
+  // in `resolveEffectiveLocationForLookup`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
 
   return shouldAppendFinalSchedule
-    ? appendFinalSchedule(tripForScheduleEnrichment, existingTrip)
+    ? appendFinalScheduleForLookup(
+        scheduleLookup,
+        tripForScheduleEnrichment,
+        existingTrip
+      )
     : tripForScheduleEnrichment;
 };
 

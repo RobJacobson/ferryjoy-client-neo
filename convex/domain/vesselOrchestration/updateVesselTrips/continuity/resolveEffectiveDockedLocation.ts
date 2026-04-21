@@ -1,5 +1,8 @@
 /**
- * Domain orchestration for effective docked location identity during vessel-trip writes.
+ * Chooses stable schedule identity for docked pings when the live feed is thin.
+ *
+ * Combines persisted trip hints with {@link resolveDockedScheduledSegment} and
+ * shared identity rules in `shared/effectiveTripIdentity`.
  */
 
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";

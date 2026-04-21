@@ -50,6 +50,7 @@ export const resolveDockedScheduledSegment = (
   lookup: ScheduledSegmentLookup,
   args: ResolveDockedScheduledSegmentArgs
 ): DockedScheduledSegmentResolution | null => {
+  // 1) Exact next leg from the prior row when the terminal still matches.
   if (args.existingTrip?.NextScheduleKey) {
     const exactNextEvent = lookup.getScheduledDepartureEventBySegmentKey(
       args.existingTrip.NextScheduleKey
@@ -77,6 +78,7 @@ export const resolveDockedScheduledSegment = (
     }
   }
 
+  // 2) Same-day rollover: next departure after a known scheduled time at port.
   if (args.existingTrip?.ScheduledDeparture !== undefined) {
     const sailingDay = getSailingDay(
       new Date(args.existingTrip.ScheduledDeparture)

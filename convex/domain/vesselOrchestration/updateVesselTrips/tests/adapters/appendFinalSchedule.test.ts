@@ -1,16 +1,16 @@
 /**
- * Tests for the boundary-layer `appendFinalSchedule` adapter (schedule lookup wiring).
+ * Tests for `appendFinalScheduleForLookup` (schedule lookup wiring).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
-import { createScheduleTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
+import { appendFinalScheduleForLookup } from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
-describe("appendFinalSchedule", () => {
+describe("appendFinalScheduleForLookup", () => {
   it("reuses existing next-trip schedule fields when the schedule segment is unchanged", () => {
     const existingTrip = makeTrip({
       ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI",
@@ -23,10 +23,8 @@ describe("appendFinalSchedule", () => {
       NextScheduledDeparture: undefined,
     });
 
-    const { appendFinalSchedule } = createScheduleTripAdapters(
-      createTestLookup({})
-    );
-    const enriched = appendFinalSchedule(baseTrip, existingTrip);
+    const lookup = createTestLookup({});
+    const enriched = appendFinalScheduleForLookup(lookup, baseTrip, existingTrip);
 
     expect(enriched.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
     expect(enriched.NextScheduledDeparture).toBe(
@@ -55,15 +53,14 @@ describe("appendFinalSchedule", () => {
       NextScheduledDeparture: undefined,
     });
 
-    const { appendFinalSchedule } = createScheduleTripAdapters(
-      createTestLookup({
-        scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
-        scheduledEventsByScope: new Map([
-          ["CHE|2026-03-13", [scheduledEvent, nextScheduledEvent]],
-        ]),
-      })
-    );
-    const enriched = appendFinalSchedule(
+    const lookup = createTestLookup({
+      scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
+      scheduledEventsByScope: new Map([
+        ["CHE|2026-03-13", [scheduledEvent, nextScheduledEvent]],
+      ]),
+    });
+    const enriched = appendFinalScheduleForLookup(
+      lookup,
       baseTrip,
       makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );
