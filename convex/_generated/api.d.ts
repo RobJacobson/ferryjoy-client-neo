@@ -188,6 +188,10 @@ import type * as functions_vesselLocationsHistoric_index from "../functions/vess
 import type * as functions_vesselLocationsHistoric_mutations from "../functions/vesselLocationsHistoric/mutations.js";
 import type * as functions_vesselLocationsHistoric_queries from "../functions/vesselLocationsHistoric/queries.js";
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
+import type * as functions_vesselLocationsUpdates_index from "../functions/vesselLocationsUpdates/index.js";
+import type * as functions_vesselLocationsUpdates_mutations from "../functions/vesselLocationsUpdates/mutations.js";
+import type * as functions_vesselLocationsUpdates_queries from "../functions/vesselLocationsUpdates/queries.js";
+import type * as functions_vesselLocationsUpdates_schemas from "../functions/vesselLocationsUpdates/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
@@ -429,6 +433,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/mutations": typeof functions_vesselLocationsHistoric_mutations;
   "functions/vesselLocationsHistoric/queries": typeof functions_vesselLocationsHistoric_queries;
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
+  "functions/vesselLocationsUpdates/index": typeof functions_vesselLocationsUpdates_index;
+  "functions/vesselLocationsUpdates/mutations": typeof functions_vesselLocationsUpdates_mutations;
+  "functions/vesselLocationsUpdates/queries": typeof functions_vesselLocationsUpdates_queries;
+  "functions/vesselLocationsUpdates/schemas": typeof functions_vesselLocationsUpdates_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;

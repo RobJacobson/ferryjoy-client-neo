@@ -12,6 +12,7 @@ import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { terminalTopologySchema } from "functions/terminalsTopology/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
+import { vesselLocationUpdateValidationSchema } from "functions/vesselLocationsUpdates/schemas";
 import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripPredictionStoredSchema } from "functions/vesselTripPredictions/schemas";
@@ -81,6 +82,8 @@ export default defineSchema({
   vesselLocations: defineTable(vesselLocationValidationSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_schedule_key", ["ScheduleKey"]),
+
+  vesselLocationsUpdates: defineTable(vesselLocationUpdateValidationSchema),
 
   vesselLocationsHistoric: defineTable(historicVesselLocationValidationSchema)
     .index("by_sailing_day", ["SailingDay"])

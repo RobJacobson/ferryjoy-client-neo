@@ -13,18 +13,19 @@ afterEach(() => {
 });
 
 describe("functions/vesselOrchestrator updateVesselLocations", () => {
-  it("fetches raw rows, normalizes them through the domain concern, and persists the result", async () => {
+  it("writes changed locations through the combined updates mutation", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
 
     const mutationCalls: unknown[] = [];
     const ctx = {
+      runQuery: async () => [],
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return args;
       },
-    } as ActionCtx;
+    } as unknown as ActionCtx;
 
     const result = await updateVesselLocations(
       ctx,
@@ -57,6 +58,89 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
         .locations[0]?.VesselAbbrev
     ).toBe("CHE");
   });
+
+  it("skips mutation when vessel timestamp has not changed", async () => {
+    spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
+      makeRawLocation(),
+    ]);
+
+    const mutationCalls: unknown[] = [];
+    const ctx = {
+      runQuery: async () => [{ VesselAbbrev: "CHE", TimeStamp: toEpochMs() }],
+      runMutation: async (_mutation: unknown, args: unknown) => {
+        mutationCalls.push(args);
+        return args;
+      },
+    } as unknown as ActionCtx;
+
+    const result = await updateVesselLocations(
+      ctx,
+      Date.now(),
+      [{ VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" }],
+      [
+        {
+          TerminalID: 1,
+          TerminalName: "Anacortes",
+          TerminalAbbrev: "ANA",
+          Latitude: 48.507351,
+          Longitude: -122.677,
+        },
+        {
+          TerminalID: 15,
+          TerminalName: "Orcas Island",
+          TerminalAbbrev: "ORI",
+          Latitude: 48.597313,
+          Longitude: -122.92935,
+        },
+      ]
+    );
+
+    expect(result).toHaveLength(1);
+    expect(mutationCalls).toHaveLength(0);
+  });
+
+  it("writes when a vessel is new to the updates table", async () => {
+    spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
+      makeRawLocation(),
+    ]);
+
+    const mutationCalls: unknown[] = [];
+    const ctx = {
+      runQuery: async () => [{ VesselAbbrev: "KIT", TimeStamp: toEpochMs() }],
+      runMutation: async (_mutation: unknown, args: unknown) => {
+        mutationCalls.push(args);
+        return args;
+      },
+    } as unknown as ActionCtx;
+
+    await updateVesselLocations(
+      ctx,
+      Date.now(),
+      [{ VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" }],
+      [
+        {
+          TerminalID: 1,
+          TerminalName: "Anacortes",
+          TerminalAbbrev: "ANA",
+          Latitude: 48.507351,
+          Longitude: -122.677,
+        },
+        {
+          TerminalID: 15,
+          TerminalName: "Orcas Island",
+          TerminalAbbrev: "ORI",
+          Latitude: 48.597313,
+          Longitude: -122.92935,
+        },
+      ]
+    );
+
+    expect(mutationCalls).toHaveLength(1);
+    expect(
+      (mutationCalls[0] as { locations: Array<{ VesselAbbrev: string }> })
+        .locations
+    ).toHaveLength(1);
+  });
 });
 
 /**
@@ -85,3 +169,5 @@ const makeRawLocation = () =>
     VesselPositionNum: 1,
     TimeStamp: new Date("2026-03-31T12:00:00-07:00"),
   }) as unknown as WsfVesselLocation;
+
+const toEpochMs = () => new Date("2026-03-31T12:00:00-07:00").getTime();

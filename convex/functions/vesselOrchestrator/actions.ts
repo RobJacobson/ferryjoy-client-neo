@@ -6,7 +6,7 @@
  * orchestrator regains its full end-to-end flow.
  */
 
-import { api, internal } from "_generated/api";
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
@@ -14,9 +14,9 @@ import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
 import type {
   CompletedTripBoundaryFact,
-  VesselTripPersistResult,
   PredictedTripComputation,
   ScheduleSnapshot,
+  VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import {
   type RunUpdateVesselTimelineFromAssemblyInput,
@@ -222,10 +222,38 @@ export const updateVesselLocations = async (
     terminalsIdentity,
   });
 
-  // Persist vessel locations to Convex.
-  await ctx.runMutation(api.functions.vesselLocation.mutations.bulkUpsert, {
-    locations: convexLocations,
-  });
+  // Load lightweight per-vessel update signatures for dedupe.
+  const existingUpdates = await ctx.runQuery(
+    internal.functions.vesselLocationsUpdates.queries
+      .getAllVesselUpdateTimeStampsInternal
+  );
+
+  // Map prior timestamps by vessel abbrev for O(1) change checks.
+  const previousTimestampByVesselAbbrev = new Map(
+    existingUpdates.map((row) => [row.VesselAbbrev, row.TimeStamp] as const)
+  );
+
+  // Filter locations whose upstream timestamp advanced since last ping.
+  const changedLocations = convexLocations.filter(
+    (location) =>
+      previousTimestampByVesselAbbrev.get(location.VesselAbbrev) !==
+      location.TimeStamp
+  );
+
+  // Upsert changed locations and their update signatures in one mutation.
+  if (changedLocations.length > 0) {
+    await ctx.runMutation(
+      internal.functions.vesselLocationsUpdates.mutations
+        .bulkUpsertLocationsAndUpdates,
+      { locations: changedLocations }
+    );
+    // Legacy heavy path kept commented for prototype rollback only.
+    // await ctx.runMutation(
+    //   internal.functions.vesselLocation.mutations.bulkUpsert,
+    //   { locations: changedLocations }
+    // );
+  }
+
   return convexLocations;
 };
 
