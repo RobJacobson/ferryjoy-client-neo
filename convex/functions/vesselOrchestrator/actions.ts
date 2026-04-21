@@ -14,12 +14,13 @@ import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
 import type {
   CompletedTripBoundaryFact,
+  VesselTripPersistResult,
   PredictedTripComputation,
   ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
 import {
-  type RunUpdateVesselTimelineInput,
-  runUpdateVesselTimeline,
+  type RunUpdateVesselTimelineFromAssemblyInput,
+  runUpdateVesselTimelineFromAssembly,
 } from "domain/vesselOrchestration/updateTimeline";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
@@ -36,8 +37,6 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
-import { assembleTripComputationsFromPersistResult } from "./assembleTripComputationsFromPersistResult";
-import { buildTimelineTripComputationsForRun } from "./buildTimelineTripComputationsForRun";
 import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { createVesselOrchestratorConvexBindings } from "./utils";
 
@@ -99,7 +98,6 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   await runTimelineStep(
     ctx,
     pingStartedAt,
-    tripRows,
     tripPersistResult,
     predictionResult.predictedTripComputations
   );
@@ -174,35 +172,30 @@ const runTripStep = async (
 };
 
 /**
- * Runs Step 4 by translating persisted trip outcomes into timeline computations,
- * applying persist gates, and projecting timeline writes.
+ * Runs Step 4 by passing persisted timeline assembly rows directly into the
+ * timeline concern and projecting resulting writes.
  *
  * @param ctx - Convex action context for timeline mutations
  * @param pingStartedAt - Shared ping timestamp anchor for this run
- * @param tripRows - Step 2 trip rows (authoritative active/completed arrays)
  * @param tripPersistResult - Step 2 persistence result including branch handoffs
  * @param predictedTripComputations - Step 3 ML overlay handoffs
  */
 const runTimelineStep = async (
   ctx: ActionCtx,
   pingStartedAt: number,
-  tripRows: RunUpdateVesselTripsOutput,
-  tripPersistResult: Awaited<ReturnType<typeof persistVesselTripWriteSet>>,
+  tripPersistResult: VesselTripPersistResult,
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>
 ): Promise<void> => {
-  const tripComputations = assembleTripComputationsFromPersistResult(
-    tripRows,
-    tripPersistResult
-  );
-  const timelineTripComputations = buildTimelineTripComputationsForRun(
-    tripRows,
-    tripComputations,
-    tripPersistResult
-  );
-  await updateVesselTimeline(ctx, {
+  const timelineInput: RunUpdateVesselTimelineFromAssemblyInput = {
     pingStartedAt,
-    tripComputations: timelineTripComputations,
+    projectionAssembly: {
+      completedFacts: tripPersistResult.completedFacts,
+      currentBranch: tripPersistResult.currentBranch,
+    },
     predictedTripComputations,
+  };
+  await updateVesselTimeline(ctx, {
+    ...timelineInput,
   });
 };
 
@@ -380,19 +373,19 @@ const loadPredictionContext = async (
 };
 
 /**
- * Dock projection for this ping: calls domain {@link runUpdateVesselTimeline} with
- * the same {@link RunUpdateVesselTimelineInput} shape the PRD specifies (orchestrator
- * builds {@link TimelineTripComputation} rows via
- * {@link buildTimelineTripComputationsForRun} after persist).
+ * Dock projection for this ping: calls domain
+ * {@link runUpdateVesselTimelineFromAssembly} with direct projection assembly
+ * rows after Step 2 persistence and Step 3 prediction merge.
  *
  * @param ctx - Action context for timeline mutations
- * @param input - Canonical timeline handoff (`pingStartedAt`, annotated trip rows, predictions)
+ * @param input - Canonical timeline handoff (`pingStartedAt`, projection assembly, predictions)
  */
 export const updateVesselTimeline = async (
   ctx: ActionCtx,
-  input: RunUpdateVesselTimelineInput
+  input: RunUpdateVesselTimelineFromAssemblyInput
 ): Promise<void> => {
-  const { actualEvents, predictedEvents } = runUpdateVesselTimeline(input);
+  const { actualEvents, predictedEvents } =
+    runUpdateVesselTimelineFromAssembly(input);
   if (actualEvents.length > 0) {
     await ctx.runMutation(
       internal.functions.events.eventsActual.mutations.projectActualDockWrites,

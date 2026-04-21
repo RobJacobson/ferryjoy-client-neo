@@ -6,6 +6,7 @@ import type { ConvexActualDockEvent } from "domain/events/actual";
 import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted";
 import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { TripComputation } from "domain/vesselOrchestration/shared";
+import type { TimelineProjectionAssembly } from "./buildTimelinePingProjectionInput";
 
 /**
  * Post-persist metadata for orchestrator timeline (Option B). Set in
@@ -45,6 +46,15 @@ export type PredictedDockEventRow = ConvexPredictedDockWriteBatch;
 export type RunUpdateVesselTimelineInput = {
   pingStartedAt: number;
   tripComputations: ReadonlyArray<TimelineTripComputation>;
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
+};
+
+/**
+ * Direct same-ping timeline handoff without `TripComputation` translation.
+ */
+export type RunUpdateVesselTimelineFromAssemblyInput = {
+  pingStartedAt: number;
+  projectionAssembly: TimelineProjectionAssembly;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 

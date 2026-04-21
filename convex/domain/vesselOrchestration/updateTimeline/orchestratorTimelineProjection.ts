@@ -10,6 +10,7 @@ import {
   type TimelineProjectionAssembly,
 } from "./buildTimelinePingProjectionInput";
 import type {
+  RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
   TimelineTripComputation,
@@ -238,8 +239,22 @@ export const runUpdateVesselTimeline = (
   const assembly = buildTimelineProjectionAssemblyFromTripComputations(
     input.tripComputations
   );
+  return runUpdateVesselTimelineFromAssembly({
+    pingStartedAt: input.pingStartedAt,
+    projectionAssembly: assembly,
+    predictedTripComputations: input.predictedTripComputations,
+  });
+};
+
+/**
+ * Direct timeline entrypoint for orchestrator callers that already have
+ * completed/current projection assembly rows.
+ */
+export const runUpdateVesselTimelineFromAssembly = (
+  input: RunUpdateVesselTimelineFromAssemblyInput
+): RunUpdateVesselTimelineOutput => {
   const merged = mergePredictedComputationsIntoTimelineProjectionAssembly(
-    assembly,
+    input.projectionAssembly,
     input.predictedTripComputations
   );
   const tl = buildTimelinePingProjectionInput({

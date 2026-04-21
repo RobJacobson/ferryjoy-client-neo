@@ -19,12 +19,16 @@ export {
 export type {
   ActualDockEventRow,
   PredictedDockEventRow,
+  RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
   TimelineTripComputation,
   TimelineTripComputationPersist,
 } from "./contracts";
-export { runUpdateVesselTimeline } from "./orchestratorTimelineProjection";
+export {
+  runUpdateVesselTimeline,
+  runUpdateVesselTimelineFromAssembly,
+} from "./orchestratorTimelineProjection";
 export type {
   PingEventWrites,
   TimelinePingProjectionInput,
