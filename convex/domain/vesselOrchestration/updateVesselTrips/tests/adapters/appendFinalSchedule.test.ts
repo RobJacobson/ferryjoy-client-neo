@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import { appendFinalScheduleForLookup } from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -24,7 +24,11 @@ describe("appendFinalScheduleForLookup", () => {
     });
 
     const lookup = createTestLookup({});
-    const enriched = appendFinalScheduleForLookup(lookup, baseTrip, existingTrip);
+    const enriched = appendFinalScheduleForLookup(
+      lookup,
+      baseTrip,
+      existingTrip
+    );
 
     expect(enriched.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
     expect(enriched.NextScheduledDeparture).toBe(
@@ -76,13 +80,20 @@ describe("appendFinalScheduleForLookup", () => {
 const createTestLookup = (options: {
   scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
   scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
-}): ScheduledSegmentLookup => ({
-  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
-    options.scheduledEventByKey?.get(segmentKey) ?? null,
-  getScheduledDockEventsForSailingDay: (args) =>
-    options.scheduledEventsByScope?.get(
-      `${args.vesselAbbrev}|${args.sailingDay}`
-    ) ?? [],
+}): ScheduledSegmentTables => ({
+  sailingDay: "2026-03-13",
+  scheduledDepartureBySegmentKey: Object.fromEntries(
+    options.scheduledEventByKey ?? new Map()
+  ),
+  scheduledDockEventsByVesselAbbrev: Object.fromEntries(
+    [...(options.scheduledEventsByScope ?? new Map()).entries()].map(
+      ([scope, events]) => {
+        const pipe = scope.indexOf("|");
+        const vesselAbbrev = pipe === -1 ? scope : scope.slice(0, pipe);
+        return [vesselAbbrev, events] as const;
+      }
+    )
+  ),
 });
 
 const ms = (iso: string) => new Date(iso).getTime();

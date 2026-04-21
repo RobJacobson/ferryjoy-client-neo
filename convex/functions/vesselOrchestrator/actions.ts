@@ -35,6 +35,7 @@ import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { getSailingDay } from "shared/time";
 
 /**
  * Internal action: load identity and active trips, fetch live locations, and run
@@ -80,6 +81,7 @@ export const updateVesselOrchestrator = internalAction({
           .getScheduleSnapshotForPing,
         { pingStartedAt }
       );
+      const sailingDay = getSailingDay(new Date(pingStartedAt));
 
       // Step 2: Pure trip update. Downstream persistence, predictions, and
       // timeline still need their own boundary refactors to consume only these
@@ -87,7 +89,8 @@ export const updateVesselOrchestrator = internalAction({
       const trips = await updateVesselTrips(
         convexLocations,
         activeTrips,
-        scheduleSnapshot
+        scheduleSnapshot,
+        sailingDay
       );
       void trips;
       void pingStartedAt;
@@ -138,18 +141,21 @@ export const updateVesselLocations = async (
  *
  * @param vesselLocations - Live locations from {@link updateVesselLocations}
  * @param existingActiveTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param scheduleContext - Plain-data schedule snapshot for this ping
+ * @param scheduleSnapshot - Plain-data schedule snapshot for this ping
+ * @param sailingDay - Same sailing day used to load the snapshot (narrowing for lookups)
  * @returns The resulting completed and active trip rows for this ping
  */
 export const updateVesselTrips = (
   vesselLocations: ReadonlyArray<ConvexVesselLocation>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
-  scheduleContext: ScheduleSnapshot
+  scheduleSnapshot: ScheduleSnapshot,
+  sailingDay: string
 ): RunUpdateVesselTripsOutput =>
   computeVesselTripsRows({
     vesselLocations: vesselLocations,
     existingActiveTrips: existingActiveTrips,
-    scheduleContext,
+    scheduleSnapshot,
+    sailingDay,
   });
 
 /**

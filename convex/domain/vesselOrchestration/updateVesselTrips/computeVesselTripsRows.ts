@@ -5,7 +5,7 @@
  * → project actives → merge with carry-forward so untouched vessels keep rows.
  */
 
-import { createScheduledSegmentLookupFromSnapshot } from "domain/vesselOrchestration/shared";
+import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import { finalizeCompletedTrips } from "./finalizeCompletedTrips";
 import { prepareTripUpdates } from "./prepareTripUpdates";
 import { detectTripEvents } from "./tripLifecycle/detectTripEvents";
@@ -24,9 +24,10 @@ import { updateActiveTrips } from "./updateActiveTrips";
 export const computeVesselTripsRows = (
   input: RunUpdateVesselTripsInput
 ): RunUpdateVesselTripsOutput => {
-  // Segment-key and same-day schedule queries for this ping.
-  const scheduleLookup = createScheduledSegmentLookupFromSnapshot(
-    input.scheduleContext
+  // Segment-key and same-day schedule rows for this ping.
+  const scheduleTables = createScheduledSegmentTablesFromSnapshot(
+    input.scheduleSnapshot,
+    input.sailingDay
   );
 
   // One prepared row per feed vessel: events + optional prior active trip.
@@ -35,13 +36,13 @@ export const computeVesselTripsRows = (
   // Completing vessels: closed row + optional replacement active from same ping.
   const completionResolutions = finalizeCompletedTrips(
     prepared.completedTripUpdates,
-    scheduleLookup
+    scheduleTables
   );
 
   // Non-completing vessels: next active projection for this ping only.
   const continuingActives = updateActiveTrips(
     prepared.activeTripUpdates,
-    scheduleLookup
+    scheduleTables
   );
 
   // All active rows produced this ping (completions then continuing).

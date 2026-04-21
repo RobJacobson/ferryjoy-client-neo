@@ -5,7 +5,7 @@
  * ML prediction overlays run in **updateVesselPredictions** after rows persist;
  * this module does not attach prediction fields.
  */
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import {
   appendFinalScheduleForLookup,
   resolveEffectiveLocationForLookup,
@@ -23,7 +23,7 @@ import type { TripEvents } from "./tripEventTypes";
  *   (undefined only when starting from a completion row as the “existing” context)
  * @param tripStart - True for a new trip instance, false for continuing
  * @param events - Flags from {@link detectTripEvents} for the **raw** ping
- * @param scheduleLookup - Prefetched segment lookup for this orchestrator ping
+ * @param scheduleTables - Prefetched segment tables for this orchestrator ping
  * @returns Storage-shaped trip row (prediction fields not applied here)
  */
 export const buildTripCore = (
@@ -31,10 +31,10 @@ export const buildTripCore = (
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  scheduleLookup: ScheduledSegmentLookup
+  scheduleTables: ScheduledSegmentTables
 ): ConvexVesselTrip => {
   const effectiveLocation = resolveEffectiveLocationForLookup(
-    scheduleLookup,
+    scheduleTables,
     currLocation,
     existingTrip
   );
@@ -82,7 +82,7 @@ export const buildTripCore = (
 
   return shouldAppendFinalSchedule
     ? appendFinalScheduleForLookup(
-        scheduleLookup,
+        scheduleTables,
         tripForScheduleEnrichment,
         existingTrip
       )

@@ -5,7 +5,7 @@
  * same ping when the lifecycle allows.
  */
 
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
 import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
@@ -28,12 +28,12 @@ type CompletedTripResolution = {
  * vessel does not disappear from the active set.
  *
  * @param completedTripUpdates - Vessels closing a trip this ping (prior active required)
- * @param scheduleLookup - Prefetched segment lookup for schedule enrichment
+ * @param scheduleTables - Prefetched segment tables for schedule enrichment
  * @returns One resolution per completion update (completed row may be omitted on error)
  */
 export const finalizeCompletedTrips = (
   completedTripUpdates: ReadonlyArray<CompletedTripUpdate>,
-  scheduleLookup: ScheduledSegmentLookup
+  scheduleTables: ScheduledSegmentTables
 ): ReadonlyArray<CompletedTripResolution> =>
   completedTripUpdates.map((update, index) => {
     try {
@@ -47,7 +47,7 @@ export const finalizeCompletedTrips = (
         completedVesselTrip,
         true,
         update.events,
-        scheduleLookup
+        scheduleTables
       );
 
       return {

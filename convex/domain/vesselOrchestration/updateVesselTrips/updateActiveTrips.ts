@@ -4,7 +4,7 @@
  * Updates active trip rows for vessels that did not close a trip this ping.
  */
 
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { PreparedTripUpdate } from "domain/vesselOrchestration/updateVesselTrips/types";
@@ -17,12 +17,12 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  * a bad ping does not drop tracking.
  *
  * @param activeTripUpdates - Non-completing prepared rows (may lack prior active)
- * @param scheduleLookup - Prefetched segment lookup for schedule enrichment
+ * @param scheduleTables - Prefetched segment tables for schedule enrichment
  * @returns Zero or one trip row per input update
  */
 export const updateActiveTrips = (
   activeTripUpdates: ReadonlyArray<PreparedTripUpdate>,
-  scheduleLookup: ScheduledSegmentLookup
+  scheduleTables: ScheduledSegmentTables
 ): ReadonlyArray<ConvexVesselTrip> =>
   activeTripUpdates.flatMap((update, index) => {
     try {
@@ -32,7 +32,7 @@ export const updateActiveTrips = (
           update.existingActiveTrip,
           false,
           update.events,
-          scheduleLookup
+          scheduleTables
         ),
       ];
     } catch (error) {

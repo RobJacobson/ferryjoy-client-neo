@@ -2,7 +2,7 @@ import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
 
 /**
  * Serializable schedule read model for one orchestrator ping (prefetched in one
- * internal query, consumed by {@link createScheduledSegmentLookupFromSnapshot}).
+ * internal query, consumed by {@link createScheduledSegmentTablesFromSnapshot}).
  */
 export type ScheduleSnapshot = {
   /**
@@ -10,5 +10,5 @@ export type ScheduleSnapshot = {
    *
    * Lookup adapters derive segment-key and same-day views from this source.
    */
-  eventsByVesselAbbrev: Record<string, ConvexScheduledDockEvent[]>;
+  scheduledDockEventsByVesselAbbrev: Record<string, ConvexScheduledDockEvent[]>;
 };

@@ -26,9 +26,10 @@ export type {
   VesselTripPersistResult,
   VesselTripsComputeBundle,
 } from "./pingHandshake/types";
-export type {
-  DockedScheduledSegmentSource,
-  ScheduledSegmentLookup,
+export {
+  type DockedScheduledSegmentSource,
+  getScheduledDockEventsForVesselAndSailingDay,
+  type ScheduledSegmentTables,
 } from "./scheduleContinuity";
-export { createScheduledSegmentLookupFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentLookupFromSnapshot";
+export { createScheduledSegmentTablesFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentTablesFromSnapshot";
 export type { ScheduleSnapshot } from "./scheduleSnapshot/scheduleSnapshotTypes";

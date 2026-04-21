@@ -11,7 +11,11 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const emptyScheduleSnapshot: ScheduleSnapshot = { eventsByVesselAbbrev: {} };
+const emptyScheduleSnapshot: ScheduleSnapshot = {
+  scheduledDockEventsByVesselAbbrev: {},
+};
+
+const testSailingDay = "2026-03-13";
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTrip> = {}
@@ -88,7 +92,8 @@ describe("computeVesselTripsRows", () => {
     const result = computeVesselTripsRows({
       vesselLocations: [],
       existingActiveTrips: [],
-      scheduleContext: emptyScheduleSnapshot,
+      scheduleSnapshot: emptyScheduleSnapshot,
+      sailingDay: testSailingDay,
     });
 
     expect(result).toEqual({
@@ -121,7 +126,8 @@ describe("computeVesselTripsRows", () => {
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [makeTrip(), untouchedTrip],
-        scheduleContext: emptyScheduleSnapshot,
+        scheduleSnapshot: emptyScheduleSnapshot,
+        sailingDay: testSailingDay,
       });
 
       expect(result.completedTrips).toEqual([]);
@@ -176,7 +182,8 @@ describe("computeVesselTripsRows", () => {
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
         existingActiveTrips: [completedExisting],
-        scheduleContext: emptyScheduleSnapshot,
+        scheduleSnapshot: emptyScheduleSnapshot,
+        sailingDay: testSailingDay,
       });
 
       expect(result.completedTrips).toEqual([completedTrip]);
@@ -208,7 +215,8 @@ describe("computeVesselTripsRows", () => {
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [existingTrip],
-        scheduleContext: emptyScheduleSnapshot,
+        scheduleSnapshot: emptyScheduleSnapshot,
+        sailingDay: testSailingDay,
       });
 
       expect(result.completedTrips).toEqual([]);

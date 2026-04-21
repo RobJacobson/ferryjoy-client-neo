@@ -13,14 +13,25 @@ export type DockedScheduledSegmentSource =
   | "rollover_schedule";
 
 /**
- * Schedule lookup callbacks supplied by the functions layer for one ping.
+ * Prefetched schedule rows for one orchestrator ping, keyed for direct lookup.
+ *
+ * `scheduledDepartureBySegmentKey` indexes **departure** boundaries (`dep-dock`)
+ * by segment key (see {@link getSegmentKeyFromBoundaryKey}).
+ *
+ * `scheduledDockEventsByVesselAbbrev` holds the same-day **boundary** sequence
+ * per vessel — both `dep-dock` and `arv-dock` — in feed order. Trip helpers
+ * such as {@link inferScheduledSegmentFromDepartureEvent} and
+ * {@link findNextDepartureEvent} filter to departures internally; keeping the
+ * full boundary list matches the schedule snapshot and avoids splitting
+ * arrivals into a parallel structure unless a caller needs that explicitly.
  */
-export type ScheduledSegmentLookup = {
-  getScheduledDepartureEventBySegmentKey: (
-    segmentKey: string
-  ) => ConvexScheduledDockEvent | null;
-  getScheduledDockEventsForSailingDay: (args: {
-    vesselAbbrev: string;
-    sailingDay: string;
-  }) => ConvexScheduledDockEvent[];
+export type ScheduledSegmentTables = {
+  /** Calendar day these tables were narrowed to from the snapshot. */
+  sailingDay: string;
+  scheduledDepartureBySegmentKey: Readonly<
+    Record<string, ConvexScheduledDockEvent>
+  >;
+  scheduledDockEventsByVesselAbbrev: Readonly<
+    Record<string, readonly ConvexScheduledDockEvent[]>
+  >;
 };

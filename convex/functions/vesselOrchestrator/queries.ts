@@ -57,7 +57,10 @@ export const getOrchestratorModelData = internalQuery({
 
 /** Return validator for {@link getScheduleSnapshotForPing}. */
 const scheduleSnapshotReturnSchema = v.object({
-  eventsByVesselAbbrev: v.record(v.string(), v.array(eventsScheduledSchema)),
+  scheduledDockEventsByVesselAbbrev: v.record(
+    v.string(),
+    v.array(eventsScheduledSchema)
+  ),
 });
 
 /**
@@ -90,10 +93,12 @@ export const getScheduleSnapshotForPing = internalQuery({
         }),
       ])
     );
-    const eventsByVesselAbbrev = Object.fromEntries(eventsByVesselEntries);
+    const scheduledDockEventsByVesselAbbrev = Object.fromEntries(
+      eventsByVesselEntries
+    );
 
     return {
-      eventsByVesselAbbrev,
+      scheduledDockEventsByVesselAbbrev,
     };
   },
 });

@@ -13,7 +13,9 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 export type RunUpdateVesselTripsInput = {
   vesselLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
-  scheduleContext: ScheduleSnapshot;
+  scheduleSnapshot: ScheduleSnapshot;
+  /** Sailing day for this ping (matches {@link getScheduleSnapshotForPing}). */
+  sailingDay: string;
 };
 
 /** Pure pipeline output: trips completed this ping and the merged active set. */
