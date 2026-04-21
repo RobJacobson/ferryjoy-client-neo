@@ -39,7 +39,8 @@ export const buildTripCore = (
     existingTrip
   );
   // `deriveTripInputs` in base-trip construction uses this effective location;
-  // event detection uses raw `currLocation` — they can differ for docked identity.
+  // `detectTripEvents` uses the raw ping (debounced boundaries + continuing key)
+  // — they can differ for docked identity.
   const baseTrip = baseTripFromLocation(
     effectiveLocation,
     existingTrip,

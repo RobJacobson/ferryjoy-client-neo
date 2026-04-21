@@ -1,8 +1,9 @@
 /**
  * Shared trip-derivation helpers for vessel trip updates.
  *
- * Centralizes the normalized per-ping values used by both event detection and
- * base trip construction so the two paths stay in sync.
+ * Centralizes normalized per-ping values for base trip construction; shares
+ * continuing schedule identity with {@link detectTripEvents} via
+ * {@link deriveContinuingScheduleKey}.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -36,6 +37,13 @@ export type DerivedTripInputs = {
   didJustLeaveDock: boolean;
   didJustArriveAtDock: boolean;
   previousCompletedTrip: ConvexVesselTrip | undefined;
+};
+
+type ContinuingTripIdentitySlice = {
+  continuingArrivingTerminalAbbrev: string | undefined;
+  continuingScheduledDeparture: number | undefined;
+  continuingScheduleKey: string | undefined;
+  continuingSailingDay: string | undefined;
 };
 
 /**
@@ -91,9 +99,9 @@ export const getDockDepartureState = (
  * `current*` fields reflect the `currLocation` payload. `continuing*` fields
  * apply carry-forward rules when the feed drops fields while still docked.
  *
- * Call twice per ping in the typical path: once with **raw** locations in
- * {@link detectTripEvents}, again with **effective** locations inside
- * {@link baseTripFromLocation} after schedule resolution.
+ * Call from {@link baseTripFromLocation} with **effective** locations after
+ * schedule resolution. For raw-feed lifecycle flags without this full object,
+ * see {@link detectTripEvents}.
  *
  * @param existingTrip - Previous trip state for the vessel
  * @param currLocation - Location for this derivation (raw or effective)
@@ -103,12 +111,98 @@ export const deriveTripInputs = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): DerivedTripInputs => {
-  // Single debounced boundary resolution per call; `detectTripEvents` reuses
-  // the result via `DerivedTripInputs` to avoid duplicate work.
   const physicalBoundaries = resolveDebouncedPhysicalBoundaries(
     existingTrip,
     currLocation
   );
+  const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
+  const currentScheduledDeparture = currLocation.ScheduledDeparture;
+  const continuingSlice = computeContinuingTripIdentitySlice(
+    existingTrip,
+    currLocation
+  );
+  const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
+    existingTrip,
+    currLocation,
+    physicalBoundaries
+  );
+  const currentIdentity = deriveTripIdentity({
+    vesselAbbrev: currLocation.VesselAbbrev,
+    departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: currentArrivingTerminalAbbrev,
+    scheduledDepartureMs: currentScheduledDeparture,
+  });
+
+  return {
+    currentArrivingTerminalAbbrev,
+    continuingArrivingTerminalAbbrev:
+      continuingSlice.continuingArrivingTerminalAbbrev,
+    currentScheduledDeparture,
+    continuingScheduledDeparture: continuingSlice.continuingScheduledDeparture,
+    startScheduleKey: currentIdentity.ScheduleKey,
+    continuingScheduleKey: continuingSlice.continuingScheduleKey,
+    startSailingDay: currentIdentity.SailingDay,
+    continuingSailingDay: continuingSlice.continuingSailingDay,
+    currentIsTripStartReady: currentIdentity.isTripStartReady,
+    leftDockTime,
+    didJustLeaveDock,
+    didJustArriveAtDock: physicalBoundaries.didJustArriveAtDock,
+    previousCompletedTrip: hasTripEvidence(existingTrip)
+      ? existingTrip
+      : undefined,
+  };
+};
+
+/**
+ * Returns the continuing `ScheduleKey` for a location sample (raw or effective).
+ *
+ * Matches the carry-forward rules in {@link deriveTripInputs} so
+ * `scheduleKeyChanged` in {@link detectTripEvents} stays aligned with base-trip
+ * construction without running the full derivation.
+ *
+ * @param existingTrip - Previous trip state for the vessel
+ * @param currLocation - Location for this derivation (raw or effective)
+ * @returns Schedule segment key after dock-boundary carry-forward, if any
+ */
+export const deriveContinuingScheduleKey = (
+  existingTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation
+): string | undefined =>
+  computeContinuingTripIdentitySlice(existingTrip, currLocation)
+    .continuingScheduleKey;
+
+/**
+ * Pick the base-trip construction mode for the current ping.
+ *
+ * @param existingTrip - Previous trip state for the vessel
+ * @param currLocation - Current vessel location from the live feed
+ * @param isTripStart - True when the caller is explicitly starting a new trip
+ * @returns Explicit base-trip mode for this ping
+ */
+export const determineBaseTripMode = (
+  _existingTrip: ConvexVesselTrip | undefined,
+  _currLocation: ConvexVesselLocation,
+  isTripStart: boolean
+): BaseTripMode => {
+  if (isTripStart) {
+    return "start";
+  }
+
+  return "continue";
+};
+
+/**
+ * Computes continuing terminal, scheduled departure, and schedule identity while
+ * the vessel is in a dock interval (carry-forward when the feed omits fields).
+ *
+ * @param existingTrip - Previous trip state for the vessel
+ * @param currLocation - Location for this derivation (raw or effective)
+ * @returns Continuing fields aligned with {@link deriveTripInputs}
+ */
+function computeContinuingTripIdentitySlice(
+  existingTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation
+): ContinuingTripIdentitySlice {
   const currentArrivingTerminalAbbrev = currLocation.ArrivingTerminalAbbrev;
   const currentScheduledDeparture = currLocation.ScheduledDeparture;
   const persistedDeparture = getPhysicalDepartureStamp(existingTrip);
@@ -132,17 +226,6 @@ export const deriveTripInputs = (
   const continuingScheduledDeparture = shouldPreserveDockBoundaryOwner
     ? (existingTrip?.ScheduledDeparture ?? currentScheduledDeparture)
     : (currentScheduledDeparture ?? existingTrip?.ScheduledDeparture);
-  const { leftDockTime, didJustLeaveDock } = getDockDepartureState(
-    existingTrip,
-    currLocation,
-    physicalBoundaries
-  );
-  const currentIdentity = deriveTripIdentity({
-    vesselAbbrev: currLocation.VesselAbbrev,
-    departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev: currentArrivingTerminalAbbrev,
-    scheduledDepartureMs: currentScheduledDeparture,
-  });
   const continuingIdentity = deriveTripIdentity({
     vesselAbbrev: currLocation.VesselAbbrev,
     departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
@@ -151,43 +234,12 @@ export const deriveTripInputs = (
   });
 
   return {
-    currentArrivingTerminalAbbrev,
     continuingArrivingTerminalAbbrev,
-    currentScheduledDeparture,
     continuingScheduledDeparture,
-    startScheduleKey: currentIdentity.ScheduleKey,
     continuingScheduleKey:
       shouldPreserveDockBoundaryOwner && existingTrip?.ScheduleKey
         ? existingTrip.ScheduleKey
         : continuingIdentity.ScheduleKey,
-    startSailingDay: currentIdentity.SailingDay,
     continuingSailingDay: continuingIdentity.SailingDay,
-    currentIsTripStartReady: currentIdentity.isTripStartReady,
-    leftDockTime,
-    didJustLeaveDock,
-    didJustArriveAtDock: physicalBoundaries.didJustArriveAtDock,
-    previousCompletedTrip: hasTripEvidence(existingTrip)
-      ? existingTrip
-      : undefined,
   };
-};
-
-/**
- * Pick the base-trip construction mode for the current ping.
- *
- * @param existingTrip - Previous trip state for the vessel
- * @param currLocation - Current vessel location from the live feed
- * @param isTripStart - True when the caller is explicitly starting a new trip
- * @returns Explicit base-trip mode for this ping
- */
-export const determineBaseTripMode = (
-  _existingTrip: ConvexVesselTrip | undefined,
-  _currLocation: ConvexVesselLocation,
-  isTripStart: boolean
-): BaseTripMode => {
-  if (isTripStart) {
-    return "start";
-  }
-
-  return "continue";
-};
+}
