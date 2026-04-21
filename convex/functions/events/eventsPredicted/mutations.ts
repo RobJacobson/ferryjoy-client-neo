@@ -32,107 +32,115 @@ export const projectPredictedDockWriteBatches = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const updatedAt = Date.now();
-    const batchesByScope = new Map<
-      string,
-      {
-        VesselAbbrev: string;
-        SailingDay: string;
-        TargetKeys: Set<string>;
-        RowsByComposite: Map<string, ConvexPredictedDockWriteRow>;
-      }
-    >();
-
-    for (const batch of args.Batches) {
-      const scopeKey = buildVesselSailingDayScopeKey(
-        batch.VesselAbbrev,
-        batch.SailingDay
-      );
-      const existingScope = batchesByScope.get(scopeKey);
-
-      if (existingScope) {
-        for (const targetKey of batch.TargetKeys) {
-          existingScope.TargetKeys.add(targetKey);
-        }
-        for (const row of batch.Rows) {
-          existingScope.RowsByComposite.set(
-            predictedDockCompositeKey(row),
-            row
-          );
-        }
-        continue;
-      }
-
-      batchesByScope.set(scopeKey, {
-        VesselAbbrev: batch.VesselAbbrev,
-        SailingDay: batch.SailingDay,
-        TargetKeys: new Set(batch.TargetKeys),
-        RowsByComposite: new Map(
-          batch.Rows.map((row) => [predictedDockCompositeKey(row), row])
-        ),
-      });
-    }
-
-    for (const batch of batchesByScope.values()) {
-      if (batch.TargetKeys.size === 0) {
-        continue;
-      }
-
-      const existingRows = await ctx.db
-        .query("eventsPredicted")
-        .withIndex("by_vessel_and_sailing_day", (q) =>
-          q
-            .eq("VesselAbbrev", batch.VesselAbbrev)
-            .eq("SailingDay", batch.SailingDay)
-        )
-        .collect();
-
-      const existingByComposite = new Map(
-        existingRows.map((row) => [predictedDockCompositeKey(row), row])
-      );
-
-      const incomingIds = new Set(batch.RowsByComposite.keys());
-
-      for (const existing of existingRows) {
-        if (!batch.TargetKeys.has(existing.Key)) {
-          continue;
-        }
-        const id = predictedDockCompositeKey(existing);
-        if (!incomingIds.has(id)) {
-          await ctx.db.delete(existing._id);
-          existingByComposite.delete(id);
-        }
-      }
-
-      for (const row of batch.RowsByComposite.values()) {
-        if (!batch.TargetKeys.has(row.Key)) {
-          continue;
-        }
-
-        const nextRow: ConvexPredictedDockEvent = {
-          ...row,
-          UpdatedAt: updatedAt,
-        };
-
-        const id = predictedDockCompositeKey(row);
-        const existing = existingByComposite.get(id);
-
-        if (!existing) {
-          await ctx.db.insert("eventsPredicted", nextRow);
-          continue;
-        }
-
-        if (predictedRowsEqual(existing, nextRow)) {
-          continue;
-        }
-
-        await ctx.db.replace(existing._id, nextRow);
-      }
-    }
-
+    await projectPredictedDockWriteBatchesInDb(ctx, args.Batches);
     return null;
   },
 });
+
+export const projectPredictedDockWriteBatchesInDb = async (
+  ctx: MutationCtx,
+  batches: ReadonlyArray<{
+    VesselAbbrev: string;
+    SailingDay: string;
+    TargetKeys: string[];
+    Rows: ConvexPredictedDockWriteRow[];
+  }>
+): Promise<void> => {
+  const updatedAt = Date.now();
+  const batchesByScope = new Map<
+    string,
+    {
+      VesselAbbrev: string;
+      SailingDay: string;
+      TargetKeys: Set<string>;
+      RowsByComposite: Map<string, ConvexPredictedDockWriteRow>;
+    }
+  >();
+
+  for (const batch of batches) {
+    const scopeKey = buildVesselSailingDayScopeKey(
+      batch.VesselAbbrev,
+      batch.SailingDay
+    );
+    const existingScope = batchesByScope.get(scopeKey);
+
+    if (existingScope) {
+      for (const targetKey of batch.TargetKeys) {
+        existingScope.TargetKeys.add(targetKey);
+      }
+      for (const row of batch.Rows) {
+        existingScope.RowsByComposite.set(predictedDockCompositeKey(row), row);
+      }
+      continue;
+    }
+
+    batchesByScope.set(scopeKey, {
+      VesselAbbrev: batch.VesselAbbrev,
+      SailingDay: batch.SailingDay,
+      TargetKeys: new Set(batch.TargetKeys),
+      RowsByComposite: new Map(
+        batch.Rows.map((row) => [predictedDockCompositeKey(row), row])
+      ),
+    });
+  }
+
+  for (const batch of batchesByScope.values()) {
+    if (batch.TargetKeys.size === 0) {
+      continue;
+    }
+
+    const existingRows = await ctx.db
+      .query("eventsPredicted")
+      .withIndex("by_vessel_and_sailing_day", (q) =>
+        q
+          .eq("VesselAbbrev", batch.VesselAbbrev)
+          .eq("SailingDay", batch.SailingDay)
+      )
+      .collect();
+
+    const existingByComposite = new Map(
+      existingRows.map((row) => [predictedDockCompositeKey(row), row])
+    );
+
+    const incomingIds = new Set(batch.RowsByComposite.keys());
+
+    for (const existing of existingRows) {
+      if (!batch.TargetKeys.has(existing.Key)) {
+        continue;
+      }
+      const id = predictedDockCompositeKey(existing);
+      if (!incomingIds.has(id)) {
+        await ctx.db.delete(existing._id);
+        existingByComposite.delete(id);
+      }
+    }
+
+    for (const row of batch.RowsByComposite.values()) {
+      if (!batch.TargetKeys.has(row.Key)) {
+        continue;
+      }
+
+      const nextRow: ConvexPredictedDockEvent = {
+        ...row,
+        UpdatedAt: updatedAt,
+      };
+
+      const id = predictedDockCompositeKey(row);
+      const existing = existingByComposite.get(id);
+
+      if (!existing) {
+        await ctx.db.insert("eventsPredicted", nextRow);
+        continue;
+      }
+
+      if (predictedRowsEqual(existing, nextRow)) {
+        continue;
+      }
+
+      await ctx.db.replace(existing._id, nextRow);
+    }
+  }
+};
 
 /**
  * Returns whether an existing predicted row matches the next write payload for

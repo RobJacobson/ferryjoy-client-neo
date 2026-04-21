@@ -5,7 +5,8 @@
 
 ## 0. Implementation status (2026-04-21 follow-up pass)
 
-The first near-term cost-reduction step in this memo has now been implemented.
+The first two near-term cost-reduction steps in this memo have now been
+implemented.
 
 ### What was validated against the live code
 
@@ -19,9 +20,9 @@ The first near-term cost-reduction step in this memo has now been implemented.
   boundary payload on every tick. It only needed:
   - direct schedule lookup by segment key / `ScheduleKey`
   - ordered per-vessel same-day departure continuity data
-- The second major issue in the memo also remains true after this pass:
-  `updateVesselOrchestrator` still fans out into multiple persistence
-  mutations and should be collapsed next.
+- The remaining major issue after this pass is now narrower: the write path has
+  been collapsed, but prediction and timeline work still run for more vessels
+  than necessary.
 
 ### What was implemented
 
@@ -92,6 +93,38 @@ Files updated on that path included:
 - [`convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts)
 - [`convex/domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters.ts)
 
+#### 5. Collapsed the hot write path into one orchestrator-owned mutation
+
+- Added
+  [`convex/functions/vesselOrchestrator/mutations.ts`](../../convex/functions/vesselOrchestrator/mutations.ts)
+  with a new internal mutation: `persistOrchestratorPing`
+- Updated
+  [`convex/functions/vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts)
+  so the action now computes one plain-data ping bundle, then hands that bundle
+  to `persistOrchestratorPing`
+- The new mutation now owns the primary persistence work for one ping:
+  - changed `vesselLocations` and `vesselLocationsUpdates`
+  - completed-trip rollover and active-trip upserts
+  - depart-next actualization for the most recent completed trip
+  - `vesselTripPredictions` proposal upserts
+  - `eventsActual` projection writes
+  - `eventsPredicted` projection writes
+
+This replaces the previous action-layer fan-out across separate child
+mutations for trips, predictions, and timeline projection.
+
+#### 6. Reused DB-level write helpers under the orchestrator mutation
+
+- Extracted DB-level helper functions from existing mutation modules so the new
+  orchestrator mutation can reuse the current persistence logic instead of
+  duplicating it.
+- Files updated for that extraction included:
+  - [`convex/functions/vesselTrips/mutations.ts`](../../convex/functions/vesselTrips/mutations.ts)
+  - [`convex/functions/vesselTripPredictions/mutations.ts`](../../convex/functions/vesselTripPredictions/mutations.ts)
+  - [`convex/functions/events/eventsActual/mutations.ts`](../../convex/functions/events/eventsActual/mutations.ts)
+  - [`convex/functions/events/eventsPredicted/mutations.ts`](../../convex/functions/events/eventsPredicted/mutations.ts)
+  - [`convex/functions/vesselLocationsUpdates/mutations.ts`](../../convex/functions/vesselLocationsUpdates/mutations.ts)
+
 ### What this accomplished
 
 - The orchestrator no longer reads grouped raw `eventsScheduled` rows on every
@@ -100,14 +133,19 @@ Files updated on that path included:
   per-vessel grouped boundary blob.
 - The new read model keeps the current cleaner trip continuity pipeline shape
   while removing oversized hot-path schedule payloads.
+- The orchestrator action no longer fans out across separate child mutations
+  for trips, predictions, and timeline writes.
+- One orchestrator-owned internal mutation now owns the primary hot write path
+  for one ping.
 - The work was kept inside the current Convex architecture, as intended.
 
 ### What is still not done
 
-- The orchestrator write path is still fragmented across multiple child
-  mutations.
 - Prediction work still runs broader than it should.
-- Timeline persistence still runs through separate mutation boundaries.
+- Timeline work still runs broader than it should.
+- The orchestrator still computes predictions for all current active trips and
+  attempted completed handoffs, rather than restricting downstream work to the
+  subset of vessels whose trip state materially changed.
 - `vesselLocationsUpdates` still needs the lightweight periodic safety refresh
   path described later in this memo.
 
@@ -119,6 +157,7 @@ Files updated on that path included:
   - trip schedule continuity
   - final schedule attachment
   - trip compute behavior
+  - orchestrator trip-write-set persistence behavior
   - location dedupe writes
 
 ## 1. Purpose
@@ -155,6 +194,8 @@ The recommended near-term direction is:
 2. collapse the orchestrator write path into one persistence mutation
 3. stop running prediction and timeline persistence for unchanged vessels
 4. keep `vesselLocationsUpdates`, but harden it with a periodic safety refresh
+
+Steps 1 and 2 are now complete. Step 3 is the next highest-priority follow-up.
 
 ## 3. Why this matters
 
@@ -226,17 +267,22 @@ runs sequentially:
 1. `getOrchestratorModelData`
 2. WSF fetch and location normalization
 3. `getAllVesselUpdateTimeStampsInternal`
-4. `bulkUpsertLocationsAndUpdates`
-5. `getScheduleSnapshotForPing`
-6. trip computation
-7. trip persistence via multiple trip mutations
-8. prediction model preload
-9. prediction proposal upsert
-10. actual event projection mutation
-11. predicted event projection mutation
+4. `getScheduleSnapshotForPing`
+5. trip computation
+6. prediction model preload
+7. prediction row + ML handoff computation
+8. one orchestrator-owned persistence mutation:
+   - changed location/update writes
+   - trip-table persistence
+   - depart-next actualization
+   - prediction proposal persistence
+   - actual timeline projection
+   - predicted timeline projection
 
-This shape is cleaner from a concern-boundary standpoint, but too expensive on
-the hot path.
+This is materially cheaper and simpler than the previous version, which fanned
+out across separate persistence mutations from the action layer. The main
+remaining hot-path inefficiency is now over-broad downstream work for
+unchanged vessels.
 
 ## 5.2 Current runtime findings
 

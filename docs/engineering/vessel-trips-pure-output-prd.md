@@ -5,8 +5,11 @@
 
 ## 0. Implementation status (2026-04-21 follow-up pass)
 
-The trip-output boundary from this PRD remains intact, and a follow-up
-orchestrator cost-reduction pass narrowed the schedule side of the trip input.
+The trip-output boundary from this PRD remains intact, and follow-up
+orchestrator cost-reduction work has now completed both:
+
+- the schedule-input narrowing pass
+- the hot write-path collapse behind one orchestrator-owned mutation
 
 ### What changed in this follow-up
 
@@ -62,12 +65,30 @@ That behavior now flows through:
 - [`convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/continuity/resolveDockedScheduledSegment.ts)
 - [`convex/domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters.ts`](../../convex/domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters.ts)
 
+### Orchestrator write-path follow-up completed
+
+The broader orchestrator follow-up also completed the next step that had been
+pending when this PRD was last updated:
+
+- `updateVesselOrchestrator` no longer fans out across separate persistence
+  mutations for trips, predictions, and timeline writes
+- the action now computes plain-data trip and prediction outputs, then hands
+  one bundle to
+  [`convex/functions/vesselOrchestrator/mutations.ts`](../../convex/functions/vesselOrchestrator/mutations.ts)
+  via `persistOrchestratorPing`
+- the trip-output boundary from this PRD stayed intact during that change:
+  `computeVesselTripsRows` still returns only `completedTrips` and `activeTrips`
+
+That means the trip concern remained pure while downstream persistence was
+adapted around it, which is the direction this PRD called for.
+
 ### What is still pending relative to the broader orchestrator refactor
 
-- The hot write path still needs to be collapsed into one orchestrator-owned
-  mutation.
 - Prediction and timeline work should still be restricted to changed vessels
   only.
+- The orchestrator still computes predictions from all current active trips and
+  attempted completed handoffs, instead of narrowing downstream work to the
+  vessels whose trip state materially changed.
 
 ## 1. Problem statement
 

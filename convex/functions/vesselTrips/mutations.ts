@@ -34,18 +34,11 @@ export const completeAndStartNewTrip = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     try {
-      assertCompletedTripHasEndTime(args.completedTrip);
-      const existingActive = await getExistingActiveTripOrThrow(
+      await completeAndStartNewTripInDb(
         ctx,
-        args.completedTrip.VesselAbbrev
+        args.completedTrip,
+        args.newTrip
       );
-
-      await ctx.db.insert("completedVesselTrips", args.completedTrip);
-
-      await ctx.db.delete(existingActive._id);
-
-      await ctx.db.insert("activeVesselTrips", args.newTrip);
-
       return null;
     } catch (error) {
       if (error instanceof ConvexError) {
@@ -84,39 +77,8 @@ export const upsertVesselTripsBatch = mutation({
       })
     ),
   }),
-  handler: async (ctx, args) => {
-    const activeTrips = await ctx.db.query("activeVesselTrips").collect();
-    const activeByVessel = new Map<string, { _id: Id<"activeVesselTrips"> }>(
-      activeTrips.map((trip) => [trip.VesselAbbrev, { _id: trip._id }])
-    );
-
-    const perVessel: Array<{
-      vesselAbbrev: string;
-      ok: boolean;
-      reason?: string;
-    }> = [];
-
-    for (const trip of args.activeUpserts) {
-      const vesselAbbrev = trip.VesselAbbrev;
-      try {
-        await replaceOrInsertActiveTripForVessel(
-          ctx,
-          trip,
-          vesselAbbrev,
-          activeByVessel
-        );
-        perVessel.push({ vesselAbbrev, ok: true });
-      } catch (error) {
-        perVessel.push({
-          vesselAbbrev,
-          ok: false,
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    return { perVessel };
-  },
+  handler: async (ctx, args) =>
+    upsertVesselTripsBatchInDb(ctx, args.activeUpserts),
 });
 
 /**
@@ -137,42 +99,111 @@ export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
     updated: v.boolean(),
     reason: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
-    const mostRecent = await getMostRecentCompletedTrip(ctx, args.vesselAbbrev);
-    if (!mostRecent) {
-      return {
-        updated: false as const,
-        reason: "no_completed_trip" as const,
-      };
-    }
-
-    const leg = resolveDepartNextLegContext(mostRecent, args.actualDepartMs);
-    if (!leg.ok) {
-      return {
-        updated: false as const,
-        reason: leg.reason,
-      };
-    }
-
-    const { depKey, actualMs } = leg;
-    const anyUpdated = await actualizeDepartNextMlPredictions(
+  handler: async (ctx, args) =>
+    setDepartNextActualsForMostRecentCompletedTripInDb(
       ctx,
-      depKey,
-      actualMs
-    );
-
-    if (!anyUpdated) {
-      return {
-        updated: false as const,
-        reason: "no_predictions_to_update" as const,
-      };
-    }
-
-    return {
-      updated: true as const,
-    };
-  },
+      args.vesselAbbrev,
+      args.actualDepartMs
+    ),
 });
+
+export const completeAndStartNewTripInDb = async (
+  ctx: MutationCtx,
+  completedTrip: ConvexVesselTrip,
+  newTrip: ConvexVesselTrip
+): Promise<void> => {
+  assertCompletedTripHasEndTime(completedTrip);
+  const existingActive = await getExistingActiveTripOrThrow(
+    ctx,
+    completedTrip.VesselAbbrev
+  );
+
+  await ctx.db.insert("completedVesselTrips", completedTrip);
+  await ctx.db.delete(existingActive._id);
+  await ctx.db.insert("activeVesselTrips", newTrip);
+};
+
+export const upsertVesselTripsBatchInDb = async (
+  ctx: MutationCtx,
+  activeUpserts: ConvexVesselTrip[]
+): Promise<{
+  perVessel: Array<{
+    vesselAbbrev: string;
+    ok: boolean;
+    reason?: string;
+  }>;
+}> => {
+  const activeTrips = await ctx.db.query("activeVesselTrips").collect();
+  const activeByVessel = new Map<string, { _id: Id<"activeVesselTrips"> }>(
+    activeTrips.map((trip) => [trip.VesselAbbrev, { _id: trip._id }])
+  );
+
+  const perVessel: Array<{
+    vesselAbbrev: string;
+    ok: boolean;
+    reason?: string;
+  }> = [];
+
+  for (const trip of activeUpserts) {
+    const vesselAbbrev = trip.VesselAbbrev;
+    try {
+      await replaceOrInsertActiveTripForVessel(
+        ctx,
+        trip,
+        vesselAbbrev,
+        activeByVessel
+      );
+      perVessel.push({ vesselAbbrev, ok: true });
+    } catch (error) {
+      perVessel.push({
+        vesselAbbrev,
+        ok: false,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { perVessel };
+};
+
+export const setDepartNextActualsForMostRecentCompletedTripInDb = async (
+  ctx: MutationCtx,
+  vesselAbbrev: string,
+  actualDepartMs: number
+): Promise<{
+  updated: boolean;
+  reason?: string;
+}> => {
+  const mostRecent = await getMostRecentCompletedTrip(ctx, vesselAbbrev);
+  if (!mostRecent) {
+    return {
+      updated: false,
+      reason: "no_completed_trip",
+    };
+  }
+
+  const leg = resolveDepartNextLegContext(mostRecent, actualDepartMs);
+  if (!leg.ok) {
+    return {
+      updated: false,
+      reason: leg.reason,
+    };
+  }
+
+  const { depKey, actualMs } = leg;
+  const anyUpdated = await actualizeDepartNextMlPredictions(ctx, depKey, actualMs);
+
+  if (!anyUpdated) {
+    return {
+      updated: false,
+      reason: "no_predictions_to_update",
+    };
+  }
+
+  return {
+    updated: true,
+  };
+};
 
 /**
  * Persists one stripped active trip row, replacing when the vessel already has a row.

@@ -36,7 +36,7 @@ export const projectActualDockWrites = internalMutation({
  * @param rows - Normalized actual dock rows
  * @returns `undefined` after the upsert pass completes
  */
-const upsertActualDockRows = async (
+export const upsertActualDockRows = async (
   ctx: MutationCtx,
   rows: ConvexActualDockEvent[]
 ) => {

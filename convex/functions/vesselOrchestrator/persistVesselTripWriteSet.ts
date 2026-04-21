@@ -10,6 +10,7 @@
 import type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
+  CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
@@ -55,14 +56,23 @@ export type VesselTripTableMutations = {
   }) => Promise<unknown>;
 };
 
-/**
- * Persists one tick of trip-table writes from the canonical trips domain output.
- */
-export const persistVesselTripWriteSet = async (
+export type VesselTripPersistencePlan = {
+  attemptedCompletedFacts: CompletedTripBoundaryFact[];
+  activeTripUpserts: ConvexVesselTrip[];
+  currentBranchMessages: Omit<
+    CurrentTripLifecycleBranchResult,
+    "successfulVessels"
+  >;
+  leaveDockIntents: Array<{
+    vesselAbbrev: string;
+    actualDepartMs: number;
+  }>;
+};
+
+export const buildVesselTripPersistencePlan = (
   tripRows: RunUpdateVesselTripsOutput,
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
-  mutations: VesselTripTableMutations
-): Promise<VesselTripPersistResult> => {
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
+): VesselTripPersistencePlan => {
   const existingByVessel = new Map(
     existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
@@ -77,7 +87,6 @@ export const persistVesselTripWriteSet = async (
         tripRows.activeTrips,
         completedTrip
       );
-      // Skip malformed completion pairs so one bad vessel does not block the ping.
       if (existingTrip === undefined || replacementTrip === undefined) {
         console.error(
           `[VesselTrips] Skip completion for ${vesselAbbrev}: missing existing or replacement trip`
@@ -95,29 +104,9 @@ export const persistVesselTripWriteSet = async (
     }
   );
 
-  const completedSettled = await Promise.allSettled(
-    attemptedCompletedFacts.map((fact) =>
-      mutations.completeAndStartNewTrip({
-        completedTrip: stripTripPredictionsForStorage(fact.tripToComplete),
-        newTrip: stripTripPredictionsForStorage(fact.scheduleTrip),
-      })
-    )
-  );
-
-  for (const result of completedSettled) {
-    if (result.status === "rejected") {
-      const err =
-        result.reason instanceof Error
-          ? result.reason
-          : new Error(String(result.reason));
-      console.error(`[VesselTrips] Failed completed-trip processing: ${err.message}`, err);
-    }
-  }
-
   const activeTripUpserts = tripRows.activeTrips
     .filter((trip) => !completedTripsByVessel.has(trip.VesselAbbrev))
     .map(stripTripPredictionsForStorage)
-    // Skip active writes when the storage row is unchanged from the snapshot.
     .filter((nextTrip) => {
       const existingTrip = existingByVessel.get(nextTrip.VesselAbbrev);
       return !areStorageRowsEqual(existingTrip, nextTrip);
@@ -132,20 +121,6 @@ export const persistVesselTripWriteSet = async (
       ] as const;
     })
   );
-
-  let successfulVessels = new Set<string>();
-  if (activeTripUpserts.length > 0) {
-    successfulVessels = successfulVesselAbbrevsFromUpsert(
-      await mutations.upsertVesselTripsBatch({
-        activeUpserts: [...activeTripUpserts],
-      })
-    );
-  }
-
-  const successfulCompletedFacts = attemptedCompletedFacts.filter((_, idx) => {
-    const result = completedSettled[idx];
-    return result?.status === "fulfilled";
-  });
 
   const pendingActualMessages = activeTripUpserts.flatMap((nextTrip) => {
     const events = currentEventsByVessel.get(nextTrip.VesselAbbrev);
@@ -184,6 +159,69 @@ export const persistVesselTripWriteSet = async (
             },
           ]
     );
+
+  return {
+    attemptedCompletedFacts,
+    activeTripUpserts,
+    currentBranchMessages: {
+      pendingActualMessages,
+      pendingPredictedMessages,
+    },
+    leaveDockIntents,
+  };
+};
+
+/**
+ * Persists one tick of trip-table writes from the canonical trips domain output.
+ */
+export const persistVesselTripWriteSet = async (
+  tripRows: RunUpdateVesselTripsOutput,
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
+  mutations: VesselTripTableMutations
+): Promise<VesselTripPersistResult> => {
+  const plan = buildVesselTripPersistencePlan(tripRows, existingActiveTrips);
+  const {
+    attemptedCompletedFacts,
+    activeTripUpserts,
+    currentBranchMessages: {
+      pendingActualMessages,
+      pendingPredictedMessages,
+    },
+    leaveDockIntents,
+  } = plan;
+
+  const completedSettled = await Promise.allSettled(
+    attemptedCompletedFacts.map((fact) =>
+      mutations.completeAndStartNewTrip({
+        completedTrip: stripTripPredictionsForStorage(fact.tripToComplete),
+        newTrip: stripTripPredictionsForStorage(fact.scheduleTrip),
+      })
+    )
+  );
+
+  for (const result of completedSettled) {
+    if (result.status === "rejected") {
+      const err =
+        result.reason instanceof Error
+          ? result.reason
+          : new Error(String(result.reason));
+      console.error(`[VesselTrips] Failed completed-trip processing: ${err.message}`, err);
+    }
+  }
+
+  let successfulVessels = new Set<string>();
+  if (activeTripUpserts.length > 0) {
+    successfulVessels = successfulVesselAbbrevsFromUpsert(
+      await mutations.upsertVesselTripsBatch({
+        activeUpserts: [...activeTripUpserts],
+      })
+    );
+  }
+
+  const successfulCompletedFacts = attemptedCompletedFacts.filter((_, idx) => {
+    const result = completedSettled[idx];
+    return result?.status === "fulfilled";
+  });
   await runLeaveDockFromWriteSetIntents(
     mutations,
     successfulVessels,
@@ -323,4 +361,3 @@ const runLeaveDockFromWriteSetIntents = async (
       })
   );
 };
-
