@@ -37,6 +37,8 @@ import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
 import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
+import { assembleTripComputationsFromPersistResult } from "./assembleTripComputationsFromPersistResult";
+import { buildTimelineTripComputationsForRun } from "./buildTimelineTripComputationsForRun";
 import { createVesselOrchestratorConvexBindings } from "./utils";
 
 /**
@@ -94,15 +96,32 @@ export const updateVesselOrchestrator = internalAction({
       );
       const { vesselTripMutations } = createVesselOrchestratorConvexBindings(ctx);
       // Persist only changed active rows plus every completed-row rollover.
-      await persistVesselTripWriteSet(tripRows, activeTrips, vesselTripMutations);
-
-      // Step 3+ wiring still depends on compute-bundle handoffs that are being
-      // refactored out of the Step 2 -> Step 3 boundary.
-      void pingStartedAt;
-      throw new Error(
-        "updateVesselOrchestrator predictions/timeline are not yet adapted to " +
-          "the Step 2 arrays-only handoff."
+      const tripPersistResult = await persistVesselTripWriteSet(
+        tripRows,
+        activeTrips,
+        vesselTripMutations
       );
+
+      const predictionResult = await runAndPersistVesselPredictionPing(
+        ctx,
+        tripRows,
+        tripPersistResult.completedFacts
+      );
+
+      const tripComputations = assembleTripComputationsFromPersistResult(
+        tripRows,
+        tripPersistResult
+      );
+      const timelineTripComputations = buildTimelineTripComputationsForRun(
+        tripRows,
+        tripComputations,
+        tripPersistResult
+      );
+      await updateVesselTimeline(ctx, {
+        pingStartedAt,
+        tripComputations: timelineTripComputations,
+        predictedTripComputations: predictionResult.predictedTripComputations,
+      });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       console.error("[updateVesselOrchestrator]", err);
