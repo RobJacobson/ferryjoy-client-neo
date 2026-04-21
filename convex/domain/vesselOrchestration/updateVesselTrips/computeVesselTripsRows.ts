@@ -1,33 +1,31 @@
 /**
  * Pure trip-update pipeline for one orchestrator ping.
  *
- * Orchestrates schedule tables, per-feed lifecycle events, completion vs active
- * branches, and a last-write-wins merge so vessels absent from the batch keep
+ * Orchestrates schedule tables, per-feed lifecycle events, per-vessel trip
+ * rows, and a last-write-wins merge so vessels absent from the batch keep
  * prior actives.
  *
- * Flow: schedule lookup → {@link calculateTripUpdates} →
- * {@link calculateUpdatedVesselTrips} → finalize completions → project actives →
- * merge carry-forward.
+ * Flow: schedule lookup → per-feed {@link calculatedTripUpdateForFeedRow} →
+ * {@link tripRowsForVesselPing} → merge carry-forward.
  */
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
-import { finalizeCompletedTrips } from "./finalizeCompletedTrips";
 import {
-  calculateTripUpdates,
-  calculateUpdatedVesselTrips,
-} from "./prepareTripUpdates";
+  activeTripsByVesselAbbrev,
+  calculatedTripUpdateForFeedRow,
+} from "./calculatedTripUpdate";
+import { tripRowsForVesselPing } from "./tripRowsForVesselPing";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
 } from "./types";
-import { updateActiveTrips } from "./updateActiveTrips";
 
 /**
  * Derives completed trip rows and the full active set for one feed batch.
  *
- * Completion and active projection run on disjoint subsets of the same feed;
- * replacement actives from completions are concatenated with continuing
- * actives before merging into the authoritative active set.
+ * Each feed row is processed independently; replacement actives from completions
+ * are concatenated with continuing actives before merging into the authoritative
+ * active set.
  *
  * @param input - Live locations, prior actives, and today’s schedule snapshot
  * @returns Completed closes plus merged active rows (one per vessel after merge)
@@ -35,59 +33,34 @@ import { updateActiveTrips } from "./updateActiveTrips";
 export const computeVesselTripsRows = (
   input: RunUpdateVesselTripsInput
 ): RunUpdateVesselTripsOutput => {
-  // Build segment-key index and same-day scheduled rows for enrichment lookups.
   const scheduleTables = createScheduledSegmentTablesFromSnapshot(
     input.scheduleSnapshot,
     input.sailingDay
   );
 
-  // Join each feed row to its prior active and compute lifecycle flags (no trip
-  // rows yet).
-  const tripUpdates = calculateTripUpdates(
-    input.vesselLocations,
-    input.existingActiveTrips
+  const activesByVessel = activeTripsByVesselAbbrev(input.existingActiveTrips);
+
+  const pingRows = input.vesselLocations.map((vesselLocation) => {
+    const update = calculatedTripUpdateForFeedRow(
+      vesselLocation,
+      activesByVessel
+    );
+    return tripRowsForVesselPing(update, scheduleTables);
+  });
+
+  const processedActiveTrips = pingRows.flatMap((rows) =>
+    rows.activeVesselTrip !== undefined ? [rows.activeVesselTrip] : []
   );
 
-  // Split updates into completion handling vs active projection branches.
-  const { completedTripUpdates, activeTripUpdates } =
-    calculateUpdatedVesselTrips(tripUpdates);
-
-  // Close completing trips and build replacement actives from the same ping.
-  const completionResolutions = finalizeCompletedTrips(
-    completedTripUpdates,
-    scheduleTables
-  );
-
-  // Project next active rows for pings that did not complete a trip.
-  const continuingActives = updateActiveTrips(
-    activeTripUpdates,
-    scheduleTables
-  );
-
-  // Collect replacement actives from completions, then from continuing projection.
-  const processedActiveTrips = [
-    ...completionResolutions.flatMap((resolution) =>
-      resolution.replacementActiveTrip !== undefined
-        ? [resolution.replacementActiveTrip]
-        : []
-    ),
-    ...continuingActives,
-  ];
-
-  // Return completed closes plus merged actives (carry-forward for untouched vessels).
-  const outputTrips: RunUpdateVesselTripsOutput = {
-    completedTrips: completionResolutions.flatMap((resolution) =>
-      resolution.completedVesselTrip !== undefined
-        ? [resolution.completedVesselTrip]
-        : []
+  return {
+    completedTrips: pingRows.flatMap((rows) =>
+      rows.completedVesselTrip !== undefined ? [rows.completedVesselTrip] : []
     ),
     activeTrips: mergeActiveTripRows(
       input.existingActiveTrips,
       processedActiveTrips
     ),
   };
-
-  return outputTrips;
 };
 
 /**
@@ -111,7 +84,6 @@ const mergeActiveTripRows = (
     RunUpdateVesselTripsOutput["activeTrips"][number]
   >
 ): ReadonlyArray<RunUpdateVesselTripsOutput["activeTrips"][number]> => {
-  // Merge by vessel with last-write-wins (processed overrides prior for same key).
   const mergedByVessel = new Map<
     string,
     RunUpdateVesselTripsOutput["activeTrips"][number]

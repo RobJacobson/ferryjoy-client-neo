@@ -5,8 +5,8 @@
  * input/output contract.
  */
 
+export { computeVesselTripsRows } from "./computeVesselTripsRows";
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
 } from "./types";
-export { computeVesselTripsRows } from "./computeVesselTripsRows";

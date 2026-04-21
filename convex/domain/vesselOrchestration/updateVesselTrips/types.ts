@@ -1,7 +1,7 @@
 /**
  * Types for the pure `updateVesselTrips` pipeline: public runner I/O
- * (`RunUpdateVesselTripsInput` / `RunUpdateVesselTripsOutput`) and intermediate
- * shapes from {@link calculateTripUpdates} through {@link TripUpdatesRouting}.
+ * (`RunUpdateVesselTripsInput` / `RunUpdateVesselTripsOutput`), intermediate
+ * {@link CalculatedTripUpdate}, and per-ping row outcomes {@link VesselPingTripRows}.
  */
 
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
@@ -34,8 +34,8 @@ export type RunUpdateVesselTripsOutput = {
 /**
  * One feed row joined with optional prior active trip and {@link TripEvents}.
  *
- * Produced by {@link calculateTripUpdates}; consumed when building or routing
- * trip rows.
+ * Produced by {@link calculatedTripUpdateForFeedRow}; consumed by
+ * {@link tripRowsForVesselPing}.
  */
 export type CalculatedTripUpdate = {
   vesselLocation: ConvexVesselLocation;
@@ -46,18 +46,21 @@ export type CalculatedTripUpdate = {
 /**
  * {@link CalculatedTripUpdate} with a definite prior active row.
  *
- * Required to emit a completed trip close in {@link finalizeCompletedTrips}.
+ * Required to emit a completed trip close in {@link tripRowsForVesselPing}.
  */
 export type CompletedTripUpdate = CalculatedTripUpdate & {
   existingActiveTrip: ConvexVesselTrip;
 };
 
 /**
- * Same batch of {@link CalculatedTripUpdate} rows split for pipeline branches.
+ * Optional stored rows produced for one vessel on one ping (table names align
+ * with `completedVesselTrips` / `activeVesselTrips`).
  *
- * Output of {@link calculateUpdatedVesselTrips} (and {@link prepareTripUpdates}).
+ * A completion with a closable prior yields both; a continuing trip yields only
+ * `activeVesselTrip`; a completion signal without a prior active yields neither
+ * (same ping contributes nothing).
  */
-export type TripUpdatesRouting = {
-  completedTripUpdates: ReadonlyArray<CompletedTripUpdate>;
-  activeTripUpdates: ReadonlyArray<CalculatedTripUpdate>;
+export type VesselPingTripRows = {
+  completedVesselTrip?: ConvexVesselTrip;
+  activeVesselTrip?: ConvexVesselTrip;
 };

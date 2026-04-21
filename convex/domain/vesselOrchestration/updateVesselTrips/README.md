@@ -16,10 +16,9 @@ back into trip-internal artifacts.
 
 | Path | Role |
 | --- | --- |
-| [`prepareTripUpdates.ts`](./prepareTripUpdates.ts) | Normalize realtime inputs and existing active trips into per-vessel updates |
-| [`finalizeCompletedTrips.ts`](./finalizeCompletedTrips.ts) | Complete prior trips and build replacement active trips when needed |
-| [`updateActiveTrips.ts`](./updateActiveTrips.ts) | Build the authoritative active-trip rows for non-completed vessels |
-| [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Compose the pipeline and return the two public arrays |
+| [`calculatedTripUpdate.ts`](./calculatedTripUpdate.ts) | Join each feed row to its prior active (by vessel) and run `detectTripEvents` |
+| [`tripRowsForVesselPing.ts`](./tripRowsForVesselPing.ts) | For one calculated update, emit optional completed close and/or active row |
+| [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Build schedule tables, map each location through the per-vessel steps, merge actives |
 | [`scheduleTripAdapters.ts`](./scheduleTripAdapters.ts) | `ScheduledSegmentLookup` helpers: effective docked location + next-leg schedule |
 | [`continuity/`](./continuity/) | Docked identity continuity helpers |
 | [`tripLifecycle/`](./tripLifecycle/) | Remaining low-level trip-building helpers that still directly support the pipeline |
