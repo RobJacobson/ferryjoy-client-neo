@@ -87,10 +87,12 @@ export const getScheduleSnapshotForPing = internalQuery({
     const eventsByVesselEntries = await Promise.all(
       vesselAbbrevs.map(async (vesselAbbrev) => [
         vesselAbbrev,
-        await loadScheduledDockEventsForVesselSailingDay(ctx, {
-          vesselAbbrev,
-          sailingDay,
-        }),
+        (
+          await loadScheduledDockEventsForVesselSailingDay(ctx, {
+            vesselAbbrev,
+            sailingDay,
+          })
+        ).map(stripConvexMeta),
       ])
     );
     const scheduledDockEventsByVesselAbbrev = Object.fromEntries(

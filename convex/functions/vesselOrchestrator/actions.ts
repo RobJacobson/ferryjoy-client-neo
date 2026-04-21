@@ -36,6 +36,8 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
+import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
+import { createVesselOrchestratorConvexBindings } from "./utils";
 
 /**
  * Internal action: load identity and active trips, fetch live locations, and run
@@ -83,20 +85,23 @@ export const updateVesselOrchestrator = internalAction({
       );
       const sailingDay = getSailingDay(new Date(pingStartedAt));
 
-      // Step 2: Pure trip update. Downstream persistence, predictions, and
-      // timeline still need their own boundary refactors to consume only these
-      // arrays.
-      const trips = await updateVesselTrips(
+      // Step 2: Pure trip compute from locations + schedule snapshot.
+      const tripRows = await updateVesselTrips(
         convexLocations,
         activeTrips,
         scheduleSnapshot,
         sailingDay
       );
-      void trips;
+      const { vesselTripMutations } = createVesselOrchestratorConvexBindings(ctx);
+      // Persist only changed active rows plus every completed-row rollover.
+      await persistVesselTripWriteSet(tripRows, activeTrips, vesselTripMutations);
+
+      // Step 3+ wiring still depends on compute-bundle handoffs that are being
+      // refactored out of the Step 2 -> Step 3 boundary.
       void pingStartedAt;
       throw new Error(
-        "updateVesselOrchestrator downstream persistence/predictions/timeline " +
-          "has not been adapted yet to the pure computeVesselTripsRows output."
+        "updateVesselOrchestrator predictions/timeline are not yet adapted to " +
+          "the Step 2 arrays-only handoff."
       );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));

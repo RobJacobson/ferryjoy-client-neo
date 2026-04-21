@@ -8,13 +8,9 @@
  */
 
 import type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripPredictedEventMessage,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
-import type { VesselTripsComputeBundle } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -44,142 +40,108 @@ export type VesselTripTableMutations = {
   }) => Promise<unknown>;
 };
 
-type PersistableTripsBoundary = {
-  completedFacts: CompletedTripBoundaryFact[];
-  currentBranch: {
-    activeTripRows: ConvexVesselTrip[];
-    pendingActualMessages: CurrentTripActualEventMessage[];
-    pendingPredictedMessages: CurrentTripPredictedEventMessage[];
-    leaveDockIntents: Array<{
-      vesselAbbrev: string;
-      actualDepartMs: number;
-    }>;
-  };
-};
-
 /**
  * Persists one tick of trip-table writes from the canonical trips domain output.
  */
 export const persistVesselTripWriteSet = async (
-  trips: RunUpdateVesselTripsOutput,
-  tripsCompute: VesselTripsComputeBundle,
+  tripRows: RunUpdateVesselTripsOutput,
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   mutations: VesselTripTableMutations
 ): Promise<VesselTripPersistResult> => {
-  const persistable = translateTripsForPersistence(trips, tripsCompute);
-
-  const settled = await Promise.allSettled(
-    persistable.completedFacts.map((fact) =>
-      mutations.completeAndStartNewTrip({
-        completedTrip: stripTripPredictionsForStorage(fact.tripToComplete),
-        newTrip: stripTripPredictionsForStorage(fact.scheduleTrip),
-      })
-    )
+  const existingByVessel = new Map(
+    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
+  );
+  const completedTripsByVessel = new Map(
+    tripRows.completedTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
 
-  for (let i = 0; i < settled.length; i++) {
-    const result = settled[i];
-    const fact = persistable.completedFacts[i];
-    if (result?.status === "rejected" && fact !== undefined) {
+  const completedSettled = await Promise.allSettled(
+    [...completedTripsByVessel.entries()].flatMap(([vesselAbbrev, completedTrip]) => {
+      const replacementTrip = replacementActiveTripForCompletedVessel(
+        tripRows.activeTrips,
+        completedTrip
+      );
+      // Skip malformed completion pairs so one bad vessel does not block the ping.
+      if (replacementTrip === undefined) {
+        console.error(
+          `[VesselTrips] Skip completion for ${vesselAbbrev}: missing replacement active trip`
+        );
+        return [];
+      }
+      return [
+        mutations.completeAndStartNewTrip({
+          completedTrip: stripTripPredictionsForStorage(completedTrip),
+          newTrip: stripTripPredictionsForStorage(replacementTrip),
+        }),
+      ];
+    })
+  );
+
+  for (const result of completedSettled) {
+    if (result.status === "rejected") {
       const err =
         result.reason instanceof Error
           ? result.reason
           : new Error(String(result.reason));
-      const vesselAbbrev = fact.tripToComplete.VesselAbbrev;
-      console.error(
-        `[VesselTrips] Failed completed-trip processing for ${vesselAbbrev}: ${err.message}`,
-        err
-      );
+      console.error(`[VesselTrips] Failed completed-trip processing: ${err.message}`, err);
     }
   }
 
-  const completedFacts = successfulCompletedFacts(persistable, settled);
+  const activeTripUpserts = tripRows.activeTrips
+    .filter((trip) => !completedTripsByVessel.has(trip.VesselAbbrev))
+    .map(stripTripPredictionsForStorage)
+    // Skip active writes when the storage row is unchanged from the snapshot.
+    .filter((nextTrip) => {
+      const existingTrip = existingByVessel.get(nextTrip.VesselAbbrev);
+      return !areStorageRowsEqual(existingTrip, nextTrip);
+    });
 
   let successfulVessels = new Set<string>();
-  if (persistable.currentBranch.activeTripRows.length > 0) {
+  if (activeTripUpserts.length > 0) {
     successfulVessels = successfulVesselAbbrevsFromUpsert(
       await mutations.upsertVesselTripsBatch({
-        activeUpserts: Array.from(persistable.currentBranch.activeTripRows),
+        activeUpserts: [...activeTripUpserts],
       })
     );
   }
 
-  await runLeaveDockFromWriteSetIntents(
-    mutations,
-    successfulVessels,
-    persistable.currentBranch.leaveDockIntents
-  );
-
   return {
-    completedFacts,
+    // Return empty timeline/prediction handoffs until Step 3 is arrays-only.
+    completedFacts: [],
     currentBranch: {
       successfulVessels,
-      pendingActualMessages: persistable.currentBranch.pendingActualMessages,
-      pendingPredictedMessages:
-        persistable.currentBranch.pendingPredictedMessages,
+      pendingActualMessages: [],
+      pendingPredictedMessages: [],
     },
   };
 };
 
-const translateTripsForPersistence = (
-  trips: RunUpdateVesselTripsOutput,
-  tripsCompute: VesselTripsComputeBundle
-): PersistableTripsBoundary => {
-  const persistedVessels = new Set(
-    trips.activeTrips.map((trip) => trip.VesselAbbrev)
+/**
+ * Finds the replacement active trip for one completed trip rollover.
+ */
+const replacementActiveTripForCompletedVessel = (
+  activeTrips: ReadonlyArray<ConvexVesselTrip>,
+  completedTrip: ConvexVesselTrip
+): ConvexVesselTrip | undefined =>
+  activeTrips.find(
+    (activeTrip) =>
+      activeTrip.VesselAbbrev === completedTrip.VesselAbbrev &&
+      activeTrip.TripKey !== completedTrip.TripKey
   );
 
-  if (tripsCompute.completedHandoffs.length !== trips.completedTrips.length) {
-    throw new Error(
-      "[VesselTrips] completedTrips length mismatch with completed handoffs"
-    );
+/**
+ * Compares persisted trip-row shapes to suppress redundant active upserts.
+ */
+const areStorageRowsEqual = (
+  existingTrip: ConvexVesselTrip | undefined,
+  nextTrip: ConvexVesselTrip
+): boolean => {
+  if (existingTrip === undefined) {
+    return false;
   }
-
-  return {
-    completedFacts: [...tripsCompute.completedHandoffs],
-    currentBranch: {
-      activeTripRows: tripsCompute.current.activeUpserts.map(
-        stripTripPredictionsForStorage
-      ),
-      pendingActualMessages: tripsCompute.current.pendingActualMessages.map(
-        (message) => ({
-          ...message,
-          requiresSuccessfulUpsert: persistedVessels.has(message.vesselAbbrev),
-        })
-      ),
-      pendingPredictedMessages:
-        tripsCompute.current.pendingPredictedMessages.map((message) => ({
-          ...message,
-          requiresSuccessfulUpsert: persistedVessels.has(message.vesselAbbrev),
-        })),
-      leaveDockIntents: tripsCompute.current.pendingLeaveDockEffects.flatMap(
-        (effect) =>
-          persistedVessels.has(effect.vesselAbbrev) &&
-          effect.trip.LeftDockActual !== undefined
-            ? [
-                {
-                  vesselAbbrev: effect.vesselAbbrev,
-                  actualDepartMs: effect.trip.LeftDockActual,
-                },
-              ]
-            : []
-      ),
-    },
-  };
-};
-
-const successfulCompletedFacts = (
-  persistable: PersistableTripsBoundary,
-  settled: PromiseSettledResult<unknown>[]
-): CompletedTripBoundaryFact[] => {
-  const completedFacts: CompletedTripBoundaryFact[] = [];
-  for (let i = 0; i < settled.length; i++) {
-    const result = settled[i];
-    const fact = persistable.completedFacts[i];
-    if (result?.status === "fulfilled" && fact !== undefined) {
-      completedFacts.push(fact);
-    }
-  }
-  return completedFacts;
+  const existingStorageTrip = stripTripPredictionsForStorage(existingTrip);
+  const nextStorageTrip = stripTripPredictionsForStorage(nextTrip);
+  return JSON.stringify(existingStorageTrip) === JSON.stringify(nextStorageTrip);
 };
 
 const successfulVesselAbbrevsFromUpsert = (
@@ -202,31 +164,3 @@ const successfulVesselAbbrevsFromUpsert = (
       .map((result) => result.vesselAbbrev)
   );
 
-/**
- * Runs depart-next actualization for leave-dock intents whose vessel had a
- * successful active upsert.
- */
-const runLeaveDockFromWriteSetIntents = async (
-  mutations: VesselTripTableMutations,
-  successfulVessels: Set<string>,
-  leaveDockIntents: PersistableTripsBoundary["currentBranch"]["leaveDockIntents"]
-): Promise<void> => {
-  await Promise.allSettled(
-    leaveDockIntents
-      .filter((intent) => successfulVessels.has(intent.vesselAbbrev))
-      .map(async (intent) => {
-        try {
-          await mutations.setDepartNextActualsForMostRecentCompletedTrip({
-            vesselAbbrev: intent.vesselAbbrev,
-            actualDepartMs: intent.actualDepartMs,
-          });
-        } catch (error) {
-          console.error("[VesselTrips] leave-dock post-persist failed", {
-            vesselAbbrev: intent.vesselAbbrev,
-            actualDepartMs: intent.actualDepartMs,
-            error,
-          });
-        }
-      })
-  );
-};

@@ -5,13 +5,13 @@
  * rows, and a last-write-wins merge so vessels absent from the batch keep
  * prior actives.
  *
- * Flow: schedule lookup → per-feed {@link calculatedTripUpdateForFeedRow} →
+ * Flow: schedule lookup → per-feed {@link calculateTripUpdateForVessel} →
  * {@link tripRowsForVesselPing} → merge carry-forward.
  */
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { calculatedTripUpdateForFeedRow } from "./calculatedTripUpdate";
+import { calculateTripUpdateForVessel } from "./calculatedTripUpdate";
 import { tripRowsForVesselPing } from "./tripRowsForVesselPing";
 import type {
   RunUpdateVesselTripsInput,
@@ -39,7 +39,7 @@ export const computeVesselTripsRows = (
   const activesByVessel = activeTripsByVesselAbbrev(input.existingActiveTrips);
 
   const pingRows = input.vesselLocations.map((vesselLocation) => {
-    const update = calculatedTripUpdateForFeedRow(
+    const update = calculateTripUpdateForVessel(
       vesselLocation,
       activesByVessel
     );

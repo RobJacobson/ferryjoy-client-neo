@@ -17,7 +17,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  *   duplicates win); built in {@link computeVesselTripsRows}
  * @returns {@link CalculatedTripUpdate} for {@link tripRowsForVesselPing}
  */
-export const calculatedTripUpdateForFeedRow = (
+export const calculateTripUpdateForVessel = (
   vesselLocation: ConvexVesselLocation,
   activesByVessel: Partial<Record<string, ConvexVesselTrip>>
 ): CalculatedTripUpdate => {
