@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { vesselTripPredictionProposalsFromMlTrip } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import { vesselTripPredictionProposalsFromMlTrip } from "../vesselTripPredictionProposalsFromMlTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

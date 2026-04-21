@@ -1,10 +1,11 @@
 /**
- * Base vessel trip from raw location data.
+ * Base vessel trip from location-shaped inputs.
  *
- * Builds the location-derived base {@link ConvexVesselTrip} for a single vessel tick.
- * The builder uses an explicit mode and shared derived inputs so the same
- * carry-forward rules apply consistently across newly created and continuing
- * updates.
+ * Builds the location-derived base {@link ConvexVesselTrip} for a single ping.
+ * Callers typically pass schedule-resolved locations after docked identity
+ * resolution in `buildTripCore`. {@link detectTripEvents} uses raw pings with
+ * the same continuing-key rules via {@link deriveContinuingScheduleKey}; this
+ * module uses {@link deriveTripInputs} for the full normalized input object.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -18,18 +19,20 @@ import {
 } from "./tripDerivation";
 
 /**
- * Build the base trip from the current location and previous trip state.
+ * Builds the base trip from the current location and previous trip state.
  *
- * @param currLocation - Latest vessel location from the live feed
- * @param existingTrip - Current trip, when one already exists for the vessel
- * @param isTripStart - True when the caller is explicitly starting a new trip
- * @returns Location-derived trip state before schedule and prediction enrichments
+ * @param currLocation - Feed or effective location for this step (see module doc)
+ * @param existingTrip - Current trip when one exists for the vessel
+ * @param isTripStart - True when starting a new trip row (replacement active or boundary)
+ * @returns Location-derived trip before next-leg schedule merge in `buildTripCore`
  */
 export const baseTripFromLocation = (
   currLocation: ConvexVesselLocation,
   existingTrip?: ConvexVesselTrip,
   isTripStart = false
 ): ConvexVesselTrip => {
+  // `currLocation` is often effective (post–docked resolution), unlike the raw
+  // row passed to `detectTripEvents`.
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const tripMode = determineBaseTripMode(
     existingTrip,
@@ -50,7 +53,7 @@ export const baseTripFromLocation = (
  *
  * @param currLocation - Latest vessel location from the live feed
  * @param existingTrip - Previous trip state, when present
- * @param tripInputs - Shared derived values for this tick
+ * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a newly started trip
  */
 const baseTripForStart = (
@@ -100,9 +103,9 @@ const baseTripForStart = (
 };
 
 /**
- * Resolves the immutable physical trip key for a continuing tick.
+ * Resolves the immutable physical trip key for a continuing ping.
  *
- * First-seen trips (no prior row) get a new key from the current tick even if
+ * First-seen trips (no prior row) get a new key from the current ping even if
  * the vessel is already mid-voyage. That synthetic anchor is only for physical
  * identity; it must not be interpreted as an observed departure boundary.
  *
@@ -110,7 +113,7 @@ const baseTripForStart = (
  * invalid and must not be silently repaired.
  *
  * @param existingTrip - Prior active trip row, if any
- * @param currLocation - Latest vessel location for this tick
+ * @param currLocation - Latest vessel location for this ping
  * @returns Physical trip key for this instance
  */
 const tripKeyForContinuing = (
@@ -134,7 +137,7 @@ const tripKeyForContinuing = (
  *
  * @param currLocation - Latest vessel location from the live feed
  * @param existingTrip - Current ongoing trip, when one exists
- * @param tripInputs - Shared derived values for this tick
+ * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a continuing or first-seen trip
  */
 const baseTripForContinuing = (

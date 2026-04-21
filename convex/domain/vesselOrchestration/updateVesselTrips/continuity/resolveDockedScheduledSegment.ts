@@ -3,7 +3,7 @@
  *
  * Uses persisted next-leg hints (`NextScheduleKey` on vessel trips) and
  * same-terminal rollover after a known departure. Does not re-merge the full
- * timeline backbone on every tick; UI labels and structure come from
+ * timeline backbone on every ping; UI labels and structure come from
  * `eventsScheduled`.
  */
 
@@ -12,9 +12,10 @@ import {
   findNextDepartureEvent,
   inferScheduledSegmentFromDepartureEvent,
 } from "domain/timelineRows/scheduledSegmentResolvers";
-import type {
-  DockedScheduledSegmentSource,
-  ScheduledSegmentLookup,
+import {
+  type DockedScheduledSegmentSource,
+  getScheduledDockEventsForVesselAndSailingDay,
+  type ScheduledSegmentTables,
 } from "domain/vesselOrchestration/shared";
 import { getSailingDay } from "shared/time";
 
@@ -42,24 +43,25 @@ export type DockedScheduledSegmentResolution = {
  * after a known departure; otherwise returns null so callers use raw feed
  * fields.
  *
- * @param lookup - Schedule rows (in-memory snapshot or test double)
+ * @param tables - Schedule rows (in-memory snapshot or test double)
  * @param args - Vessel, terminal, and optional prior-trip hints
  * @returns Segment plus provenance, or null when no continuity match exists
  */
 export const resolveDockedScheduledSegment = (
-  lookup: ScheduledSegmentLookup,
+  tables: ScheduledSegmentTables,
   args: ResolveDockedScheduledSegmentArgs
 ): DockedScheduledSegmentResolution | null => {
+  // 1) Exact next leg from the prior row when the terminal still matches.
   if (args.existingTrip?.NextScheduleKey) {
-    const exactNextEvent = lookup.getScheduledDepartureEventBySegmentKey(
-      args.existingTrip.NextScheduleKey
-    );
+    const exactNextEvent =
+      tables.scheduledDepartureBySegmentKey[args.existingTrip.NextScheduleKey];
 
     if (exactNextEvent) {
-      const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
-        vesselAbbrev: exactNextEvent.VesselAbbrev,
-        sailingDay: exactNextEvent.SailingDay,
-      });
+      const sameDayEvents = getScheduledDockEventsForVesselAndSailingDay(
+        tables,
+        exactNextEvent.VesselAbbrev,
+        exactNextEvent.SailingDay
+      );
       const exactNextSegment = inferScheduledSegmentFromDepartureEvent(
         exactNextEvent,
         sameDayEvents
@@ -77,14 +79,16 @@ export const resolveDockedScheduledSegment = (
     }
   }
 
+  // 2) Same-day rollover: next departure after a known scheduled time at port.
   if (args.existingTrip?.ScheduledDeparture !== undefined) {
     const sailingDay = getSailingDay(
       new Date(args.existingTrip.ScheduledDeparture)
     );
-    const sameDayEvents = lookup.getScheduledDockEventsForSailingDay({
-      vesselAbbrev: args.vesselAbbrev,
-      sailingDay,
-    });
+    const sameDayEvents = getScheduledDockEventsForVesselAndSailingDay(
+      tables,
+      args.vesselAbbrev,
+      sailingDay
+    );
     const rolloverEvent = findNextDepartureEvent(sameDayEvents, {
       terminalAbbrev: args.departingTerminalAbbrev,
       afterTime: args.existingTrip.ScheduledDeparture,

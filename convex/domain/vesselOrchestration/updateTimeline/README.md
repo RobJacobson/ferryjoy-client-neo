@@ -1,6 +1,6 @@
 # updateTimeline (domain assembly)
 
-Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, merge, assembler, and `buildTimelineTickProjectionInput`.
+Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, merge, assembler, and `buildTimelinePingProjectionInput`.
 
 **TripComputation assembly** (`assembleTripComputationsFromBundle`) lives here, not in **`updateVesselTrips`**: the orchestrator flattens **`VesselTripsComputeBundle`** into **`TripComputation[]`** for **`buildTimelineTripComputationsForRun`** (persist gates) before **`runUpdateVesselTimeline`**. **`updateVesselTrips`** only computes the bundle and trip-table row lists.
 
@@ -9,17 +9,17 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 ## Production call chain
 
 1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator`: bulk upsert locations → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`**.
-2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which builds **`TimelineProjectionAssembly`** from **`TimelineTripComputation`** rows, merges ML from **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, runs **`buildTimelineTickProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same tick does not assemble timeline from `vesselTripPredictions` DB reads). **`vesselTripPredictions`** row dedupe (overlay equality, MAE-insensitive) lives in **`functions`** **`batchUpsertProposals`**; timeline assembly consumes the merged trip handoff, not the prediction table.
+2. **`updateVesselTimeline`** calls **`runUpdateVesselTimeline`**, which builds **`TimelineProjectionAssembly`** from **`TimelineTripComputation`** rows, merges ML from **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, runs **`buildTimelinePingProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** (same ping does not assemble timeline from `vesselTripPredictions` DB reads). **`vesselTripPredictions`** row dedupe (overlay equality, MAE-insensitive) lives in **`functions`** **`batchUpsertProposals`**; timeline assembly consumes the merged trip handoff, not the prediction table.
 
 ## Canonical files (this folder)
 
 | File | Role |
 | --- | --- |
 | `assembleTripComputationsFromBundle.ts` | `VesselTripsComputeBundle` → `TripComputation[]` for timeline persist filtering |
-| `tickEventWrites.ts` | `TickEventWrites`, `TimelineTickProjectionInput`, `mergeTickEventWrites` |
-| `timelineEventAssembler.ts` | Lifecycle facts/messages → tick writes |
+| `pingEventWrites.ts` | `PingEventWrites`, `TimelinePingProjectionInput`, `mergePingEventWrites` |
+| `timelineEventAssembler.ts` | Lifecycle facts/messages → ping writes |
 | `actualDockWritesFromTrip.ts` | Dep/arv actual dock writes from trip rows |
-| `buildTimelineTickProjectionInput.ts` | Completed + current branch merge per tick |
+| `buildTimelinePingProjectionInput.ts` | Completed + current branch merge per ping |
 | `types.ts` | DTOs shared with `processCompletedTrips` / `processCurrentTrips` |
 | `index.ts` | Public barrel (`runUpdateVesselTimeline`, contracts, projection input types) |
 
@@ -31,5 +31,5 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one tick: types, 
 
 ## See also
 
-- [`../architecture.md`](../architecture.md) — full tick map and folder layout
+- [`../architecture.md`](../architecture.md) — full orchestrator map and folder layout
 - [`../../vesselTrips/README.md`](../../vesselTrips/README.md) — `vesselTrips` package entry

@@ -157,10 +157,10 @@ const productionModelParametersSchema = v.object({
 });
 
 /**
- * Bulk preload for one orchestrator tick: loads only the requested production
+ * Bulk preload for one orchestrator ping: loads only the requested production
  * model docs and returns them as a plain-data lookup by pair and model type.
  */
-export const getProductionModelParametersForTick = internalQuery({
+export const getProductionModelParametersForPing = internalQuery({
   args: {
     requests: v.array(
       v.object({

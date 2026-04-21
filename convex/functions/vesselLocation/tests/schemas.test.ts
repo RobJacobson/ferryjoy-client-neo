@@ -4,11 +4,11 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { runUpdateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
-describe("runUpdateVesselLocations ScheduleKey behavior", () => {
+describe("computeVesselLocationRows ScheduleKey behavior", () => {
   it("stamps the canonical key when arriving terminal and scheduled departure are present", async () => {
     const location = await convertOne(
       makeRawLocation({
@@ -110,8 +110,8 @@ const convertOne = async (
   rawFeedLocation: WsfVesselLocation,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ) => {
-  const result = await runUpdateVesselLocations({
-    tickStartedAt: Date.now(),
+  const result = await computeVesselLocationRows({
+    pingStartedAt: Date.now(),
     rawFeedLocations: [rawFeedLocation],
     vesselsIdentity: [
       {

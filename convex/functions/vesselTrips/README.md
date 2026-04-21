@@ -6,7 +6,7 @@ Thin Convex entrypoints for vessel trips (`queries`, `mutations`, `schemas`;
 lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` (import via
 `domain/vesselOrchestration/updateVesselTrips`), and boundary adapters are wired via
 `createDefaultProcessVesselTripsDeps` with **`createScheduledSegmentLookupFromSnapshot`**
-(after **`getScheduleSnapshotForTick`**) and `createVesselTripPredictionModelAccess`
+(after **`getScheduleSnapshotForPing`**) and `createVesselTripPredictionModelAccess`
 (wired from [`updateVesselOrchestrator`](../vesselOrchestrator/actions.ts)).
 
 - **`queries.ts`** — Indexed reads for active/completed trips used by the app
@@ -19,7 +19,7 @@ lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` 
   `resolveDepartNextLegContext` from `domain/vesselOrchestration/shared`.
 - **`schemas.ts`** — Validators and API/domain conversion helpers.
 
-**Schedule sources:** tick-time enrichment uses `eventsScheduled`-backed internal
+**Schedule sources:** ping-time enrichment uses `eventsScheduled`-backed internal
 queries (`appendFinalSchedule`). Subscriber reads that attach display schedule
 rows use the `scheduledTrips` table (`getActiveTripsWithScheduledTrip`). Keep
 behavior aligned when changing either path.

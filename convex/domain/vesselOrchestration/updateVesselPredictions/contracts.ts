@@ -6,10 +6,7 @@ import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripP
 import type { ModelType } from "domain/ml/shared/types";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithML,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Plain-data prediction preload blob expected by the Stage A public contract.
@@ -18,37 +15,9 @@ import type {
  * terminal pair); domain receives only this POJO, not Convex query ports.
  */
 export type VesselPredictionContext = {
-  vesselTripPredictions?: ReadonlyArray<{
-    VesselAbbrev: string;
-    TripKey: string;
-    PredictionType: string;
-    PredTime: number;
-    MinTime: number;
-    MaxTime: number;
-    MAE: number;
-    StdDev: number;
-    Actual?: number;
-    DeltaTotal?: number;
-    DeltaRange?: number;
-    UpdatedAt?: number;
-  }>;
   productionModelsByPair?: Readonly<
     Record<string, Partial<Record<ModelType, ProductionModelParameters | null>>>
   >;
-};
-
-/**
- * Transitional predicted-trip handoff for downstream consumers.
- *
- * The name is legacy, but the shape is now just "which trip branch was
- * predicted this tick, and what was the resulting ML-enriched trip row?"
- */
-export type PredictedTripComputation = {
-  vesselAbbrev: string;
-  branch: "completed" | "current";
-  completedTrip?: ConvexVesselTrip;
-  activeTrip?: ConvexVesselTrip;
-  finalPredictedTrip?: ConvexVesselTripWithML;
 };
 
 /**
@@ -63,7 +32,12 @@ export type RunUpdateVesselPredictionsInput = {
   predictionContext: VesselPredictionContext;
 };
 
+/**
+ * Pure prediction pipeline output: rows suitable for dedupe/upsert in
+ * `functions/vesselOrchestrator` / `batchUpsertProposals`.
+ *
+ * Timeline ML merge handoffs are returned only from `runVesselPredictionPing`.
+ */
 export type RunUpdateVesselPredictionsOutput = {
-  vesselTripPredictions: VesselTripPredictionRow[];
-  predictedTripComputations: PredictedTripComputation[];
+  predictionRows: ReadonlyArray<VesselTripPredictionRow>;
 };

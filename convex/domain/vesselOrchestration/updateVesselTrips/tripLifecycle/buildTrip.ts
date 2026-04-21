@@ -1,38 +1,46 @@
 /**
- * Schedule-half trip build for one live location tick: effective location, base
- * trip, schedule enrichment. ML runs in **updateVesselPredictions**; production
- * injects {@link buildTripCore} via `ProcessVesselTripsDeps`.
+ * Schedule-half trip build for one live location ping: effective location, base
+ * trip, then schedule leg enrichment.
+ *
+ * ML prediction overlays run in **updateVesselPredictions** after rows persist;
+ * this module does not attach prediction fields.
  */
-import type { TripScheduleCoreResult } from "domain/vesselOrchestration/updateVesselTrips/contracts";
-import type { VesselTripsBuildTripAdapters } from "domain/vesselOrchestration/updateVesselTrips/vesselTripsBuildTripAdapters";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import {
+  appendFinalScheduleForLookup,
+  resolveEffectiveLocationForLookup,
+} from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
 /**
- * Schedule enrichment only — no ML gates or ML attachment. Production ticks
- * inject this via `ProcessVesselTripsDeps`.
+ * Schedule enrichment only — no ML gates or ML attachment.
  *
- * @param currLocation - Latest vessel location from REST/API
- * @param existingTrip - Previous trip for event detection (undefined for new trips)
- * @param tripStart - True for new trip (boundary or first), false for continuing
- * @param events - Detected trip events from detectTripEvents
- * @param adapters - Injected resolve-location and schedule enrichment from the functions layer
- * @returns Final schedule-shaped trip proposal for downstream stages
+ * @param currLocation - Latest vessel location from REST/API (raw feed)
+ * @param existingTrip - Prior active trip for carry-forward and identity
+ *   (undefined only when starting from a completion row as the “existing” context)
+ * @param tripStart - True for a new trip instance, false for continuing
+ * @param events - Flags from {@link detectTripEvents} for the **raw** ping
+ * @param scheduleTables - Prefetched segment tables for this orchestrator ping
+ * @returns Storage-shaped trip row (prediction fields not applied here)
  */
-export const buildTripCore = async (
+export const buildTripCore = (
   currLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  adapters: VesselTripsBuildTripAdapters
-): Promise<TripScheduleCoreResult> => {
-  const { resolveEffectiveLocation, appendFinalSchedule } = adapters;
-  const effectiveLocation = await resolveEffectiveLocation(
+  scheduleTables: ScheduledSegmentTables
+): ConvexVesselTrip => {
+  const effectiveLocation = resolveEffectiveLocationForLookup(
+    scheduleTables,
     currLocation,
     existingTrip
   );
+  // `deriveTripInputs` in base-trip construction uses this effective location;
+  // `detectTripEvents` uses the raw ping (debounced boundaries + continuing key)
+  // — they can differ for docked identity.
   const baseTrip = baseTripFromLocation(
     effectiveLocation,
     existingTrip,
@@ -69,17 +77,17 @@ export const buildTripCore = async (
 
   const tripForScheduleEnrichment = withScheduleKeyChangeClearedDerivedState;
 
-  // Schedule enrichment is segment-key-based. Docked identity bootstrap now
-  // happens once in `resolveEffectiveLocation`.
+  // Schedule enrichment is segment-key-based. Docked identity bootstrap happens
+  // in `resolveEffectiveLocationForLookup`.
   const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
 
-  const withFinalSchedule = shouldAppendFinalSchedule
-    ? await appendFinalSchedule(tripForScheduleEnrichment, existingTrip)
+  return shouldAppendFinalSchedule
+    ? appendFinalScheduleForLookup(
+        scheduleTables,
+        tripForScheduleEnrichment,
+        existingTrip
+      )
     : tripForScheduleEnrichment;
-
-  return {
-    withFinalSchedule,
-  };
 };
 
 /**
@@ -113,8 +121,8 @@ const didLoseScheduleAttachment = (
  * prediction state because the current implementation intentionally preserves
  * it across bounded schedule reattachment on the same trip.
  *
- * @param events - Detected trip events for the current tick
- * @param physicalIdentityReplaced - Whether `TripKey` changed this tick
+ * @param events - Detected trip events for the current ping
+ * @param physicalIdentityReplaced - Whether `TripKey` changed this ping
  * @param scheduleAttachmentLost - Whether `ScheduleKey` changed to `undefined`
  * @returns True when carried schedule-derived fields should be cleared
  */

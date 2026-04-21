@@ -3,5 +3,15 @@
  */
 
 export * from "./mutations";
+export {
+  convexPredictionFromVesselTripPredictionRow,
+  normalizeConvexPredictionForOverlayEquality,
+  overlayPredictionProjectionsEqual,
+} from "./predictionOverlayCompare";
 export * from "./queries";
 export * from "./schemas";
+export {
+  decideVesselTripPredictionUpsert,
+  type VesselTripPredictionUpsertDecision,
+  vesselTripPredictionUnchangedForPersist,
+} from "./vesselTripPredictionPersistPlan";

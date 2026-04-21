@@ -205,7 +205,6 @@ Call:
 - `eventsPredicted`
 - `eventsScheduled`
 - `keyValueStore`
-- `modelConfig`
 - `modelParameters`
 - `scheduledTrips`
 - `terminalsIdentity`
@@ -215,6 +214,9 @@ Call:
 - `vesselPing`
 - `vesselPings`
 - `vesselsIdentity`
+
+`keyValueStore` note: active ML production tag is stored as
+`{ key: "productionVersionTag", value: "2026-03-04-prod" }`.
 
 ## Sample data observed during testing
 

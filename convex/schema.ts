@@ -4,7 +4,6 @@ import { eventsPredictedSchema } from "functions/events/eventsPredicted/schemas"
 import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
 import {
-  modelConfigSchema,
   modelParametersSchema,
 } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
@@ -12,6 +11,7 @@ import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { terminalTopologySchema } from "functions/terminalsTopology/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
+import { vesselLocationUpdateValidationSchema } from "functions/vesselLocationsUpdates/schemas";
 import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripPredictionStoredSchema } from "functions/vesselTripPredictions/schemas";
@@ -82,6 +82,8 @@ export default defineSchema({
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_schedule_key", ["ScheduleKey"]),
 
+  vesselLocationsUpdates: defineTable(vesselLocationUpdateValidationSchema),
+
   vesselLocationsHistoric: defineTable(historicVesselLocationValidationSchema)
     .index("by_sailing_day", ["SailingDay"])
     .index("by_timestamp", ["TimeStamp"])
@@ -130,10 +132,6 @@ export default defineSchema({
     .index("by_pair_and_type", ["pairKey", "modelType"])
     .index("by_pair_type_tag", ["pairKey", "modelType", "versionTag"])
     .index("by_version_tag", ["versionTag"]),
-
-  // ML configuration - DEPRECATED, use keyValueStore instead
-  // Kept temporarily for migration - remove after running migration
-  modelConfig: defineTable(modelConfigSchema).index("by_key", ["key"]),
 
   // Key-value store for arbitrary configuration and metadata
   keyValueStore: defineTable(keyValueStoreSchema).index("by_key", ["key"]),

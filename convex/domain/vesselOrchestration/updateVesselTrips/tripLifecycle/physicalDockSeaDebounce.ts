@@ -1,8 +1,8 @@
 /**
- * Physical dock vs sea debouncing for one orchestrator tick.
+ * Physical dock vs sea debouncing for one orchestrator ping.
  *
  * Uses only feed signals `AtDock`, `LeftDock`, and `Speed` (with `> 1` as
- * underway). Combines the persisted trip row with the current tick to tolerate
+ * underway). Combines the persisted trip row with the current ping to tolerate
  * a single contradictory sample without flipping lifecycle ownership.
  */
 
@@ -21,18 +21,18 @@ export const getPhysicalDepartureStamp = (
 ): number | undefined => trip?.LeftDockActual ?? trip?.LeftDock;
 
 /**
- * Raw tick suggests the vessel is still in a dock interval (low speed, docked).
+ * Raw location sample suggests the vessel is still in a dock interval (low speed, docked).
  *
  * @param location - Current vessel location sample
  * @returns True when AtDock reads docked and speed is not clearly underway
  */
-export const rawTickSuggestsDocked = (
+const rawPingSuggestsDocked = (
   location: ConvexVesselLocation
 ): boolean => location.AtDock && !(location.Speed > 1);
 
 /**
- * True when the feed reports a new departure time this tick but the physical
- * hints still look docked — suppress `didJustLeaveDock` for this tick.
+ * True when the feed reports a new departure time this ping but the physical
+ * hints still look docked — suppress `didJustLeaveDock` for this ping.
  *
  * @param existingTrip - Previous active trip
  * @param currLocation - Current vessel location
@@ -46,7 +46,7 @@ export const rawDepartureIsContradictory = (
     existingTrip &&
       getPhysicalDepartureStamp(existingTrip) === undefined &&
       currLocation.LeftDock !== undefined &&
-      rawTickSuggestsDocked(currLocation)
+      rawPingSuggestsDocked(currLocation)
   );
 
 /**
@@ -55,7 +55,7 @@ export const rawDepartureIsContradictory = (
  * @param currLocation - Current vessel location
  * @returns True when arrival should not commit yet
  */
-export const rawArrivalIsContradictory = (
+const rawArrivalIsContradictory = (
   currLocation: ConvexVesselLocation
 ): boolean => Boolean(currLocation.AtDock && currLocation.Speed > 1);
 
@@ -66,7 +66,7 @@ export const rawArrivalIsContradictory = (
  * @param currLocation - Current vessel location
  * @returns True when the feed introduces a departure timestamp
  */
-export const rawDidJustLeaveDock = (
+const rawDidJustLeaveDock = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean =>
@@ -83,7 +83,7 @@ export const rawDidJustLeaveDock = (
  * @param currLocation - Current vessel location
  * @returns True when a completion boundary is credibly observed
  */
-export const rawDidJustArriveAtDock = (
+const rawDidJustArriveAtDock = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean => {
@@ -120,14 +120,14 @@ export type DebouncedPhysicalBoundaryResult = {
 };
 
 /**
- * Applies single-tick debounce and enforces at most one lifecycle transition.
+ * Applies single-ping debounce and enforces at most one lifecycle transition.
  *
- * When both departure and arrival would fire, the tick is ambiguous: neither
+ * When both departure and arrival would fire, the ping is ambiguous: neither
  * fires so ownership does not churn twice.
  *
  * @param existingTrip - Previous active trip, if any
  * @param currLocation - Current vessel location
- * @returns Debounced boundary flags for this tick
+ * @returns Debounced boundary flags for this ping
  */
 export const resolveDebouncedPhysicalBoundaries = (
   existingTrip: ConvexVesselTrip | undefined,
@@ -141,6 +141,7 @@ export const resolveDebouncedPhysicalBoundaries = (
     rawDidJustArriveAtDock(existingTrip, currLocation) &&
     !rawArrivalIsContradictory(currLocation);
 
+  // One transition per ping: both raw signals would churn ownership twice.
   if (didJustLeaveDock && didJustArriveAtDock) {
     didJustLeaveDock = false;
     didJustArriveAtDock = false;

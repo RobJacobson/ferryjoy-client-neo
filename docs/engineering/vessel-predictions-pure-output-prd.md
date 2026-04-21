@@ -3,6 +3,34 @@
 **Date:** 2026-04-19  
 **Audience:** Engineers and coding agents working in `convex/domain/vesselOrchestration/updateVesselPredictions`, `convex/functions/vesselOrchestrator`, `updateVesselTrips`, and `updateVesselTimeline`
 
+## 0. Implementation status (follow-up pass)
+
+A focused refactor aligned the code with the boundaries in this PRD. Summary of what we found and what changed:
+
+### Findings
+
+- The domain runner mixed two concerns in one return shape: **`vesselTripPredictions` proposal rows** (correct for upsert) and **`predictedTripComputations`** (ML-enriched trips for timeline merge). That made the “pure predictions” API look like a trip-overlay pipeline.
+- **`orchestratorPredictionWrites.ts`** did not perform writes; the name suggested persistence lived in domain.
+- **Compare-then-write** for `vesselTripPredictions` (`decideVesselTripPredictionUpsert`, overlay equality) lived under **`updateVesselPredictions`** while only **`batchUpsertProposals`** used it—persistence logic belonged in **`functions/vesselTripPredictions`**.
+- **`PredictedTripComputation`** was defined on the predictions contracts but consumed primarily by **timeline** merge code; it fits a **shared** handoff type, not a predictions-table DTO.
+- **`stripTripPredictionsForStorage`** was used by persist and trip storage assembly; it is storage shaping, not ML prediction logic.
+
+### Changes made
+
+- **`runUpdateVesselPredictions`** now returns only **`{ predictionRows }`** (contract rename from `vesselTripPredictions` on that output).
+- **`computeVesselPredictionRows`** is the canonical rows-only runner, while **`runVesselPredictionPing`** performs the same pass plus **`predictedTripComputations`** for the orchestrator/timeline seam.
+- **`PredictedTripComputation`** moved to **`domain/vesselOrchestration/shared/tickHandshake`** (re-exported from **`shared`**); timeline imports it from there.
+- **Overlay comparison and upsert decisions** moved to **`convex/functions/vesselTripPredictions`** (`predictionOverlayCompare`, `vesselTripPredictionPersistPlan`); mutations import those modules.
+- **`stripTripPredictionsForStorage`** moved to **`domain/vesselOrchestration/shared/orchestratorPersist`** and is re-exported from **`shared`**; call sites may import either surface depending on module-boundary needs.
+- **`updateVesselPredictions/index.ts`** was trimmed to: runners, contract types, and **`predictionModelTypesForTrip`** for preload; other symbols are internal (tests use relative imports).
+- **`runAndPersistVesselPredictionPing`** in **`actions.ts`** calls **`runVesselPredictionPing`**, upserts **`predictionRows`**, and returns **`predictionRows`** plus **`predictedTripComputations`**.
+
+### Not fully addressed here
+
+- Timeline merge still needs **full `ConvexVesselTripWithML`** from the same tick pass; flat prediction table rows alone are not a drop-in replacement until a different merge story exists.
+- **End-to-end orchestrator** wiring may still be gated by unrelated trip/persist refactors (see current **`actions.ts`**).
+- Repo-wide **TypeScript** health outside this slice may still block **`convex codegen`** until other modules are fixed.
+
 ## 1. Problem statement
 
 `updateVesselPredictions` is currently carrying too much architectural baggage.

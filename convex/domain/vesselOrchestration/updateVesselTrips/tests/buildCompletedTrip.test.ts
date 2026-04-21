@@ -70,7 +70,7 @@ describe("buildCompletedTrip", () => {
     expect(completed.TotalDuration).toBe(597);
   });
 
-  it("backfills the physical arrival terminal from the completion tick when the trip destination is unknown", () => {
+  it("backfills the physical arrival terminal from the completion ping when the trip destination is unknown", () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: undefined,
       LeftDock: ms("2026-03-13T05:29:38-07:00"),

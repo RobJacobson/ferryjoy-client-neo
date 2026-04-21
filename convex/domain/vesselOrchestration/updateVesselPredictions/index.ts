@@ -1,41 +1,26 @@
 /**
- * Orchestrator concern **updateVesselPredictions**: ML attachment,
- * upsert decisions for **`vesselTripPredictions`**, and strip helpers
- * for trip rows processed on each tick. Implementation modules live in this
- * folder; import from here for a stable concern boundary.
+ * **updateVesselPredictions** — ML attachment and `vesselTripPredictions` row DTOs
+ * for one ping. Compare-then-write is in `functions/vesselTripPredictions`.
  *
- * Stage A canonical contracts live in `contracts.ts`. **`runUpdateVesselPredictions`**
- * is the Stage D plain-data runner: it consumes trip rows plus a
- * functions-preloaded **`predictionContext`** and returns predicted trip
- * handoffs for timeline/persistence assembly.
+ * **Public surface**
+ * - {@link computeVesselPredictionRows} — `{ predictionRows }` only
+ * - {@link runVesselPredictionPing} — same pass plus timeline ML handoff (orchestrator)
+ * - {@link predictionModelTypesForTrip} — terminal-pair preload requests (orchestrator)
+ *
+ * Other helpers (`applyVesselPredictions`, `appendPredictions`, policy gates, etc.)
+ * are internal to this folder; tests may import them via relative paths.
  */
 
 export {
-  applyVesselPredictions,
-  type VesselTripCoreProposal,
-} from "./applyVesselPredictions";
+  computeVesselPredictionRows,
+  type RunVesselPredictionPingOutput,
+  runUpdateVesselPredictions,
+  runVesselPredictionPing,
+} from "./computeVesselPredictionRows";
 export type {
-  PredictedTripComputation,
   RunUpdateVesselPredictionsInput,
   RunUpdateVesselPredictionsOutput,
   VesselPredictionContext,
   VesselTripPredictionRow,
 } from "./contracts";
-export { runUpdateVesselPredictions } from "./orchestratorPredictionWrites";
-export {
-  convexPredictionFromVesselTripPredictionRow,
-  normalizeConvexPredictionForOverlayEquality,
-  overlayPredictionProjectionsEqual,
-} from "./predictionCompare";
-export {
-  predictionModelTypesForTrip,
-  shouldRunAtDockPredictions,
-  shouldRunAtSeaPredictions,
-} from "./predictionPolicy";
-export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
-export {
-  decideVesselTripPredictionUpsert,
-  type VesselTripPredictionUpsertDecision,
-  vesselTripPredictionUnchangedForPersist,
-} from "./vesselTripPredictionPersistPlan";
-export { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
+export { predictionModelTypesForTrip } from "./predictionPolicy";

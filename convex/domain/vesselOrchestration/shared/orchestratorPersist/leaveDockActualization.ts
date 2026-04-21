@@ -5,7 +5,7 @@
  * before calling mutations; this helper only extracts the timestamp.
  */
 
-import type { PendingLeaveDockEffect } from "domain/vesselOrchestration/updateVesselTrips";
+import type { PendingLeaveDockEffect } from "domain/vesselOrchestration/shared";
 
 /**
  * Epoch ms passed to `setDepartNextActualsForMostRecentCompletedTrip` for a

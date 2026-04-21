@@ -11,65 +11,6 @@ import {
 } from "./schemas";
 
 /**
- * Copies rows from deprecated modelConfig into keyValueStore when missing.
- *
- * @param ctx - Convex mutation context
- * @returns Counts of migrated and skipped rows
- */
-export const migrateModelConfigToKeyValueStore = internalMutation({
-  args: {},
-  returns: v.object({
-    migrated: v.number(),
-    skipped: v.number(),
-    total: v.number(),
-  }),
-  handler: async (ctx) => {
-    console.log("[MIGRATION] Starting modelConfig to keyValueStore migration");
-
-    const modelConfigEntries = await ctx.db.query("modelConfig").collect();
-
-    console.log(
-      `[MIGRATION] Found ${modelConfigEntries.length} entries in modelConfig`
-    );
-
-    let migratedCount = 0;
-    let skippedCount = 0;
-
-    for (const entry of modelConfigEntries) {
-      const existingInKvStore = await fetchEntryByKey(ctx, entry.key);
-
-      if (existingInKvStore) {
-        console.log(`[MIGRATION] Skipping ${entry.key} - already migrated`);
-        skippedCount += 1;
-        continue;
-      }
-
-      const kvEntry = {
-        key: entry.key,
-        value: entry.productionVersionTag,
-        updatedAt: entry.updatedAt,
-      };
-
-      await ctx.db.insert("keyValueStore", kvEntry);
-      console.log(
-        `[MIGRATION] Migrated ${entry.key}: ${entry.productionVersionTag}`
-      );
-      migratedCount += 1;
-    }
-
-    console.log(
-      `[MIGRATION] Migration complete: ${migratedCount} migrated, ${skippedCount} skipped`
-    );
-
-    return {
-      migrated: migratedCount,
-      skipped: skippedCount,
-      total: modelConfigEntries.length,
-    };
-  },
-});
-
-/**
  * Seeds lastScheduledTripsSyncDate once so cache-flush tooling can run.
  *
  * @param ctx - Convex mutation context

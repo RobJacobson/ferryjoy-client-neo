@@ -1,5 +1,5 @@
 /**
- * Assembles `TickEventWrites` from lifecycle facts and per-vessel messages.
+ * Assembles `PingEventWrites` from lifecycle facts and per-vessel messages.
  *
  * Owns imports of `domain/timelineRows` projection builders and converts sparse
  * actual writes into persisted actual rows before they cross the DB boundary.
@@ -20,8 +20,8 @@ import {
   buildArrivalActualDockWriteForTrip,
   buildDepartureActualDockWriteForTrip,
 } from "./actualDockWritesFromTrip";
-import type { TickEventWrites } from "./tickEventWrites";
-import { mergeTickEventWrites } from "./tickEventWrites";
+import type { PingEventWrites } from "./pingEventWrites";
+import { mergePingEventWrites } from "./pingEventWrites";
 import type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
@@ -55,7 +55,7 @@ const currentTripProposedForActuals = (
   message: CurrentTripActualEventMessage
 ): ConvexVesselTripWithML =>
   message.finalProposed ??
-  (message.tripCore.withFinalSchedule as ConvexVesselTripWithML);
+  (message.scheduleTrip as ConvexVesselTripWithML);
 
 /**
  * Trip shape for current-branch predicted batches (needs ML when present).
@@ -67,7 +67,7 @@ const currentTripProposedForPredicted = (
   message: CurrentTripPredictedEventMessage
 ): ConvexVesselTripWithML =>
   message.finalProposed ??
-  (message.tripCore.withFinalSchedule as ConvexVesselTripWithML);
+  (message.scheduleTrip as ConvexVesselTripWithML);
 
 type TaggedActualDockRow = {
   vesselAbbrev: string;
@@ -82,27 +82,27 @@ type TaggedPredictedDockBatch = {
 };
 
 /**
- * Converts completed-trip facts into merged tick event writes.
+ * Converts completed-trip facts into merged ping event writes.
  *
  * @param facts - One entry per successful `completeAndStartNewTrip` boundary
  * @param updatedAt - Timestamp used to stamp persisted actual rows
  * @returns Actual and predicted dock writes for timeline mutations
  */
-export const buildTickEventWritesFromCompletedFacts = (
+export const buildPingEventWritesFromCompletedFacts = (
   facts: CompletedTripBoundaryFact[],
   updatedAt: number
-): TickEventWrites =>
+): PingEventWrites =>
   facts.reduce(
     (acc, fact) =>
-      mergeTickEventWrites(
+      mergePingEventWrites(
         acc,
-        tickEventWritesFromCompletedFact(fact, updatedAt)
+        pingEventWritesFromCompletedFact(fact, updatedAt)
       ),
-    emptyTickEventWrites()
+    emptyPingEventWrites()
   );
 
 /**
- * Builds tick event writes for the current-trip branch after lifecycle writes.
+ * Builds ping event writes for the current-trip branch after lifecycle writes.
  *
  * @param successfulVessels - Vessels whose batch upsert succeeded (empty if none ran)
  * @param pendingActualMessages - Per-vessel actual write messages
@@ -110,12 +110,12 @@ export const buildTickEventWritesFromCompletedFacts = (
  * @param updatedAt - Timestamp used to stamp persisted actual rows
  * @returns Dock writes after upsert-gated filtering
  */
-export const buildTickEventWritesFromCurrentMessages = (
+export const buildPingEventWritesFromCurrentMessages = (
   successfulVessels: Set<string>,
   pendingActualMessages: CurrentTripActualEventMessage[],
   pendingPredictedMessages: CurrentTripPredictedEventMessage[],
   updatedAt: number
-): TickEventWrites => {
+): PingEventWrites => {
   const taggedActual = pendingActualMessages.flatMap((message) =>
     buildTaggedActualDockRowsFromMessage(message, updatedAt)
   );
@@ -142,10 +142,10 @@ export const buildTickEventWritesFromCurrentMessages = (
  * @param updatedAt - Timestamp used to stamp persisted actual rows
  * @returns Event-write payload for the completed trip
  */
-const tickEventWritesFromCompletedFact = (
+const pingEventWritesFromCompletedFact = (
   fact: CompletedTripBoundaryFact,
   updatedAt: number
-): TickEventWrites => ({
+): PingEventWrites => ({
   actualDockWrites: [
     buildDepartureActualDockWriteForTrip(fact.tripToComplete),
     buildArrivalActualDockWriteForTrip(fact.tripToComplete),
@@ -159,11 +159,11 @@ const tickEventWritesFromCompletedFact = (
 });
 
 /**
- * Creates an empty tick-event accumulator.
+ * Creates an empty ping-event accumulator.
  *
- * @returns Tick-event writes with no actual or predicted payloads
+ * @returns Ping-event writes with no actual or predicted payloads
  */
-const emptyTickEventWrites = (): TickEventWrites => ({
+const emptyPingEventWrites = (): PingEventWrites => ({
   actualDockWrites: [],
   predictedDockWriteBatches: [],
 });
@@ -173,7 +173,7 @@ const emptyTickEventWrites = (): TickEventWrites => ({
  * projecting the new proposal.
  *
  * @param existingTrip - Previously persisted trip, when one exists
- * @param finalProposed - Newly built trip proposal for the current tick
+ * @param finalProposed - Newly built trip proposal for the current ping
  * @returns `true` when the proposal changes sailing-day or schedule identity
  */
 const shouldClearExistingPredictions = (
@@ -260,7 +260,7 @@ const buildTaggedPredictedBatchesFromMessage = (
  *
  * @param tagged - Tagged actual rows emitted during current-trip processing
  * @param successfulVessels - Vessels whose lifecycle upsert completed
- * @returns Persisted actual rows that should be written this tick
+ * @returns Persisted actual rows that should be written this ping
  */
 const filterTaggedActualDockRows = (
   tagged: TaggedActualDockRow[],
@@ -279,7 +279,7 @@ const filterTaggedActualDockRows = (
  * @param tagged - Tagged predicted batches emitted during current-trip
  * processing
  * @param successfulVessels - Vessels whose lifecycle upsert completed
- * @returns Predicted batches that should be written this tick
+ * @returns Predicted batches that should be written this ping
  */
 const filterTaggedPredictedDockBatches = (
   tagged: TaggedPredictedDockBatch[],

@@ -1,15 +1,16 @@
 /**
- * Same-tick timeline projection from Stage C/D handoffs plus orchestrator persist
+ * Same-ping timeline projection from Stage C/D handoffs plus orchestrator persist
  * gates on {@link TimelineTripComputation}.
  */
 
-import type { PredictedTripComputation } from "domain/vesselOrchestration/updateVesselPredictions";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import {
-  buildTimelineTickProjectionInput,
+  buildTimelinePingProjectionInput,
   type TimelineProjectionAssembly,
-} from "./buildTimelineTickProjectionInput";
+} from "./buildTimelinePingProjectionInput";
 import type {
+  RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
   TimelineTripComputation,
@@ -50,9 +51,7 @@ const completedFactFromComputationOrThrow = (
     existingTrip: computation.existingTrip,
     tripToComplete: computation.completedTrip,
     events: computation.events,
-    newTripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-    },
+    scheduleTrip: computation.scheduleTrip,
   };
 };
 
@@ -65,9 +64,7 @@ const currentActualMessageFromComputation = (
 
   return {
     events: computation.events,
-    tripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-    },
+    scheduleTrip: computation.scheduleTrip,
     vesselAbbrev: computation.vesselAbbrev,
   };
 };
@@ -84,9 +81,7 @@ const currentPredictedMessageFromComputation = (
 
   return {
     existingTrip: computation.existingTrip,
-    tripCore: {
-      withFinalSchedule: computation.tripCore.withFinalSchedule,
-    },
+    scheduleTrip: computation.scheduleTrip,
     vesselAbbrev: computation.vesselAbbrev,
   };
 };
@@ -115,7 +110,7 @@ const finalProposedByVesselFromPredictedComputations = (
  * Builds projection assembly from orchestrator handoff rows (no ML overlay).
  *
  * @param tripComputations - {@link RunUpdateVesselTimelineInput.tripComputations}
- * @returns Facts and current-branch messages for timeline tick assembly
+ * @returns Facts and current-branch messages for timeline ping assembly
  */
 export const buildTimelineProjectionAssemblyFromTripComputations = (
   tripComputations: ReadonlyArray<TimelineTripComputation>
@@ -174,7 +169,7 @@ export const buildTimelineProjectionAssemblyFromTripComputations = (
 
 /**
  * Matching uses vessel + completed-trip schedule identity, not object identity
- * between ticks.
+ * between pings.
  *
  * @param assembly - Projection assembly from {@link buildTimelineProjectionAssemblyFromTripComputations}
  * @param predictedTripComputations - ML handoff from predictions stage
@@ -244,14 +239,28 @@ export const runUpdateVesselTimeline = (
   const assembly = buildTimelineProjectionAssemblyFromTripComputations(
     input.tripComputations
   );
+  return runUpdateVesselTimelineFromAssembly({
+    pingStartedAt: input.pingStartedAt,
+    projectionAssembly: assembly,
+    predictedTripComputations: input.predictedTripComputations,
+  });
+};
+
+/**
+ * Direct timeline entrypoint for orchestrator callers that already have
+ * completed/current projection assembly rows.
+ */
+export const runUpdateVesselTimelineFromAssembly = (
+  input: RunUpdateVesselTimelineFromAssemblyInput
+): RunUpdateVesselTimelineOutput => {
   const merged = mergePredictedComputationsIntoTimelineProjectionAssembly(
-    assembly,
+    input.projectionAssembly,
     input.predictedTripComputations
   );
-  const tl = buildTimelineTickProjectionInput({
+  const tl = buildTimelinePingProjectionInput({
     completedFacts: merged.completedFacts,
     currentBranch: merged.currentBranch,
-    tickStartedAt: input.tickStartedAt,
+    pingStartedAt: input.pingStartedAt,
   });
   return {
     actualEvents: tl.actualDockWrites,

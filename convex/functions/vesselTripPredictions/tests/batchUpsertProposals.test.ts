@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { Doc, Id } from "_generated/dataModel";
-import { decideVesselTripPredictionUpsert } from "domain/vesselOrchestration/updateVesselPredictions";
+import { decideVesselTripPredictionUpsert } from "functions/vesselTripPredictions";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 
 const proposal = (): VesselTripPredictionProposal => ({

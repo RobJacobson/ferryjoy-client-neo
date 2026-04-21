@@ -1,17 +1,17 @@
 /**
- * Tests for the boundary-layer `appendFinalSchedule` adapter (schedule lookup wiring).
+ * Tests for `appendFinalScheduleForLookup` (schedule lookup wiring).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
-import { buildAppendFinalSchedule } from "domain/vesselOrchestration/updateVesselTrips/createTripUpdateRuntime";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import { appendFinalScheduleForLookup } from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
-describe("appendFinalSchedule", () => {
-  it("reuses existing next-trip schedule fields when the schedule segment is unchanged", async () => {
+describe("appendFinalScheduleForLookup", () => {
+  it("reuses existing next-trip schedule fields when the schedule segment is unchanged", () => {
     const existingTrip = makeTrip({
       ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI",
       NextScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -23,8 +23,12 @@ describe("appendFinalSchedule", () => {
       NextScheduledDeparture: undefined,
     });
 
-    const appendFinalSchedule = buildAppendFinalSchedule(createTestLookup({}));
-    const enriched = await appendFinalSchedule(baseTrip, existingTrip);
+    const lookup = createTestLookup({});
+    const enriched = appendFinalScheduleForLookup(
+      lookup,
+      baseTrip,
+      existingTrip
+    );
 
     expect(enriched.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
     expect(enriched.NextScheduledDeparture).toBe(
@@ -32,7 +36,7 @@ describe("appendFinalSchedule", () => {
     );
   });
 
-  it("loads the next-trip schedule fields when the schedule segment changed", async () => {
+  it("loads the next-trip schedule fields when the schedule segment changed", () => {
     const scheduledEvent = makeScheduledEvent({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
     });
@@ -53,15 +57,14 @@ describe("appendFinalSchedule", () => {
       NextScheduledDeparture: undefined,
     });
 
-    const appendFinalSchedule = buildAppendFinalSchedule(
-      createTestLookup({
-        scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
-        scheduledEventsByScope: new Map([
-          ["CHE|2026-03-13", [scheduledEvent, nextScheduledEvent]],
-        ]),
-      })
-    );
-    const enriched = await appendFinalSchedule(
+    const lookup = createTestLookup({
+      scheduledEventByKey: new Map([[scheduledEvent.Key, scheduledEvent]]),
+      scheduledEventsByScope: new Map([
+        ["CHE|2026-03-13", [scheduledEvent, nextScheduledEvent]],
+      ]),
+    });
+    const enriched = appendFinalScheduleForLookup(
+      lookup,
       baseTrip,
       makeTrip({ ScheduleKey: "CHE--2026-03-13--09:30--MUK-CLI" })
     );
@@ -77,13 +80,20 @@ describe("appendFinalSchedule", () => {
 const createTestLookup = (options: {
   scheduledEventByKey?: Map<string, ConvexScheduledDockEvent>;
   scheduledEventsByScope?: Map<string, ConvexScheduledDockEvent[]>;
-}): ScheduledSegmentLookup => ({
-  getScheduledDepartureEventBySegmentKey: (segmentKey: string) =>
-    options.scheduledEventByKey?.get(segmentKey) ?? null,
-  getScheduledDockEventsForSailingDay: (args) =>
-    options.scheduledEventsByScope?.get(
-      `${args.vesselAbbrev}|${args.sailingDay}`
-    ) ?? [],
+}): ScheduledSegmentTables => ({
+  sailingDay: "2026-03-13",
+  scheduledDepartureBySegmentKey: Object.fromEntries(
+    options.scheduledEventByKey ?? new Map()
+  ),
+  scheduledDockEventsByVesselAbbrev: Object.fromEntries(
+    [...(options.scheduledEventsByScope ?? new Map()).entries()].map(
+      ([scope, events]) => {
+        const pipe = scope.indexOf("|");
+        const vesselAbbrev = pipe === -1 ? scope : scope.slice(0, pipe);
+        return [vesselAbbrev, events] as const;
+      }
+    )
+  ),
 });
 
 const ms = (iso: string) => new Date(iso).getTime();

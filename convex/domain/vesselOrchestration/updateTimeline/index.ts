@@ -1,39 +1,43 @@
 /**
  * Orchestrator concern **updateTimeline**: sparse `eventsActual` /
- * `eventsPredicted` writes for one tick. Canonical implementation lives in this
- * folder (`tickEventWrites`, assembler, `buildTimelineTickProjectionInput`).
+ * `eventsPredicted` writes for one ping. Canonical implementation lives in this
+ * folder (`pingEventWrites`, assembler, `buildTimelinePingProjectionInput`).
  *
  * Stage A contracts: `contracts.ts`. Canonical domain entry is
  * {@link runUpdateVesselTimeline} (`RunUpdateVesselTimelineInput` → output).
- * For `mergeTickEventWrites` / tick assemblers, use `domain/vesselOrchestration/shared`
- * or import from `timelineEventAssembler` / `tickEventWrites` within this folder.
+ * For `mergePingEventWrites` / ping assemblers, use `domain/vesselOrchestration/shared`
+ * or import from `timelineEventAssembler` / `pingEventWrites` within this folder.
  * Tests may import `orchestratorTimelineProjection` internals directly.
  */
 
 export { assembleTripComputationsFromBundle } from "./assembleTripComputationsFromBundle";
 export {
-  type BuildTimelineTickProjectionInputArgs,
-  buildTimelineTickProjectionInput,
+  type BuildTimelinePingProjectionInputArgs,
+  buildTimelinePingProjectionInput,
   type TimelineProjectionAssembly,
-} from "./buildTimelineTickProjectionInput";
+} from "./buildTimelinePingProjectionInput";
 export type {
   ActualDockEventRow,
   PredictedDockEventRow,
+  RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
   TimelineTripComputation,
   TimelineTripComputationPersist,
 } from "./contracts";
-export { runUpdateVesselTimeline } from "./orchestratorTimelineProjection";
+export {
+  runUpdateVesselTimeline,
+  runUpdateVesselTimelineFromAssembly,
+} from "./orchestratorTimelineProjection";
 export type {
-  TickEventWrites,
-  TimelineTickProjectionInput,
-} from "./tickEventWrites";
+  PingEventWrites,
+  TimelinePingProjectionInput,
+} from "./pingEventWrites";
 export type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
-  TripTickLifecycleOutcome,
+  TripPingLifecycleOutcome,
   VesselTripPersistResult,
 } from "./types";

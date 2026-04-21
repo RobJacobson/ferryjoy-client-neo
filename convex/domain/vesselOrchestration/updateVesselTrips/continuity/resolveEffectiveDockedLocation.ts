@@ -1,8 +1,11 @@
 /**
- * Domain orchestration for effective docked location identity during vessel-trip writes.
+ * Chooses stable schedule identity for docked pings when the live feed is thin.
+ *
+ * Combines persisted trip hints with {@link resolveDockedScheduledSegment} and
+ * shared identity rules in `shared/effectiveTripIdentity`.
  */
 
-import type { ScheduledSegmentLookup } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -26,23 +29,23 @@ export type ResolveEffectiveDockedLocationResult = {
  *
  * Matches the legacy `resolveEffectiveLocation` path after its early return.
  *
- * @param lookup - Schedule segment lookups (snapshot-backed in production)
+ * @param tables - Schedule segment lookups (snapshot-backed in production)
  * @param location - Latest vessel location (docked-at-terminal branch only)
  * @param existingTrip - Active persisted trip for this vessel, if any
  * @returns Effective location plus fields needed for observability
  */
-export const resolveEffectiveDockedLocation = async (
-  lookup: ScheduledSegmentLookup,
+export const resolveEffectiveDockedLocation = (
+  tables: ScheduledSegmentTables,
   location: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined
-): Promise<ResolveEffectiveDockedLocationResult> => {
+): ResolveEffectiveDockedLocationResult => {
   const stableDockedIdentity = hasStableDockedTripIdentity(
     location,
     existingTrip
   );
   const scheduledResolution = stableDockedIdentity
     ? null
-    : resolveDockedScheduledSegment(lookup, {
+    : resolveDockedScheduledSegment(tables, {
         vesselAbbrev: location.VesselAbbrev,
         departingTerminalAbbrev: location.DepartingTerminalAbbrev,
         existingTrip,

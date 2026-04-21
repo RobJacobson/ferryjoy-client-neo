@@ -14,14 +14,14 @@ import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/
  * without forcing the fetch adapter split in Stage A.
  */
 export type RunUpdateVesselLocationsInput = {
-  tickStartedAt: number;
+  pingStartedAt: number;
   rawFeedLocations: ReadonlyArray<WsfVesselLocation>;
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
   terminalsIdentity: ReadonlyArray<TerminalIdentity>;
 };
 
 /**
- * Canonical normalized row emitted by `runUpdateVesselLocations`.
+ * Canonical normalized row emitted by `computeVesselLocationRows`.
  */
 export type VesselLocationRow = ConvexVesselLocation;
 

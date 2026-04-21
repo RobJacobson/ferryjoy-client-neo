@@ -63,7 +63,7 @@ describe("baseTripFromLocation", () => {
     expect(trip.SailingDay).toBeUndefined();
   });
 
-  it("uses the current tick as the new coverage start and keeps origin arrival separate", () => {
+  it("uses the current ping as the new coverage start and keeps origin arrival separate", () => {
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "ANA",
       ArrivingTerminalAbbrev: "ORI",

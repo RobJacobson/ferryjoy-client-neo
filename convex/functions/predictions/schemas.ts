@@ -74,16 +74,3 @@ export const modelParametersSchema = v.object({
 });
 
 export type ConvexModelParameters = Infer<typeof modelParametersSchema>;
-
-/**
- * Convex validator for ML configuration stored in the modelConfig table.
- * Note: This schema is deprecated and only used for migration to keyValueStore.
- * After migration, remove this schema and table.
- */
-export const modelConfigSchema = v.object({
-  key: v.literal("productionVersionTag"),
-  productionVersionTag: v.union(v.string(), v.null()),
-  updatedAt: v.number(),
-});
-
-export type ConvexModelConfig = Infer<typeof modelConfigSchema>;

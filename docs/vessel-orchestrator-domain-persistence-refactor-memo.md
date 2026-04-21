@@ -85,7 +85,7 @@ function references.
 - Takes **`ActionCtx`** and runs, in order:
   1. **`processCompletedTrips`** — trip-boundary completions / handoffs.
   2. **`processCurrentTrips`** — steady-state active-trip updates.
-- Then builds **`tickEventWrites`** via `buildTimelineTickProjectionInput` for
+- Then builds **`pingEventWrites`** via `buildTimelinePingProjectionInput` for
   timeline overlay persistence.
 
 **Important:** Completed and current branches are **not** interchangeable; the

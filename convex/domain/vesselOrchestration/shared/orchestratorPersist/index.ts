@@ -1,10 +1,4 @@
 export { actualDepartMsForLeaveDockEffect } from "./leaveDockActualization";
-export {
-  buildTripsComputeStorageRows,
-  completedFactsForSuccessfulHandoffs,
-  type TripsComputeStorageRows,
-} from "./tripsComputeStorageRows";
-export {
-  buildVesselTripTickWriteSetFromBundle,
-  type VesselTripTickWriteSet,
-} from "./vesselTripTickWriteSet";
+export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
+export { buildTripsComputeStorageRows } from "./tripsComputeStorageRows";
+export { buildVesselTripPingWriteSetFromBundle } from "./vesselTripPingWriteSet";

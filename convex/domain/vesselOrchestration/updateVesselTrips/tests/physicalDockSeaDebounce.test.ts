@@ -12,7 +12,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("resolveDebouncedPhysicalBoundaries", () => {
-  it("suppresses departure when LeftDock appears but the tick still looks docked", () => {
+  it("suppresses departure when LeftDock appears but the ping still looks docked", () => {
     const existingTrip = makeTrip({
       LeftDock: undefined,
       LeftDockActual: undefined,
@@ -32,7 +32,7 @@ describe("resolveDebouncedPhysicalBoundaries", () => {
     expect(didJustLeaveDock).toBe(false);
   });
 
-  it("fires departure when LeftDock appears and the tick does not contradict underway", () => {
+  it("fires departure when LeftDock appears and the ping does not contradict underway", () => {
     const existingTrip = makeTrip({
       LeftDock: undefined,
       LeftDockActual: undefined,
