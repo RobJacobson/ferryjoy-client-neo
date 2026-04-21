@@ -565,10 +565,9 @@ Work in two tiers: **(A) broad compartmentalization** (orchestrator concerns), t
    - Benefit: if some mirrors are no longer required, remove or deprecate to
      reduce branch logic.
 
-10. Audit commented "tripStartReady"/`shouldStartTrip` remnants
-    - `TripEvents` includes `shouldStartTrip`, but start decision appears driven
-      mostly by other flags now.
-    - Benefit: remove dead semantic surface if truly unused.
+10. **Resolved:** `shouldStartTrip` removed from `TripEvents`. New-trip starts use
+    `isTripStartReady` plus explicit `tripStart` / `determineBaseTripMode` in
+    `baseTripFromLocation` and `buildTripCore`, not a detector boolean.
 
 ---
 

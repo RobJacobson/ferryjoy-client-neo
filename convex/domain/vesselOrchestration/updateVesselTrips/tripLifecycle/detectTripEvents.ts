@@ -35,7 +35,6 @@ export const detectTripEvents = (
 
   return {
     isFirstTrip: computeIsFirstTrip(existingTrip),
-    shouldStartTrip: false,
     isTripStartReady: computeIsTripStartReady(currLocation),
     isCompletedTrip: computeIsCompletedTrip(
       existingTrip,

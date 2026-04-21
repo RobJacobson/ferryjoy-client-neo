@@ -120,7 +120,6 @@ describe("runVesselPredictionPing", () => {
           events: {
             isFirstTrip: false,
             isTripStartReady: false,
-            shouldStartTrip: false,
             isCompletedTrip: true,
             didJustArriveAtDock: true,
             didJustLeaveDock: false,

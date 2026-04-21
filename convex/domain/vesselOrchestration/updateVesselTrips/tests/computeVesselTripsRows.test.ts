@@ -51,7 +51,6 @@ const makeTrip = (
 const defaultEvents: TripEvents = {
   isFirstTrip: false,
   isTripStartReady: false,
-  shouldStartTrip: false,
   isCompletedTrip: false,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
@@ -87,7 +86,9 @@ const makeLocation = (
 
 describe("computeVesselTripsRows", () => {
   it("returns empty arrays when the ping has no realtime inputs or active trips", async () => {
-    const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+    const { computeVesselTripsRows } = await import(
+      "../computeVesselTripsRows"
+    );
 
     const result = computeVesselTripsRows({
       vesselLocations: [],
@@ -122,7 +123,9 @@ describe("computeVesselTripsRows", () => {
     buildTripSpy.mockImplementation(() => updatedTrip);
 
     try {
-      const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+      const { computeVesselTripsRows } = await import(
+        "../computeVesselTripsRows"
+      );
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [makeTrip(), untouchedTrip],
@@ -178,7 +181,9 @@ describe("computeVesselTripsRows", () => {
     buildTripSpy.mockImplementation(() => replacementTrip);
 
     try {
-      const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+      const { computeVesselTripsRows } = await import(
+        "../computeVesselTripsRows"
+      );
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
         existingActiveTrips: [completedExisting],
@@ -211,7 +216,9 @@ describe("computeVesselTripsRows", () => {
     });
 
     try {
-      const { computeVesselTripsRows } = await import("../computeVesselTripsRows");
+      const { computeVesselTripsRows } = await import(
+        "../computeVesselTripsRows"
+      );
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [existingTrip],
