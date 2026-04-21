@@ -1357,7 +1357,13 @@ Models include a single versioning field:
 
 - `versionTag`: `string` (e.g., "dev-temp", "dev-1", "prod-1")
 
-The `modelConfig` table stores the active production version tag used for predictions.
+The `keyValueStore` table stores the active production version tag used for
+predictions under `key: "productionVersionTag"`.
+
+Current in-production model value:
+
+- `key`: `"productionVersionTag"`
+- `value`: `"2026-03-04-prod"`
 
 ### Version Management Workflow
 
@@ -1441,9 +1447,10 @@ npm run ml:delete-version -- "prod-2"     # Delete prod-2 (with confirmation)
 
 ### Production Version Selection
 
-The prediction system automatically uses the active production version tag stored in the `modelConfig` table. When making predictions:
+The prediction system automatically uses the active production version tag
+stored in the `keyValueStore` table. When making predictions:
 
-1. The system queries `modelConfig` for the current `productionVersionTag`
+1. The system queries `keyValueStore` for the current `productionVersionTag`
 2. Models are loaded with the specified `versionTag`
 3. If no production version tag is set, the system falls back to any model matching pair+type
 
