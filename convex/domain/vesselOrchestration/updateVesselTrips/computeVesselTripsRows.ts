@@ -8,7 +8,6 @@
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import { finalizeCompletedTrips } from "./finalizeCompletedTrips";
 import { prepareTripUpdates } from "./prepareTripUpdates";
-import { detectTripEvents } from "./tripLifecycle/detectTripEvents";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
@@ -31,7 +30,10 @@ export const computeVesselTripsRows = (
   );
 
   // One prepared row per feed vessel: events + optional prior active trip.
-  const prepared = prepareTripUpdates(input, detectTripEvents);
+  const prepared = prepareTripUpdates(
+    input.vesselLocations,
+    input.existingActiveTrips
+  );
 
   // Completing vessels: closed row + optional replacement active from same ping.
   const completionResolutions = finalizeCompletedTrips(

@@ -2,45 +2,40 @@
  * Maps each vessel location to detected events and partitions completing trips.
  */
 
-import type { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
+import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
 import type {
   PreparedTripUpdate,
-  RunUpdateVesselTripsInput,
   TripUpdatePartition,
 } from "domain/vesselOrchestration/updateVesselTrips/types";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Builds one prepared update per realtime row and splits completion vs active paths.
  *
- * @param input - Live locations and existing active trips for overlap lookup
- * @param detectEvents - Event detector (typically {@link detectTripEvents})
+ * @param vesselLocations - Live feed rows for this batch (one prepared row each)
+ * @param existingActiveTrips - Prior active trips keyed by overlap with feed vessels
  * @returns Completing updates plus non-completing updates for active projection
  */
 export const prepareTripUpdates = (
-  input: Pick<
-    RunUpdateVesselTripsInput,
-    "vesselLocations" | "existingActiveTrips"
-  >,
-  detectEvents: typeof detectTripEvents
+  vesselLocations: ReadonlyArray<ConvexVesselLocation>,
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
 ): TripUpdatePartition => {
-  const existingTripsByVessel = new Map(
-    input.existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
-  );
+  const existingTripsByVessel: Partial<Record<string, ConvexVesselTrip>> =
+    Object.fromEntries(
+      existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip])
+    );
 
   // One prepared row per feed vessel: join prior active trip and detect events.
-  const preparedUpdates: PreparedTripUpdate[] = input.vesselLocations.map(
-    (vesselLocation) => {
-      const existingActiveTrip = existingTripsByVessel.get(
-        vesselLocation.VesselAbbrev
-      );
+  const preparedUpdates: PreparedTripUpdate[] = vesselLocations.map((vl) => {
+    const existingActiveTrip = existingTripsByVessel[vl.VesselAbbrev];
 
-      return {
-        vesselLocation,
-        existingActiveTrip,
-        events: detectEvents(existingActiveTrip, vesselLocation),
-      };
-    }
-  );
+    return {
+      vesselLocation: vl,
+      existingActiveTrip,
+      events: detectTripEvents(existingActiveTrip, vl),
+    };
+  });
 
   // Completion path: arrival signaled and an existing trip row exists to close.
   // Rows with `isCompletedTrip` but no prior active are intentionally omitted
