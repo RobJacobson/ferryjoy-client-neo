@@ -11,8 +11,7 @@
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { calculateTripUpdateForVessel } from "./calculatedTripUpdate";
-import { tripRowsForVesselPing } from "./tripRowsForVesselPing";
+import { computeVesselTripUpdates } from "./computeVesselTripUpdates";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
@@ -36,23 +35,26 @@ export const computeVesselTripsRows = (
     input.sailingDay
   );
 
-  const activesByVessel = activeTripsByVesselAbbrev(input.existingActiveTrips);
+  const existingActiveTripsByVessel = activeTripsByVesselAbbrev(
+    input.existingActiveTrips
+  );
 
-  const pingRows = input.vesselLocations.map((vesselLocation) => {
-    const update = calculateTripUpdateForVessel(
+  const vesselTripUpdates = input.vesselLocations.map((vesselLocation) =>
+    computeVesselTripUpdates({
       vesselLocation,
-      activesByVessel
-    );
-    return tripRowsForVesselPing(update, scheduleTables);
-  });
+      existingActiveTrip:
+        existingActiveTripsByVessel[vesselLocation.VesselAbbrev],
+      scheduleTables,
+    })
+  );
 
-  const processedActiveTrips = pingRows
-    .map((rows) => rows.activeVesselTrip)
+  const processedActiveTrips = vesselTripUpdates
+    .map((updates) => updates.activeTripCandidate)
     .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
 
   return {
-    completedTrips: pingRows
-      .map((rows) => rows.completedVesselTrip)
+    completedTrips: vesselTripUpdates
+      .map((updates) => updates.completedTrip)
       .filter((trip): trip is ConvexVesselTrip => trip !== undefined),
     activeTrips: mergeActiveTripRows(
       input.existingActiveTrips,

@@ -11,8 +11,8 @@ import type {
   PredictedDockEventRow,
 } from "domain/vesselOrchestration/updateTimeline";
 import type { VesselTripPredictionRow } from "domain/vesselOrchestration/updateVesselPredictions";
+export type { VesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type {
   CompletedTripBoundaryFact,
   PredictedTripComputation,
@@ -25,19 +25,6 @@ import type {
 export type VesselLocationUpdates = {
   vesselLocation: ConvexVesselLocation;
   locationChanged: boolean;
-};
-
-/**
- * Canonical single-vessel output for the trip stage.
- *
- * Task 2 will carve out `computeVesselTripUpdates` to produce this shape
- * directly; for now it documents the intended per-vessel handoff.
- */
-export type VesselTripUpdates = {
-  vesselLocation: ConvexVesselLocation;
-  existingActiveTrip?: ConvexVesselTrip;
-  activeTrip?: ConvexVesselTrip;
-  completedTrip?: ConvexVesselTrip;
 };
 
 /**

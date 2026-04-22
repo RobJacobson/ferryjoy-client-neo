@@ -18,6 +18,7 @@ back into trip-internal artifacts.
 | --- | --- |
 | [`calculatedTripUpdate.ts`](./calculatedTripUpdate.ts) | Join each feed row to its prior active (by vessel) and run `detectTripEvents` |
 | [`tripRowsForVesselPing.ts`](./tripRowsForVesselPing.ts) | For one calculated update, emit optional completed close and/or active row |
+| [`computeVesselTripUpdates.ts`](./computeVesselTripUpdates.ts) | Canonical one-vessel Stage 2 helper: package the per-vessel trip outcome plus continuation flags |
 | [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Build schedule tables, map each location through the per-vessel steps, merge actives |
 | [`scheduleTripAdapters.ts`](./scheduleTripAdapters.ts) | `ScheduledSegmentLookup` helpers: effective docked location + next-leg schedule |
 | [`continuity/`](./continuity/) | Docked identity continuity helpers |

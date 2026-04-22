@@ -15,6 +15,7 @@ import type {
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
+import { areTripStorageRowsEqual } from "domain/vesselOrchestration/updateVesselTrips/storageRowsEqual";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -109,7 +110,7 @@ export const buildVesselTripPersistencePlan = (
     .map(stripTripPredictionsForStorage)
     .filter((nextTrip) => {
       const existingTrip = existingByVessel.get(nextTrip.VesselAbbrev);
-      return !areStorageRowsEqual(existingTrip, nextTrip);
+      return !areTripStorageRowsEqual(existingTrip, nextTrip);
     });
 
   const currentEventsByVessel = new Map(
@@ -250,21 +251,6 @@ const replacementActiveTripForCompletedVessel = (
       activeTrip.VesselAbbrev === completedTrip.VesselAbbrev &&
       activeTrip.TripKey !== completedTrip.TripKey
   );
-
-/**
- * Compares persisted trip-row shapes to suppress redundant active upserts.
- */
-const areStorageRowsEqual = (
-  existingTrip: ConvexVesselTrip | undefined,
-  nextTrip: ConvexVesselTrip
-): boolean => {
-  if (existingTrip === undefined) {
-    return false;
-  }
-  const existingStorageTrip = stripTripPredictionsForStorage(existingTrip);
-  const nextStorageTrip = stripTripPredictionsForStorage(nextTrip);
-  return JSON.stringify(existingStorageTrip) === JSON.stringify(nextStorageTrip);
-};
 
 const completionTripEvents = (
   existingTrip: ConvexVesselTrip,
