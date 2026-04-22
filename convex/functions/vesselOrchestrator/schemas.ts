@@ -53,6 +53,13 @@ export type OrchestratorScheduleSnapshot = Infer<
   typeof orchestratorScheduleSnapshotSchema
 >;
 
+export type {
+  VesselLocationUpdates,
+  VesselPredictionUpdates,
+  VesselTimelineUpdates,
+  VesselTripUpdates,
+} from "./pipelineTypes";
+
 /**
  * One WSF batch plus identity rows after adapter conversion, before sequential
  * writes in `updateVesselOrchestrator`.

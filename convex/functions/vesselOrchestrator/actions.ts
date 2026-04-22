@@ -32,6 +32,12 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
+import type {
+  VesselLocationUpdates,
+  VesselPredictionUpdates,
+  VesselTimelineUpdates,
+  VesselTripUpdates,
+} from "./pipelineTypes";
 
 /**
  * Internal action: load identity and active trips, fetch live locations, and run
@@ -102,6 +108,20 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       predictedTripComputations: [...predictionResult.predictedTripComputations],
     }
   );
+};
+
+/**
+ * Stage vocabulary for the in-progress per-vessel pipeline refactor.
+ *
+ * The current action still computes mostly batch-shaped arrays, but these type
+ * aliases make the intended single-vessel stage contracts explicit at the
+ * action boundary before Task 2 extracts the pure per-vessel helpers.
+ */
+type OrchestratorPerVesselStageOutputs = {
+  location: VesselLocationUpdates;
+  trip: VesselTripUpdates;
+  prediction: VesselPredictionUpdates;
+  timeline: VesselTimelineUpdates;
 };
 
 /**
@@ -381,3 +401,5 @@ const loadPredictionContext = async (
   );
   return { productionModelsByPair };
 };
+
+export type { OrchestratorPerVesselStageOutputs };
