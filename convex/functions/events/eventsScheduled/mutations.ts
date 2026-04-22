@@ -5,6 +5,7 @@
 import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import type { ConvexScheduledDockEvent } from "./schemas";
+import { materializeOrchestratorScheduleSnapshot } from "functions/vesselOrchestrator/materializeScheduleSnapshot";
 
 /**
  * Upsert the scheduled-event backbone rows for one sailing day using the
@@ -55,6 +56,18 @@ export const upsertScheduledRowsForSailingDay = async (
 
     // If the row is present in the existing slice and is not equal to the new row, update it
     await ctx.db.replace(existing._id, nextRow);
+  }
+
+  const snapshot = materializeOrchestratorScheduleSnapshot(SailingDay, nextRows);
+  const existingSnapshot = await ctx.db
+    .query("vesselOrchestratorScheduleSnapshots")
+    .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
+    .unique();
+
+  if (existingSnapshot) {
+    await ctx.db.replace(existingSnapshot._id, snapshot);
+  } else {
+    await ctx.db.insert("vesselOrchestratorScheduleSnapshots", snapshot);
   }
 };
 

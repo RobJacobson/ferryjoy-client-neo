@@ -32,6 +32,23 @@ export type RunUpdateVesselTripsOutput = {
 };
 
 /**
+ * Canonical Stage 2 per-vessel change bundle for the orchestrator pipeline.
+ *
+ * `activeTripCandidate` is the storage-shaped active row that would represent
+ * this vessel after the ping. `replacementTrip` is populated only when the ping
+ * closes a prior trip and starts a new active trip in the same pass.
+ */
+export type VesselTripUpdates = {
+  vesselLocation: ConvexVesselLocation;
+  existingActiveTrip?: ConvexVesselTrip;
+  activeTripCandidate?: ConvexVesselTrip;
+  completedTrip?: ConvexVesselTrip;
+  replacementTrip?: ConvexVesselTrip;
+  tripStorageChanged: boolean;
+  tripLifecycleChanged: boolean;
+};
+
+/**
  * One feed row joined with optional prior active trip and {@link TripEvents}.
  *
  * Produced by {@link calculatedTripUpdateForFeedRow}; consumed by

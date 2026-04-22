@@ -3,9 +3,7 @@
  * and final schedule leg attachment, using {@link ScheduledSegmentTables}.
  */
 
-import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import {
-  getScheduledDockEventsForVesselAndSailingDay,
   type ScheduledSegmentTables,
 } from "domain/vesselOrchestration/shared";
 import { resolveEffectiveDockedLocation } from "domain/vesselOrchestration/updateVesselTrips/continuity/resolveEffectiveDockedLocation";
@@ -85,8 +83,8 @@ export const appendFinalScheduleForLookup = (
   }
 
   // Infer next leg from today’s scheduled departure row + same-day events.
-  const scheduledEvent = tables.scheduledDepartureBySegmentKey[segmentKey];
-  if (!scheduledEvent) {
+  const scheduledSegment = tables.scheduledDepartureBySegmentKey[segmentKey];
+  if (!scheduledSegment) {
     return {
       ...baseTrip,
       ScheduleKey: baseTrip.ScheduleKey,
@@ -94,16 +92,6 @@ export const appendFinalScheduleForLookup = (
       NextScheduledDeparture: baseTrip.NextScheduledDeparture,
     };
   }
-
-  const sameDayEvents = getScheduledDockEventsForVesselAndSailingDay(
-    tables,
-    scheduledEvent.VesselAbbrev,
-    scheduledEvent.SailingDay
-  );
-  const scheduledSegment = inferScheduledSegmentFromDepartureEvent(
-    scheduledEvent,
-    sameDayEvents
-  );
 
   return {
     ...baseTrip,

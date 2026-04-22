@@ -1,9 +1,10 @@
 /**
  * Shared schedule-backed continuity types for docked identity resolution and
- * schedule snapshot wiring.
+ * compact schedule snapshot wiring.
  */
 
-import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
+import type { CompactScheduledDepartureEvent } from "../scheduleSnapshot/scheduleSnapshotTypes";
 
 /**
  * Provenance for which schedule continuity path selected the segment.
@@ -15,23 +16,17 @@ export type DockedScheduledSegmentSource =
 /**
  * Prefetched schedule rows for one orchestrator ping, keyed for direct lookup.
  *
- * `scheduledDepartureBySegmentKey` indexes **departure** boundaries (`dep-dock`)
- * by segment key (see {@link getSegmentKeyFromBoundaryKey}).
+ * `scheduledDepartureBySegmentKey` stores the already-inferred schedule
+ * segment contract keyed by `ScheduleKey`.
  *
- * `scheduledDockEventsByVesselAbbrev` holds the same-day **boundary** sequence
- * per vessel — both `dep-dock` and `arv-dock` — in feed order. Trip helpers
- * such as {@link inferScheduledSegmentFromDepartureEvent} and
- * {@link findNextDepartureEvent} filter to departures internally; keeping the
- * full boundary list matches the schedule snapshot and avoids splitting
- * arrivals into a parallel structure unless a caller needs that explicitly.
+ * `scheduledDeparturesByVesselAbbrev` keeps the ordered departure sequence per
+ * vessel for same-day rollover continuity.
  */
 export type ScheduledSegmentTables = {
   /** Calendar day these tables were narrowed to from the snapshot. */
   sailingDay: string;
-  scheduledDepartureBySegmentKey: Readonly<
-    Record<string, ConvexScheduledDockEvent>
-  >;
-  scheduledDockEventsByVesselAbbrev: Readonly<
-    Record<string, readonly ConvexScheduledDockEvent[]>
+  scheduledDepartureBySegmentKey: Readonly<Record<string, ConvexInferredScheduledSegment>>;
+  scheduledDeparturesByVesselAbbrev: Readonly<
+    Record<string, readonly CompactScheduledDepartureEvent[]>
   >;
 };

@@ -180,6 +180,24 @@ export const vesselTripSchema = v.object({
  */
 export type ConvexVesselTripWithPredictions = Infer<typeof vesselTripSchema>;
 
+const predictionOrJoinedPredictionSchema = v.union(
+  predictionSchema,
+  joinedTripPredictionSchema
+);
+
+/**
+ * In-memory trip shape with full ML blobs, used during orchestrator prediction
+ * and timeline assembly before persistence strips embedded predictions.
+ */
+export const vesselTripWithMlSchema = v.object({
+  ...tripIdentityFields,
+  AtDockDepartCurr: v.optional(predictionOrJoinedPredictionSchema),
+  AtDockArriveNext: v.optional(predictionOrJoinedPredictionSchema),
+  AtDockDepartNext: v.optional(predictionOrJoinedPredictionSchema),
+  AtSeaArriveNext: v.optional(predictionOrJoinedPredictionSchema),
+  AtSeaDepartNext: v.optional(predictionOrJoinedPredictionSchema),
+});
+
 /**
  * In-memory vessel trip during ML build: stored fields plus optional predictions
  * (full ML output and/or query-joined minimal rows).

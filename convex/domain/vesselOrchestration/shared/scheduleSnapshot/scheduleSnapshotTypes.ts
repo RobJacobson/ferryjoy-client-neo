@@ -1,14 +1,23 @@
-import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled";
 
 /**
  * Serializable schedule read model for one orchestrator ping (prefetched in one
  * internal query, consumed by {@link createScheduledSegmentTablesFromSnapshot}).
  */
+export type CompactScheduledDepartureEvent = {
+  Key: string;
+  ScheduledDeparture: number;
+  TerminalAbbrev: string;
+};
+
 export type ScheduleSnapshot = {
-  /**
-   * Today's scheduled boundary events grouped by vessel.
-   *
-   * Lookup adapters derive segment-key and same-day views from this source.
-   */
-  scheduledDockEventsByVesselAbbrev: Record<string, ConvexScheduledDockEvent[]>;
+  /** Calendar day represented by this materialized snapshot. */
+  SailingDay: string;
+  /** Direct schedule lookups keyed by trip `ScheduleKey`. */
+  scheduledDepartureBySegmentKey: Record<string, ConvexInferredScheduledSegment>;
+  /** Ordered same-day departures for rollover continuity. */
+  scheduledDeparturesByVesselAbbrev: Record<
+    string,
+    CompactScheduledDepartureEvent[]
+  >;
 };

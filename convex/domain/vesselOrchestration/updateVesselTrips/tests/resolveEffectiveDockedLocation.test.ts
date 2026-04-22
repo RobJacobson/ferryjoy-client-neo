@@ -3,8 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
-import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -37,7 +36,7 @@ describe("resolveEffectiveDockedLocation", () => {
     const tables: ScheduledSegmentTables = {
       sailingDay: "2026-04-12",
       scheduledDepartureBySegmentKey: {},
-      scheduledDockEventsByVesselAbbrev: {},
+      scheduledDeparturesByVesselAbbrev: {},
     };
 
     const { effectiveLocation } = resolveEffectiveDockedLocation(
@@ -56,26 +55,30 @@ describe("resolveEffectiveDockedLocation", () => {
   });
 
   it("prefers the carried NextScheduleKey when it matches the current departing terminal", () => {
-    const nextScheduledEvent = makeScheduledSegment({
+    const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--11:00--CLI-MUK",
     });
-    const nextSegment = inferScheduledSegmentFromDepartureEvent(
-      nextScheduledEvent,
-      [nextScheduledEvent]
-    );
     const lookupArgs: string[] = [];
     const tables: ScheduledSegmentTables = {
       sailingDay: "2026-03-13",
       scheduledDepartureBySegmentKey: new Proxy(
-        { [nextScheduledEvent.Key]: nextScheduledEvent },
+        { [nextSegment.Key]: nextSegment },
         {
           get(target, prop, receiver) {
             if (typeof prop === "string") lookupArgs.push(prop);
             return Reflect.get(target, prop, receiver);
           },
         }
-      ) as Record<string, ConvexScheduledDockEvent>,
-      scheduledDockEventsByVesselAbbrev: { CHE: [nextScheduledEvent] },
+      ) as Record<string, ConvexInferredScheduledSegment>,
+      scheduledDeparturesByVesselAbbrev: {
+        CHE: [
+          {
+            Key: `${nextSegment.Key}--dep-dock`,
+            ScheduledDeparture: nextSegment.DepartingTime,
+            TerminalAbbrev: nextSegment.DepartingTerminalAbbrev,
+          },
+        ],
+      },
     };
 
     const { effectiveLocation } = resolveEffectiveDockedLocation(
@@ -105,7 +108,7 @@ describe("resolveEffectiveDockedLocation", () => {
     const tables: ScheduledSegmentTables = {
       sailingDay: "2026-03-13",
       scheduledDepartureBySegmentKey: {},
-      scheduledDockEventsByVesselAbbrev: {},
+      scheduledDeparturesByVesselAbbrev: {},
     };
 
     const { effectiveLocation } = resolveEffectiveDockedLocation(
@@ -190,17 +193,14 @@ const makeTrip = (
 });
 
 const makeScheduledSegment = (
-  overrides: Partial<ConvexScheduledDockEvent> = {}
-): ConvexScheduledDockEvent => ({
+  overrides: Partial<ConvexInferredScheduledSegment> = {}
+): ConvexInferredScheduledSegment => ({
   Key: "CHE--2026-03-13--11:00--CLI-MUK",
-  VesselAbbrev: "CHE",
   SailingDay: "2026-03-13",
-  UpdatedAt: ms("2026-03-13T11:08:00-07:00"),
-  ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-  TerminalAbbrev: "CLI",
-  NextTerminalAbbrev: "MUK",
-  EventType: "dep-dock",
-  EventScheduledTime: ms("2026-03-13T11:00:00-07:00"),
-  IsLastArrivalOfSailingDay: false,
+  DepartingTerminalAbbrev: "CLI",
+  ArrivingTerminalAbbrev: "MUK",
+  DepartingTime: ms("2026-03-13T11:00:00-07:00"),
+  NextKey: undefined,
+  NextDepartingTime: undefined,
   ...overrides,
 });

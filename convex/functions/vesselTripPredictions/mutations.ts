@@ -2,8 +2,10 @@
  * Internal mutations for `vesselTripPredictions` (compare-then upserts).
  */
 
+import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
+import type { VesselTripPredictionProposal } from "./schemas";
 import { vesselTripPredictionProposalSchema } from "./schemas";
 import { decideVesselTripPredictionUpsert } from "./vesselTripPredictionPersistPlan";
 
@@ -24,44 +26,53 @@ export const batchUpsertProposals = internalMutation({
     inserted: v.number(),
     replaced: v.number(),
   }),
-  handler: async (ctx, args) => {
-    const updatedAt = Date.now();
-    let skipped = 0;
-    let inserted = 0;
-    let replaced = 0;
+  handler: async (ctx, args) => batchUpsertProposalsInDb(ctx, args.proposals),
+});
 
-    for (const proposal of args.proposals) {
-      const existing = await ctx.db
-        .query("vesselTripPredictions")
-        .withIndex("by_vessel_trip_and_field", (q) =>
-          q
-            .eq("VesselAbbrev", proposal.VesselAbbrev)
-            .eq("TripKey", proposal.TripKey)
-            .eq("PredictionType", proposal.PredictionType)
-        )
-        .unique();
+export const batchUpsertProposalsInDb = async (
+  ctx: MutationCtx,
+  proposals: ReadonlyArray<VesselTripPredictionProposal>
+): Promise<{
+  skipped: number;
+  inserted: number;
+  replaced: number;
+}> => {
+  const updatedAt = Date.now();
+  let skipped = 0;
+  let inserted = 0;
+  let replaced = 0;
 
-      const decision = decideVesselTripPredictionUpsert(
-        existing,
-        proposal,
-        updatedAt
-      );
+  for (const proposal of proposals) {
+    const existing = await ctx.db
+      .query("vesselTripPredictions")
+      .withIndex("by_vessel_trip_and_field", (q) =>
+        q
+          .eq("VesselAbbrev", proposal.VesselAbbrev)
+          .eq("TripKey", proposal.TripKey)
+          .eq("PredictionType", proposal.PredictionType)
+      )
+      .unique();
 
-      if (decision.type === "skip") {
-        skipped++;
-        continue;
-      }
+    const decision = decideVesselTripPredictionUpsert(
+      existing,
+      proposal,
+      updatedAt
+    );
 
-      if (decision.type === "insert") {
-        await ctx.db.insert("vesselTripPredictions", decision.row);
-        inserted++;
-        continue;
-      }
-
-      await ctx.db.replace(decision.existingId, decision.row);
-      replaced++;
+    if (decision.type === "skip") {
+      skipped++;
+      continue;
     }
 
-    return { skipped, inserted, replaced };
-  },
-});
+    if (decision.type === "insert") {
+      await ctx.db.insert("vesselTripPredictions", decision.row);
+      inserted++;
+      continue;
+    }
+
+    await ctx.db.replace(decision.existingId, decision.row);
+    replaced++;
+  }
+
+  return { skipped, inserted, replaced };
+};

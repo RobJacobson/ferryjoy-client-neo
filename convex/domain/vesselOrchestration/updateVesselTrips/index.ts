@@ -6,7 +6,9 @@
  */
 
 export { computeVesselTripsRows } from "./computeVesselTripsRows";
+export { computeVesselTripUpdates } from "./computeVesselTripUpdates";
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
+  VesselTripUpdates,
 } from "./types";
