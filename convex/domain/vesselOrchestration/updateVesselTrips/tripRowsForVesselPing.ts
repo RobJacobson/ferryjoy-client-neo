@@ -65,15 +65,12 @@ const tripRowsWhenCompleting = (
       update.vesselLocation,
       update.events.didJustArriveAtDock
     );
-    const activeVesselTrip = buildTripCore(
+    const activeVesselTrip = buildActiveTripForUpdate(
       update.vesselLocation,
       completedVesselTrip,
       true,
       update.events,
-      scheduleTables,
-      {
-        onTripFieldsResolved: logTripFieldInference,
-      }
+      scheduleTables
     );
 
     return { completedVesselTrip, activeVesselTrip };
@@ -99,15 +96,12 @@ const tripRowsWhenContinuing = (
   scheduleTables: ScheduledSegmentTables
 ): VesselPingTripRows => {
   try {
-    const activeVesselTrip = buildTripCore(
+    const activeVesselTrip = buildActiveTripForUpdate(
       update.vesselLocation,
       update.existingActiveTrip,
       false,
       update.events,
-      scheduleTables,
-      {
-        onTripFieldsResolved: logTripFieldInference,
-      }
+      scheduleTables
     );
 
     return { activeVesselTrip };
@@ -123,3 +117,18 @@ const tripRowsWhenContinuing = (
       : {};
   }
 };
+
+/**
+ * Centralize the trip-field observability hook at the trip-row seam so
+ * lifecycle branching does not duplicate schedule-inference wiring.
+ */
+const buildActiveTripForUpdate = (
+  vesselLocation: CalculatedTripUpdate["vesselLocation"],
+  existingTrip: CalculatedTripUpdate["existingActiveTrip"],
+  tripStart: boolean,
+  events: CalculatedTripUpdate["events"],
+  scheduleTables: ScheduledSegmentTables
+): ReturnType<typeof buildTripCore> =>
+  buildTripCore(vesselLocation, existingTrip, tripStart, events, scheduleTables, {
+    onTripFieldsResolved: logTripFieldInference,
+  });

@@ -14,6 +14,8 @@ export type InferredTripFields = {
   NextScheduleKey?: string;
   NextScheduledDeparture?: number;
   tripFieldDataSource: TripFieldDataSource;
+  // Observability-only metadata for the current resolution path. This stays
+  // transient unless we find a concrete operational need to persist it.
   tripFieldInferenceMethod?: TripFieldInferenceMethod;
 };
 

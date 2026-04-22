@@ -137,6 +137,10 @@ export const getTripFieldInferenceLogContext = ({
     return undefined;
   }
 
+  if (existingTrip === undefined) {
+    return undefined;
+  }
+
   return {
     vesselAbbrev: location.VesselAbbrev,
     tripFieldDataSource: inferredTripFields.tripFieldDataSource,

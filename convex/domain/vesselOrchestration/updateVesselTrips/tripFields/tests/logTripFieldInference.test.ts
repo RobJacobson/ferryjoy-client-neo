@@ -130,4 +130,56 @@ describe("logTripFieldInference", () => {
 
     expect(logger).not.toHaveBeenCalled();
   });
+
+  it("does not log when WSF is authoritative on an initial trip with no prior fields", () => {
+    const logger = mock(() => {});
+
+    logTripFieldInference(
+      {
+        location: makeLocation({
+          ArrivingTerminalAbbrev: "MUK",
+          ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+          ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+        }),
+        existingTrip: undefined,
+        inferredTripFields: {
+          ArrivingTerminalAbbrev: "MUK",
+          ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+          ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+          tripFieldDataSource: "wsf",
+        },
+      },
+      logger
+    );
+
+    expect(logger).not.toHaveBeenCalled();
+  });
+
+  it("does not log when WSF remains authoritative but only ScheduleKey is backfilled", () => {
+    const logger = mock(() => {});
+
+    logTripFieldInference(
+      {
+        location: makeLocation({
+          ArrivingTerminalAbbrev: "MUK",
+          ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+          ScheduleKey: undefined,
+        }),
+        existingTrip: makeTrip({
+          ArrivingTerminalAbbrev: "MUK",
+          ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+          ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+        }),
+        inferredTripFields: {
+          ArrivingTerminalAbbrev: "MUK",
+          ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+          ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+          tripFieldDataSource: "wsf",
+        },
+      },
+      logger
+    );
+
+    expect(logger).not.toHaveBeenCalled();
+  });
 });

@@ -616,5 +616,6 @@ export {
   buildOrchestratorPersistenceBundle,
   buildPredictionStageInputs,
   computeTripUpdatesForPing,
+  logTripStageLocationSkipSummary,
   shouldContinueAfterTripUpdate,
 };
