@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import {
@@ -164,5 +164,40 @@ describe("buildTripCore", () => {
     expect(trip.ScheduledDeparture).toBe(segment.DepartingTime);
     expect(trip.ScheduleKey).toBe(segment.Key);
     expect(trip.ArriveDest).toBe(ms("2026-03-13T11:28:00-07:00"));
+  });
+
+  it("keeps tripFieldInferenceMethod transient while still exposing it to observability hooks", () => {
+    const onTripFieldsResolved = mock(() => {});
+    const nextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--CLI-MUK",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+
+    const trip = buildTripCore(
+      makeLocation({
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      makeTrip({
+        NextScheduleKey: nextSegment.Key,
+      }),
+      false,
+      continuingEvents(),
+      makeScheduledTables({
+        segments: [nextSegment],
+      }),
+      { onTripFieldsResolved }
+    );
+
+    expect(onTripFieldsResolved).toHaveBeenCalledTimes(1);
+    expect(onTripFieldsResolved.mock.calls[0]?.[0]?.inferredTripFields).toMatchObject(
+      {
+        tripFieldDataSource: "inferred",
+        tripFieldInferenceMethod: "next_scheduled_trip",
+        ScheduleKey: nextSegment.Key,
+      }
+    );
+    expect("tripFieldInferenceMethod" in trip).toBe(false);
   });
 });

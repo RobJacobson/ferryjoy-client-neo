@@ -7,6 +7,11 @@ import type { InferredTripFields } from "./types";
  * Preserve any direct WSF values that exist. When WSF remains incomplete for
  * the same dock interval, reuse already-known trip fields so the provisional
  * state stays stable without claiming a fresh schedule match.
+ *
+ * The durable source contract is semantic, not storage-location-based:
+ * reusing persisted provisional fields still yields `tripFieldDataSource:
+ * "inferred"`, while deriving a `ScheduleKey` from direct WSF destination +
+ * departure fields remains `tripFieldDataSource: "wsf"`.
  */
 export const getFallbackTripFields = ({
   location,
@@ -77,6 +82,8 @@ export const getFallbackTripFields = ({
     NextScheduledDeparture: shouldReuseExistingTripFields
       ? existingTrip?.NextScheduledDeparture
       : undefined,
+    // This field captures whether the row remains provisional, not whether the
+    // values happened to be copied from an already-persisted trip row.
     tripFieldDataSource: shouldReuseExistingTripFields ? "inferred" : "wsf",
   };
 };

@@ -9,7 +9,7 @@ import {
 } from "./testHelpers";
 
 describe("inferTripFieldsFromSchedule", () => {
-  it("uses WSF fields when they are present", () => {
+  it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", () => {
     const inferred = inferTripFieldsFromSchedule({
       location: makeLocation({
         ArrivingTerminalAbbrev: "MUK",
@@ -108,5 +108,39 @@ describe("inferTripFieldsFromSchedule", () => {
     expect(inferred.ArrivingTerminalAbbrev).toBe("MUK");
     expect(inferred.ScheduledDeparture).toBe(ms("2026-03-13T11:00:00-07:00"));
     expect(inferred.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
+  });
+
+  it("marks reused persisted provisional fields as inferred semantics", () => {
+    const inferred = inferTripFieldsFromSchedule({
+      location: makeLocation({
+        AtDock: true,
+        LeftDock: undefined,
+        DepartingTerminalAbbrev: "CLI",
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      existingTrip: makeTrip({
+        AtDock: true,
+        LeftDock: undefined,
+        DepartingTerminalAbbrev: "CLI",
+        ArrivingTerminalAbbrev: "MUK",
+        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+        NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+        NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+      }),
+      scheduleTables: makeScheduledTables(),
+    });
+
+    expect(inferred).toMatchObject({
+      ArrivingTerminalAbbrev: "MUK",
+      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+      tripFieldDataSource: "inferred",
+    });
+    expect(inferred.tripFieldInferenceMethod).toBeUndefined();
   });
 });

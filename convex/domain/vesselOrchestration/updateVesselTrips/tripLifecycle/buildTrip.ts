@@ -38,7 +38,8 @@ type BuildTripCoreOptions = {
  * @param scheduleTables - Prefetched schedule evidence tables for this
  *   orchestrator ping
  * @param options - Optional orchestration hooks. Production logging is wired
- *   here so the trip-field inference helpers stay pure and low-noise.
+ *   here so the trip-field inference helpers stay pure and low-noise, and so
+ *   transient observability metadata never has to live on stored trip rows.
  * @returns Storage-shaped trip row (prediction fields not applied here)
  */
 export const buildTripCore = (

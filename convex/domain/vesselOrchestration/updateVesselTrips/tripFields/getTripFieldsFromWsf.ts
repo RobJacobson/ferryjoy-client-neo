@@ -12,6 +12,9 @@ export const getTripFieldsFromWsf = (
     | "ScheduleKey"
   >
 ): InferredTripFields => {
+  // `tripFieldDataSource: "wsf"` is the durable semantic contract for this
+  // row, even if `ScheduleKey` is synthesized locally from the authoritative
+  // WSF destination/departure pair.
   const identity = deriveTripIdentity({
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,

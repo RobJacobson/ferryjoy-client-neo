@@ -113,7 +113,8 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
  *
  * The trip stage computes lifecycle outcomes plus any provisional trip fields
  * already inferred from schedule evidence. Downstream stages consume those
- * rows; they do not revisit trip-field inference policy.
+ * rows; they do not revisit trip-field inference policy or depend on
+ * transient `tripFieldInferenceMethod` metadata.
  */
 type OrchestratorPerVesselStageOutputs = {
   location: VesselLocationUpdates;
@@ -171,12 +172,13 @@ const loadOrchestratorSnapshot = async (
 };
 
 /**
- * Runs Step 2 by loading schedule evidence, computing trip rows, and
- * persisting trip-table writes.
+ * Runs Step 2 by loading schedule evidence and computing trip rows plus the
+ * completion facts needed by downstream stages and final persistence.
  *
  * @param ctx - Convex action context for schedule query and trip mutations
  * @param pingStartedAt - Shared ping timestamp anchor for this run
- * @param vesselLocations - Step 1 location rows for this ping
+ * @param locationUpdates - Step 1 location rows for this ping, annotated with
+ *   whether each upstream timestamp changed
  * @param activeTrips - Active-trip snapshot from ping start
  * @returns Computed trip rows plus attempted completion facts used by predictions
  */
@@ -282,6 +284,9 @@ export const updateVesselLocations = async (
 
 /**
  * Computes the authoritative trip rows for this ping as a pure domain step.
+ *
+ * The returned rows carry only the durable trip contract. Debug-only
+ * trip-field inference metadata is intentionally consumed before this boundary.
  *
  * @param vesselLocations - Live locations from {@link updateVesselLocations}
  * @param existingActiveTrips - Preloaded active trip rows from the orchestrator snapshot

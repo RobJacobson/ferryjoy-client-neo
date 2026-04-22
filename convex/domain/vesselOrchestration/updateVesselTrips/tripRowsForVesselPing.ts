@@ -120,7 +120,9 @@ const tripRowsWhenContinuing = (
 
 /**
  * Centralize the trip-field observability hook at the trip-row seam so
- * lifecycle branching does not duplicate schedule-inference wiring.
+ * lifecycle branching does not duplicate schedule-inference wiring. This keeps
+ * `tripFieldInferenceMethod` transient: it is emitted to logging here and does
+ * not become part of the persisted trip contract.
  */
 const buildActiveTripForUpdate = (
   vesselLocation: CalculatedTripUpdate["vesselLocation"],
