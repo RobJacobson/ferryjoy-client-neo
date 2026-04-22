@@ -1,5 +1,5 @@
 /**
- * Characterization tests for the base trip builder.
+ * Characterization tests for the prepared-location base trip builder.
  *
  * These tests lock in the subtle scenario-specific field rules so the builder
  * can be refactored with confidence.
@@ -174,7 +174,7 @@ describe("baseTripFromLocation", () => {
 });
 
 /**
- * Build a test vessel location with sensible defaults.
+ * Build a prepared test vessel location with sensible defaults.
  *
  * @param overrides - Scenario-specific field overrides
  * @returns Concrete location payload for tests

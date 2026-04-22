@@ -117,4 +117,52 @@ describe("buildTripCore", () => {
     expect(trip.ScheduleKey).toBe(nextSegment.Key);
     expect(trip.NextScheduleKey).toBe(nextSegment.NextKey);
   });
+
+  it("keeps physical arrival behavior while trip fields are inferred", () => {
+    const existingTrip = makeTrip({
+      AtDock: false,
+      LeftDock: ms("2026-03-13T11:02:00-07:00"),
+      LeftDockActual: ms("2026-03-13T11:02:00-07:00"),
+      ArriveDest: undefined,
+      EndTime: undefined,
+      StartTime: ms("2026-03-13T10:30:00-07:00"),
+      TripStart: ms("2026-03-13T10:30:00-07:00"),
+      DepartingTerminalAbbrev: "CLI",
+      ArrivingTerminalAbbrev: "MUK",
+      NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const segment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--MUK-CLI",
+      DepartingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: "CLI",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+
+    const trip = buildTripCore(
+      makeLocation({
+        AtDock: true,
+        LeftDock: existingTrip.LeftDock,
+        DepartingTerminalAbbrev: "MUK",
+        DepartingTerminalName: "Mukilteo",
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+        TimeStamp: ms("2026-03-13T11:28:00-07:00"),
+      }),
+      existingTrip,
+      false,
+      continuingEvents({
+        didJustArriveAtDock: true,
+      }),
+      makeScheduledTables({
+        segments: [segment],
+      })
+    );
+
+    expect(trip.ArrivingTerminalAbbrev).toBe("CLI");
+    expect(trip.ScheduledDeparture).toBe(segment.DepartingTime);
+    expect(trip.ScheduleKey).toBe(segment.Key);
+    expect(trip.ArriveDest).toBe(ms("2026-03-13T11:28:00-07:00"));
+  });
 });

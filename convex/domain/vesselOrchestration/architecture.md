@@ -212,7 +212,8 @@ What it means:
    - infer provisional trip fields from schedule continuity
      (`NextScheduleKey`/rollover),
    - fallback to partial WSF plus already-known provisional fields when needed.
-3. Applies inferred trip fields to the location before trip building.
+3. Applies the inferred trip fields to a prepared location before trip
+   building.
 
 What it means:
 - Prevents incomplete WSF pings from dropping destination/schedule fields while
@@ -252,15 +253,18 @@ Cron-driven trip lifecycle for one ping: detection, **`buildTripCore`**, complet
 branches, equality, and strip-for-storage. ML overlay for the orchestrator ping runs in **updateVesselPredictions** over the Stage C handoff, not inside trip lifecycle. Wired by
 `updateVesselTrips/processPing/processVesselTrips.ts`, `processPing/defaultProcessVesselTripsDeps.ts`, and `updateVesselOrchestrator` (`getScheduleSnapshotForPing` + `createScheduledSegmentLookupFromSnapshot` for **ScheduledSegmentLookup**).
 
-- `detectTripEvents.ts` — Per-vessel event flags from existing trip + location.
+- `detectTripEvents.ts` — Per-vessel physical event flags from existing trip +
+  raw feed location.
 - `tripEventTypes.ts` — Shared event bundle type.
 - `processCompletedTrips.ts` — Completion transitions and atomic rollover mutation.
 - `processCurrentTrips.ts` — Continuing trips, write suppression, upsert batching, hooks.
 - `processCurrentTripsPingLogging.ts` — Schedule/boundary diagnostics.
 - `buildTrip.ts` — **`buildTripCore`** (schedule + gates) and **`buildTrip`** (composer: core + `applyVesselPredictions`). Orchestrator pings inject **`buildTripCore` only**; ML runs in **updateVesselPredictions**.
 - `buildCompletedTrip.ts` — Canonical completed trip row.
-- `baseTripFromLocation.ts` — Start/continue base trip shapes.
-- `tripDerivation.ts` — Shared derived inputs for detection and base trip build.
+- `baseTripFromLocation.ts` — Start/continue base trip shapes from prepared
+  locations.
+- `tripDerivation.ts` — Shared prepared-location inputs and departure-state
+  derivation for base trip build.
 - `physicalDockSeaDebounce.ts` — Leave/arrive debounce.
 - **`../updateVesselPredictions/appendPredictions.ts`** / **`../updateVesselPredictions/applyVesselPredictions.ts`** — **updateVesselPredictions** ML tail.
 - **`../shared/orchestratorPersist/stripTripPredictionsForStorage.ts`** — Strip blobs before DB writes.
@@ -567,8 +571,8 @@ Work in two tiers: **(A) broad compartmentalization** (orchestrator concerns), t
    - Benefit: if some mirrors are no longer required, remove or deprecate to
      reduce branch logic.
 
-10. **Resolved:** `shouldStartTrip` removed from `TripEvents`. New-trip starts use
-    `isTripStartReady` plus explicit `tripStart` / `determineBaseTripMode` in
+10. **Resolved:** `shouldStartTrip` removed from `TripEvents`. New-trip starts
+    use `isTripStartReady` plus explicit `tripStart` handling in
     `baseTripFromLocation` and `buildTripCore`, not a detector boolean.
 
 ---

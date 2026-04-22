@@ -140,6 +140,28 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(false);
   });
 
+  it("does not become trip-start-ready from persisted inferred trip fields", () => {
+    const existingTrip = makeTrip({
+      ArrivingTerminalAbbrev: "ORI",
+      ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+      AtDock: true,
+      LeftDock: undefined,
+    });
+
+    const currLocation = makeLocation({
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      AtDock: true,
+      LeftDock: undefined,
+    });
+
+    const events = detectTripEvents(existingTrip, currLocation);
+
+    expect(events.isTripStartReady).toBe(false);
+    expect(events.scheduleKeyChanged).toBe(false);
+  });
+
   it("suppresses departure when LeftDock appears but the ping still looks physically docked", () => {
     const existingTrip = makeTrip({
       AtDock: true,

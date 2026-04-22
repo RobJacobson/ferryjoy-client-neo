@@ -1,9 +1,9 @@
 /**
  * Shared trip-derivation helpers for vessel trip updates.
  *
- * Base-trip construction derives from an already-prepared location. Lifecycle
- * detection keeps one small raw-feed schedule-key helper so debounce logic does
- * not depend on trip-field inference.
+ * Base-trip construction derives from an already-prepared location. Raw-feed
+ * lifecycle detection stays in `detectTripEvents.ts` so trip-field inference
+ * policy remains isolated in `tripFields/`.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -15,8 +15,6 @@ import {
   rawDepartureIsContradictory,
   resolveDebouncedPhysicalBoundaries,
 } from "./physicalDockSeaDebounce";
-
-export type BaseTripMode = "start" | "continue";
 
 export type DockDepartureState = {
   leftDockTime: number | undefined;
@@ -52,7 +50,6 @@ export const hasTripEvidence = (
       (existingTrip.LeftDockActual !== undefined ||
         existingTrip.ArrivedNextActual !== undefined ||
         existingTrip.LeftDock !== undefined ||
-        existingTrip.LeftDockActual !== undefined ||
         existingTrip.ArriveDest !== undefined)
   );
 
@@ -127,54 +124,4 @@ export const deriveTripInputs = (
       ? existingTrip
       : undefined,
   };
-};
-
-/**
- * Returns the raw-feed comparison `ScheduleKey` used by lifecycle event
- * detection.
- *
- * This preserves the existing dock interval on the exact leave-dock ping so a
- * transient future-leg jump does not look like a meaningful schedule change to
- * the debounce path.
- *
- * @param existingTrip - Previous trip state for the vessel
- * @param currLocation - Raw feed location for this derivation
- * @returns Schedule segment key to compare against the stored row
- */
-export const deriveContinuingScheduleKey = (
-  existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation
-): string | undefined => {
-  const shouldPreserveExistingScheduleKey = Boolean(
-    existingTrip?.AtDock &&
-      existingTrip.LeftDock === undefined &&
-      existingTrip.DepartingTerminalAbbrev ===
-        currLocation.DepartingTerminalAbbrev &&
-      ((currLocation.AtDock && currLocation.LeftDock === undefined) ||
-        currLocation.LeftDock !== undefined)
-  );
-
-  return shouldPreserveExistingScheduleKey
-    ? (existingTrip?.ScheduleKey ?? currLocation.ScheduleKey)
-    : currLocation.ScheduleKey;
-};
-
-/**
- * Pick the base-trip construction mode for the current ping.
- *
- * @param existingTrip - Previous trip state for the vessel
- * @param currLocation - Current vessel location from the live feed
- * @param isTripStart - True when the caller is explicitly starting a new trip
- * @returns Explicit base-trip mode for this ping
- */
-export const determineBaseTripMode = (
-  _existingTrip: ConvexVesselTrip | undefined,
-  _currLocation: ConvexVesselLocation,
-  isTripStart: boolean
-): BaseTripMode => {
-  if (isTripStart) {
-    return "start";
-  }
-
-  return "continue";
 };

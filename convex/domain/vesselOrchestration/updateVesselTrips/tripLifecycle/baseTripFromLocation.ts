@@ -1,27 +1,22 @@
 /**
  * Base vessel trip from location-shaped inputs.
  *
- * Builds the location-derived base {@link ConvexVesselTrip} for a single ping.
- * Callers typically pass locations after trip-field inference in
- * `buildTripCore`. {@link detectTripEvents} still uses raw pings with
- * {@link deriveContinuingScheduleKey}; this module uses
- * {@link deriveTripInputs} for the full normalized input object.
+ * Builds the base {@link ConvexVesselTrip} for a single ping from a prepared
+ * location. Callers typically pass locations after trip-field inference in
+ * `buildTripCore`; raw-feed lifecycle detection remains in
+ * `detectTripEvents.ts`.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import {
-  type DerivedTripInputs,
-  deriveTripInputs,
-  determineBaseTripMode,
-} from "./tripDerivation";
+import { type DerivedTripInputs, deriveTripInputs } from "./tripDerivation";
 
 /**
  * Builds the base trip from the current location and previous trip state.
  *
- * @param currLocation - Feed or prepared location for this step (see module doc)
+ * @param currLocation - Prepared location for this step (see module doc)
  * @param existingTrip - Current trip when one exists for the vessel
  * @param isTripStart - True when starting a new trip row (replacement active or boundary)
  * @returns Location-derived trip before next-leg schedule merge in `buildTripCore`
@@ -31,27 +26,20 @@ export const baseTripFromLocation = (
   existingTrip?: ConvexVesselTrip,
   isTripStart = false
 ): ConvexVesselTrip => {
-  // `currLocation` is often prepared with inferred trip fields, unlike the raw
-  // row passed to `detectTripEvents`.
+  // `currLocation` is prepared before this step, including any provisional trip
+  // fields supplied by `tripFields/`.
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
-  const tripMode = determineBaseTripMode(
-    existingTrip,
-    currLocation,
-    isTripStart
-  );
-
-  switch (tripMode) {
-    case "start":
-      return baseTripForStart(currLocation, existingTrip, tripInputs);
-    case "continue":
-      return baseTripForContinuing(currLocation, existingTrip, tripInputs);
+  if (isTripStart) {
+    return baseTripForStart(currLocation, existingTrip, tripInputs);
   }
+
+  return baseTripForContinuing(currLocation, existingTrip, tripInputs);
 };
 
 /**
  * Build the base trip for a new trip start.
  *
- * @param currLocation - Latest vessel location from the live feed
+ * @param currLocation - Prepared location for this ping
  * @param existingTrip - Previous trip state, when present
  * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a newly started trip
@@ -135,7 +123,7 @@ const tripKeyForContinuing = (
 /**
  * Build the base trip for a continuing or first-seen trip.
  *
- * @param currLocation - Latest vessel location from the live feed
+ * @param currLocation - Prepared location for this ping
  * @param existingTrip - Current ongoing trip, when one exists
  * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a continuing or first-seen trip
