@@ -26,7 +26,6 @@ export type {
   VesselTripsComputeBundle,
 } from "./pingHandshake/types";
 export {
-  type DockedScheduledSegmentSource,
   getScheduledDeparturesForVesselAndSailingDay,
   type ScheduledSegmentTables,
 } from "./scheduleContinuity";

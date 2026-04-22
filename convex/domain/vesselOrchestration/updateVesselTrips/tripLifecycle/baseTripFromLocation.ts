@@ -2,10 +2,10 @@
  * Base vessel trip from location-shaped inputs.
  *
  * Builds the location-derived base {@link ConvexVesselTrip} for a single ping.
- * Callers typically pass schedule-resolved locations after docked identity
- * resolution in `buildTripCore`. {@link detectTripEvents} uses raw pings with
- * the same continuing-key rules via {@link deriveContinuingScheduleKey}; this
- * module uses {@link deriveTripInputs} for the full normalized input object.
+ * Callers typically pass locations after trip-field inference in
+ * `buildTripCore`. {@link detectTripEvents} still uses raw pings with
+ * {@link deriveContinuingScheduleKey}; this module uses
+ * {@link deriveTripInputs} for the full normalized input object.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -21,7 +21,7 @@ import {
 /**
  * Builds the base trip from the current location and previous trip state.
  *
- * @param currLocation - Feed or effective location for this step (see module doc)
+ * @param currLocation - Feed or prepared location for this step (see module doc)
  * @param existingTrip - Current trip when one exists for the vessel
  * @param isTripStart - True when starting a new trip row (replacement active or boundary)
  * @returns Location-derived trip before next-leg schedule merge in `buildTripCore`
@@ -31,7 +31,7 @@ export const baseTripFromLocation = (
   existingTrip?: ConvexVesselTrip,
   isTripStart = false
 ): ConvexVesselTrip => {
-  // `currLocation` is often effective (post–docked resolution), unlike the raw
+  // `currLocation` is often prepared with inferred trip fields, unlike the raw
   // row passed to `detectTripEvents`.
   const tripInputs = deriveTripInputs(existingTrip, currLocation);
   const tripMode = determineBaseTripMode(

@@ -4,7 +4,10 @@
  */
 
 import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
-import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import {
   buildTimelinePingProjectionInput,
   type TimelineProjectionAssembly,
@@ -17,10 +20,37 @@ import type {
 } from "./contracts";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared/pingHandshake/types";
 
-const completedTripBoundaryMatchKeyFromFact = (
-  fact: Pick<CompletedTripBoundaryFact, "tripToComplete">
+/**
+ * Schedule identity for matching completed-handoff facts to prediction-stage
+ * `PredictedTripComputation` rows. Must stay aligned with
+ * {@link predictedTripComputationMatchKey} (same `ScheduleKey` then `TripKey`
+ * fallbacks on completed row, then replacement active row).
+ */
+const scheduleIdentityForMlMergeKey = (
+  completedTrip: ConvexVesselTrip | undefined,
+  activeTrip: ConvexVesselTrip | undefined
 ): string =>
-  `${fact.tripToComplete.VesselAbbrev}::${fact.tripToComplete.ScheduleKey}`;
+  completedTrip?.ScheduleKey ??
+  completedTrip?.TripKey ??
+  activeTrip?.ScheduleKey ??
+  activeTrip?.TripKey ??
+  "";
+
+const timelineMlMergeKeyFromCompletedHandoffParts = (
+  vesselAbbrev: string,
+  completedTrip: ConvexVesselTrip | undefined,
+  activeTrip: ConvexVesselTrip | undefined
+): string =>
+  `${vesselAbbrev}::${scheduleIdentityForMlMergeKey(completedTrip, activeTrip)}`;
+
+const completedTripBoundaryMatchKeyFromFact = (
+  fact: Pick<CompletedTripBoundaryFact, "tripToComplete" | "scheduleTrip">
+): string =>
+  timelineMlMergeKeyFromCompletedHandoffParts(
+    fact.tripToComplete.VesselAbbrev,
+    fact.tripToComplete,
+    fact.scheduleTrip
+  );
 
 const isCompletedTripBranchComputation = (
   computation: TimelineTripComputation
@@ -88,8 +118,12 @@ const currentPredictedMessageFromComputation = (
 
 const predictedTripComputationMatchKey = (
   computation: PredictedTripComputation
-) =>
-  `${computation.vesselAbbrev}::${computation.completedTrip?.ScheduleKey ?? computation.completedTrip?.TripKey ?? computation.activeTrip?.ScheduleKey ?? computation.activeTrip?.TripKey ?? ""}`;
+): string =>
+  timelineMlMergeKeyFromCompletedHandoffParts(
+    computation.vesselAbbrev,
+    computation.completedTrip,
+    computation.activeTrip
+  );
 
 const finalProposedByVesselFromPredictedComputations = (
   predictedTripComputations: RunUpdateVesselTimelineInput["predictedTripComputations"]

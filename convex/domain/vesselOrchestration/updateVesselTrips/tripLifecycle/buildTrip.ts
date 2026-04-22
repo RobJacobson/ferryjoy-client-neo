@@ -1,15 +1,17 @@
 /**
- * Schedule-half trip build for one live location ping: effective location, base
- * trip, then schedule leg enrichment.
+ * Schedule-half trip build for one live location ping: infer trip fields, build
+ * the base trip from the prepared location, then enrich next-leg schedule
+ * fields.
  *
  * ML prediction overlays run in **updateVesselPredictions** after rows persist;
  * this module does not attach prediction fields.
  */
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
 import {
-  appendFinalScheduleForLookup,
-  resolveEffectiveLocationForLookup,
-} from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
+  applyInferredTripFields,
+  attachNextScheduledTripFields,
+  inferTripFieldsFromSchedule,
+} from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
@@ -33,16 +35,17 @@ export const buildTripCore = (
   events: TripEvents,
   scheduleTables: ScheduledSegmentTables
 ): ConvexVesselTrip => {
-  const effectiveLocation = resolveEffectiveLocationForLookup(
+  const inferredTripFields = inferTripFieldsFromSchedule({
+    location: currLocation,
+    existingTrip,
     scheduleTables,
+  });
+  const locationWithTripFields = applyInferredTripFields(
     currLocation,
-    existingTrip
+    inferredTripFields
   );
-  // `deriveTripInputs` in base-trip construction uses this effective location;
-  // `detectTripEvents` uses the raw ping (debounced boundaries + continuing key)
-  // — they can differ for docked identity.
   const baseTrip = baseTripFromLocation(
-    effectiveLocation,
+    locationWithTripFields,
     existingTrip,
     tripStart
   );
@@ -53,7 +56,7 @@ export const buildTripCore = (
     ArriveDest:
       baseTrip.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
-        ? effectiveLocation.TimeStamp
+        ? locationWithTripFields.TimeStamp
         : undefined),
   };
   const physicalIdentityReplaced =
@@ -75,19 +78,13 @@ export const buildTripCore = (
       ? clearDerivedStateOnScheduleKeyChange(withArriveDest)
       : withArriveDest;
 
-  const tripForScheduleEnrichment = withScheduleKeyChangeClearedDerivedState;
-
-  // Schedule enrichment is segment-key-based. Docked identity bootstrap happens
-  // in `resolveEffectiveLocationForLookup`.
-  const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
-
-  return shouldAppendFinalSchedule
-    ? appendFinalScheduleForLookup(
-        scheduleTables,
-        tripForScheduleEnrichment,
-        existingTrip
-      )
-    : tripForScheduleEnrichment;
+  return attachNextScheduledTripFields({
+    baseTrip: withScheduleKeyChangeClearedDerivedState,
+    existingTrip,
+    scheduleTables,
+    events,
+    tripStart,
+  });
 };
 
 /**

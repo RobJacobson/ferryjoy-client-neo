@@ -15,8 +15,10 @@ import type {
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
-import { areTripStorageRowsEqual } from "domain/vesselOrchestration/updateVesselTrips/storageRowsEqual";
-import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
+import {
+  areTripStorageRowsEqual,
+  type RunUpdateVesselTripsOutput,
+} from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 type TripEvents = {
@@ -184,10 +186,7 @@ export const persistVesselTripWriteSet = async (
   const {
     attemptedCompletedFacts,
     activeTripUpserts,
-    currentBranchMessages: {
-      pendingActualMessages,
-      pendingPredictedMessages,
-    },
+    currentBranchMessages: { pendingActualMessages, pendingPredictedMessages },
     leaveDockIntents,
   } = plan;
 
@@ -206,7 +205,10 @@ export const persistVesselTripWriteSet = async (
         result.reason instanceof Error
           ? result.reason
           : new Error(String(result.reason));
-      console.error(`[VesselTrips] Failed completed-trip processing: ${err.message}`, err);
+      console.error(
+        `[VesselTrips] Failed completed-trip processing: ${err.message}`,
+        err
+      );
     }
   }
 

@@ -4,7 +4,7 @@
  * Produces a {@link TripEvents} bundle per ping from the prior active row (if
  * any) and the **raw** feed location. Callers use these flags before building
  * normalized `ConvexVesselTrip` rows so physical boundaries stay independent of
- * schedule-resolved docked identity.
+ * inferred trip fields.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -18,8 +18,8 @@ import type { TripEvents } from "./tripEventTypes";
  * Detects lifecycle flags for one ping from the prior trip and raw location.
  *
  * Uses {@link resolveDebouncedPhysicalBoundaries} and
- * {@link deriveContinuingScheduleKey} with the **raw** feed row so schedule
- * resolution in `buildTripCore` does not affect completion detection.
+ * {@link deriveContinuingScheduleKey} with the **raw** feed row so trip-field
+ * inference in `buildTripCore` does not affect completion detection.
  *
  * @param existingTrip - Previous trip state (`undefined` for first appearance)
  * @param currLocation - Current vessel location from REST/API (unresolved)

@@ -7,6 +7,7 @@
 
 export { computeVesselTripsRows } from "./computeVesselTripsRows";
 export { computeVesselTripUpdates } from "./computeVesselTripUpdates";
+export { areTripStorageRowsEqual } from "./storageRowsEqual";
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,

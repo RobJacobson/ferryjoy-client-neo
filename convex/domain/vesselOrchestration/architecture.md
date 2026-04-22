@@ -203,18 +203,20 @@ What it means:
 What it means:
 - Old trip is closed and new trip starts atomically.
 
-## Path 4: Docked identity continuity when feed identity is unstable
+## Path 4: Inferred trip fields when WSF is incomplete
 
-1. At dock with no `LeftDock`, runtime adapter calls
-   `resolveEffectiveDockedLocation`.
+1. `buildTripCore` asks `tripFields/inferTripFieldsFromSchedule` whether WSF
+   is authoritative for this ping.
 2. It tries, in order:
-   - keep active-trip identity if stable,
-   - infer from schedule continuity (`NextScheduleKey`/rollover),
-   - fallback to live feed identity.
-3. Applies effective identity to location before trip building.
+   - use WSF trip fields when present,
+   - infer provisional trip fields from schedule continuity
+     (`NextScheduleKey`/rollover),
+   - fallback to partial WSF plus already-known provisional fields when needed.
+3. Applies inferred trip fields to the location before trip building.
 
 What it means:
-- Prevents schedule/identity churn while vessel is still docked.
+- Prevents incomplete WSF pings from dropping destination/schedule fields while
+  keeping lifecycle detection separate.
 
 ## Path 5: Fetch or branch failure alternatives
 
@@ -271,14 +273,14 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 - `scheduleSnapshotTypes.ts` — today-only schedule snapshot shape (grouped by vessel) for **`getScheduleSnapshotForPing`**.
 - `createScheduledSegmentLookupFromSnapshot.ts` — derives same-day and departure-by-segment lookups from the grouped snapshot.
 
-## `updateVesselTrips/continuity/` (docked identity continuity logic)
+## `updateVesselTrips/tripFields/` (trip-field inference and schedule evidence)
 
-- `resolveEffectiveDockedLocation.ts`
-  - Orchestrates docked effective identity decision.
-- `resolveDockedScheduledSegment.ts`
-  - Schedule-backed continuity fallback resolution (**sync** lookup).
-- `types.ts`
-  - Continuity source/provenance type.
+- `inferTripFieldsFromSchedule.ts`
+  - Public trip-field inference entrypoint for WSF vs schedule evidence.
+- `applyInferredTripFields.ts`
+  - Overlays the inferred or normalized trip fields onto the current location.
+- `attachNextScheduledTripFields.ts`
+  - Adds next-leg schedule fields after base-trip construction.
 
 ## `vesselOrchestration/updateTimeline/` (**updateTimeline** — trip output → timeline writes)
 
@@ -494,8 +496,8 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
   - Existing active trip continues and may be updated.
 - `PingEventWrites`
   - Per-ping timeline payload returned by trip processing, then persisted by orchestrator.
-- `Effective docked identity`
-  - Corrected identity used while docked when feed identity is unstable or missing.
+- `Inferred trip fields`
+  - Provisional trip fields used when WSF omits destination or departure data.
 - `Prediction fallback window`
   - Early-seconds-of-minute policy for retrying missing predictions.
 - `Overlay equality`

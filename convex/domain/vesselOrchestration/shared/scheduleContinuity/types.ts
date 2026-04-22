@@ -1,17 +1,9 @@
 /**
- * Shared schedule-backed continuity types for docked identity resolution and
- * compact schedule snapshot wiring.
+ * Shared schedule-backed lookup types for compact schedule snapshot wiring.
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { CompactScheduledDepartureEvent } from "../scheduleSnapshot/scheduleSnapshotTypes";
-
-/**
- * Provenance for which schedule continuity path selected the segment.
- */
-export type DockedScheduledSegmentSource =
-  | "completed_trip_next"
-  | "rollover_schedule";
 
 /**
  * Prefetched schedule rows for one orchestrator ping, keyed for direct lookup.

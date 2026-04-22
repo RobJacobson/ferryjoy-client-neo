@@ -438,15 +438,17 @@ const computeTripUpdatesForPing = (
     existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
 
-  return locationUpdates.map(({ vesselLocation }) =>
-    computeVesselTripUpdates({
-      vesselLocation,
-      existingActiveTrip: existingActiveTripsByVessel.get(
-        vesselLocation.VesselAbbrev
-      ),
-      scheduleTables,
-    })
-  );
+  return locationUpdates
+    .filter((update) => update.locationChanged)
+    .map(({ vesselLocation }) =>
+      computeVesselTripUpdates({
+        vesselLocation,
+        existingActiveTrip: existingActiveTripsByVessel.get(
+          vesselLocation.VesselAbbrev
+        ),
+        scheduleTables,
+      })
+    );
 };
 
 const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdates): boolean =>
@@ -592,5 +594,6 @@ export type { OrchestratorPerVesselStageOutputs, PredictionStageInputs };
 export {
   buildOrchestratorPersistenceBundle,
   buildPredictionStageInputs,
+  computeTripUpdatesForPing,
   shouldContinueAfterTripUpdate,
 };
