@@ -134,6 +134,12 @@ type OrchestratorTripStage = {
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
 };
 
+type PredictionStageInputs = {
+  changedTripUpdates: ReadonlyArray<VesselTripUpdates>;
+  activeTrips: ReadonlyArray<ConvexVesselTrip>;
+  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+};
+
 /**
  * Loads the baseline read model required for one orchestrator ping.
  *
@@ -314,21 +320,26 @@ export const runPredictionStage = async (
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Promise<ReadonlyArray<VesselPredictionUpdates>> => {
-  const predictionContext = await loadPredictionContext(
-    ctx,
-    trips.activeTrips,
+  const predictionInputs = buildPredictionStageInputs(
+    tripUpdates,
+    trips,
     completedHandoffs
   );
+  const predictionContext = await loadPredictionContext(
+    ctx,
+    predictionInputs.activeTrips,
+    predictionInputs.completedHandoffs
+  );
   const ping = await runVesselPredictionPing({
-    activeTrips: trips.activeTrips,
-    completedHandoffs,
+    activeTrips: predictionInputs.activeTrips,
+    completedHandoffs: predictionInputs.completedHandoffs,
     predictionContext,
   });
   return buildPredictionUpdatesByVessel(
-    tripUpdates,
+    predictionInputs.changedTripUpdates,
     ping.predictionRows,
     ping.predictedTripComputations,
-    completedHandoffs
+    predictionInputs.completedHandoffs
   );
 };
 
@@ -434,6 +445,9 @@ const computeTripUpdatesForPing = (
   );
 };
 
+const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdates): boolean =>
+  tripUpdate.tripStorageChanged || tripUpdate.tripLifecycleChanged;
+
 const mergeTripRowsFromUpdates = (
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   tripUpdates: ReadonlyArray<VesselTripUpdates>
@@ -452,6 +466,27 @@ const mergeTripRowsFromUpdates = (
       .map((updates) => updates.completedTrip)
       .filter((trip): trip is ConvexVesselTrip => trip !== undefined),
     activeTrips: [...mergedActiveTripsByVessel.values()],
+  };
+};
+
+const buildPredictionStageInputs = (
+  tripUpdates: ReadonlyArray<VesselTripUpdates>,
+  trips: RunUpdateVesselTripsOutput,
+  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
+): PredictionStageInputs => {
+  const changedTripUpdates = tripUpdates.filter(shouldContinueAfterTripUpdate);
+  const changedVesselAbbrevs = new Set(
+    changedTripUpdates.map((update) => update.vesselLocation.VesselAbbrev)
+  );
+
+  return {
+    changedTripUpdates,
+    activeTrips: trips.activeTrips.filter((trip) =>
+      changedVesselAbbrevs.has(trip.VesselAbbrev)
+    ),
+    completedHandoffs: completedHandoffs.filter((handoff) =>
+      changedVesselAbbrevs.has(handoff.tripToComplete.VesselAbbrev)
+    ),
   };
 };
 
@@ -529,4 +564,5 @@ const mergePredictedTripComputations = (
     (predictionUpdate) => predictionUpdate.predictedTripComputations
   );
 
-export type { OrchestratorPerVesselStageOutputs };
+export type { OrchestratorPerVesselStageOutputs, PredictionStageInputs };
+export { buildPredictionStageInputs, shouldContinueAfterTripUpdate };
