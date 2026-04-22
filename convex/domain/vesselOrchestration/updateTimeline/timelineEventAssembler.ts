@@ -20,13 +20,15 @@ import {
   buildArrivalActualDockWriteForTrip,
   buildDepartureActualDockWriteForTrip,
 } from "./actualDockWritesFromTrip";
-import type { PingEventWrites } from "./pingEventWrites";
-import { mergePingEventWrites } from "./pingEventWrites";
 import type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
   CurrentTripPredictedEventMessage,
-} from "./types";
+} from "domain/vesselOrchestration/shared/pingHandshake/types";
+import {
+  mergePingEventWrites,
+  type PingEventWrites,
+} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
 
 /**
  * Replacement row for predicted timeline writes after **updateVesselPredictions**.

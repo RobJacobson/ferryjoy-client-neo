@@ -93,7 +93,6 @@ import type * as domain_vesselOrchestration_shared_orchestratorPersist_leaveDock
 import type * as domain_vesselOrchestration_shared_orchestratorPersist_stripTripPredictionsForStorage from "../domain/vesselOrchestration/shared/orchestratorPersist/stripTripPredictionsForStorage.js";
 import type * as domain_vesselOrchestration_shared_orchestratorPersist_tripsComputeStorageRows from "../domain/vesselOrchestration/shared/orchestratorPersist/tripsComputeStorageRows.js";
 import type * as domain_vesselOrchestration_shared_orchestratorPersist_vesselTripPingWriteSet from "../domain/vesselOrchestration/shared/orchestratorPersist/vesselTripPingWriteSet.js";
-import type * as domain_vesselOrchestration_shared_pingHandshake_index from "../domain/vesselOrchestration/shared/pingHandshake/index.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_projectionWire from "../domain/vesselOrchestration/shared/pingHandshake/projectionWire.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_types from "../domain/vesselOrchestration/shared/pingHandshake/types.js";
 import type * as domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay from "../domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay.js";
@@ -102,14 +101,11 @@ import type * as domain_vesselOrchestration_shared_scheduleContinuity_types from
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createScheduledSegmentTablesFromSnapshot from "../domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot.js";
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
-import type * as domain_vesselOrchestration_updateTimeline_assembleTripComputationsFromBundle from "../domain/vesselOrchestration/updateTimeline/assembleTripComputationsFromBundle.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildTimelinePingProjectionInput from "../domain/vesselOrchestration/updateTimeline/buildTimelinePingProjectionInput.js";
 import type * as domain_vesselOrchestration_updateTimeline_contracts from "../domain/vesselOrchestration/updateTimeline/contracts.js";
 import type * as domain_vesselOrchestration_updateTimeline_index from "../domain/vesselOrchestration/updateTimeline/index.js";
 import type * as domain_vesselOrchestration_updateTimeline_orchestratorTimelineProjection from "../domain/vesselOrchestration/updateTimeline/orchestratorTimelineProjection.js";
-import type * as domain_vesselOrchestration_updateTimeline_pingEventWrites from "../domain/vesselOrchestration/updateTimeline/pingEventWrites.js";
 import type * as domain_vesselOrchestration_updateTimeline_timelineEventAssembler from "../domain/vesselOrchestration/updateTimeline/timelineEventAssembler.js";
-import type * as domain_vesselOrchestration_updateTimeline_types from "../domain/vesselOrchestration/updateTimeline/types.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_computeVesselLocationRows from "../domain/vesselOrchestration/updateVesselLocations/computeVesselLocationRows.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_contracts from "../domain/vesselOrchestration/updateVesselLocations/contracts.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_index from "../domain/vesselOrchestration/updateVesselLocations/index.js";
@@ -201,7 +197,6 @@ import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "..
 import type * as functions_vesselOrchestrator_pipelineTypes from "../functions/vesselOrchestrator/pipelineTypes.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_schemas from "../functions/vesselOrchestrator/schemas.js";
-import type * as functions_vesselOrchestrator_utils from "../functions/vesselOrchestrator/utils.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
 import type * as functions_vesselPings_index from "../functions/vesselPings/index.js";
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
@@ -343,7 +338,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/orchestratorPersist/stripTripPredictionsForStorage": typeof domain_vesselOrchestration_shared_orchestratorPersist_stripTripPredictionsForStorage;
   "domain/vesselOrchestration/shared/orchestratorPersist/tripsComputeStorageRows": typeof domain_vesselOrchestration_shared_orchestratorPersist_tripsComputeStorageRows;
   "domain/vesselOrchestration/shared/orchestratorPersist/vesselTripPingWriteSet": typeof domain_vesselOrchestration_shared_orchestratorPersist_vesselTripPingWriteSet;
-  "domain/vesselOrchestration/shared/pingHandshake/index": typeof domain_vesselOrchestration_shared_pingHandshake_index;
   "domain/vesselOrchestration/shared/pingHandshake/projectionWire": typeof domain_vesselOrchestration_shared_pingHandshake_projectionWire;
   "domain/vesselOrchestration/shared/pingHandshake/types": typeof domain_vesselOrchestration_shared_pingHandshake_types;
   "domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay": typeof domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay;
@@ -352,14 +346,11 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot": typeof domain_vesselOrchestration_shared_scheduleSnapshot_createScheduledSegmentTablesFromSnapshot;
   "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
-  "domain/vesselOrchestration/updateTimeline/assembleTripComputationsFromBundle": typeof domain_vesselOrchestration_updateTimeline_assembleTripComputationsFromBundle;
   "domain/vesselOrchestration/updateTimeline/buildTimelinePingProjectionInput": typeof domain_vesselOrchestration_updateTimeline_buildTimelinePingProjectionInput;
   "domain/vesselOrchestration/updateTimeline/contracts": typeof domain_vesselOrchestration_updateTimeline_contracts;
   "domain/vesselOrchestration/updateTimeline/index": typeof domain_vesselOrchestration_updateTimeline_index;
   "domain/vesselOrchestration/updateTimeline/orchestratorTimelineProjection": typeof domain_vesselOrchestration_updateTimeline_orchestratorTimelineProjection;
-  "domain/vesselOrchestration/updateTimeline/pingEventWrites": typeof domain_vesselOrchestration_updateTimeline_pingEventWrites;
   "domain/vesselOrchestration/updateTimeline/timelineEventAssembler": typeof domain_vesselOrchestration_updateTimeline_timelineEventAssembler;
-  "domain/vesselOrchestration/updateTimeline/types": typeof domain_vesselOrchestration_updateTimeline_types;
   "domain/vesselOrchestration/updateVesselLocations/computeVesselLocationRows": typeof domain_vesselOrchestration_updateVesselLocations_computeVesselLocationRows;
   "domain/vesselOrchestration/updateVesselLocations/contracts": typeof domain_vesselOrchestration_updateVesselLocations_contracts;
   "domain/vesselOrchestration/updateVesselLocations/index": typeof domain_vesselOrchestration_updateVesselLocations_index;
@@ -451,7 +442,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/pipelineTypes": typeof functions_vesselOrchestrator_pipelineTypes;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/schemas": typeof functions_vesselOrchestrator_schemas;
-  "functions/vesselOrchestrator/utils": typeof functions_vesselOrchestrator_utils;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
   "functions/vesselPings/index": typeof functions_vesselPings_index;
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;

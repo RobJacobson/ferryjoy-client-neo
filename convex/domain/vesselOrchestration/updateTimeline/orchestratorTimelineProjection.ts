@@ -15,7 +15,7 @@ import type {
   RunUpdateVesselTimelineOutput,
   TimelineTripComputation,
 } from "./contracts";
-import type { CompletedTripBoundaryFact } from "./types";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared/pingHandshake/types";
 
 const completedTripBoundaryMatchKeyFromFact = (
   fact: Pick<CompletedTripBoundaryFact, "tripToComplete">
@@ -231,24 +231,9 @@ export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
 };
 
 /**
- * Canonical domain entry: handoff rows in, sparse dock rows out.
- */
-export const runUpdateVesselTimeline = (
-  input: RunUpdateVesselTimelineInput
-): RunUpdateVesselTimelineOutput => {
-  const assembly = buildTimelineProjectionAssemblyFromTripComputations(
-    input.tripComputations
-  );
-  return runUpdateVesselTimelineFromAssembly({
-    pingStartedAt: input.pingStartedAt,
-    projectionAssembly: assembly,
-    predictedTripComputations: input.predictedTripComputations,
-  });
-};
-
-/**
- * Direct timeline entrypoint for orchestrator callers that already have
- * completed/current projection assembly rows.
+ * Timeline entrypoint for orchestrator callers that already have
+ * completed/current projection assembly rows (built from trip computations or
+ * persisted handoffs).
  */
 export const runUpdateVesselTimelineFromAssembly = (
   input: RunUpdateVesselTimelineFromAssemblyInput

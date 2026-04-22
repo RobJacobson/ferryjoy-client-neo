@@ -3,7 +3,6 @@ export {
   resolveDepartNextLegContext,
 } from "./eventsPredicted";
 export {
-  actualDepartMsForLeaveDockEffect,
   buildTripsComputeStorageRows,
   buildVesselTripPingWriteSetFromBundle,
   stripTripPredictionsForStorage,

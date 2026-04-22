@@ -40,7 +40,7 @@ export type VesselPredictionUpdates = {
 
 /**
  * Canonical single-vessel output for the timeline stage
- * ({@link runUpdateVesselTimeline} / {@link runUpdateVesselTimelineFromAssembly}).
+ * ({@link runUpdateVesselTimelineFromAssembly}).
  */
 export type VesselTimelineUpdates = {
   vesselAbbrev: string;

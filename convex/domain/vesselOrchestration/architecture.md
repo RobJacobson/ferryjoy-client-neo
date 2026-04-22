@@ -2,7 +2,7 @@
 
 **Related documentation:** [Convex domain README](../README.md) · [Vessel trips functions](../../functions/vesselTrips/README.md) · [Vessel orchestrator](../../functions/vesselOrchestrator/README.md)
 
-**Where this file lives:** `convex/domain/vesselOrchestration/architecture.md` — next to domain concern folders (`updateVesselTrips/`, `updateTimeline/`, `updateVesselPredictions/`, …). Live **`vesselLocations`** bulk upsert runs in **`functions/vesselOrchestrator/actions.ts`** (not a domain subfolder). Trip mutation ports and bindings live in **`functions/vesselOrchestrator/utils.ts`**; the orchestrator ping is composed **inline** in **`actions.ts`** (there is no separate pipeline runner file in this layout).
+**Where this file lives:** `convex/domain/vesselOrchestration/architecture.md` — next to domain concern folders (`updateVesselTrips/`, `updateTimeline/`, `updateVesselPredictions/`, …). Live **`vesselLocations`** bulk upsert runs in **`functions/vesselOrchestrator/actions.ts`** (not a domain subfolder). Trip-table writes go through **`functions/vesselOrchestrator/persistVesselTripWriteSet.ts`** and **`functions/vesselOrchestrator/mutations.ts`** (`persistOrchestratorPing`); the orchestrator ping is composed **inline** in **`actions.ts`** (there is no separate pipeline runner file in this layout).
 
 This document explains how the orchestrator ping and **`updateVesselTrips`** domain code work: what runs each cycle, what depends on what, and where the main modules live.
 
@@ -12,7 +12,7 @@ It is intentionally plain-English and execution-path focused.
 
 **When it runs:** A cron fires every ~15s → `updateVesselOrchestrator` fetches WSF once, then fans out work.
 
-**Operational reality (shipped orchestrator):** **`updateVesselOrchestrator`** in **`actions.ts`** runs **sequentially**: **`vesselLocation.mutations.bulkUpsert`** (live snapshot) → **`getScheduleSnapshotForPing`** → **`updateVesselTrips`** (`computeVesselTripsRows` returns only `activeTrips` / `completedTrips`) → function-layer trip persistence + orchestrator handoff shaping → **`runAndPersistVesselPredictionPing`** (`runVesselPredictionPing` + `batchUpsertProposals` when needed) → **`updateVesselTimeline`** (`runUpdateVesselTimeline` → dock projection mutations). Trip **compute** uses **`buildTripCore` only** in the trip phase; ML attaches in the predictions phase, running directly from trip rows every ping.
+**Operational reality (shipped orchestrator):** **`updateVesselOrchestrator`** in **`actions.ts`** runs **sequentially**: **`vesselLocation.mutations.bulkUpsert`** (live snapshot) → **`getScheduleSnapshotForPing`** → **`updateVesselTrips`** (`computeVesselTripsRows` returns only `activeTrips` / `completedTrips`) → function-layer trip persistence + orchestrator handoff shaping → **`runAndPersistVesselPredictionPing`** (`runVesselPredictionPing` + `batchUpsertProposals` when needed) → **`updateVesselTimeline`** (`runUpdateVesselTimelineFromAssembly` inside **`persistOrchestratorPing`** → dock projection mutations). Trip **compute** uses **`buildTripCore` only** in the trip phase; ML attaches in the predictions phase, running directly from trip rows every ping.
 
 **Domain layering:** **updateVesselPredictions** runs **after** trip mutations and consumes trip rows plus a functions-preloaded **`VesselPredictionContext`** (production model blobs); it does **not** re-run trip compute. The composed **`buildTrip`** (`buildTripCore` + `applyVesselPredictions`) remains for tests and non-orchestrator callers. **Handshake types** (`CompletedTripBoundaryFact`, `TripLifecycleApplyOutcome` / `VesselTripPersistResult` as aliases over one struct, projection wire shapes) are orchestrator integration DTOs in **`domain/vesselOrchestration/shared/pingHandshake/`**; they are consumed by functions/updateTimeline layers, while `updateVesselTrips` stays focused on trip arrays and does not import predictions/timeline concerns.
 
@@ -25,7 +25,7 @@ See [Target reorganization: orchestrator concerns](#target-reorganization-orches
 | **Live `vesselLocations`** | Snapshot bulk upsert each ping | `functions/vesselOrchestrator/actions.ts` (`bulkUpsert` mutation; first step in the action) |
 | **updateVesselTrips** | Authoritative lifecycle rows: domain output `activeTrips` / `completedTrips` (same `ConvexVesselTrip` shape as tables `activeVesselTrips` / `completedVesselTrips`) | `computeVesselTripsRows` only (pure trip arrays). Downstream layers own persistence and handoff DTO shaping. |
 | **updateVesselPredictions** | ML over trip rows every ping; proposal rows for **`vesselTripPredictions`** | `computeVesselPredictionRows` / `runVesselPredictionPing`, `applyVesselPredictions.ts`, `vesselTripPredictionProposalsFromMlTrip.ts`; `appendPredictions.ts` for shared ML append helpers |
-| **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `PingEventWrites` / `TimelinePingProjectionInput`; **`updateVesselTimeline`** in `actions.ts` applies them |
+| **updateTimeline** | Sparse `eventsActual` / `eventsPredicted` writes | `domain/vesselOrchestration/updateTimeline/` → `PingEventWrites` / `TimelinePingProjectionInput`; **`runUpdateVesselTimelineFromAssembly`** (from **`persistOrchestratorPing`**) applies them |
 
 **Per ping, in one sentence:** Persist the location snapshot → for each vessel, detect events → **`buildTripCore`** (schedule enrichment; no ML in trip compute on orchestrator path) → strip predictions for DB where needed → trip mutations → **updateVesselPredictions** (`applyVesselPredictions` + proposal upserts from current trip phase) → assemble timeline writes → **`updateVesselTimeline`** persists `eventsActual` / `eventsPredicted`.
 
@@ -84,7 +84,7 @@ It does **not** directly fetch WSF; that happens in adapters/functions layers.
 - `convex/functions/vesselOrchestrator/actions.ts`
   - Fetches WSF locations once.
   - Loads read model (vessels, terminals, active trips).
-  - Runs **`vesselLocation` bulk upsert** → **`getScheduleSnapshotForPing`** → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`** (sequential; trip deps from `createDefaultProcessVesselTripsDeps`, mutation ports from `utils.ts`).
+  - Runs **`vesselLocation` bulk upsert** → **`getScheduleSnapshotForPing`** → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`** (sequential; trip deps from `createDefaultProcessVesselTripsDeps`; trip mutations via **`persistVesselTripWriteSet`** / **`persistOrchestratorPing`**).
 - `convex/domain/vesselOrchestration/updateVesselTrips/processPing/processVesselTrips.ts`
   - `computeVesselTripsBundle` — domain output for one ping (completed + current branches).
 
@@ -120,12 +120,12 @@ Cron (15s)
       -> getScheduleSnapshotForPing + ProcessVesselTripsDeps
       -> updateVesselTrips
             -> computeVesselTripsRows / computeVesselTripsBundle
-            -> persistVesselTripWriteSet (function-layer trip mutations via utils bindings)
+            -> persistVesselTripWriteSet (function-layer trip mutations)
       -> updateVesselPredictions
-            -> runUpdateVesselPredictions (domain)
+            -> runVesselPredictionPing (domain)
             -> batchUpsertProposals (vesselTripPredictions) when non-empty
       -> updateVesselTimeline
-            -> runUpdateVesselTimeline (domain)
+            -> runUpdateVesselTimelineFromAssembly (domain, via persistOrchestratorPing)
             -> eventsActual / eventsPredicted mutations (actions.ts)
 ```
 
@@ -136,7 +136,7 @@ One ping (sequential in actions.updateVesselOrchestrator)
   ├─ vesselLocations bulk upsert (actions)
   ├─ updateVesselTrips: trip compute -> trip mutations
   ├─ updateVesselPredictions: ML overlay + vesselTripPredictions upserts
-  └─ updateTimeline: runUpdateVesselTimeline -> eventsActual / eventsPredicted
+  └─ updateTimeline: runUpdateVesselTimelineFromAssembly -> eventsActual / eventsPredicted
 
 Same-ping timeline consumes in-memory ML-shaped trips after merge; it does not
 reload vesselTripPredictions from the DB for assembly. Upsert-gated projection
@@ -282,15 +282,15 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 ## `vesselOrchestration/updateTimeline/` (**updateTimeline** — trip output → timeline writes)
 
-Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (domain merge). **Apply** runs from **`updateVesselTimeline`** in **`functions/vesselOrchestrator/actions.ts`** (internal projection mutations after **`runUpdateVesselTimeline`**; see `updateTimeline/README.md`).
+Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (domain merge). **Apply** runs from **`persistOrchestratorPing`** in **`functions/vesselOrchestrator/mutations.ts`** (internal projection mutations after **`runUpdateVesselTimelineFromAssembly`**; see `updateTimeline/README.md`).
 
-- `pingEventWrites.ts` — `PingEventWrites` / `TimelinePingProjectionInput`, `mergePingEventWrites`.
+- `shared/pingHandshake/projectionWire.ts` — `PingEventWrites` / `TimelinePingProjectionInput`, `mergePingEventWrites` (timeline imports this module directly).
 - `timelineEventAssembler.ts` — Converts lifecycle branch outputs into ping write payloads.
 - `actualDockWritesFromTrip.ts` — Sparse dep/arv actual dock writes from trip rows.
 - `buildTimelinePingProjectionInput.ts` — Merges completed + current branch writes per ping.
-- `types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler.
+- `shared/pingHandshake/types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler (canonical; not duplicated under `updateTimeline/`).
 
-The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimeline`, types, `buildTimelinePingProjectionInput`); ping merge helpers also live on `domain/vesselOrchestration/shared`. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-ping pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
+The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimelineFromAssembly`, contracts, `buildTimelinePingProjectionInput`) and re-exports selected handshake types from `shared/pingHandshake` for convenience. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-ping pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
 
 ## `functions/vesselTrips/read/` (query-time enrichment)
 
@@ -301,7 +301,7 @@ The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`ru
 
 ## Root files: `vesselOrchestration/`
 
-- `index.ts` — Top-level package surface: named trip-ping exports from **`updateVesselTrips/index.ts`** and namespace exports for **`shared`**, **`updateVesselPredictions`**, and **`updateTimeline`**. Ping orchestration (`actions.ts`, `utils.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
+- `index.ts` — Top-level package surface: named trip-ping exports from **`updateVesselTrips/index.ts`** and namespace exports for **`shared`**, **`updateVesselPredictions`**, and **`updateTimeline`**. Ping orchestration (`actions.ts`, `mutations.ts`, `persistVesselTripWriteSet.ts`) lives under **`convex/functions/vesselOrchestrator/`**.
 
 ## Root files: `updateVesselTrips/`
 
