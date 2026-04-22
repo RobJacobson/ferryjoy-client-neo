@@ -192,6 +192,7 @@ const runTripStage = async (
     { pingStartedAt }
   );
   const sailingDay = getSailingDay(new Date(pingStartedAt));
+  logTripStageLocationSkipSummary(locationUpdates);
   const tripUpdates = computeTripUpdatesForPing(
     locationUpdates,
     activeTrips,
@@ -447,6 +448,28 @@ const computeTripUpdatesForPing = (
         scheduleTables,
       })
     );
+};
+
+const logTripStageLocationSkipSummary = (
+  locationUpdates: ReadonlyArray<VesselLocationUpdates>
+): void => {
+  const skippedCount = locationUpdates.filter(
+    (update) => !update.locationChanged
+  ).length;
+  if (skippedCount === 0) {
+    return;
+  }
+
+  const changedCount = locationUpdates.length - skippedCount;
+  if (changedCount > 0) {
+    return;
+  }
+
+  console.info("[VesselOrchestrator] Trip stage skipped unchanged locations", {
+    skippedCount,
+    changedCount,
+    totalLocations: locationUpdates.length,
+  });
 };
 
 const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdates): boolean =>

@@ -5,6 +5,7 @@
 
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
+import { logTripFieldInference } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type {
@@ -69,7 +70,10 @@ const tripRowsWhenCompleting = (
       completedVesselTrip,
       true,
       update.events,
-      scheduleTables
+      scheduleTables,
+      {
+        onTripFieldsResolved: logTripFieldInference,
+      }
     );
 
     return { completedVesselTrip, activeVesselTrip };
@@ -100,7 +104,10 @@ const tripRowsWhenContinuing = (
       update.existingActiveTrip,
       false,
       update.events,
-      scheduleTables
+      scheduleTables,
+      {
+        onTripFieldsResolved: logTripFieldInference,
+      }
     );
 
     return { activeVesselTrip };

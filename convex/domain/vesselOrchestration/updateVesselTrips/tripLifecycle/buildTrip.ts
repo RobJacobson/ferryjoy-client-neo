@@ -12,10 +12,19 @@ import {
   attachNextScheduledTripFields,
   inferTripFieldsFromSchedule,
 } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
+import type { InferredTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
+
+type BuildTripCoreOptions = {
+  onTripFieldsResolved?: (args: {
+    location: ConvexVesselLocation;
+    existingTrip: ConvexVesselTrip | undefined;
+    inferredTripFields: InferredTripFields;
+  }) => void;
+};
 
 /**
  * Schedule enrichment only — no ML gates or ML attachment.
@@ -28,6 +37,8 @@ import type { TripEvents } from "./tripEventTypes";
  * @param events - Flags from {@link detectTripEvents} for the **raw** ping
  * @param scheduleTables - Prefetched schedule evidence tables for this
  *   orchestrator ping
+ * @param options - Optional orchestration hooks. Production logging is wired
+ *   here so the trip-field inference helpers stay pure and low-noise.
  * @returns Storage-shaped trip row (prediction fields not applied here)
  */
 export const buildTripCore = (
@@ -35,12 +46,18 @@ export const buildTripCore = (
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  scheduleTables: ScheduledSegmentTables
+  scheduleTables: ScheduledSegmentTables,
+  options?: BuildTripCoreOptions
 ): ConvexVesselTrip => {
   const inferredTripFields = inferTripFieldsFromSchedule({
     location: currLocation,
     existingTrip,
     scheduleTables,
+  });
+  options?.onTripFieldsResolved?.({
+    location: currLocation,
+    existingTrip,
+    inferredTripFields,
   });
   const locationWithTripFields = applyInferredTripFields(
     currLocation,

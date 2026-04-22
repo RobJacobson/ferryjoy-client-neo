@@ -191,8 +191,20 @@ next trip starts immediately. If the live feed lags on next-trip fields such as
 next trip deterministically from the scheduled-trip backbone instead of holding
 the vessel in a separate waiting state.
 
+Those provisional trip fields are observable, but not warnings by default. The
+trip pipeline logs only meaningful transitions: when schedule evidence starts
+or updates provisional trip fields, when partial WSF values conflict with the
+inferred result, and when authoritative WSF trip fields replace prior values.
+It intentionally does not log every benign reuse of unchanged provisional trip
+fields.
+
 Trip processing remains intentionally stricter than vessel-location storage:
 only rows that resolve to passenger terminals participate in trip derivation.
+
+At the orchestrator boundary, trip-stage skip visibility is also aggregated.
+`actions.ts` emits a single summary only when the entire trip stage is skipped
+because every location in that ping was unchanged, instead of logging
+per-vessel skip noise on each orchestrator tick.
 
 ### 4. Timeline Projection (`vesselTimeline/`)
 

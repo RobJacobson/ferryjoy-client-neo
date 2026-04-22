@@ -134,6 +134,7 @@ import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_getTrip
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_hasWsfTripFields from "../domain/vesselOrchestration/updateVesselTrips/tripFields/hasWsfTripFields.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_index from "../domain/vesselOrchestration/updateVesselTrips/tripFields/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_inferTripFieldsFromSchedule from "../domain/vesselOrchestration/updateVesselTrips/tripFields/inferTripFieldsFromSchedule.js";
+import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_logTripFieldInference from "../domain/vesselOrchestration/updateVesselTrips/tripFields/logTripFieldInference.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_tests_testHelpers from "../domain/vesselOrchestration/updateVesselTrips/tripFields/tests/testHelpers.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_types from "../domain/vesselOrchestration/updateVesselTrips/tripFields/types.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripLifecycle_baseTripFromLocation from "../domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation.js";
@@ -388,6 +389,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/tripFields/hasWsfTripFields": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_hasWsfTripFields;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/index": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_index;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/inferTripFieldsFromSchedule": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_inferTripFieldsFromSchedule;
+  "domain/vesselOrchestration/updateVesselTrips/tripFields/logTripFieldInference": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_logTripFieldInference;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/tests/testHelpers": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_tests_testHelpers;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/types": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_types;
   "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation": typeof domain_vesselOrchestration_updateVesselTrips_tripLifecycle_baseTripFromLocation;
