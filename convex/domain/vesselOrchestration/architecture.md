@@ -84,7 +84,7 @@ It does **not** directly fetch WSF; that happens in adapters/functions layers.
 - `convex/functions/vesselOrchestrator/actions.ts`
   - Fetches WSF locations once.
   - Loads read model (vessels, terminals, active trips).
-  - Runs **`vesselLocation` bulk upsert** → **`getScheduleSnapshotForPing`** → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`** (sequential; trip deps from `createDefaultProcessVesselTripsDeps`; trip mutations via **`persistVesselTripWriteSet`** / **`persistOrchestratorPing`**).
+  - Runs **`vesselLocation` bulk upsert** → **`getScheduleSnapshotForPing`** → narrow to same-day schedule evidence tables → **`updateVesselTrips`** → **`updateVesselPredictions`** → **`updateVesselTimeline`** (sequential; trip mutations via **`persistVesselTripWriteSet`** / **`persistOrchestratorPing`**).
 - `convex/domain/vesselOrchestration/updateVesselTrips/processPing/processVesselTrips.ts`
   - `computeVesselTripsBundle` — domain output for one ping (completed + current branches).
 
@@ -117,7 +117,7 @@ Cron (15s)
       -> load read model (vessels, terminals, activeTrips)
       -> fetchWsfVesselLocations(...)
       -> vesselLocation.mutations.bulkUpsert (live snapshot)
-      -> getScheduleSnapshotForPing + ProcessVesselTripsDeps
+      -> getScheduleSnapshotForPing + createScheduledSegmentTablesFromSnapshot
       -> updateVesselTrips
             -> computeVesselTripsRows / computeVesselTripsBundle
             -> persistVesselTripWriteSet (function-layer trip mutations)
@@ -209,7 +209,7 @@ What it means:
    is authoritative for this ping.
 2. It tries, in order:
    - use WSF trip fields when present,
-   - infer provisional trip fields from schedule continuity
+   - infer provisional trip fields from schedule evidence
      (`NextScheduleKey`/rollover),
    - fallback to partial WSF plus already-known provisional fields when needed.
 3. Applies the inferred trip fields to a prepared location before trip
@@ -242,8 +242,8 @@ What it means:
     paths, calls `buildTimelinePingProjectionInput` (**`updateTimeline`**).
 - `buildTripRuntimeAdapters.ts`
   - Builds runtime adapters for:
-    - effective location resolution,
-    - schedule enrichment (`appendFinalSchedule`).
+    - trip-field inference from schedule evidence,
+    - next-leg schedule enrichment.
 - `computeVesselTripsBundle` in `processPing/processVesselTrips.ts`
   - Produces the internal ping bundle consumed by persistence and downstream phases.
 
@@ -251,7 +251,7 @@ What it means:
 
 Cron-driven trip lifecycle for one ping: detection, **`buildTripCore`**, completed vs current
 branches, equality, and strip-for-storage. ML overlay for the orchestrator ping runs in **updateVesselPredictions** over the Stage C handoff, not inside trip lifecycle. Wired by
-`updateVesselTrips/processPing/processVesselTrips.ts`, `processPing/defaultProcessVesselTripsDeps.ts`, and `updateVesselOrchestrator` (`getScheduleSnapshotForPing` + `createScheduledSegmentLookupFromSnapshot` for **ScheduledSegmentLookup**).
+`updateVesselTrips/processPing/processVesselTrips.ts` and `updateVesselOrchestrator` (`getScheduleSnapshotForPing` + `createScheduledSegmentTablesFromSnapshot`).
 
 - `detectTripEvents.ts` — Per-vessel physical event flags from existing trip +
   raw feed location.
@@ -275,7 +275,7 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 ## `shared/scheduleSnapshot/` (bulk schedule snapshot for orchestrator pings)
 
 - `scheduleSnapshotTypes.ts` — today-only schedule snapshot shape (grouped by vessel) for **`getScheduleSnapshotForPing`**.
-- `createScheduledSegmentLookupFromSnapshot.ts` — derives same-day and departure-by-segment lookups from the grouped snapshot.
+- `createScheduledSegmentTablesFromSnapshot.ts` — narrows the snapshot into same-day schedule evidence tables for trip-field inference.
 
 ## `updateVesselTrips/tripFields/` (trip-field inference and schedule evidence)
 
@@ -296,7 +296,7 @@ Canonical home for sparse `eventsActual` / `eventsPredicted` payload assembly (d
 - `buildTimelinePingProjectionInput.ts` — Merges completed + current branch writes per ping.
 - `shared/pingHandshake/types.ts` — Message/fact DTOs exchanged between lifecycle branches and the assembler (canonical; not duplicated under `updateTimeline/`).
 
-The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimelineFromAssembly`, contracts, `buildTimelinePingProjectionInput`) and re-exports selected handshake types from `shared/pingHandshake` for convenience. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-ping pipeline and lifecycle result types. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
+The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`runUpdateVesselTimelineFromAssembly`, contracts, `buildTimelinePingProjectionInput`) and re-exports selected handshake types from `shared/pingHandshake` for convenience. `domain/vesselOrchestration/updateVesselTrips/index.ts` is the **only** supported import path from outside that folder for the trip-ping runner and its I/O contract. Query-time read helpers now live under `functions/vesselTrips/read`, and shared contracts live under `domain/vesselOrchestration/shared` with concern-specific modules (`eventsPredicted`, `scheduleContinuity`, `orchestratorPersist`).
 
 ## `functions/vesselTrips/read/` (query-time enrichment)
 
@@ -311,13 +311,12 @@ The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`ru
 
 ## Root files: `updateVesselTrips/`
 
-- `processPing/defaultProcessVesselTripsDeps.ts` — `createDefaultProcessVesselTripsDeps(lookup)` bundles default **`buildTripCore`** / `buildTripAdapters` for the orchestrator (`lookup` from **`createScheduledSegmentLookupFromSnapshot`** after **`getScheduleSnapshotForPing`**). Does not include prediction model preload; see **`functions/vesselOrchestrator/actions`** (`loadPredictionContext`).
 - `index.ts` — Re-exports the trip-ping contract only (see file).
 
 ## Functions layer tied directly to the trip domain
 
 - `convex/functions/vesselOrchestrator/actions.ts`
-  - `updateVesselOrchestrator` — WSF fetch, read model (`getOrchestratorModelData`), location bulk upsert, **`getScheduleSnapshotForPing`** + shared **`ProcessVesselTripsDeps`**, then **`updateVesselTrips`** → **`updateVesselPredictions`** (preloads model blobs via **`getProductionModelParametersForPing`**) → **`updateVesselTimeline`** (no separate `orchestratorPipelines.ts` in this layout).
+  - `updateVesselOrchestrator` — WSF fetch, read model (`getOrchestratorModelData`), location bulk upsert, **`getScheduleSnapshotForPing`** + same-day schedule evidence tables, then **`updateVesselTrips`** → **`updateVesselPredictions`** (preloads model blobs via **`getProductionModelParametersForPing`**) → **`updateVesselTimeline`** (no separate `orchestratorPipelines.ts` in this layout).
 - `convex/functions/predictions/queries.ts`
   - **`getProductionModelParametersForPing`** — bulk internal query used by **`updateVesselPredictions`** to build **`VesselPredictionContext.productionModelsByPair`**.
 - `convex/functions/predictions/createVesselTripPredictionModelAccess.ts`
@@ -336,7 +335,7 @@ The barrel `updateTimeline/index.ts` exports the timeline pipeline contract (`ru
 - `convex/functions/vesselOrchestrator/tests/`
   - Orchestrator ping tests (e.g. `processVesselTrips.ping.test.ts`).
 - `convex/domain/vesselOrchestration/updateVesselTrips/tests/`
-  - Unit coverage for trip lifecycle, continuity, projections, and adapters.
+  - Unit coverage for trip lifecycle, trip-field inference, projections, and adapters.
 - `convex/domain/vesselOrchestration/updateTimeline/tests/`
   - Timeline assembly and merge coverage (for example `buildTimelinePingProjectionInput`, completed-trip timeline projection).
 
@@ -399,7 +398,7 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
 
 - **Input:** Converted `ConvexVesselLocation[]` (full feed fidelity).
 - **Output:** Successful or failed snapshot write to `vesselLocations` via **`actions.ts`**.
-- **Non-goals:** Trip keys, schedule continuity, ML, timeline rows.
+- **Non-goals:** Trip keys, trip-field inference, ML, timeline rows.
 
 **updateVesselTrips**
 
@@ -426,7 +425,7 @@ Live location persistence is **not** a domain subfolder; it is a **`functions/ve
 | Rough area today | Natural home |
 | --- | --- |
 | Orchestrator location bulk upsert (first step in `actions.updateVesselOrchestrator`) | **functions** (`vesselLocation.mutations.bulkUpsert`), not a domain folder |
-| `processCompletedTrips`, `processCurrentTrips`, `buildTripCore` / lifecycle half of `buildTrip`, `detectTripEvents`, continuity, storage equality | **updateVesselTrips** |
+| `processCompletedTrips`, `processCurrentTrips`, `buildTripCore` / lifecycle half of `buildTrip`, `detectTripEvents`, trip-field inference, storage equality | **updateVesselTrips** |
 | `appendPredictions` / `applyVesselPredictions` (orchestrator **updateVesselPredictions** phase, or composed `buildTrip`) | **updateVesselPredictions** (`vesselOrchestration/updateVesselPredictions` barrel) |
 | `timelineEventAssembler`, merge → `PingEventWrites` / `TimelinePingProjectionInput` | **updateTimeline** (domain assembly; e.g. `vesselOrchestration/updateTimeline`) |
 | `actions.updateVesselTimeline` | **updateTimeline** apply path (runs after lifecycle + predictions merge) |
@@ -559,7 +558,7 @@ Work in two tiers: **(A) broad compartmentalization** (orchestrator concerns), t
 ## D) Cross-cutting
 
 8. Introduce explicit "decision objects"
-   - Return structured decision DTOs from event detection and schedule continuity
+   - Return structured decision DTOs from event detection and trip-field inference
      (not just booleans).
    - Benefit: clearer why a branch executed.
 

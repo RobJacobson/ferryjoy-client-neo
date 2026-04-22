@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared";
+import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -86,7 +86,7 @@ const makeLocationUpdate = (
   locationChanged,
 });
 
-describe("trip stage location gating", () => {
+describe("trip stage schedule-inference gating", () => {
   it("skips trip recomputation for unchanged locations", () => {
     const tripUpdates = computeTripUpdatesForPing(
       [

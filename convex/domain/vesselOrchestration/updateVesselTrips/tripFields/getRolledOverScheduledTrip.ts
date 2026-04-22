@@ -2,7 +2,7 @@ import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegme
 import {
   getScheduledDeparturesForVesselAndSailingDay,
   type ScheduledSegmentTables,
-} from "domain/vesselOrchestration/shared";
+} from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";

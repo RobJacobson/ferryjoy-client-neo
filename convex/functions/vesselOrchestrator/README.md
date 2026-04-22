@@ -143,7 +143,7 @@ Notes:
 - it also contains a small number of known non-passenger marine locations used
   by the WSF vessel feed, such as `EAH` and `VIG`
 - unknown future marine-location abbreviations are preserved for vessel-location
-  continuity instead of failing ingestion
+  tracking instead of failing ingestion
 - only passenger-terminal locations are forwarded into trip processing
 - passenger-terminal trip eligibility is intentionally simple set membership on
   departing and optional arriving terminal abbreviations

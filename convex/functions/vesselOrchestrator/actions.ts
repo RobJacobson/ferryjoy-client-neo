@@ -17,6 +17,7 @@ import type {
   PredictedTripComputation,
   ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
+import { computeVesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips/computeVesselTripUpdates";
 import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
@@ -24,10 +25,7 @@ import {
   runVesselPredictionPing,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
-import {
-  computeVesselTripUpdates,
-  type RunUpdateVesselTripsOutput,
-} from "domain/vesselOrchestration/updateVesselTrips";
+import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -111,11 +109,11 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
 };
 
 /**
- * Stage vocabulary for the in-progress per-vessel pipeline refactor.
+ * Stage vocabulary for the orchestrator ping.
  *
- * The current action still computes mostly batch-shaped arrays, but these type
- * aliases make the intended single-vessel stage contracts explicit at the
- * action boundary before Task 2 extracts the pure per-vessel helpers.
+ * The trip stage computes lifecycle outcomes plus any provisional trip fields
+ * already inferred from schedule evidence. Downstream stages consume those
+ * rows; they do not revisit trip-field inference policy.
  */
 type OrchestratorPerVesselStageOutputs = {
   location: VesselLocationUpdates;
@@ -173,8 +171,8 @@ const loadOrchestratorSnapshot = async (
 };
 
 /**
- * Runs Step 2 by loading schedule context, computing trip rows, and persisting
- * trip-table writes.
+ * Runs Step 2 by loading schedule evidence, computing trip rows, and
+ * persisting trip-table writes.
  *
  * @param ctx - Convex action context for schedule query and trip mutations
  * @param pingStartedAt - Shared ping timestamp anchor for this run
@@ -286,7 +284,7 @@ export const updateVesselLocations = async (
  *
  * @param vesselLocations - Live locations from {@link updateVesselLocations}
  * @param existingActiveTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param scheduleSnapshot - Plain-data schedule snapshot for this ping
+ * @param scheduleSnapshot - Plain-data schedule evidence snapshot for this ping
  * @param sailingDay - Same sailing day used to load the snapshot (narrowing for lookups)
  * @returns The resulting completed and active trip rows for this ping
  */

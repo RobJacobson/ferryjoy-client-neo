@@ -1,5 +1,5 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";

@@ -1,4 +1,4 @@
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { TripEvents } from "../tripLifecycle/tripEventTypes";
 

@@ -14,10 +14,11 @@ import type {
  *
  * The hot path needs only:
  * - direct segment lookups by `ScheduleKey`
- * - per-vessel ordered departure lists for rollover continuity
+ * - per-vessel ordered departure lists for rollover-based trip-field inference
  *
  * Materializing those once per sailing day avoids reloading the full
- * `eventsScheduled` boundary set on every ping.
+ * `eventsScheduled` boundary set on every ping while keeping schedule evidence
+ * ready for provisional trip fields when WSF is incomplete.
  */
 export const materializeOrchestratorScheduleSnapshot = (
   sailingDay: string,

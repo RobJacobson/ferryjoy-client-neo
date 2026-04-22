@@ -1,12 +1,13 @@
 /**
  * Pure trip-update pipeline for one orchestrator ping.
  *
- * Orchestrates schedule tables, per-feed lifecycle events, per-vessel trip
+ * Orchestrates schedule evidence, per-feed lifecycle events, per-vessel trip
  * rows, and a last-write-wins merge so vessels absent from the batch keep
  * prior actives.
  *
- * Flow: schedule lookup → per-feed {@link calculateTripUpdateForVessel} →
- * {@link tripRowsForVesselPing} → merge carry-forward.
+ * Flow: schedule snapshot narrowing → per-feed
+ * {@link calculateTripUpdateForVessel} → {@link tripRowsForVesselPing} →
+ * merge carry-forward.
  */
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
@@ -24,7 +25,7 @@ import type {
  * are concatenated with continuing actives before merging into the authoritative
  * active set.
  *
- * @param input - Live locations, prior actives, and today’s schedule snapshot
+ * @param input - Live locations, prior actives, and today’s schedule evidence snapshot
  * @returns Completed closes plus merged active rows (one per vessel after merge)
  */
 export const computeVesselTripsRows = (

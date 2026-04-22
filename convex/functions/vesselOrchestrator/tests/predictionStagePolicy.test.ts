@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
-import type { VesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips";
+import type { VesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";

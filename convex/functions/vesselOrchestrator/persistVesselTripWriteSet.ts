@@ -2,8 +2,9 @@
  * Vessel-orchestrator trip persistence: apply one functions-owned translation
  * from the public trips DTOs to Convex mutations.
  *
- * The trips concern owns the public trip-computation contract. This module owns
- * only the one-way translation needed to persist those outputs through
+ * The trips concern owns the public trip-computation contract, including
+ * provisional trip fields already inferred from schedule evidence. This module
+ * owns only the one-way translation needed to persist those outputs through
  * `ActionCtx`-backed mutation bindings.
  */
 
@@ -15,10 +16,8 @@ import type {
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
-import {
-  areTripStorageRowsEqual,
-  type RunUpdateVesselTripsOutput,
-} from "domain/vesselOrchestration/updateVesselTrips";
+import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
+import { areTripStorageRowsEqual } from "domain/vesselOrchestration/updateVesselTrips/storageRowsEqual";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 type TripEvents = {

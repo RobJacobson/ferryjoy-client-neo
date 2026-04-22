@@ -6,7 +6,7 @@
  * ML prediction overlays run in **updateVesselPredictions** after rows persist;
  * this module does not attach prediction fields.
  */
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import {
   applyInferredTripFields,
   attachNextScheduledTripFields,
@@ -21,11 +21,13 @@ import type { TripEvents } from "./tripEventTypes";
  * Schedule enrichment only — no ML gates or ML attachment.
  *
  * @param currLocation - Latest vessel location from REST/API (raw feed)
- * @param existingTrip - Prior active trip for carry-forward and identity
- *   (undefined only when starting from a completion row as the “existing” context)
+ * @param existingTrip - Prior active trip for physical identity and trip-field
+ *   carry-forward (undefined only when starting from a completion row as the
+ *   “existing” context)
  * @param tripStart - True for a new trip instance, false for continuing
  * @param events - Flags from {@link detectTripEvents} for the **raw** ping
- * @param scheduleTables - Prefetched segment tables for this orchestrator ping
+ * @param scheduleTables - Prefetched schedule evidence tables for this
+ *   orchestrator ping
  * @returns Storage-shaped trip row (prediction fields not applied here)
  */
 export const buildTripCore = (
@@ -93,7 +95,7 @@ export const buildTripCore = (
  * This is distinct from a normal segment-to-segment switch: the physical trip
  * may remain the same while `ScheduleKey` becomes unavailable or unsafe. That
  * transition still needs to clear carried schedule-derived state so the row no
- * longer claims stale continuity.
+ * longer claims stale provisional schedule context.
  *
  * @param existingTrip - Previously stored trip, if any
  * @param nextTrip - Current proposal after base derivation
@@ -132,7 +134,8 @@ const shouldClearDerivedStateOnScheduleTransition = (
   (physicalIdentityReplaced || scheduleAttachmentLost);
 
 /**
- * Clear schedule-derived continuity and prediction fields.
+ * Clear schedule-derived fields that only make sense while the trip remains
+ * attached to the same schedule evidence.
  *
  * These fields are only valid while the trip still owns a coherent schedule
  * attachment. Clear them when crossing a physical-trip boundary or when the

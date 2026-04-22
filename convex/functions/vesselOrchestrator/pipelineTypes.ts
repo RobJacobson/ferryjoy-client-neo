@@ -11,7 +11,7 @@ import type {
   PredictedDockEventRow,
 } from "domain/vesselOrchestration/updateTimeline";
 import type { VesselTripPredictionRow } from "domain/vesselOrchestration/updateVesselPredictions";
-export type { VesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips";
+export type { VesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   CompletedTripBoundaryFact,
