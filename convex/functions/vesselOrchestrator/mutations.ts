@@ -18,23 +18,10 @@ import {
 } from "functions/vesselTrips/mutations";
 import { bulkUpsertLocationsAndUpdatesInDb } from "functions/vesselLocationsUpdates/mutations";
 import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
-import {
-  predictedTripComputationSchema,
-  tripRowsForPingSchema,
-} from "./schemas";
-import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
-import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
-import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
+import { orchestratorPingPersistenceSchema } from "./schemas";
 
 export const persistOrchestratorPing = internalMutation({
-  args: {
-    pingStartedAt: v.number(),
-    changedLocations: v.array(vesselLocationValidationSchema),
-    existingActiveTrips: v.array(vesselTripStoredSchema),
-    tripRows: tripRowsForPingSchema,
-    predictionRows: v.array(vesselTripPredictionProposalSchema),
-    predictedTripComputations: v.array(predictedTripComputationSchema),
-  },
+  args: orchestratorPingPersistenceSchema,
   returns: v.null(),
   handler: async (ctx, args) => {
     await bulkUpsertLocationsAndUpdatesInDb(ctx, args.changedLocations);

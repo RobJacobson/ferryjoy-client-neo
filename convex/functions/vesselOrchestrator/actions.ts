@@ -39,6 +39,7 @@ import type {
   VesselTimelineUpdates,
   VesselTripUpdates,
 } from "./pipelineTypes";
+import type { OrchestratorPingPersistence } from "./schemas";
 
 /**
  * Internal action: load identity and active trips, fetch live locations, and run
@@ -96,21 +97,16 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   );
 
   // Step 4: Persist the full orchestrator write bundle in one mutation.
+  const persistenceBundle = buildOrchestratorPersistenceBundle({
+    pingStartedAt,
+    locationUpdates,
+    existingActiveTrips: activeTrips,
+    tripStage,
+    predictionUpdates,
+  });
   await ctx.runMutation(
     internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-    {
-      pingStartedAt,
-      changedLocations: [...changedLocationsFromUpdates(locationUpdates)],
-      existingActiveTrips: [...activeTrips],
-      tripRows: {
-        activeTrips: [...tripStage.tripRows.activeTrips],
-        completedTrips: [...tripStage.tripRows.completedTrips],
-      },
-      predictionRows: [...mergePredictionRows(predictionUpdates)],
-      predictedTripComputations: [
-        ...mergePredictedTripComputations(predictionUpdates),
-      ],
-    }
+    persistenceBundle
   );
 };
 
@@ -138,6 +134,14 @@ type PredictionStageInputs = {
   changedTripUpdates: ReadonlyArray<VesselTripUpdates>;
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+};
+
+type BuildOrchestratorPersistenceBundleArgs = {
+  pingStartedAt: number;
+  locationUpdates: ReadonlyArray<VesselLocationUpdates>;
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
+  tripStage: OrchestratorTripStage;
+  predictionUpdates: ReadonlyArray<VesselPredictionUpdates>;
 };
 
 /**
@@ -490,6 +494,26 @@ const buildPredictionStageInputs = (
   };
 };
 
+const buildOrchestratorPersistenceBundle = ({
+  pingStartedAt,
+  locationUpdates,
+  existingActiveTrips,
+  tripStage,
+  predictionUpdates,
+}: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => ({
+  pingStartedAt,
+  changedLocations: [...changedLocationsFromUpdates(locationUpdates)],
+  existingActiveTrips: [...existingActiveTrips],
+  tripRows: {
+    activeTrips: [...tripStage.tripRows.activeTrips],
+    completedTrips: [...tripStage.tripRows.completedTrips],
+  },
+  predictionRows: [...mergePredictionRows(predictionUpdates)],
+  predictedTripComputations: [
+    ...mergePredictedTripComputations(predictionUpdates),
+  ],
+});
+
 const changedLocationsFromUpdates = (
   locationUpdates: ReadonlyArray<VesselLocationUpdates>
 ): ReadonlyArray<ConvexVesselLocation> =>
@@ -565,4 +589,8 @@ const mergePredictedTripComputations = (
   );
 
 export type { OrchestratorPerVesselStageOutputs, PredictionStageInputs };
-export { buildPredictionStageInputs, shouldContinueAfterTripUpdate };
+export {
+  buildOrchestratorPersistenceBundle,
+  buildPredictionStageInputs,
+  shouldContinueAfterTripUpdate,
+};

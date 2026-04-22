@@ -101,6 +101,10 @@ export const orchestratorPingPersistenceSchema = v.object({
   predictedTripComputations: v.array(predictedTripComputationSchema),
 });
 
+export type OrchestratorPingPersistence = Infer<
+  typeof orchestratorPingPersistenceSchema
+>;
+
 export const tripEventsSchema = v.object({
   isFirstTrip: v.boolean(),
   isTripStartReady: v.boolean(),
