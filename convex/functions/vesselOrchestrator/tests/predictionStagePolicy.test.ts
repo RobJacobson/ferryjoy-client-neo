@@ -192,4 +192,19 @@ describe("prediction stage off-ramp policy", () => {
       )
     ).toEqual(["SAM"]);
   });
+
+  it("returns empty prediction inputs when every vessel is unchanged", () => {
+    const predictionInputs = buildPredictionStageInputs(
+      [makeTripUpdate("CHE"), makeTripUpdate("TAC")],
+      {
+        activeTrips: [makeTrip("CHE"), makeTrip("TAC")],
+        completedTrips: [],
+      },
+      []
+    );
+
+    expect(predictionInputs.changedTripUpdates).toEqual([]);
+    expect(predictionInputs.activeTrips).toEqual([]);
+    expect(predictionInputs.completedHandoffs).toEqual([]);
+  });
 });
