@@ -209,6 +209,33 @@ describe("buildTripCore", () => {
     expect("tripFieldInferenceMethod" in trip).toBe(false);
   });
 
+  it("persists inferred SailingDay as part of the resolved trip-field contract", () => {
+    const nextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--CLI-MUK",
+      SailingDay: "2026-03-14",
+      DepartingTime: ms("2026-03-14T01:30:00-07:00"),
+    });
+
+    const trip = buildTripCore(
+      makeLocation({
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      makeTrip({
+        NextScheduleKey: nextSegment.Key,
+      }),
+      false,
+      continuingEvents(),
+      makeScheduledTables({
+        segments: [nextSegment],
+      })
+    );
+
+    expect(trip.ScheduleKey).toBe(nextSegment.Key);
+    expect(trip.SailingDay).toBe(nextSegment.SailingDay);
+  });
+
   it("handles provisional inference, authoritative WSF takeover, and then skips an unchanged ping", () => {
     const onTripFieldsResolved = mock(() => {});
     const nextSegment = makeScheduledSegment({

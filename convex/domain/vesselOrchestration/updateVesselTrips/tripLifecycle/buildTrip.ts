@@ -69,12 +69,17 @@ export const buildTripCore = (
     existingTrip,
     tripStart
   );
+  const withResolvedContractFields = applyResolvedTripContractFields(
+    baseTrip,
+    inferredTripFields
+  );
   const withArriveDest = {
     ...baseTrip,
+    ...withResolvedContractFields,
     // Same-trip arrivals are only stamped on continuing trips that were not
     // rolled over into a replacement trip.
     ArriveDest:
-      baseTrip.ArriveDest ??
+      withResolvedContractFields.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
         ? locationWithTripFields.TimeStamp
         : undefined),
@@ -106,6 +111,17 @@ export const buildTripCore = (
     tripStart,
   });
 };
+
+const applyResolvedTripContractFields = (
+  trip: ConvexVesselTrip,
+  inferredTripFields: Pick<InferredTripFields, "SailingDay">
+): ConvexVesselTrip => ({
+  ...trip,
+  // `SailingDay` is part of the resolved trip-fields contract and may come
+  // from schedule-backed inference even when the prepared location shape
+  // cannot carry it directly.
+  SailingDay: inferredTripFields.SailingDay ?? trip.SailingDay,
+});
 
 /**
  * Returns whether a continuing trip has detached from schedule alignment.

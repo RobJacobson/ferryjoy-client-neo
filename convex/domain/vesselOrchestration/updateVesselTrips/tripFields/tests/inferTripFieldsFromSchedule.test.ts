@@ -108,6 +108,7 @@ describe("inferTripFieldsFromSchedule", () => {
     expect(inferred.ArrivingTerminalAbbrev).toBe("MUK");
     expect(inferred.ScheduledDeparture).toBe(ms("2026-03-13T11:00:00-07:00"));
     expect(inferred.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
+    expect(inferred.tripFieldDataSource).toBe("inferred");
   });
 
   it("marks reused persisted provisional fields as inferred semantics", () => {
@@ -142,5 +143,23 @@ describe("inferTripFieldsFromSchedule", () => {
       tripFieldDataSource: "inferred",
     });
     expect(inferred.tripFieldInferenceMethod).toBeUndefined();
+  });
+
+  it("marks partial WSF fallback rows as inferred when the feed is incomplete", () => {
+    const inferred = inferTripFieldsFromSchedule({
+      location: makeLocation({
+        ArrivingTerminalAbbrev: "MUK",
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      existingTrip: undefined,
+      scheduleTables: makeScheduledTables(),
+    });
+
+    expect(inferred).toMatchObject({
+      ArrivingTerminalAbbrev: "MUK",
+      ScheduledDeparture: undefined,
+      tripFieldDataSource: "inferred",
+    });
   });
 });

@@ -82,8 +82,10 @@ export const getFallbackTripFields = ({
     NextScheduledDeparture: shouldReuseExistingTripFields
       ? existingTrip?.NextScheduledDeparture
       : undefined,
-    // This field captures whether the row remains provisional, not whether the
-    // values happened to be copied from an already-persisted trip row.
-    tripFieldDataSource: shouldReuseExistingTripFields ? "inferred" : "wsf",
+    // `inferTripFieldsFromSchedule` only reaches this helper after confirming
+    // the feed is incomplete, so the resolved row remains non-authoritative
+    // even when we preserve partial WSF values instead of reusing persisted
+    // provisional ones.
+    tripFieldDataSource: "inferred",
   };
 };
