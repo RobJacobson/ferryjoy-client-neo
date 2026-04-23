@@ -4,22 +4,22 @@
  * Produces a {@link TripEvents} bundle per ping from the prior active row (if
  * any) and the **raw** feed location. Callers use these flags before building
  * normalized `ConvexVesselTrip` rows so physical boundaries stay independent of
- * schedule-resolved docked identity.
+ * inferred trip fields.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import { resolveDebouncedPhysicalBoundaries } from "./physicalDockSeaDebounce";
-import { deriveContinuingScheduleKey, hasTripEvidence } from "./tripDerivation";
+import { hasTripEvidence } from "./tripDerivation";
 import type { TripEvents } from "./tripEventTypes";
 
 /**
  * Detects lifecycle flags for one ping from the prior trip and raw location.
  *
- * Uses {@link resolveDebouncedPhysicalBoundaries} and
- * {@link deriveContinuingScheduleKey} with the **raw** feed row so schedule
- * resolution in `buildTripCore` does not affect completion detection.
+ * Uses {@link resolveDebouncedPhysicalBoundaries} plus a raw-feed schedule-key
+ * comparison so trip-field inference in `buildTripCore` does not affect
+ * completion detection.
  *
  * @param existingTrip - Previous trip state (`undefined` for first appearance)
  * @param currLocation - Current vessel location from REST/API (unresolved)
@@ -34,8 +34,7 @@ export const detectTripEvents = (
     existingTrip,
     currLocation
   );
-  // Derive continuing schedule key for the raw sample to compare to the stored key.
-  const continuingScheduleKey = deriveContinuingScheduleKey(
+  const continuingScheduleKey = getRawLifecycleScheduleKey(
     existingTrip,
     currLocation
   );
@@ -105,3 +104,32 @@ const computeScheduleKeyChanged = (
   existingTrip: ConvexVesselTrip | undefined,
   continuingScheduleKey: string | undefined
 ): boolean => existingTrip?.ScheduleKey !== continuingScheduleKey;
+
+/**
+ * Returns the raw-feed `ScheduleKey` used for lifecycle comparisons.
+ *
+ * Keep the previous dock interval on the exact leave-dock ping so a transient
+ * next-leg jump in the feed does not look like a meaningful lifecycle
+ * transition. This is a raw-feed debounce rule, not trip-field inference.
+ *
+ * @param existingTrip - Previous trip state for the vessel
+ * @param currLocation - Current raw feed location
+ * @returns Schedule key to compare against the stored trip row
+ */
+const getRawLifecycleScheduleKey = (
+  existingTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation
+): string | undefined => {
+  const shouldPreserveDockWindowScheduleKey = Boolean(
+    existingTrip?.AtDock &&
+      existingTrip.LeftDock === undefined &&
+      existingTrip.DepartingTerminalAbbrev ===
+        currLocation.DepartingTerminalAbbrev &&
+      ((currLocation.AtDock && currLocation.LeftDock === undefined) ||
+        currLocation.LeftDock !== undefined)
+  );
+
+  return shouldPreserveDockWindowScheduleKey
+    ? (existingTrip?.ScheduleKey ?? currLocation.ScheduleKey)
+    : currLocation.ScheduleKey;
+};

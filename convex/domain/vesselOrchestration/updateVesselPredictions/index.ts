@@ -14,7 +14,6 @@
 export {
   computeVesselPredictionRows,
   type RunVesselPredictionPingOutput,
-  runUpdateVesselPredictions,
   runVesselPredictionPing,
 } from "./computeVesselPredictionRows";
 export type {

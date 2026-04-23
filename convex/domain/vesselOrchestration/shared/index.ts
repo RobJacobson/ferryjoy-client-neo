@@ -3,7 +3,6 @@ export {
   resolveDepartNextLegContext,
 } from "./eventsPredicted";
 export {
-  actualDepartMsForLeaveDockEffect,
   buildTripsComputeStorageRows,
   buildVesselTripPingWriteSetFromBundle,
   stripTripPredictionsForStorage,
@@ -26,11 +25,6 @@ export type {
   VesselTripPersistResult,
   VesselTripsComputeBundle,
 } from "./pingHandshake/types";
-export {
-  type DockedScheduledSegmentSource,
-  getScheduledDeparturesForVesselAndSailingDay,
-  type ScheduledSegmentTables,
-} from "./scheduleContinuity";
 export { createScheduledSegmentTablesFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentTablesFromSnapshot";
 export type {
   CompactScheduledDepartureEvent,

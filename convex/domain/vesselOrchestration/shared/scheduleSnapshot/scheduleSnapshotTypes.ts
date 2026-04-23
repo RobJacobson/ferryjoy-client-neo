@@ -13,9 +13,9 @@ export type CompactScheduledDepartureEvent = {
 export type ScheduleSnapshot = {
   /** Calendar day represented by this materialized snapshot. */
   SailingDay: string;
-  /** Direct schedule lookups keyed by trip `ScheduleKey`. */
+  /** Direct schedule evidence keyed by trip `ScheduleKey`. */
   scheduledDepartureBySegmentKey: Record<string, ConvexInferredScheduledSegment>;
-  /** Ordered same-day departures for rollover continuity. */
+  /** Ordered same-day departures used for rollover-based trip-field inference. */
   scheduledDeparturesByVesselAbbrev: Record<
     string,
     CompactScheduledDepartureEvent[]

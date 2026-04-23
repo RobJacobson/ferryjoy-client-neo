@@ -4,8 +4,7 @@
  * `updateVesselTrips` does not depend on `updateTimeline` for primary typing.
  *
  * Branch processors emit facts and per-vessel messages; assembly into
- * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler`;
- * see `updateTimeline/pingEventWrites.ts`).
+ * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler.ts`).
  */
 
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
@@ -94,7 +93,7 @@ export type ActiveTripsBranch = {
 
 /**
  * Trip + lifecycle messages for one ping, before trip-table mutations.
- * Feeds storage row builders and `assembleTripComputationsFromBundle`.
+ * Feeds storage row builders and timeline projection inputs.
  */
 export type VesselTripsComputeBundle = {
   completedHandoffs: CompletedTripBoundaryFact[];

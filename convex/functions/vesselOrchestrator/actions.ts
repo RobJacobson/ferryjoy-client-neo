@@ -17,6 +17,7 @@ import type {
   PredictedTripComputation,
   ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
+import { computeVesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips/computeVesselTripUpdates";
 import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
@@ -24,10 +25,7 @@ import {
   runVesselPredictionPing,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
-import {
-  computeVesselTripUpdates,
-  type RunUpdateVesselTripsOutput,
-} from "domain/vesselOrchestration/updateVesselTrips";
+import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -111,11 +109,12 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
 };
 
 /**
- * Stage vocabulary for the in-progress per-vessel pipeline refactor.
+ * Stage vocabulary for the orchestrator ping.
  *
- * The current action still computes mostly batch-shaped arrays, but these type
- * aliases make the intended single-vessel stage contracts explicit at the
- * action boundary before Task 2 extracts the pure per-vessel helpers.
+ * The trip stage computes lifecycle outcomes plus any provisional trip fields
+ * already inferred from schedule evidence. Downstream stages consume those
+ * rows; they do not revisit trip-field inference policy or depend on
+ * transient `tripFieldInferenceMethod` metadata.
  */
 type OrchestratorPerVesselStageOutputs = {
   location: VesselLocationUpdates;
@@ -173,12 +172,13 @@ const loadOrchestratorSnapshot = async (
 };
 
 /**
- * Runs Step 2 by loading schedule context, computing trip rows, and persisting
- * trip-table writes.
+ * Runs Step 2 by loading schedule evidence and computing trip rows plus the
+ * completion facts needed by downstream stages and final persistence.
  *
  * @param ctx - Convex action context for schedule query and trip mutations
  * @param pingStartedAt - Shared ping timestamp anchor for this run
- * @param vesselLocations - Step 1 location rows for this ping
+ * @param locationUpdates - Step 1 location rows for this ping, annotated with
+ *   whether each upstream timestamp changed
  * @param activeTrips - Active-trip snapshot from ping start
  * @returns Computed trip rows plus attempted completion facts used by predictions
  */
@@ -194,6 +194,7 @@ const runTripStage = async (
     { pingStartedAt }
   );
   const sailingDay = getSailingDay(new Date(pingStartedAt));
+  logTripStageLocationSkipSummary(locationUpdates);
   const tripUpdates = computeTripUpdatesForPing(
     locationUpdates,
     activeTrips,
@@ -284,9 +285,12 @@ export const updateVesselLocations = async (
 /**
  * Computes the authoritative trip rows for this ping as a pure domain step.
  *
+ * The returned rows carry only the durable trip contract. Debug-only
+ * trip-field inference metadata is intentionally consumed before this boundary.
+ *
  * @param vesselLocations - Live locations from {@link updateVesselLocations}
  * @param existingActiveTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param scheduleSnapshot - Plain-data schedule snapshot for this ping
+ * @param scheduleSnapshot - Plain-data schedule evidence snapshot for this ping
  * @param sailingDay - Same sailing day used to load the snapshot (narrowing for lookups)
  * @returns The resulting completed and active trip rows for this ping
  */
@@ -438,15 +442,39 @@ const computeTripUpdatesForPing = (
     existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
 
-  return locationUpdates.map(({ vesselLocation }) =>
-    computeVesselTripUpdates({
-      vesselLocation,
-      existingActiveTrip: existingActiveTripsByVessel.get(
-        vesselLocation.VesselAbbrev
-      ),
-      scheduleTables,
-    })
-  );
+  return locationUpdates
+    .filter((update) => update.locationChanged)
+    .map(({ vesselLocation }) =>
+      computeVesselTripUpdates({
+        vesselLocation,
+        existingActiveTrip: existingActiveTripsByVessel.get(
+          vesselLocation.VesselAbbrev
+        ),
+        scheduleTables,
+      })
+    );
+};
+
+const logTripStageLocationSkipSummary = (
+  locationUpdates: ReadonlyArray<VesselLocationUpdates>
+): void => {
+  const skippedCount = locationUpdates.filter(
+    (update) => !update.locationChanged
+  ).length;
+  if (skippedCount === 0) {
+    return;
+  }
+
+  const changedCount = locationUpdates.length - skippedCount;
+  if (changedCount > 0) {
+    return;
+  }
+
+  console.info("[VesselOrchestrator] Trip stage skipped unchanged locations", {
+    skippedCount,
+    changedCount,
+    totalLocations: locationUpdates.length,
+  });
 };
 
 const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdates): boolean =>
@@ -592,5 +620,7 @@ export type { OrchestratorPerVesselStageOutputs, PredictionStageInputs };
 export {
   buildOrchestratorPersistenceBundle,
   buildPredictionStageInputs,
+  computeTripUpdatesForPing,
+  logTripStageLocationSkipSummary,
   shouldContinueAfterTripUpdate,
 };

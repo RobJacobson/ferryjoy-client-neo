@@ -1,5 +1,5 @@
 /**
- * Characterization tests for the base trip builder.
+ * Characterization tests for the prepared-location base trip builder.
  *
  * These tests lock in the subtle scenario-specific field rules so the builder
  * can be refactored with confidence.
@@ -32,11 +32,10 @@ describe("baseTripFromLocation", () => {
     );
   });
 
-  it("carries scheduled departure forward for continuing trips and derives SailingDay from it", () => {
+  it("leaves continuing SailingDay undefined when the prepared location has no scheduled departure", () => {
     const existingTrip = makeTrip({
       ScheduledDeparture: ms("2026-03-13T00:45:00-07:00"),
     });
-    const scheduledDeparture = existingTrip.ScheduledDeparture;
     const currLocation = makeLocation({
       ScheduledDeparture: undefined,
       TimeStamp: ms("2026-03-13T01:00:00-07:00"),
@@ -44,11 +43,8 @@ describe("baseTripFromLocation", () => {
 
     const trip = baseTripFromLocation(currLocation, existingTrip, false);
 
-    expect(scheduledDeparture).toBeDefined();
-    expect(trip.ScheduledDeparture).toBe(scheduledDeparture);
-    expect(trip.SailingDay).toBe(
-      getSailingDay(new Date(scheduledDeparture ?? 0))
-    );
+    expect(trip.ScheduledDeparture).toBeUndefined();
+    expect(trip.SailingDay).toBeUndefined();
   });
 
   it("leaves SailingDay undefined when no scheduled departure exists", () => {
@@ -129,7 +125,7 @@ describe("baseTripFromLocation", () => {
     expect(trip.LeftDock).toBe(currLocation.LeftDock);
   });
 
-  it("preserves docked schedule continuity when the live feed jumps ahead to a later departure", () => {
+  it("derives continuing trip fields from the prepared location", () => {
     const tripStartMs = ms("2026-04-04T16:53:06-07:00");
     const existingTrip = makeTrip({
       VesselAbbrev: "CAT",
@@ -159,12 +155,10 @@ describe("baseTripFromLocation", () => {
 
     const trip = baseTripFromLocation(currLocation, existingTrip, false);
 
-    expect(trip.ScheduleKey).toBe(existingTrip.ScheduleKey);
-    expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
-    expect(trip.SailingDay).toBe(existingTrip.SailingDay);
-    expect(trip.ArrivingTerminalAbbrev).toBe(
-      existingTrip.ArrivingTerminalAbbrev
-    );
+    expect(trip.ScheduleKey).toBe("CAT--2026-04-04--18:45--SOU-VAI");
+    expect(trip.ScheduledDeparture).toBe(ms("2026-04-04T18:45:00-07:00"));
+    expect(trip.SailingDay).toBe("2026-04-04");
+    expect(trip.ArrivingTerminalAbbrev).toBe("VAI");
   });
 
   it("throws when a continuing trip row is missing TripKey", () => {
@@ -180,7 +174,7 @@ describe("baseTripFromLocation", () => {
 });
 
 /**
- * Build a test vessel location with sensible defaults.
+ * Build a prepared test vessel location with sensible defaults.
  *
  * @param overrides - Scenario-specific field overrides
  * @returns Concrete location payload for tests

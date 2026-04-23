@@ -3,7 +3,8 @@ import type { ScheduledSegmentTables } from "../scheduleContinuity";
 import type { ScheduleSnapshot } from "./scheduleSnapshotTypes";
 
 /**
- * Prefetched {@link ScheduledSegmentTables} for one sailing day.
+ * Narrows the prefetched schedule snapshot into the same-day schedule evidence
+ * tables used by trip-field inference.
  */
 export const createScheduledSegmentTablesFromSnapshot = (
   snapshot: ScheduleSnapshot,

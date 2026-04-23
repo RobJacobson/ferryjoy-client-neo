@@ -1,8 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import {
-  createScheduledSegmentTablesFromSnapshot,
-  type ScheduleSnapshot,
-} from "domain/vesselOrchestration/shared";
+import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
+import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";

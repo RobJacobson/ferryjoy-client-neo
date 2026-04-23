@@ -3,8 +3,9 @@
  * replacement active, or continuing active projection only.
  */
 
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import { logTripPipelineFailure } from "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure";
+import { logTripFieldInference } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type {
@@ -23,7 +24,8 @@ import type {
  * `tripStart: false`.
  *
  * @param update - Feed row, optional prior active, and detected trip events
- * @param scheduleTables - Prefetched segment tables for schedule enrichment
+ * @param scheduleTables - Prefetched schedule evidence tables for trip-field
+ *   inference and next-leg enrichment
  * @returns Optional completed close and/or active row for this vessel
  */
 export const tripRowsForVesselPing = (
@@ -63,7 +65,7 @@ const tripRowsWhenCompleting = (
       update.vesselLocation,
       update.events.didJustArriveAtDock
     );
-    const activeVesselTrip = buildTripCore(
+    const activeVesselTrip = buildActiveTripForUpdate(
       update.vesselLocation,
       completedVesselTrip,
       true,
@@ -94,7 +96,7 @@ const tripRowsWhenContinuing = (
   scheduleTables: ScheduledSegmentTables
 ): VesselPingTripRows => {
   try {
-    const activeVesselTrip = buildTripCore(
+    const activeVesselTrip = buildActiveTripForUpdate(
       update.vesselLocation,
       update.existingActiveTrip,
       false,
@@ -115,3 +117,20 @@ const tripRowsWhenContinuing = (
       : {};
   }
 };
+
+/**
+ * Centralize the trip-field observability hook at the trip-row seam so
+ * lifecycle branching does not duplicate schedule-inference wiring. This keeps
+ * `tripFieldInferenceMethod` transient: it is emitted to logging here and does
+ * not become part of the persisted trip contract.
+ */
+const buildActiveTripForUpdate = (
+  vesselLocation: CalculatedTripUpdate["vesselLocation"],
+  existingTrip: CalculatedTripUpdate["existingActiveTrip"],
+  tripStart: boolean,
+  events: CalculatedTripUpdate["events"],
+  scheduleTables: ScheduledSegmentTables
+): ReturnType<typeof buildTripCore> =>
+  buildTripCore(vesselLocation, existingTrip, tripStart, events, scheduleTables, {
+    onTripFieldsResolved: logTripFieldInference,
+  });

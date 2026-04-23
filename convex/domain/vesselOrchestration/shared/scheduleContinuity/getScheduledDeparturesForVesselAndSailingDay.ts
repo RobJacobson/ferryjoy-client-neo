@@ -1,5 +1,6 @@
 /**
- * Same-vessel scheduled departures for a sailing day, with a day guard.
+ * Same-vessel scheduled departures for a sailing day, with a day guard for
+ * trip-field inference.
  */
 
 import type { CompactScheduledDepartureEvent } from "../scheduleSnapshot/scheduleSnapshotTypes";
@@ -7,7 +8,8 @@ import type { ScheduledSegmentTables } from "./types";
 
 /**
  * Returns scheduled departures for one vessel when `sailingDay` matches the
- * tables’ day; otherwise `[]` so callers do not mix snapshot days.
+ * tables’ day; otherwise `[]` so callers do not mix schedule evidence across
+ * snapshot days.
  */
 export const getScheduledDeparturesForVesselAndSailingDay = (
   tables: ScheduledSegmentTables,

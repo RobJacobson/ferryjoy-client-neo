@@ -113,6 +113,3 @@ export const computeVesselPredictionRows = async (
   const { predictionRows } = await runVesselPredictionPing(input);
   return { predictionRows };
 };
-
-/** @deprecated Use {@link computeVesselPredictionRows}. */
-export const runUpdateVesselPredictions = computeVesselPredictionRows;

@@ -5,7 +5,7 @@
  * optional existing active trip in, one per-vessel change bundle out.
  */
 
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import { calculateTripUpdateForVessel } from "./calculatedTripUpdate";
 import { areTripStorageRowsEqual } from "./storageRowsEqual";
 import { tripRowsForVesselPing } from "./tripRowsForVesselPing";

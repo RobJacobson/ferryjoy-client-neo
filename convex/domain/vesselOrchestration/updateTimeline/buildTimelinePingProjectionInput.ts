@@ -7,25 +7,25 @@
  * `orchestratorTimelineProjection`), with ML-enriched trips where projection
  * needs them. Same-ping assembly must not reload `vesselTripPredictions` from the
  * DB; ML overlay uses {@link mergePredictedComputationsIntoTimelineProjectionAssembly}
- * in `orchestratorTimelineProjection` after `runUpdateVesselPredictions`.
+ * in `orchestratorTimelineProjection` after `runVesselPredictionPing`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
  *
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
  */
 
+import type {
+  CompletedTripBoundaryFact,
+  CurrentTripLifecycleBranchResult,
+} from "domain/vesselOrchestration/shared/pingHandshake/types";
 import {
   mergePingEventWrites,
   type TimelinePingProjectionInput,
-} from "./pingEventWrites";
+} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
 import {
   buildPingEventWritesFromCompletedFacts,
   buildPingEventWritesFromCurrentMessages,
 } from "./timelineEventAssembler";
-import type {
-  CompletedTripBoundaryFact,
-  CurrentTripLifecycleBranchResult,
-} from "./types";
 
 /**
  * Facts and current-branch state for one ping after ML overlay from prediction

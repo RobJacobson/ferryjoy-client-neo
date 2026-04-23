@@ -1,29 +1,45 @@
 /**
- * Schedule-half trip build for one live location ping: effective location, base
- * trip, then schedule leg enrichment.
+ * Schedule-half trip build for one live location ping: infer trip fields, build
+ * the base trip from the prepared location, then enrich next-leg schedule
+ * fields.
  *
  * ML prediction overlays run in **updateVesselPredictions** after rows persist;
  * this module does not attach prediction fields.
  */
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared";
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import {
-  appendFinalScheduleForLookup,
-  resolveEffectiveLocationForLookup,
-} from "domain/vesselOrchestration/updateVesselTrips/scheduleTripAdapters";
+  applyInferredTripFields,
+  attachNextScheduledTripFields,
+  inferTripFieldsFromSchedule,
+} from "domain/vesselOrchestration/updateVesselTrips/tripFields";
+import type { InferredTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
+type BuildTripCoreOptions = {
+  onTripFieldsResolved?: (args: {
+    location: ConvexVesselLocation;
+    existingTrip: ConvexVesselTrip | undefined;
+    inferredTripFields: InferredTripFields;
+  }) => void;
+};
+
 /**
  * Schedule enrichment only — no ML gates or ML attachment.
  *
  * @param currLocation - Latest vessel location from REST/API (raw feed)
- * @param existingTrip - Prior active trip for carry-forward and identity
- *   (undefined only when starting from a completion row as the “existing” context)
+ * @param existingTrip - Prior active trip for physical identity and trip-field
+ *   carry-forward (undefined only when starting from a completion row as the
+ *   “existing” context)
  * @param tripStart - True for a new trip instance, false for continuing
  * @param events - Flags from {@link detectTripEvents} for the **raw** ping
- * @param scheduleTables - Prefetched segment tables for this orchestrator ping
+ * @param scheduleTables - Prefetched schedule evidence tables for this
+ *   orchestrator ping
+ * @param options - Optional orchestration hooks. Production logging is wired
+ *   here so the trip-field inference helpers stay pure and low-noise, and so
+ *   transient observability metadata never has to live on stored trip rows.
  * @returns Storage-shaped trip row (prediction fields not applied here)
  */
 export const buildTripCore = (
@@ -31,29 +47,41 @@ export const buildTripCore = (
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripEvents,
-  scheduleTables: ScheduledSegmentTables
+  scheduleTables: ScheduledSegmentTables,
+  options?: BuildTripCoreOptions
 ): ConvexVesselTrip => {
-  const effectiveLocation = resolveEffectiveLocationForLookup(
+  const inferredTripFields = inferTripFieldsFromSchedule({
+    location: currLocation,
+    existingTrip,
     scheduleTables,
+  });
+  options?.onTripFieldsResolved?.({
+    location: currLocation,
+    existingTrip,
+    inferredTripFields,
+  });
+  const locationWithTripFields = applyInferredTripFields(
     currLocation,
-    existingTrip
+    inferredTripFields
   );
-  // `deriveTripInputs` in base-trip construction uses this effective location;
-  // `detectTripEvents` uses the raw ping (debounced boundaries + continuing key)
-  // — they can differ for docked identity.
   const baseTrip = baseTripFromLocation(
-    effectiveLocation,
+    locationWithTripFields,
     existingTrip,
     tripStart
   );
+  const withResolvedContractFields = applyResolvedTripContractFields(
+    baseTrip,
+    inferredTripFields
+  );
   const withArriveDest = {
     ...baseTrip,
+    ...withResolvedContractFields,
     // Same-trip arrivals are only stamped on continuing trips that were not
     // rolled over into a replacement trip.
     ArriveDest:
-      baseTrip.ArriveDest ??
+      withResolvedContractFields.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
-        ? effectiveLocation.TimeStamp
+        ? locationWithTripFields.TimeStamp
         : undefined),
   };
   const physicalIdentityReplaced =
@@ -75,20 +103,23 @@ export const buildTripCore = (
       ? clearDerivedStateOnScheduleKeyChange(withArriveDest)
       : withArriveDest;
 
-  const tripForScheduleEnrichment = withScheduleKeyChangeClearedDerivedState;
-
-  // Schedule enrichment is segment-key-based. Docked identity bootstrap happens
-  // in `resolveEffectiveLocationForLookup`.
-  const shouldAppendFinalSchedule = tripStart || events.scheduleKeyChanged;
-
-  return shouldAppendFinalSchedule
-    ? appendFinalScheduleForLookup(
-        scheduleTables,
-        tripForScheduleEnrichment,
-        existingTrip
-      )
-    : tripForScheduleEnrichment;
+  return attachNextScheduledTripFields({
+    baseTrip: withScheduleKeyChangeClearedDerivedState,
+    existingTrip,
+    scheduleTables,
+  });
 };
+
+const applyResolvedTripContractFields = (
+  trip: ConvexVesselTrip,
+  inferredTripFields: Pick<InferredTripFields, "SailingDay">
+): ConvexVesselTrip => ({
+  ...trip,
+  // `SailingDay` is part of the resolved trip-fields contract and may come
+  // from schedule-backed inference even when the prepared location shape
+  // cannot carry it directly.
+  SailingDay: inferredTripFields.SailingDay ?? trip.SailingDay,
+});
 
 /**
  * Returns whether a continuing trip has detached from schedule alignment.
@@ -96,7 +127,7 @@ export const buildTripCore = (
  * This is distinct from a normal segment-to-segment switch: the physical trip
  * may remain the same while `ScheduleKey` becomes unavailable or unsafe. That
  * transition still needs to clear carried schedule-derived state so the row no
- * longer claims stale continuity.
+ * longer claims stale provisional schedule context.
  *
  * @param existingTrip - Previously stored trip, if any
  * @param nextTrip - Current proposal after base derivation
@@ -135,7 +166,8 @@ const shouldClearDerivedStateOnScheduleTransition = (
   (physicalIdentityReplaced || scheduleAttachmentLost);
 
 /**
- * Clear schedule-derived continuity and prediction fields.
+ * Clear schedule-derived fields that only make sense while the trip remains
+ * attached to the same schedule evidence.
  *
  * These fields are only valid while the trip still owns a coherent schedule
  * attachment. Clear them when crossing a physical-trip boundary or when the

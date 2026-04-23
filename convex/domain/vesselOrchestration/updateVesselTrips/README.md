@@ -6,6 +6,10 @@ The public boundary is intentionally small:
 
 - `computeVesselTripsRows(input) -> { completedTrips, activeTrips }` (`ConvexVesselTrip` rows)
 
+Internal helpers such as per-vessel update packaging, storage equality, and
+trip-field inference stay on direct file imports so the exported surface keeps
+the architectural contract centered on `updateVesselTrips`.
+
 Convex table names are `activeVesselTrips` / `completedVesselTrips`; the domain DTO uses shorter `activeTrips` / `completedTrips` for the same row shape.
 
 The concern owns only the work needed to return those arrays. Persistence,
@@ -18,8 +22,13 @@ back into trip-internal artifacts.
 | --- | --- |
 | [`calculatedTripUpdate.ts`](./calculatedTripUpdate.ts) | Join each feed row to its prior active (by vessel) and run `detectTripEvents` |
 | [`tripRowsForVesselPing.ts`](./tripRowsForVesselPing.ts) | For one calculated update, emit optional completed close and/or active row |
-| [`computeVesselTripUpdates.ts`](./computeVesselTripUpdates.ts) | Canonical one-vessel Stage 2 helper: package the per-vessel trip outcome plus continuation flags |
-| [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Build schedule tables, map each location through the per-vessel steps, merge actives |
-| [`scheduleTripAdapters.ts`](./scheduleTripAdapters.ts) | `ScheduledSegmentLookup` helpers: effective docked location + next-leg schedule |
-| [`continuity/`](./continuity/) | Docked identity continuity helpers |
-| [`tripLifecycle/`](./tripLifecycle/) | Remaining low-level trip-building helpers that still directly support the pipeline |
+| [`computeVesselTripUpdates.ts`](./computeVesselTripUpdates.ts) | Canonical internal one-vessel seam: package the per-vessel trip outcome plus lifecycle/storage flags |
+| [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Narrow the schedule snapshot into schedule evidence, map each location through the per-vessel steps, merge actives |
+| [`tripFields/`](./tripFields/) | Canonical owner of inferred trip fields: prefer WSF when present, otherwise infer provisional trip fields from schedule evidence |
+| [`tripLifecycle/`](./tripLifecycle/) | Physical lifecycle detection plus base-trip builders that consume already-prepared locations |
+
+## Subdomain Notes
+
+- [`tripFields/README.md`](./tripFields/README.md)
+  Engineering memo for the trip-field inference pipeline, including the
+  real-world problem, decision order, fallback behavior, and edge cases.

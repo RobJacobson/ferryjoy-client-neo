@@ -1,16 +1,16 @@
 /**
  * Orchestrator concern **updateTimeline**: sparse `eventsActual` /
  * `eventsPredicted` writes for one ping. Canonical implementation lives in this
- * folder (`pingEventWrites`, assembler, `buildTimelinePingProjectionInput`).
+ * folder (`timelineEventAssembler`, `buildTimelinePingProjectionInput`).
  *
  * Stage A contracts: `contracts.ts`. Canonical domain entry is
- * {@link runUpdateVesselTimeline} (`RunUpdateVesselTimelineInput` → output).
- * For `mergePingEventWrites` / ping assemblers, use `domain/vesselOrchestration/shared`
- * or import from `timelineEventAssembler` / `pingEventWrites` within this folder.
+ * {@link runUpdateVesselTimelineFromAssembly} (`RunUpdateVesselTimelineFromAssemblyInput` → output).
+ * Ping write types and `mergePingEventWrites` live in
+ * `domain/vesselOrchestration/shared/pingHandshake/projectionWire`; handshake DTOs
+ * live in `shared/pingHandshake/types`.
  * Tests may import `orchestratorTimelineProjection` internals directly.
  */
 
-export { assembleTripComputationsFromBundle } from "./assembleTripComputationsFromBundle";
 export {
   type BuildTimelinePingProjectionInputArgs,
   buildTimelinePingProjectionInput,
@@ -25,14 +25,11 @@ export type {
   TimelineTripComputation,
   TimelineTripComputationPersist,
 } from "./contracts";
-export {
-  runUpdateVesselTimeline,
-  runUpdateVesselTimelineFromAssembly,
-} from "./orchestratorTimelineProjection";
+export { runUpdateVesselTimelineFromAssembly } from "./orchestratorTimelineProjection";
 export type {
   PingEventWrites,
   TimelinePingProjectionInput,
-} from "./pingEventWrites";
+} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
 export type {
   CompletedTripBoundaryFact,
   CurrentTripActualEventMessage,
@@ -40,4 +37,4 @@ export type {
   CurrentTripPredictedEventMessage,
   TripPingLifecycleOutcome,
   VesselTripPersistResult,
-} from "./types";
+} from "domain/vesselOrchestration/shared/pingHandshake/types";

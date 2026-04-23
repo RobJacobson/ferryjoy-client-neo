@@ -123,7 +123,7 @@ const makePredictionRow = (
 ): VesselTripPredictionProposal => ({
   VesselAbbrev: vesselAbbrev,
   TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
-  PredictionType: "ArriveDest",
+  PredictionType: "AtSeaArriveNext",
   prediction: {
     PredTime: ms("2026-03-13T06:55:00-07:00"),
     MinTime: ms("2026-03-13T06:50:00-07:00"),

@@ -4,13 +4,10 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import type { TerminalIdentity } from "functions/terminals/schemas";
 import {
   vesselTripPredictionProposalSchema,
 } from "functions/vesselTripPredictions/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   vesselTripStoredSchema,
   vesselTripWithMlSchema,
@@ -60,16 +57,6 @@ export type {
   VesselTripUpdates,
 } from "./pipelineTypes";
 
-/**
- * One WSF batch plus identity rows after adapter conversion, before sequential
- * writes in `updateVesselOrchestrator`.
- */
-export type VesselOrchestratorTickSnapshot = {
-  convexLocations: ReadonlyArray<ConvexVesselLocation>;
-  terminalsIdentity: ReadonlyArray<TerminalIdentity>;
-  activeTrips: ReadonlyArray<ConvexVesselTrip>;
-};
-
 export const tripRowsForPingSchema = v.object({
   activeTrips: v.array(vesselTripStoredSchema),
   completedTrips: v.array(vesselTripStoredSchema),
@@ -104,47 +91,3 @@ export const orchestratorPingPersistenceSchema = v.object({
 export type OrchestratorPingPersistence = Infer<
   typeof orchestratorPingPersistenceSchema
 >;
-
-export const tripEventsSchema = v.object({
-  isFirstTrip: v.boolean(),
-  isTripStartReady: v.boolean(),
-  isCompletedTrip: v.boolean(),
-  didJustArriveAtDock: v.boolean(),
-  didJustLeaveDock: v.boolean(),
-  scheduleKeyChanged: v.boolean(),
-});
-
-export const completedTripBoundaryFactSchema = v.object({
-  existingTrip: vesselTripStoredSchema,
-  tripToComplete: vesselTripStoredSchema,
-  events: tripEventsSchema,
-  scheduleTrip: vesselTripStoredSchema,
-  newTrip: v.optional(vesselTripWithMlSchema),
-});
-
-export const currentTripActualEventMessageSchema = v.object({
-  events: tripEventsSchema,
-  scheduleTrip: vesselTripStoredSchema,
-  vesselAbbrev: v.string(),
-  requiresSuccessfulUpsert: v.boolean(),
-  finalProposed: v.optional(vesselTripWithMlSchema),
-});
-
-export const currentTripPredictedEventMessageSchema = v.object({
-  existingTrip: v.optional(vesselTripStoredSchema),
-  scheduleTrip: vesselTripStoredSchema,
-  vesselAbbrev: v.string(),
-  requiresSuccessfulUpsert: v.boolean(),
-  finalProposed: v.optional(vesselTripWithMlSchema),
-});
-
-export const currentTripLifecycleBranchResultSchema = v.object({
-  successfulVessels: v.array(v.string()),
-  pendingActualMessages: v.array(currentTripActualEventMessageSchema),
-  pendingPredictedMessages: v.array(currentTripPredictedEventMessageSchema),
-});
-
-export const timelineProjectionAssemblySchema = v.object({
-  completedFacts: v.array(completedTripBoundaryFactSchema),
-  currentBranch: currentTripLifecycleBranchResultSchema,
-});

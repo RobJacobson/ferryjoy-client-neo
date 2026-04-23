@@ -3,6 +3,7 @@ import type {
   ConvexScheduledDockEvent,
 } from "domain/events/scheduled";
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
+import { groupBy } from "../../shared/groupBy";
 import type {
   CompactScheduledDepartureEvent,
   OrchestratorScheduleSnapshot,
@@ -13,10 +14,11 @@ import type {
  *
  * The hot path needs only:
  * - direct segment lookups by `ScheduleKey`
- * - per-vessel ordered departure lists for rollover continuity
+ * - per-vessel ordered departure lists for rollover-based trip-field inference
  *
  * Materializing those once per sailing day avoids reloading the full
- * `eventsScheduled` boundary set on every ping.
+ * `eventsScheduled` boundary set on every ping while keeping schedule evidence
+ * ready for provisional trip fields when WSF is incomplete.
  */
 export const materializeOrchestratorScheduleSnapshot = (
   sailingDay: string,
@@ -30,36 +32,33 @@ export const materializeOrchestratorScheduleSnapshot = (
         left.TerminalAbbrev.localeCompare(right.TerminalAbbrev)
     );
 
+  const departureRowsByVesselAbbrev = groupBy(
+    departureRows,
+    (row) => row.VesselAbbrev
+  );
+
   const scheduledDeparturesByVesselAbbrev: Record<
     string,
     Array<CompactScheduledDepartureEvent>
-  > = {};
-  const departureRowsByVesselAbbrev = new Map<
-    string,
-    Array<ConvexScheduledDockEvent>
-  >();
-
-  for (const row of departureRows) {
-    const vesselRows = departureRowsByVesselAbbrev.get(row.VesselAbbrev) ?? [];
-    vesselRows.push(row);
-    departureRowsByVesselAbbrev.set(row.VesselAbbrev, vesselRows);
-
-    const vesselDepartures =
-      scheduledDeparturesByVesselAbbrev[row.VesselAbbrev] ?? [];
-    vesselDepartures.push({
-      Key: row.Key,
-      ScheduledDeparture: row.ScheduledDeparture,
-      TerminalAbbrev: row.TerminalAbbrev,
-    });
-    scheduledDeparturesByVesselAbbrev[row.VesselAbbrev] = vesselDepartures;
-  }
+  > = Object.fromEntries(
+    [...departureRowsByVesselAbbrev.entries()].map(
+      ([vesselAbbrev, vesselRows]) => [
+        vesselAbbrev,
+        vesselRows.map((row) => ({
+          Key: row.Key,
+          ScheduledDeparture: row.ScheduledDeparture,
+          TerminalAbbrev: row.TerminalAbbrev,
+        })),
+      ]
+    )
+  );
 
   const scheduledDepartureBySegmentKey: Record<
     string,
     ConvexInferredScheduledSegment
   > = {};
 
-  for (const [vesselAbbrev, vesselRows] of departureRowsByVesselAbbrev) {
+  for (const [, vesselRows] of departureRowsByVesselAbbrev) {
     for (const [index, row] of vesselRows.entries()) {
       const nextRow = vesselRows[index + 1];
       const segmentKey = getSegmentKeyFromBoundaryKey(row.Key);
@@ -72,10 +71,6 @@ export const materializeOrchestratorScheduleSnapshot = (
         NextKey: nextRow ? getSegmentKeyFromBoundaryKey(nextRow.Key) : undefined,
         NextDepartingTime: nextRow?.ScheduledDeparture,
       };
-    }
-
-    if (!scheduledDeparturesByVesselAbbrev[vesselAbbrev]) {
-      scheduledDeparturesByVesselAbbrev[vesselAbbrev] = [];
     }
   }
 
