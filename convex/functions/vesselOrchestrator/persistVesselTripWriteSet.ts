@@ -17,7 +17,7 @@ import type {
 } from "domain/vesselOrchestration/shared";
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import { areTripStorageRowsEqual } from "domain/vesselOrchestration/updateVesselTrips/storageRowsEqual";
+import { areTripStorageRowsEqual } from "domain/vesselOrchestration/updateVesselTrips/storage";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 type TripEvents = {
@@ -264,6 +264,7 @@ const completionTripEvents = (
     completedTrip.ArrivedNextActual !== undefined &&
     existingTrip.ArrivedNextActual !== completedTrip.ArrivedNextActual,
   didJustLeaveDock: false,
+  leftDockTime: completedTrip.LeftDockActual ?? completedTrip.LeftDock,
   scheduleKeyChanged: existingTrip.ScheduleKey !== completedTrip.ScheduleKey,
 });
 
@@ -288,6 +289,7 @@ const currentTripEvents = (
     existingTrip?.AtDock === true &&
     nextTrip.AtDock !== true &&
     nextTrip.LeftDockActual !== undefined,
+  leftDockTime: nextTrip.LeftDockActual ?? nextTrip.LeftDock,
   scheduleKeyChanged: existingTrip?.ScheduleKey !== nextTrip.ScheduleKey,
 });
 

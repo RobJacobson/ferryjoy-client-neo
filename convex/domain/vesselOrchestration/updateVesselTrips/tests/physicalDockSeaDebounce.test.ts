@@ -5,13 +5,13 @@
 import { describe, expect, it } from "bun:test";
 import {
   rawDepartureIsContradictory,
-  resolveDebouncedPhysicalBoundaries,
-} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/physicalDockSeaDebounce";
+  resolvePhysicalState,
+} from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
-describe("resolveDebouncedPhysicalBoundaries", () => {
+describe("resolvePhysicalState", () => {
   it("suppresses departure when LeftDock appears but the ping still looks docked", () => {
     const existingTrip = makeTrip({
       LeftDock: undefined,
@@ -25,7 +25,7 @@ describe("resolveDebouncedPhysicalBoundaries", () => {
     });
 
     expect(rawDepartureIsContradictory(existingTrip, currLocation)).toBe(true);
-    const { didJustLeaveDock } = resolveDebouncedPhysicalBoundaries(
+    const { didJustLeaveDock } = resolvePhysicalState(
       existingTrip,
       currLocation
     );
@@ -45,7 +45,7 @@ describe("resolveDebouncedPhysicalBoundaries", () => {
     });
 
     expect(rawDepartureIsContradictory(existingTrip, currLocation)).toBe(false);
-    const { didJustLeaveDock } = resolveDebouncedPhysicalBoundaries(
+    const { didJustLeaveDock } = resolvePhysicalState(
       existingTrip,
       currLocation
     );

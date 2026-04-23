@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildCompletedTrip";
+import { buildCompletedTrip } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 

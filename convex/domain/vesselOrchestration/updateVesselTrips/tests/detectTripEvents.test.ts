@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/detectTripEvents";
-import { getDockDepartureState } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripDerivation";
-import { resolveDebouncedPhysicalBoundaries } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/physicalDockSeaDebounce";
+import {
+  detectTripEvents,
+  resolvePhysicalState,
+} from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -125,18 +126,10 @@ describe("detectTripEvents", () => {
       TimeStamp: ms("2026-03-13T05:29:35-07:00"),
     });
 
-    const physicalBoundaries = resolveDebouncedPhysicalBoundaries(
-      existingTrip,
-      currLocation
-    );
-    const departureState = getDockDepartureState(
-      existingTrip,
-      currLocation,
-      physicalBoundaries
-    );
+    const physicalState = resolvePhysicalState(existingTrip, currLocation);
     const events = detectTripEvents(existingTrip, currLocation);
 
-    expect(departureState.leftDockTime).toBeUndefined();
+    expect(physicalState.leftDockTime).toBeUndefined();
     expect(events.didJustLeaveDock).toBe(false);
   });
 
@@ -195,18 +188,10 @@ describe("detectTripEvents", () => {
       TimeStamp: ms("2026-03-13T05:29:40-07:00"),
     });
 
-    const physicalBoundaries = resolveDebouncedPhysicalBoundaries(
-      existingTrip,
-      currLocation
-    );
-    const departureState = getDockDepartureState(
-      existingTrip,
-      currLocation,
-      physicalBoundaries
-    );
+    const physicalState = resolvePhysicalState(existingTrip, currLocation);
     const events = detectTripEvents(existingTrip, currLocation);
 
-    expect(departureState.leftDockTime).toBe(ms("2026-03-13T05:29:38-07:00"));
+    expect(physicalState.leftDockTime).toBe(ms("2026-03-13T05:29:38-07:00"));
     expect(events.didJustLeaveDock).toBe(true);
   });
 

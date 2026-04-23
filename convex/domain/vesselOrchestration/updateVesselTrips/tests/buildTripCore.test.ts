@@ -1,8 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
-import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import { computeTripUpdatesForPing } from "functions/vesselOrchestrator/actions";
 import {
   makeLocation,
@@ -18,6 +18,7 @@ const continuingEvents = (overrides: Partial<TripEvents> = {}): TripEvents => ({
   isCompletedTrip: false,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
+  leftDockTime: undefined,
   scheduleKeyChanged: false,
   ...overrides,
 });
@@ -325,7 +326,7 @@ describe("buildTripCore", () => {
     );
     expect(authoritativeTrip.ScheduleKey).toBe(nextSegment.Key);
 
-    const tripUpdates = computeTripUpdatesForPing(
+    const tripBatch = computeTripUpdatesForPing(
       [
         {
           vesselLocation: makeLocation({
@@ -347,6 +348,8 @@ describe("buildTripCore", () => {
       "2026-03-13"
     );
 
-    expect(tripUpdates).toEqual([]);
+    expect(tripBatch.updates).toEqual([]);
+    expect(tripBatch.rows.activeTrips).toEqual([authoritativeTrip]);
+    expect(tripBatch.rows.completedTrips).toEqual([]);
   });
 });

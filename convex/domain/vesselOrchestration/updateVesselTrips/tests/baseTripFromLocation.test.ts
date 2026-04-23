@@ -7,8 +7,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { ResolvedCurrentTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields/types";
-import { baseTripFromLocation } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation";
+import { baseTripFromLocation } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -20,6 +21,14 @@ const ms = (iso: string) => new Date(iso).getTime();
 const locationOnlyTripFieldResolution: ResolvedCurrentTripFields = {
   tripFieldDataSource: "wsf",
 };
+
+const continuingEvents = (
+  overrides: Partial<TripEvents> = {}
+): Pick<TripEvents, "didJustLeaveDock" | "leftDockTime"> => ({
+  didJustLeaveDock: false,
+  leftDockTime: undefined,
+  ...overrides,
+});
 
 describe("baseTripFromLocation", () => {
   it("uses the current scheduled departure to set SailingDay on trip start", () => {
@@ -34,7 +43,8 @@ describe("baseTripFromLocation", () => {
       currLocation,
       undefined,
       true,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
     expect(scheduledDeparture).toBeDefined();
@@ -57,7 +67,8 @@ describe("baseTripFromLocation", () => {
       currLocation,
       existingTrip,
       false,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
     expect(trip.ScheduledDeparture).toBeUndefined();
@@ -74,7 +85,8 @@ describe("baseTripFromLocation", () => {
       currLocation,
       undefined,
       false,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
     expect(trip.ScheduledDeparture).toBeUndefined();
@@ -99,7 +111,8 @@ describe("baseTripFromLocation", () => {
       currLocation,
       existingTrip,
       true,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
     expect(trip.DepartingTerminalAbbrev).toBe(
@@ -125,7 +138,8 @@ describe("baseTripFromLocation", () => {
       currLocation,
       undefined,
       false,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
     expect(trip.StartTime).toBe(currLocation.TimeStamp);
@@ -150,7 +164,11 @@ describe("baseTripFromLocation", () => {
       currLocation,
       undefined,
       false,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents({
+        didJustLeaveDock: true,
+        leftDockTime: currLocation.LeftDock,
+      })
     );
 
     expect(trip.TripKey).toBe(
@@ -194,7 +212,8 @@ describe("baseTripFromLocation", () => {
       currLocation,
       existingTrip,
       false,
-      locationOnlyTripFieldResolution
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
     expect(trip.ScheduleKey).toBe("CAT--2026-04-04--18:45--SOU-VAI");
@@ -214,7 +233,8 @@ describe("baseTripFromLocation", () => {
         currLocation,
         existingTrip,
         false,
-        locationOnlyTripFieldResolution
+        locationOnlyTripFieldResolution,
+        continuingEvents()
       )
     ).toThrow("Continuing vessel trip is missing TripKey");
   });

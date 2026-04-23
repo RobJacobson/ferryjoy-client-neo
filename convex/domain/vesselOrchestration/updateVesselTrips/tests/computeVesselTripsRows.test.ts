@@ -4,7 +4,7 @@
 
 import { describe, expect, it, spyOn } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -56,6 +56,7 @@ const defaultEvents: TripEvents = {
   isCompletedTrip: false,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
+  leftDockTime: undefined,
   scheduleKeyChanged: false,
 };
 
@@ -88,9 +89,7 @@ const makeLocation = (
 
 describe("computeVesselTripsRows", () => {
   it("returns empty arrays when the ping has no realtime inputs or active trips", async () => {
-    const { computeVesselTripsRows } = await import(
-      "../computeVesselTripsRows"
-    );
+    const { computeVesselTripsRows } = await import("../computeVesselTripsBatch");
 
     const result = computeVesselTripsRows({
       vesselLocations: [],
@@ -114,10 +113,8 @@ describe("computeVesselTripsRows", () => {
       TripKey: generateTripKey("TAC", ms("2026-03-13T05:00:00-07:00")),
       ScheduleKey: "TAC--2026-03-13--05:15--P52-BBI",
     });
-    const detectTripEventsMod = await import(
-      "../tripLifecycle/detectTripEvents"
-    );
-    const buildTripMod = await import("../tripLifecycle/buildTrip");
+    const detectTripEventsMod = await import("../lifecycle");
+    const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildTripCore");
 
@@ -126,7 +123,7 @@ describe("computeVesselTripsRows", () => {
 
     try {
       const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsRows"
+        "../computeVesselTripsBatch"
       );
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],
@@ -164,13 +161,9 @@ describe("computeVesselTripsRows", () => {
       isCompletedTrip: true,
       didJustArriveAtDock: true,
     };
-    const detectTripEventsMod = await import(
-      "../tripLifecycle/detectTripEvents"
-    );
-    const buildTripMod = await import("../tripLifecycle/buildTrip");
-    const buildCompletedTripMod = await import(
-      "../tripLifecycle/buildCompletedTrip"
-    );
+    const detectTripEventsMod = await import("../lifecycle");
+    const buildTripMod = await import("../tripBuilders");
+    const buildCompletedTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildTripCore");
     const buildCompletedSpy = spyOn(
@@ -184,7 +177,7 @@ describe("computeVesselTripsRows", () => {
 
     try {
       const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsRows"
+        "../computeVesselTripsBatch"
       );
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
@@ -205,10 +198,8 @@ describe("computeVesselTripsRows", () => {
 
   it("falls back to the existing active trip when a per-vessel update fails", async () => {
     const existingTrip = makeTrip();
-    const detectTripEventsMod = await import(
-      "../tripLifecycle/detectTripEvents"
-    );
-    const buildTripMod = await import("../tripLifecycle/buildTrip");
+    const detectTripEventsMod = await import("../lifecycle");
+    const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildTripCore");
 
@@ -219,7 +210,7 @@ describe("computeVesselTripsRows", () => {
 
     try {
       const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsRows"
+        "../computeVesselTripsBatch"
       );
       const result = computeVesselTripsRows({
         vesselLocations: [makeLocation()],

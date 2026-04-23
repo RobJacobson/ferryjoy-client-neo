@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { ResolvedCurrentTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields/types";
-import { resolveDebouncedPhysicalBoundaries } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/physicalDockSeaDebounce";
 import {
-  deriveTripInputs,
-  getDockDepartureState,
-} from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripDerivation";
+  resolvePhysicalState,
+} from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
+import { baseTripFromLocation } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import { makeLocation, makeTrip, ms } from "../tripFields/tests/testHelpers";
 
 const locationOnlyTripFieldResolution: ResolvedCurrentTripFields = {
@@ -26,22 +26,21 @@ describe("tripDerivation", () => {
       TimeStamp: ms("2026-04-04T16:56:05-07:00"),
     });
 
-    const derived = deriveTripInputs(
-      undefined,
+    const derived = baseTripFromLocation(
       preparedLocation,
-      locationOnlyTripFieldResolution
+      undefined,
+      false,
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
-    expect(derived.currentArrivingTerminalAbbrev).toBe("VAI");
-    expect(derived.currentScheduledDeparture).toBe(
+    expect(derived.ArrivingTerminalAbbrev).toBe("VAI");
+    expect(derived.ScheduledDeparture).toBe(
       ms("2026-04-04T18:45:00-07:00")
     );
-    expect(derived.startScheduleKey).toBe("CAT--2026-04-04--18:45--SOU-VAI");
-    expect(derived.startSailingDay).toBe("2026-04-04");
-    expect(derived.continuingScheduleKey).toBe(
-      "CAT--2026-04-04--18:45--SOU-VAI"
-    );
-    expect(derived.previousCompletedTrip).toBeUndefined();
+    expect(derived.ScheduleKey).toBe("CAT--2026-04-04--18:45--SOU-VAI");
+    expect(derived.SailingDay).toBe("2026-04-04");
+    expect(derived.PrevTerminalAbbrev).toBeUndefined();
   });
 
   it("prefers resolved current-trip fields over raw location when both are present", () => {
@@ -61,14 +60,20 @@ describe("tripDerivation", () => {
       tripFieldInferenceMethod: "next_scheduled_trip",
     };
 
-    const derived = deriveTripInputs(undefined, rawLocation, resolved);
+    const derived = baseTripFromLocation(
+      rawLocation,
+      undefined,
+      false,
+      resolved,
+      continuingEvents()
+    );
 
-    expect(derived.currentArrivingTerminalAbbrev).toBe("MUK");
-    expect(derived.currentScheduledDeparture).toBe(
+    expect(derived.ArrivingTerminalAbbrev).toBe("MUK");
+    expect(derived.ScheduledDeparture).toBe(
       ms("2026-03-13T11:00:00-07:00")
     );
-    expect(derived.startScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
-    expect(derived.startSailingDay).toBe("2026-03-13");
+    expect(derived.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
+    expect(derived.SailingDay).toBe("2026-03-13");
   });
 
   it("keeps prior completed-trip context only when the persisted trip has lifecycle evidence", () => {
@@ -77,13 +82,15 @@ describe("tripDerivation", () => {
       LeftDockActual: ms("2026-03-13T11:02:00-07:00"),
     });
 
-    const derived = deriveTripInputs(
-      existingTrip,
+    const derived = baseTripFromLocation(
       makeLocation(),
-      locationOnlyTripFieldResolution
+      existingTrip,
+      true,
+      locationOnlyTripFieldResolution,
+      continuingEvents()
     );
 
-    expect(derived.previousCompletedTrip).toBe(existingTrip);
+    expect(derived.PrevLeftDock).toBe(existingTrip.LeftDockActual);
   });
 
   it("suppresses a contradictory feed-only leave-dock stamp", () => {
@@ -99,17 +106,17 @@ describe("tripDerivation", () => {
       TimeStamp: ms("2026-03-13T11:05:30-07:00"),
     });
 
-    const physicalBoundaries = resolveDebouncedPhysicalBoundaries(
-      existingTrip,
-      currLocation
-    );
-    const departureState = getDockDepartureState(
-      existingTrip,
-      currLocation,
-      physicalBoundaries
-    );
+    const physicalState = resolvePhysicalState(existingTrip, currLocation);
 
-    expect(departureState.leftDockTime).toBeUndefined();
-    expect(departureState.didJustLeaveDock).toBe(false);
+    expect(physicalState.leftDockTime).toBeUndefined();
+    expect(physicalState.didJustLeaveDock).toBe(false);
   });
+});
+
+const continuingEvents = (
+  overrides: Partial<TripEvents> = {}
+): Pick<TripEvents, "didJustLeaveDock" | "leftDockTime"> => ({
+  didJustLeaveDock: false,
+  leftDockTime: undefined,
+  ...overrides,
 });

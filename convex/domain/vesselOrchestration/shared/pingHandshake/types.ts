@@ -7,7 +7,7 @@
  * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler.ts`).
  */
 
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,

@@ -1,10 +1,6 @@
 import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-/**
- * Compares the persisted shape of two trip rows so downstream stages can reason
- * about whether the active-trip storage row would actually change.
- */
 export const areTripStorageRowsEqual = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip | undefined
@@ -18,3 +14,16 @@ export const areTripStorageRowsEqual = (
     JSON.stringify(stripTripPredictionsForStorage(nextTrip))
   );
 };
+
+export const logTripPipelineFailure = (
+  vesselAbbrev: string,
+  phase: string,
+  error: unknown
+): void => {
+  const err = error instanceof Error ? error : new Error(String(error));
+  console.error(
+    `[VesselTrips] Failed ${phase} for ${vesselAbbrev}: ${err.message}`,
+    err
+  );
+};
+

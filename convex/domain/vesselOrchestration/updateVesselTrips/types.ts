@@ -1,16 +1,13 @@
 /**
- * Types for the pure `updateVesselTrips` pipeline: public runner I/O
- * (`RunUpdateVesselTripsInput` / `RunUpdateVesselTripsOutput`), intermediate
- * {@link CalculatedTripUpdate}, and per-ping row outcomes {@link VesselPingTripRows}.
+ * Shared contracts for the pure `updateVesselTrips` pipeline.
  */
 
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Arguments for {@link computeVesselTripsRows}: one feed batch plus schedule
+ * Arguments for the trip batch runner: one feed batch plus schedule
  * snapshot for segment lookups.
  */
 export type RunUpdateVesselTripsInput = {
@@ -46,38 +43,4 @@ export type VesselTripUpdates = {
   replacementTrip?: ConvexVesselTrip;
   tripStorageChanged: boolean;
   tripLifecycleChanged: boolean;
-};
-
-/**
- * One feed row joined with optional prior active trip and {@link TripEvents}.
- *
- * Produced by {@link computeVesselTripUpdates}; consumed by
- * {@link tripRowsForVesselPing}.
- */
-export type CalculatedTripUpdate = {
-  vesselLocation: ConvexVesselLocation;
-  existingActiveTrip?: ConvexVesselTrip;
-  events: TripEvents;
-};
-
-/**
- * {@link CalculatedTripUpdate} with a definite prior active row.
- *
- * Required to emit a completed trip close in {@link tripRowsForVesselPing}.
- */
-export type CompletedTripUpdate = CalculatedTripUpdate & {
-  existingActiveTrip: ConvexVesselTrip;
-};
-
-/**
- * Optional stored rows produced for one vessel on one ping (table names align
- * with `completedVesselTrips` / `activeVesselTrips`).
- *
- * A completion with a closable prior yields both; a continuing trip yields only
- * `activeVesselTrip`; a completion signal without a prior active yields neither
- * (same ping contributes nothing).
- */
-export type VesselPingTripRows = {
-  completedVesselTrip?: ConvexVesselTrip;
-  activeVesselTrip?: ConvexVesselTrip;
 };

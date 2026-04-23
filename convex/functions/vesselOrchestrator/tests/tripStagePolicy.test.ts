@@ -91,7 +91,7 @@ const makeLocationUpdate = (
 
 describe("trip stage schedule-inference gating", () => {
   it("skips trip recomputation for unchanged locations", () => {
-    const tripUpdates = computeTripUpdatesForPing(
+    const tripBatch = computeTripUpdatesForPing(
       [
         makeLocationUpdate("CHE", false),
         makeLocationUpdate("TAC", true, {
@@ -103,8 +103,9 @@ describe("trip stage schedule-inference gating", () => {
       "2026-03-13"
     );
 
-    expect(tripUpdates).toHaveLength(1);
-    expect(tripUpdates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
+    expect(tripBatch.updates).toHaveLength(1);
+    expect(tripBatch.updates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
+    expect(tripBatch.rows.activeTrips).toHaveLength(2);
   });
 
   it("logs one aggregated skip summary when every location is unchanged", () => {
