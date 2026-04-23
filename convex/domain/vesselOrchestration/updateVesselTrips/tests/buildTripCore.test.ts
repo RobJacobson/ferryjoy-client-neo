@@ -1,6 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
+import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
+import { computeTripUpdatesForPing } from "functions/vesselOrchestrator/actions";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -20,6 +22,12 @@ const continuingEvents = (
   scheduleKeyChanged: false,
   ...overrides,
 });
+
+const emptyScheduleSnapshot: ScheduleSnapshot = {
+  SailingDay: "2026-03-13",
+  scheduledDepartureBySegmentKey: {},
+  scheduledDeparturesByVesselAbbrev: {},
+};
 
 describe("buildTripCore", () => {
   it("keeps inferred trip fields stable while WSF remains incomplete", () => {
@@ -199,5 +207,113 @@ describe("buildTripCore", () => {
       }
     );
     expect("tripFieldInferenceMethod" in trip).toBe(false);
+  });
+
+  it("handles provisional inference, authoritative WSF takeover, and then skips an unchanged ping", () => {
+    const onTripFieldsResolved = mock(() => {});
+    const nextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--MUK-CLI",
+      DepartingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: "CLI",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+      NextKey: "CHE--2026-03-13--14:00--CLI-MUK",
+      NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
+    });
+    const scheduleTables = makeScheduledTables({
+      segments: [nextSegment],
+    });
+    const existingTrip = makeTrip({
+      AtDock: true,
+      LeftDock: undefined,
+      DepartingTerminalAbbrev: "MUK",
+      DepartingTerminalName: "Mukilteo",
+      ArrivingTerminalAbbrev: "MUK",
+      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      NextScheduleKey: nextSegment.Key,
+      NextScheduledDeparture: nextSegment.DepartingTime,
+    });
+
+    const inferredTrip = buildTripCore(
+      makeLocation({
+        AtDock: true,
+        LeftDock: undefined,
+        DepartingTerminalAbbrev: "MUK",
+        DepartingTerminalName: "Mukilteo",
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+        TimeStamp: ms("2026-03-13T12:00:00-07:00"),
+      }),
+      existingTrip,
+      false,
+      continuingEvents(),
+      scheduleTables,
+      { onTripFieldsResolved }
+    );
+
+    const authoritativeTrip = buildTripCore(
+      makeLocation({
+        AtDock: true,
+        LeftDock: undefined,
+        DepartingTerminalAbbrev: "MUK",
+        DepartingTerminalName: "Mukilteo",
+        ArrivingTerminalAbbrev: "CLI",
+        ScheduledDeparture: nextSegment.DepartingTime,
+        ScheduleKey: undefined,
+        TimeStamp: ms("2026-03-13T12:01:00-07:00"),
+      }),
+      inferredTrip,
+      false,
+      continuingEvents(),
+      scheduleTables,
+      { onTripFieldsResolved }
+    );
+
+    expect(onTripFieldsResolved).toHaveBeenCalledTimes(2);
+    expect(onTripFieldsResolved.mock.calls[0]?.[0]?.inferredTripFields).toMatchObject(
+      {
+        tripFieldDataSource: "inferred",
+        tripFieldInferenceMethod: "next_scheduled_trip",
+        ScheduleKey: nextSegment.Key,
+      }
+    );
+    expect(onTripFieldsResolved.mock.calls[1]?.[0]?.inferredTripFields).toMatchObject(
+      {
+        tripFieldDataSource: "wsf",
+        ScheduleKey: nextSegment.Key,
+      }
+    );
+    expect(
+      onTripFieldsResolved.mock.calls[1]?.[0]?.inferredTripFields
+        .tripFieldInferenceMethod
+    ).toBeUndefined();
+    expect(authoritativeTrip.ArrivingTerminalAbbrev).toBe("CLI");
+    expect(authoritativeTrip.ScheduledDeparture).toBe(nextSegment.DepartingTime);
+    expect(authoritativeTrip.ScheduleKey).toBe(nextSegment.Key);
+
+    const tripUpdates = computeTripUpdatesForPing(
+      [
+        {
+          vesselLocation: makeLocation({
+            VesselAbbrev: "CHE",
+            AtDock: true,
+            LeftDock: undefined,
+            DepartingTerminalAbbrev: "MUK",
+            DepartingTerminalName: "Mukilteo",
+            ArrivingTerminalAbbrev: "CLI",
+            ScheduledDeparture: nextSegment.DepartingTime,
+            ScheduleKey: undefined,
+            TimeStamp: ms("2026-03-13T12:01:00-07:00"),
+          }),
+          locationChanged: false,
+        },
+      ],
+      [authoritativeTrip],
+      emptyScheduleSnapshot,
+      "2026-03-13"
+    );
+
+    expect(tripUpdates).toEqual([]);
   });
 });
