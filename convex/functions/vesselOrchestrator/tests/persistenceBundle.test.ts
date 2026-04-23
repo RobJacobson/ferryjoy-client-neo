@@ -6,7 +6,6 @@ import type {
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   VesselLocationUpdates,
-  VesselPredictionUpdates,
   VesselTripUpdate,
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
@@ -166,15 +165,6 @@ describe("buildOrchestratorPersistenceBundle", () => {
     const cheCompleted = makeTrip("CHE", {
       TripEnd: ms("2026-03-13T06:40:00-07:00"),
     });
-    const predictionUpdates: VesselPredictionUpdates[] = [
-      {
-        vesselAbbrev: "CHE",
-        predictionRows: [makePredictionRow("CHE")],
-        predictedTripComputations: [makePredictedTripComputation("CHE")],
-        completedHandoffs: [makeCompletedHandoff("CHE")],
-      },
-    ];
-
     const bundle = buildOrchestratorPersistenceBundle({
       pingStartedAt: ms("2026-03-13T06:35:00-07:00"),
       locationUpdates: [changedLocationUpdate, unchangedLocationUpdate],
@@ -195,7 +185,10 @@ describe("buildOrchestratorPersistenceBundle", () => {
         },
         completedHandoffs: [makeCompletedHandoff("CHE")],
       },
-      predictionUpdates,
+      predictionStage: {
+        predictionRows: [makePredictionRow("CHE")],
+        predictedTripComputations: [makePredictedTripComputation("CHE")],
+      },
     });
 
     expect(

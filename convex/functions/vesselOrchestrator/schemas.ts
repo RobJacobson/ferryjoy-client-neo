@@ -11,52 +11,13 @@ import {
   vesselTripWithMlSchema,
 } from "functions/vesselTrips/schemas";
 
-export const compactScheduledDepartureEventSchema = v.object({
-  Key: v.string(),
-  ScheduledDeparture: v.number(),
-  TerminalAbbrev: v.string(),
-});
-
 export const storedVesselLocationSchema = v.object({
   _id: v.id("vesselLocations"),
   ...vesselLocationValidationSchema.fields,
 });
 
-export const inferredScheduledSegmentSchema = v.object({
-  Key: v.string(),
-  SailingDay: v.string(),
-  DepartingTerminalAbbrev: v.string(),
-  ArrivingTerminalAbbrev: v.string(),
-  DepartingTime: v.number(),
-  NextKey: v.optional(v.string()),
-  NextDepartingTime: v.optional(v.number()),
-});
-
-export const orchestratorScheduleSnapshotSchema = v.object({
-  SailingDay: v.string(),
-  UpdatedAt: v.number(),
-  scheduledDepartureBySegmentKey: v.record(
-    v.string(),
-    inferredScheduledSegmentSchema
-  ),
-  scheduledDeparturesByVesselAbbrev: v.record(
-    v.string(),
-    v.array(compactScheduledDepartureEventSchema)
-  ),
-});
-
-export type CompactScheduledDepartureEvent = Infer<
-  typeof compactScheduledDepartureEventSchema
->;
-
-export type OrchestratorScheduleSnapshot = Infer<
-  typeof orchestratorScheduleSnapshotSchema
->;
-
 export type {
   VesselLocationUpdates,
-  VesselPredictionUpdates,
-  VesselTimelineUpdates,
   VesselTripUpdate,
 } from "./pipelineTypes";
 
