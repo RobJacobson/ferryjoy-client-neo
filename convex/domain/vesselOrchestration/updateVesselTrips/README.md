@@ -26,3 +26,9 @@ back into trip-internal artifacts.
 | [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Narrow the schedule snapshot into schedule evidence, map each location through the per-vessel steps, merge actives |
 | [`tripFields/`](./tripFields/) | Canonical owner of inferred trip fields: prefer WSF when present, otherwise infer provisional trip fields from schedule evidence |
 | [`tripLifecycle/`](./tripLifecycle/) | Physical lifecycle detection plus base-trip builders that consume already-prepared locations |
+
+## Subdomain Notes
+
+- [`tripFields/README.md`](./tripFields/README.md)
+  Engineering memo for the trip-field inference pipeline, including the
+  real-world problem, decision order, fallback behavior, and edge cases.
