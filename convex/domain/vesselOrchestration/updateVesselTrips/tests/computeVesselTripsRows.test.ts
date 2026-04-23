@@ -3,7 +3,10 @@
  */
 
 import { describe, expect, it, spyOn } from "bun:test";
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
+import {
+  createScheduledSegmentTablesFromSnapshot,
+  type TripLifecycleEventFlags,
+} from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -97,11 +100,13 @@ describe("computeVesselTripsRows", () => {
       "../computeVesselTripsBatch"
     );
 
-    const result = computeVesselTripsRows({
+    const result = await computeVesselTripsRows({
       vesselLocations: [],
       existingActiveTrips: [],
-      scheduleSnapshot: emptyScheduleSnapshot,
-      sailingDay: testSailingDay,
+      scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+        emptyScheduleSnapshot,
+        testSailingDay
+      ),
     });
 
     expect(result).toEqual({
@@ -125,7 +130,7 @@ describe("computeVesselTripsRows", () => {
     const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
 
     detectSpy.mockImplementation(() => defaultEvents);
-    buildTripSpy.mockImplementation(() => ({
+    buildTripSpy.mockImplementation(async () => ({
       activeVesselTrip: updatedTrip,
     }));
 
@@ -133,11 +138,13 @@ describe("computeVesselTripsRows", () => {
       const { computeVesselTripsRows } = await import(
         "../computeVesselTripsBatch"
       );
-      const result = computeVesselTripsRows({
+      const result = await computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [makeTrip(), untouchedTrip],
-        scheduleSnapshot: emptyScheduleSnapshot,
-        sailingDay: testSailingDay,
+        scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+          emptyScheduleSnapshot,
+          testSailingDay
+        ),
       });
 
       expect(result.completedTrips).toEqual([]);
@@ -175,7 +182,7 @@ describe("computeVesselTripsRows", () => {
     const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
 
     detectSpy.mockImplementation(() => completedEvents);
-    buildTripSpy.mockImplementation(() => ({
+    buildTripSpy.mockImplementation(async () => ({
       activeVesselTrip: replacementTrip,
       completedVesselTrip: completedTrip,
     }));
@@ -184,11 +191,13 @@ describe("computeVesselTripsRows", () => {
       const { computeVesselTripsRows } = await import(
         "../computeVesselTripsBatch"
       );
-      const result = computeVesselTripsRows({
+      const result = await computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
         existingActiveTrips: [completedExisting],
-        scheduleSnapshot: emptyScheduleSnapshot,
-        sailingDay: testSailingDay,
+        scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+          emptyScheduleSnapshot,
+          testSailingDay
+        ),
       });
 
       expect(result.completedTrips).toEqual([completedTrip]);
@@ -216,11 +225,13 @@ describe("computeVesselTripsRows", () => {
       const { computeVesselTripsRows } = await import(
         "../computeVesselTripsBatch"
       );
-      const result = computeVesselTripsRows({
+      const result = await computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [existingTrip],
-        scheduleSnapshot: emptyScheduleSnapshot,
-        sailingDay: testSailingDay,
+        scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+          emptyScheduleSnapshot,
+          testSailingDay
+        ),
       });
 
       expect(result.completedTrips).toEqual([]);

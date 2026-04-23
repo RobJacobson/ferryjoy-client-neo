@@ -1,8 +1,5 @@
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
-import {
-  getScheduledDeparturesForVesselAndSailingDay,
-  type ScheduledSegmentTables,
-} from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
@@ -17,33 +14,38 @@ import type { ScheduledTripMatch } from "./types";
  * @param scheduleTables - Prefetched schedule evidence tables
  * @returns Match tagged `schedule_rollover`, or null
  */
-export const getRolledOverScheduledTrip = ({
+export const getRolledOverScheduledTrip = async ({
   location,
   existingTrip,
-  scheduleTables,
+  scheduleAccess,
 }: {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleTables: ScheduledSegmentTables;
-}): ScheduledTripMatch | null => {
+  scheduleAccess: ScheduleContinuityAccess;
+}): Promise<ScheduledTripMatch | null> => {
   const scheduledDeparture = existingTrip?.ScheduledDeparture;
   if (scheduledDeparture === undefined) {
     return null;
   }
 
   const priorTripSailingDay = getSailingDay(new Date(scheduledDeparture));
-  const nextDeparture = [priorTripSailingDay, scheduleTables.sailingDay]
-    .filter(
-      (sailingDay, index, sailingDays) =>
-        sailingDays.indexOf(sailingDay) === index
-    )
-    .flatMap((sailingDay) =>
-      getScheduledDeparturesForVesselAndSailingDay(
-        scheduleTables,
+  const sailingDays = [
+    ...new Set([
+      priorTripSailingDay,
+      getSailingDay(new Date(location.TimeStamp)),
+    ]),
+  ];
+  const departuresByDay = await Promise.all(
+    sailingDays.map((sailingDay) =>
+      scheduleAccess.getScheduledDeparturesForVesselAndSailingDay(
         location.VesselAbbrev,
         sailingDay
       )
     )
+  );
+  const nextDeparture = sailingDays
+    .filter((_sailingDay, index) => departuresByDay[index] !== undefined)
+    .flatMap((_sailingDay, index) => departuresByDay[index] ?? [])
     .find(
       (departure) =>
         departure.TerminalAbbrev === location.DepartingTerminalAbbrev &&
@@ -54,7 +56,7 @@ export const getRolledOverScheduledTrip = ({
   }
 
   const segmentKey = getSegmentKeyFromBoundaryKey(nextDeparture.Key);
-  const segment = scheduleTables.scheduledDepartureBySegmentKey[segmentKey];
+  const segment = await scheduleAccess.getScheduledSegmentByKey(segmentKey);
   if (!segment) {
     return null;
   }

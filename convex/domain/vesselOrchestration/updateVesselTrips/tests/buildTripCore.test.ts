@@ -52,10 +52,10 @@ const buildActiveTrip = ({
       events,
     },
     scheduleTables
-  ).activeVesselTrip;
+  ).then((result) => result.activeVesselTrip);
 
 describe("buildTripRowsForPing", () => {
-  it("keeps inferred trip fields stable while WSF remains incomplete", () => {
+  it("keeps inferred trip fields stable while WSF remains incomplete", async () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: "MUK",
       ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
@@ -64,7 +64,7 @@ describe("buildTripRowsForPing", () => {
       NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = buildActiveTrip({
+    const trip = await buildActiveTrip({
       vesselLocation: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -80,14 +80,14 @@ describe("buildTripRowsForPing", () => {
     expect(trip?.ScheduleKey).toBe(existingTrip.ScheduleKey);
   });
 
-  it("replaces inferred fields immediately when WSF provides authoritative values", () => {
+  it("replaces inferred fields immediately when WSF provides authoritative values", async () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: "MUK",
       ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
       ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
     });
 
-    const trip = buildActiveTrip({
+    const trip = await buildActiveTrip({
       vesselLocation: makeLocation({
         ArrivingTerminalAbbrev: "SHI",
         ScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
@@ -104,7 +104,7 @@ describe("buildTripRowsForPing", () => {
     expect(trip?.ScheduleKey).toBe("CHE--2026-03-13--12:30--CLI-SHI");
   });
 
-  it("starts the replacement trip with inferred fields after a completed arrival", () => {
+  it("starts the replacement trip with inferred fields after a completed arrival", async () => {
     const completedTrip = makeTrip({
       AtDock: true,
       LeftDock: ms("2026-03-13T10:00:00-07:00"),
@@ -123,7 +123,7 @@ describe("buildTripRowsForPing", () => {
       NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
     });
 
-    const tripRows = buildTripRowsForPing(
+    const tripRows = await buildTripRowsForPing(
       {
         vesselLocation: makeLocation({
           DepartingTerminalAbbrev: "MUK",
@@ -154,7 +154,7 @@ describe("buildTripRowsForPing", () => {
     );
   });
 
-  it("keeps physical arrival behavior while trip fields are inferred", () => {
+  it("keeps physical arrival behavior while trip fields are inferred", async () => {
     const existingTrip = makeTrip({
       AtDock: false,
       LeftDock: ms("2026-03-13T11:02:00-07:00"),
@@ -175,7 +175,7 @@ describe("buildTripRowsForPing", () => {
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = buildActiveTrip({
+    const trip = await buildActiveTrip({
       vesselLocation: makeLocation({
         AtDock: true,
         LeftDock: existingTrip.LeftDock,
@@ -201,14 +201,14 @@ describe("buildTripRowsForPing", () => {
     expect(trip?.ArriveDest).toBe(ms("2026-03-13T11:28:00-07:00"));
   });
 
-  it("keeps tripFieldInferenceMethod transient while still exposing it to observability hooks", () => {
+  it("keeps tripFieldInferenceMethod transient while still exposing it to observability hooks", async () => {
     const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = resolveTripFieldsForTripRow({
+    const trip = await resolveTripFieldsForTripRow({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -217,7 +217,7 @@ describe("buildTripRowsForPing", () => {
       existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
       }),
-      scheduleTables: makeScheduledTables({
+      scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
       }),
       buildTrip: (resolvedCurrentTripFields) =>
@@ -244,14 +244,14 @@ describe("buildTripRowsForPing", () => {
     expect("tripFieldInferenceMethod" in trip).toBe(false);
   });
 
-  it("persists inferred SailingDay as part of the resolved trip-field contract", () => {
+  it("persists inferred SailingDay as part of the resolved trip-field contract", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       SailingDay: "2026-03-14",
       DepartingTime: ms("2026-03-14T01:30:00-07:00"),
     });
 
-    const trip = buildActiveTrip({
+    const trip = await buildActiveTrip({
       vesselLocation: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -269,7 +269,7 @@ describe("buildTripRowsForPing", () => {
     expect(trip?.SailingDay).toBe(nextSegment.SailingDay);
   });
 
-  it("handles provisional inference, authoritative WSF takeover, and then skips an unchanged ping", () => {
+  it("handles provisional inference, authoritative WSF takeover, and then skips an unchanged ping", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--MUK-CLI",
       DepartingTerminalAbbrev: "MUK",
@@ -292,7 +292,7 @@ describe("buildTripRowsForPing", () => {
       NextScheduledDeparture: nextSegment.DepartingTime,
     });
 
-    const inferredTrip = buildActiveTrip({
+    const inferredTrip = await buildActiveTrip({
       vesselLocation: makeLocation({
         AtDock: true,
         LeftDock: undefined,
@@ -307,7 +307,7 @@ describe("buildTripRowsForPing", () => {
       scheduleTables,
     });
 
-    const authoritativeTrip = buildActiveTrip({
+    const authoritativeTrip = await buildActiveTrip({
       vesselLocation: makeLocation({
         AtDock: true,
         LeftDock: undefined,
@@ -331,7 +331,7 @@ describe("buildTripRowsForPing", () => {
     );
     expect(authoritativeTrip?.ScheduleKey).toBe(nextSegment.Key);
 
-    const tripBatch = computeTripBatchForPing(
+    const tripBatch = await computeTripBatchForPing(
       [
         {
           vesselLocation: makeLocation({

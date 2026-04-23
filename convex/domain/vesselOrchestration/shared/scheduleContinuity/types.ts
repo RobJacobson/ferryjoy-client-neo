@@ -6,22 +6,33 @@ import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/sch
 import type { CompactScheduledDepartureEvent } from "../scheduleSnapshot/scheduleSnapshotTypes";
 
 /**
- * Prefetched schedule evidence for one orchestrator ping, keyed for direct
- * lookup during trip-field inference.
+ * Narrow schedule access used by trip-field continuity.
  *
- * `scheduledDepartureBySegmentKey` stores direct schedule evidence keyed by
- * `ScheduleKey`.
- *
- * `scheduledDeparturesByVesselAbbrev` keeps the ordered departure sequence per
- * vessel for same-day rollover inference when WSF trip fields are incomplete.
+ * Implementations may load from targeted Convex queries or from in-memory test
+ * fixtures, but callers only ask for the schedule evidence they actually need.
  */
-export type ScheduledSegmentTables = {
-  /** Calendar day these tables were narrowed to from the snapshot. */
-  sailingDay: string;
-  scheduledDepartureBySegmentKey: Readonly<
-    Record<string, ConvexInferredScheduledSegment>
-  >;
-  scheduledDeparturesByVesselAbbrev: Readonly<
-    Record<string, readonly CompactScheduledDepartureEvent[]>
-  >;
+export type ScheduleContinuityAccess = {
+  /**
+   * Loads one inferred segment by `ScheduleKey`.
+   *
+   * The returned segment should already include any next-leg continuity fields
+   * that can be inferred for that departure.
+   */
+  getScheduledSegmentByKey: (
+    scheduleKey: string
+  ) => Promise<ConvexInferredScheduledSegment | null>;
+  /**
+   * Loads same-vessel scheduled departures for one sailing day in ascending
+   * departure order.
+   */
+  getScheduledDeparturesForVesselAndSailingDay: (
+    vesselAbbrev: string,
+    sailingDay: string
+  ) => Promise<ReadonlyArray<CompactScheduledDepartureEvent>>;
 };
+
+/**
+ * Backward-compatible alias while trip tests migrate off the old snapshot-table
+ * naming.
+ */
+export type ScheduledSegmentTables = ScheduleContinuityAccess;

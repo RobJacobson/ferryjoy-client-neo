@@ -9,7 +9,7 @@ import { createScheduledSegmentTablesFromSnapshot } from "../createScheduledSegm
 import type { ScheduleSnapshot } from "../scheduleSnapshotTypes";
 
 describe("createScheduledSegmentTablesFromSnapshot", () => {
-  it("returns only the materialized sailing day for departures and segment lookups", () => {
+  it("returns only the materialized sailing day for departures and segment lookups", async () => {
     const segmentA: ConvexInferredScheduledSegment = {
       Key: "segA",
       SailingDay: "2026-03-13",
@@ -47,18 +47,28 @@ describe("createScheduledSegmentTablesFromSnapshot", () => {
       "2026-03-13"
     );
 
-    expect(mar13.scheduledDepartureBySegmentKey.segA).toEqual(segmentA);
-    expect(mar13.scheduledDepartureBySegmentKey.segB).toBeUndefined();
-    expect(mar13.scheduledDepartureBySegmentKey.missing).toBeUndefined();
-    expect(mar13.scheduledDeparturesByVesselAbbrev.CHE).toEqual(
-      snapshot.scheduledDeparturesByVesselAbbrev.CHE
-    );
-    expect(mar13.sailingDay).toBe("2026-03-13");
+    expect(await mar13.getScheduledSegmentByKey("segA")).toEqual(segmentA);
+    expect(await mar13.getScheduledSegmentByKey("segB")).toBeNull();
+    expect(await mar13.getScheduledSegmentByKey("missing")).toBeNull();
     expect(
-      getScheduledDeparturesForVesselAndSailingDay(mar13, "CHE", "2026-03-14")
+      await mar13.getScheduledDeparturesForVesselAndSailingDay(
+        "CHE",
+        "2026-03-13"
+      )
+    ).toEqual(snapshot.scheduledDeparturesByVesselAbbrev.CHE);
+    expect(
+      await getScheduledDeparturesForVesselAndSailingDay(
+        mar13,
+        "CHE",
+        "2026-03-14"
+      )
     ).toEqual([]);
     expect(
-      getScheduledDeparturesForVesselAndSailingDay(mar13, "ZZZ", "2026-03-13")
+      await getScheduledDeparturesForVesselAndSailingDay(
+        mar13,
+        "ZZZ",
+        "2026-03-13"
+      )
     ).toEqual([]);
 
     const mar14Snapshot: ScheduleSnapshot = {
@@ -81,9 +91,14 @@ describe("createScheduledSegmentTablesFromSnapshot", () => {
       "2026-03-14"
     );
 
-    expect(mar14.scheduledDepartureBySegmentKey.segB).toEqual(nextDaySegment);
-    expect(mar14.scheduledDeparturesByVesselAbbrev.CHE).toEqual(
-      mar14Snapshot.scheduledDeparturesByVesselAbbrev.CHE
+    expect(await mar14.getScheduledSegmentByKey("segB")).toEqual(
+      nextDaySegment
     );
+    expect(
+      await mar14.getScheduledDeparturesForVesselAndSailingDay(
+        "CHE",
+        "2026-03-14"
+      )
+    ).toEqual(mar14Snapshot.scheduledDeparturesByVesselAbbrev.CHE);
   });
 });

@@ -98,6 +98,7 @@ import type * as domain_vesselOrchestration_shared_pingHandshake_types from "../
 import type * as domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay from "../domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay.js";
 import type * as domain_vesselOrchestration_shared_scheduleContinuity_index from "../domain/vesselOrchestration/shared/scheduleContinuity/index.js";
 import type * as domain_vesselOrchestration_shared_scheduleContinuity_types from "../domain/vesselOrchestration/shared/scheduleContinuity/types.js";
+import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createScheduleContinuityAccessFromSnapshot from "../domain/vesselOrchestration/shared/scheduleSnapshot/createScheduleContinuityAccessFromSnapshot.js";
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createScheduledSegmentTablesFromSnapshot from "../domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot.js";
 import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.js";
 import type * as domain_vesselOrchestration_shared_tripLifecycle from "../domain/vesselOrchestration/shared/tripLifecycle.js";
@@ -186,12 +187,7 @@ import type * as functions_vesselLocationsHistoric_index from "../functions/vess
 import type * as functions_vesselLocationsHistoric_mutations from "../functions/vesselLocationsHistoric/mutations.js";
 import type * as functions_vesselLocationsHistoric_queries from "../functions/vesselLocationsHistoric/queries.js";
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
-import type * as functions_vesselLocationsUpdates_index from "../functions/vesselLocationsUpdates/index.js";
-import type * as functions_vesselLocationsUpdates_mutations from "../functions/vesselLocationsUpdates/mutations.js";
-import type * as functions_vesselLocationsUpdates_queries from "../functions/vesselLocationsUpdates/queries.js";
-import type * as functions_vesselLocationsUpdates_schemas from "../functions/vesselLocationsUpdates/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
-import type * as functions_vesselOrchestrator_materializeScheduleSnapshot from "../functions/vesselOrchestrator/materializeScheduleSnapshot.js";
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
 import type * as functions_vesselOrchestrator_pipelineTypes from "../functions/vesselOrchestrator/pipelineTypes.js";
@@ -342,6 +338,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay": typeof domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay;
   "domain/vesselOrchestration/shared/scheduleContinuity/index": typeof domain_vesselOrchestration_shared_scheduleContinuity_index;
   "domain/vesselOrchestration/shared/scheduleContinuity/types": typeof domain_vesselOrchestration_shared_scheduleContinuity_types;
+  "domain/vesselOrchestration/shared/scheduleSnapshot/createScheduleContinuityAccessFromSnapshot": typeof domain_vesselOrchestration_shared_scheduleSnapshot_createScheduleContinuityAccessFromSnapshot;
   "domain/vesselOrchestration/shared/scheduleSnapshot/createScheduledSegmentTablesFromSnapshot": typeof domain_vesselOrchestration_shared_scheduleSnapshot_createScheduledSegmentTablesFromSnapshot;
   "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes;
   "domain/vesselOrchestration/shared/tripLifecycle": typeof domain_vesselOrchestration_shared_tripLifecycle;
@@ -430,12 +427,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/mutations": typeof functions_vesselLocationsHistoric_mutations;
   "functions/vesselLocationsHistoric/queries": typeof functions_vesselLocationsHistoric_queries;
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
-  "functions/vesselLocationsUpdates/index": typeof functions_vesselLocationsUpdates_index;
-  "functions/vesselLocationsUpdates/mutations": typeof functions_vesselLocationsUpdates_mutations;
-  "functions/vesselLocationsUpdates/queries": typeof functions_vesselLocationsUpdates_queries;
-  "functions/vesselLocationsUpdates/schemas": typeof functions_vesselLocationsUpdates_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
-  "functions/vesselOrchestrator/materializeScheduleSnapshot": typeof functions_vesselOrchestrator_materializeScheduleSnapshot;
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
   "functions/vesselOrchestrator/pipelineTypes": typeof functions_vesselOrchestrator_pipelineTypes;

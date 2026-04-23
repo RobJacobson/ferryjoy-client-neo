@@ -90,8 +90,8 @@ const makeLocationUpdate = (
 });
 
 describe("trip stage schedule-inference gating", () => {
-  it("skips trip recomputation for unchanged locations", () => {
-    const tripBatch = computeTripBatchForPing(
+  it("skips trip recomputation for unchanged locations", async () => {
+    const tripBatch = await computeTripBatchForPing(
       [
         makeLocationUpdate("CHE", false),
         makeLocationUpdate("TAC", true, {

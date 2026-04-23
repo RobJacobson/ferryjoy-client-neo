@@ -17,6 +17,11 @@ export const compactScheduledDepartureEventSchema = v.object({
   TerminalAbbrev: v.string(),
 });
 
+export const storedVesselLocationSchema = v.object({
+  _id: v.id("vesselLocations"),
+  ...vesselLocationValidationSchema.fields,
+});
+
 export const inferredScheduledSegmentSchema = v.object({
   Key: v.string(),
   SailingDay: v.string(),
@@ -77,9 +82,14 @@ export const predictedTripComputationSchema = v.union(
   })
 );
 
+export const changedVesselLocationWriteSchema = v.object({
+  vesselLocation: vesselLocationValidationSchema,
+  existingLocationId: v.optional(v.id("vesselLocations")),
+});
+
 export const orchestratorPingPersistenceSchema = v.object({
   pingStartedAt: v.number(),
-  changedLocations: v.array(vesselLocationValidationSchema),
+  changedLocations: v.array(changedVesselLocationWriteSchema),
   existingActiveTrips: v.array(vesselTripStoredSchema),
   tripRows: tripRowsForPingSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),

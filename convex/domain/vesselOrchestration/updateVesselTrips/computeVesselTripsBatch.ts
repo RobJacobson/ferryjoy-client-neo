@@ -1,7 +1,6 @@
 /**
  * Batch trip update computation across vessel location rows.
  */
-import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { computeVesselTripUpdate } from "./computeVesselTripUpdate";
 import type {
@@ -27,14 +26,9 @@ type ComputeVesselTripsBatchResult = {
  * @param input - Batch input containing locations, active trips, and schedule data
  * @returns Per-vessel updates and merged active/completed trip rows
  */
-export const computeVesselTripsBatch = (
+export const computeVesselTripsBatch = async (
   input: ComputeVesselTripsBatchInput
-): ComputeVesselTripsBatchResult => {
-  // Build schedule lookup tables once for the whole batch.
-  const scheduleTables = createScheduledSegmentTablesFromSnapshot(
-    input.scheduleSnapshot,
-    input.sailingDay
-  );
+): Promise<ComputeVesselTripsBatchResult> => {
   const existingActiveTripsByVessel = activeTripsByVesselAbbrev(
     input.existingActiveTrips
   );
@@ -44,14 +38,16 @@ export const computeVesselTripsBatch = (
       ? input.vesselLocations
       : input.vesselLocations.filter(input.shouldProcessLocation);
   // Compute each vessel in isolation using the same schedule evidence.
-  const updates = vesselLocations.map((vesselLocation) =>
-    computeVesselTripUpdate({
-      vesselLocation,
-      existingActiveTrip: existingActiveTripsByVessel.get(
-        vesselLocation.VesselAbbrev
-      ),
-      scheduleTables,
-    })
+  const updates = await Promise.all(
+    vesselLocations.map((vesselLocation) =>
+      computeVesselTripUpdate({
+        vesselLocation,
+        existingActiveTrip: existingActiveTripsByVessel.get(
+          vesselLocation.VesselAbbrev
+        ),
+        scheduleAccess: input.scheduleAccess,
+      })
+    )
   );
   const activeTripCandidates = updates
     .map((update) => update.activeTripCandidate)
@@ -78,9 +74,10 @@ export const computeVesselTripsBatch = (
  * @param input - Batch input containing locations, active trips, and schedule data
  * @returns Active and completed trip rows ready for persistence
  */
-export const computeVesselTripsRows = (
+export const computeVesselTripsRows = async (
   input: RunUpdateVesselTripsInput
-): RunUpdateVesselTripsOutput => computeVesselTripsBatch(input).rows;
+): Promise<RunUpdateVesselTripsOutput> =>
+  (await computeVesselTripsBatch(input)).rows;
 
 /**
  * Indexes active trips by vessel abbreviation for O(1) lookup.

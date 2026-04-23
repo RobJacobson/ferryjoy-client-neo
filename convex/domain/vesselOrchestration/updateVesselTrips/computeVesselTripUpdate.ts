@@ -2,7 +2,7 @@
  * Per-vessel trip update computation from one location ping.
  */
 import { areTripStorageRowsEqual } from "domain/vesselOrchestration/shared";
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import { detectTripEvents } from "./lifecycle";
 import { buildTripRowsForPing } from "./tripBuilders";
 import type { VesselTripUpdate } from "./types";
@@ -13,24 +13,24 @@ import type { VesselTripUpdate } from "./types";
  * @param input - Vessel location, optional active trip, and schedule lookup tables
  * @returns Trip update containing candidate rows and change indicators
  */
-export const computeVesselTripUpdate = (input: {
+export const computeVesselTripUpdate = async (input: {
   vesselLocation: VesselTripUpdate["vesselLocation"];
   existingActiveTrip?: VesselTripUpdate["existingActiveTrip"];
-  scheduleTables: ScheduledSegmentTables;
-}): VesselTripUpdate => {
+  scheduleAccess: ScheduleContinuityAccess;
+}): Promise<VesselTripUpdate> => {
   // Detect lifecycle transitions before mutating trip rows.
   const events = detectTripEvents(
     input.existingActiveTrip,
     input.vesselLocation
   );
   // Build candidate rows from lifecycle and schedule evidence.
-  const tripRows = buildTripRowsForPing(
+  const tripRows = await buildTripRowsForPing(
     {
       vesselLocation: input.vesselLocation,
       existingActiveTrip: input.existingActiveTrip,
       events,
     },
-    input.scheduleTables
+    input.scheduleAccess
   );
   const activeTripCandidate = tripRows.activeVesselTrip;
   const completedTrip = tripRows.completedVesselTrip;

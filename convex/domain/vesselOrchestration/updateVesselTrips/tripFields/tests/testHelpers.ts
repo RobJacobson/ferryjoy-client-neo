@@ -86,13 +86,24 @@ export const makeScheduledTables = (
   options: {
     sailingDay?: string;
     segments?: ConvexInferredScheduledSegment[];
-    scheduledDeparturesByVesselAbbrev?: ScheduledSegmentTables["scheduledDeparturesByVesselAbbrev"];
+    scheduledDeparturesByVesselAbbrev?: Record<
+      string,
+      ReadonlyArray<{
+        Key: string;
+        ScheduledDeparture: number;
+        TerminalAbbrev: string;
+      }>
+    >;
   } = {}
 ): ScheduledSegmentTables => ({
-  sailingDay: options.sailingDay ?? "2026-03-13",
-  scheduledDepartureBySegmentKey: Object.fromEntries(
-    (options.segments ?? []).map((segment) => [segment.Key, segment] as const)
-  ),
-  scheduledDeparturesByVesselAbbrev:
-    options.scheduledDeparturesByVesselAbbrev ?? {},
+  getScheduledSegmentByKey: async (scheduleKey) =>
+    (options.segments ?? []).find((segment) => segment.Key === scheduleKey) ??
+    null,
+  getScheduledDeparturesForVesselAndSailingDay: async (
+    vesselAbbrev,
+    sailingDay
+  ) =>
+    sailingDay !== (options.sailingDay ?? "2026-03-13")
+      ? []
+      : (options.scheduledDeparturesByVesselAbbrev?.[vesselAbbrev] ?? []),
 });

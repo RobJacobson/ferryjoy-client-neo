@@ -1,4 +1,4 @@
-import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { ScheduledTripMatch } from "./types";
@@ -12,22 +12,22 @@ import type { ScheduledTripMatch } from "./types";
  * @param scheduleTables - Prefetched schedule evidence tables
  * @returns Match tagged `next_scheduled_trip`, or null
  */
-export const getNextScheduledTripFromExistingTrip = ({
+export const getNextScheduledTripFromExistingTrip = async ({
   location,
   existingTrip,
-  scheduleTables,
+  scheduleAccess,
 }: {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleTables: ScheduledSegmentTables;
-}): ScheduledTripMatch | null => {
+  scheduleAccess: ScheduleContinuityAccess;
+}): Promise<ScheduledTripMatch | null> => {
   const nextScheduleKey = existingTrip?.NextScheduleKey;
   if (!nextScheduleKey) {
     return null;
   }
 
   const segment =
-    scheduleTables.scheduledDepartureBySegmentKey[nextScheduleKey];
+    await scheduleAccess.getScheduledSegmentByKey(nextScheduleKey);
   if (!segment) {
     return null;
   }

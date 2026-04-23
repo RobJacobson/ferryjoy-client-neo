@@ -14,6 +14,7 @@ import type { VesselTripPredictionRow } from "domain/vesselOrchestration/updateV
 
 export type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 
+import type { Id } from "_generated/dataModel";
 import type {
   CompletedTripBoundaryFact,
   PredictedTripComputation,
@@ -26,6 +27,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
  */
 export type VesselLocationUpdates = {
   vesselLocation: ConvexVesselLocation;
+  existingLocationId?: Id<"vesselLocations">;
   locationChanged: boolean;
 };
 

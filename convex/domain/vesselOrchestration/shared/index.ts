@@ -25,7 +25,11 @@ export type {
   VesselTripPersistResult,
   VesselTripsComputeBundle,
 } from "./pingHandshake/types";
-export type { ScheduledSegmentTables } from "./scheduleContinuity";
+export type {
+  ScheduleContinuityAccess,
+  ScheduledSegmentTables,
+} from "./scheduleContinuity";
+export { createScheduleContinuityAccessFromSnapshot } from "./scheduleSnapshot/createScheduleContinuityAccessFromSnapshot";
 export { createScheduledSegmentTablesFromSnapshot } from "./scheduleSnapshot/createScheduledSegmentTablesFromSnapshot";
 export type {
   CompactScheduledDepartureEvent,

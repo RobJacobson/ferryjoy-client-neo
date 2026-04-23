@@ -198,9 +198,9 @@ describe("buildOrchestratorPersistenceBundle", () => {
       predictionUpdates,
     });
 
-    expect(bundle.changedLocations.map((row) => row.VesselAbbrev)).toEqual([
-      "CHE",
-    ]);
+    expect(
+      bundle.changedLocations.map((row) => row.vesselLocation.VesselAbbrev)
+    ).toEqual(["CHE"]);
     expect(
       bundle.tripRows.completedTrips.map((row) => row.VesselAbbrev)
     ).toEqual(["CHE"]);

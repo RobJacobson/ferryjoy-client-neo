@@ -164,16 +164,25 @@ describe("prediction stage off-ramp policy", () => {
         ArrivingTerminalAbbrev: "LOP",
       }),
     });
+    const unchangedCheTrip = unchangedChe.activeTripCandidate;
+    const changedTacTrip = changedTac.activeTripCandidate;
+    const changedSamTrip = changedSam.activeTripCandidate;
+    const changedSamCompletedTrip = changedSam.completedTrip;
+
+    if (
+      unchangedCheTrip === undefined ||
+      changedTacTrip === undefined ||
+      changedSamTrip === undefined ||
+      changedSamCompletedTrip === undefined
+    ) {
+      throw new Error("Test setup requires concrete trip rows.");
+    }
 
     const predictionInputs = buildPredictionStageInputs(
       [unchangedChe, changedTac, changedSam],
       {
-        activeTrips: [
-          unchangedChe.activeTripCandidate!,
-          changedTac.activeTripCandidate!,
-          changedSam.activeTripCandidate!,
-        ],
-        completedTrips: [changedSam.completedTrip!],
+        activeTrips: [unchangedCheTrip, changedTacTrip, changedSamTrip],
+        completedTrips: [changedSamCompletedTrip],
       },
       [makeCompletedHandoff("SAM")]
     );
