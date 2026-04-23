@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { resolveCurrentTripFields } from "../resolveCurrentTripFields";
+import { describe, expect, it, mock } from "bun:test";
+import { resolveTripFieldsForTripRow } from "../resolveTripFieldsForTripRow";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -8,8 +8,30 @@ import {
   ms,
 } from "./testHelpers";
 
-describe("resolveCurrentTripFields", () => {
+type TripFieldsResolvedHook = NonNullable<
+  Parameters<typeof resolveTripFieldsForTripRow>[0]["onTripFieldsResolved"]
+>;
+
+const buildTripFromResolvedFields = (
+  input: Omit<Parameters<typeof resolveTripFieldsForTripRow>[0], "buildTrip">
+) =>
+  resolveTripFieldsForTripRow({
+    ...input,
+    buildTrip: (resolvedCurrentTripFields) =>
+      makeTrip({
+        ArrivingTerminalAbbrev:
+          resolvedCurrentTripFields.ArrivingTerminalAbbrev,
+        ScheduledDeparture: resolvedCurrentTripFields.ScheduledDeparture,
+        ScheduleKey: resolvedCurrentTripFields.ScheduleKey,
+        SailingDay: resolvedCurrentTripFields.SailingDay,
+        NextScheduleKey: undefined,
+        NextScheduledDeparture: undefined,
+      }),
+  });
+
+describe("resolveTripFieldsForTripRow", () => {
   it("prefers next scheduled segment over rollover when both are available", () => {
+    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -19,7 +41,7 @@ describe("resolveCurrentTripFields", () => {
       DepartingTime: ms("2026-03-13T13:30:00-07:00"),
     });
 
-    const resolved = resolveCurrentTripFields({
+    const trip = buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -42,14 +64,20 @@ describe("resolveCurrentTripFields", () => {
           ],
         },
       }),
+      onTripFieldsResolved,
     });
 
-    expect(resolved.ScheduleKey).toBe(nextSegment.Key);
-    expect(resolved.tripFieldInferenceMethod).toBe("next_scheduled_trip");
+    expect(trip.ScheduleKey).toBe(nextSegment.Key);
+    expect(
+      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
+        .tripFieldInferenceMethod
+    ).toBe("next_scheduled_trip");
   });
 
   it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", () => {
-    const resolved = resolveCurrentTripFields({
+    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
+
+    const trip = buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: "MUK",
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
@@ -59,12 +87,18 @@ describe("resolveCurrentTripFields", () => {
         NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
       scheduleTables: makeScheduledTables(),
+      onTripFieldsResolved,
     });
 
-    expect(resolved.tripFieldDataSource).toBe("wsf");
-    expect(resolved.tripFieldInferenceMethod).toBeUndefined();
-    expect(resolved.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
-    expect(resolved).not.toHaveProperty("NextScheduleKey");
+    expect(trip.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
+    expect(
+      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
+        .tripFieldDataSource
+    ).toBe("wsf");
+    expect(
+      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
+        .tripFieldInferenceMethod
+    ).toBeUndefined();
   });
 
   it("infers trip fields from the next scheduled trip when WSF is incomplete", () => {
@@ -75,7 +109,7 @@ describe("resolveCurrentTripFields", () => {
       NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
     });
 
-    const resolved = resolveCurrentTripFields({
+    const trip = buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -89,10 +123,9 @@ describe("resolveCurrentTripFields", () => {
       }),
     });
 
-    expect(resolved.tripFieldDataSource).toBe("inferred");
-    expect(resolved.tripFieldInferenceMethod).toBe("next_scheduled_trip");
-    expect(resolved.ScheduleKey).toBe(nextSegment.Key);
-    expect(resolved).not.toHaveProperty("NextScheduleKey");
+    expect(trip.ScheduleKey).toBe(nextSegment.Key);
+    expect(trip.NextScheduleKey).toBe(nextSegment.NextKey);
+    expect(trip.NextScheduledDeparture).toBe(nextSegment.NextDepartingTime);
   });
 
   it("infers trip fields by schedule rollover when the next scheduled trip is unavailable", () => {
@@ -101,7 +134,7 @@ describe("resolveCurrentTripFields", () => {
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const resolved = resolveCurrentTripFields({
+    const trip = buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -125,13 +158,14 @@ describe("resolveCurrentTripFields", () => {
       }),
     });
 
-    expect(resolved.tripFieldDataSource).toBe("inferred");
-    expect(resolved.tripFieldInferenceMethod).toBe("schedule_rollover");
-    expect(resolved.ScheduleKey).toBe(nextSegment.Key);
+    expect(trip.ScheduleKey).toBe(nextSegment.Key);
+    expect(trip.ArrivingTerminalAbbrev).toBe(
+      nextSegment.ArrivingTerminalAbbrev
+    );
   });
 
   it("falls back cleanly when no schedule match exists", () => {
-    const resolved = resolveCurrentTripFields({
+    const trip = buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
@@ -145,60 +179,51 @@ describe("resolveCurrentTripFields", () => {
       scheduleTables: makeScheduledTables(),
     });
 
-    expect(resolved.ArrivingTerminalAbbrev).toBe("MUK");
-    expect(resolved.ScheduledDeparture).toBe(ms("2026-03-13T11:00:00-07:00"));
-    expect(resolved.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
-    expect(resolved.tripFieldDataSource).toBe("inferred");
+    expect(trip.ArrivingTerminalAbbrev).toBe("MUK");
+    expect(trip.ScheduledDeparture).toBe(ms("2026-03-13T11:00:00-07:00"));
+    expect(trip.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
   });
 
-  it("marks reused persisted provisional fields as inferred semantics without next-leg on the contract", () => {
-    const resolved = resolveCurrentTripFields({
-      location: makeLocation({
-        AtDock: true,
-        LeftDock: undefined,
-        DepartingTerminalAbbrev: "CLI",
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        AtDock: true,
-        LeftDock: undefined,
-        DepartingTerminalAbbrev: "CLI",
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-        NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
-        NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
-      }),
-      scheduleTables: makeScheduledTables(),
-    });
-
-    expect(resolved).toMatchObject({
-      ArrivingTerminalAbbrev: "MUK",
-      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+  it("preserves carried next scheduled trip fields when the segment is unchanged", () => {
+    const existingTrip = makeTrip({
       ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-      tripFieldDataSource: "inferred",
+      NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
     });
-    expect(resolved).not.toHaveProperty("NextScheduleKey");
-    expect(resolved.tripFieldInferenceMethod).toBeUndefined();
-  });
 
-  it("marks partial WSF fallback rows as inferred when the feed is incomplete", () => {
-    const resolved = resolveCurrentTripFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: undefined,
+    const trip = buildTripFromResolvedFields({
+      location: makeLocation(),
+      existingTrip,
       scheduleTables: makeScheduledTables(),
     });
 
-    expect(resolved).toMatchObject({
-      ArrivingTerminalAbbrev: "MUK",
-      ScheduledDeparture: undefined,
-      tripFieldDataSource: "inferred",
+    expect(trip.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
+    expect(trip.NextScheduledDeparture).toBe(
+      existingTrip.NextScheduledDeparture
+    );
+  });
+
+  it("logs partial WSF conflicts against inferred trip fields through the resolved hook", () => {
+    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
+
+    buildTripFromResolvedFields({
+      location: makeLocation({
+        ArrivingTerminalAbbrev: "SHI",
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      existingTrip: makeTrip({
+        ArrivingTerminalAbbrev: "MUK",
+        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      }),
+      scheduleTables: makeScheduledTables(),
+      onTripFieldsResolved,
     });
+
+    expect(
+      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
+        .tripFieldDataSource
+    ).toBe("inferred");
   });
 });

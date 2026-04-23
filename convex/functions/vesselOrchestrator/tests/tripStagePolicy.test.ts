@@ -1,7 +1,7 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {

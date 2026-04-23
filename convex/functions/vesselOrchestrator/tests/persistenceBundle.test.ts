@@ -3,12 +3,12 @@ import type {
   CompletedTripBoundaryFact,
   PredictedTripComputation,
 } from "domain/vesselOrchestration/shared";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   VesselLocationUpdates,
   VesselPredictionUpdates,
-  VesselTripUpdates,
+  VesselTripUpdate,
 } from "functions/vesselOrchestrator/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -81,8 +81,8 @@ const makeLocation = (
 
 const makeTripUpdate = (
   vesselAbbrev: string,
-  overrides: Partial<VesselTripUpdates> = {}
-): VesselTripUpdates => ({
+  overrides: Partial<VesselTripUpdate> = {}
+): VesselTripUpdate => ({
   vesselLocation: makeLocation(vesselAbbrev),
   existingActiveTrip: makeTrip(vesselAbbrev),
   activeTripCandidate: makeTrip(vesselAbbrev),
@@ -201,9 +201,9 @@ describe("buildOrchestratorPersistenceBundle", () => {
     expect(bundle.changedLocations.map((row) => row.VesselAbbrev)).toEqual([
       "CHE",
     ]);
-    expect(bundle.tripRows.completedTrips.map((row) => row.VesselAbbrev)).toEqual([
-      "CHE",
-    ]);
+    expect(
+      bundle.tripRows.completedTrips.map((row) => row.VesselAbbrev)
+    ).toEqual(["CHE"]);
     expect(bundle.tripRows.activeTrips.map((row) => row.VesselAbbrev)).toEqual([
       "CHE",
       "TAC",

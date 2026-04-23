@@ -36,7 +36,9 @@ export const bulkUpsertLocationsAndUpdatesInDb = async (
     return;
   }
 
-  const existingUpdates = await ctx.db.query("vesselLocationsUpdates").collect();
+  const existingUpdates = await ctx.db
+    .query("vesselLocationsUpdates")
+    .collect();
   const existingUpdatesByAbbrev = new Map<
     string,
     ConvexVesselLocationUpdate & { _id: Id<"vesselLocationsUpdates"> }
@@ -47,7 +49,10 @@ export const bulkUpsertLocationsAndUpdatesInDb = async (
     const previousLocationId = previousUpdate?.VesselLocationId;
     let vesselLocationId = previousLocationId;
 
-    if (typeof previousLocationId === "string" && previousLocationId.length > 0) {
+    if (
+      typeof previousLocationId === "string" &&
+      previousLocationId.length > 0
+    ) {
       await ctx.db.replace(previousLocationId, location);
     } else {
       const existingLocation = await ctx.db

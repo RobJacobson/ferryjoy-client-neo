@@ -4,22 +4,26 @@ import { computeVesselTripUpdate } from "./computeVesselTripUpdate";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
-  VesselTripUpdates,
+  VesselTripUpdate,
 } from "./types";
 
-export type ComputeVesselTripsBatchInput = RunUpdateVesselTripsInput & {
-  shouldProcessLocation?: (location: RunUpdateVesselTripsInput["vesselLocations"][number]) => boolean;
+type ComputeVesselTripsBatchInput = RunUpdateVesselTripsInput & {
+  shouldProcessLocation?: (
+    location: RunUpdateVesselTripsInput["vesselLocations"][number]
+  ) => boolean;
 };
 
-export type ComputeVesselTripsBatchResult = {
-  updates: ReadonlyArray<VesselTripUpdates>;
+type ComputeVesselTripsBatchResult = {
+  updates: ReadonlyArray<VesselTripUpdate>;
   rows: RunUpdateVesselTripsOutput;
 };
 
 const activeTripsByVesselAbbrev = (
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
 ): Map<string, ConvexVesselTrip> =>
-  new Map(existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const));
+  new Map(
+    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
+  );
 
 const mergeActiveTripRows = (
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,

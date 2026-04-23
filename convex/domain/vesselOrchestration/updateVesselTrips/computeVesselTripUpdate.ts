@@ -1,26 +1,26 @@
+import { areTripStorageRowsEqual } from "domain/vesselOrchestration/shared";
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import { detectTripEvents } from "./lifecycle";
-import { areTripStorageRowsEqual } from "./storage";
 import { buildTripRowsForPing } from "./tripBuilders";
-import type { VesselTripUpdates } from "./types";
-
-type CalculatedTripUpdate = {
-  vesselLocation: VesselTripUpdates["vesselLocation"];
-  existingActiveTrip?: VesselTripUpdates["existingActiveTrip"];
-  events: ReturnType<typeof detectTripEvents>;
-};
+import type { VesselTripUpdate } from "./types";
 
 export const computeVesselTripUpdate = (input: {
-  vesselLocation: VesselTripUpdates["vesselLocation"];
-  existingActiveTrip?: VesselTripUpdates["existingActiveTrip"];
+  vesselLocation: VesselTripUpdate["vesselLocation"];
+  existingActiveTrip?: VesselTripUpdate["existingActiveTrip"];
   scheduleTables: ScheduledSegmentTables;
-}): VesselTripUpdates => {
-  const calculatedUpdate: CalculatedTripUpdate = {
-    vesselLocation: input.vesselLocation,
-    existingActiveTrip: input.existingActiveTrip,
-    events: detectTripEvents(input.existingActiveTrip, input.vesselLocation),
-  };
-  const tripRows = buildTripRowsForPing(calculatedUpdate, input.scheduleTables);
+}): VesselTripUpdate => {
+  const events = detectTripEvents(
+    input.existingActiveTrip,
+    input.vesselLocation
+  );
+  const tripRows = buildTripRowsForPing(
+    {
+      vesselLocation: input.vesselLocation,
+      existingActiveTrip: input.existingActiveTrip,
+      events,
+    },
+    input.scheduleTables
+  );
   const activeTripCandidate = tripRows.activeVesselTrip;
   const completedTrip = tripRows.completedVesselTrip;
   const replacementTrip =
@@ -44,5 +44,3 @@ export const computeVesselTripUpdate = (input: {
       completedTrip !== undefined || replacementTrip !== undefined,
   };
 };
-
-export const computeVesselTripUpdates = computeVesselTripUpdate;

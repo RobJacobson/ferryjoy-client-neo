@@ -3,13 +3,12 @@
 ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
 leave-dock actualization for one ping. On the **orchestrator** path this runs in
 **Stage D** after trip persistence, over the trip rows produced by
-`updateVesselTrips` (not inside `buildTripCore`).
+`updateVesselTrips` (not inside the trip row builder).
 
 ## Canonical code
 
 - **Implementation:** [`./applyVesselPredictions.ts`](./applyVesselPredictions.ts) — `applyVesselPredictions`, handoff type `VesselTripCoreProposal`.
 - **Phase selection:** [`./predictionPolicy.ts`](./predictionPolicy.ts) — simple helpers that decide which prediction family applies to the current trip phase.
-- **Composer (tests / non-orchestrator):** [`../updateVesselTrips/tripLifecycle/buildTrip.ts`](../updateVesselTrips/tripLifecycle/buildTrip.ts) — `buildTrip` calls `buildTripCore` and then applies predictions using the same phase helpers as Stage D.
 - **Prediction specs / `computePredictions`:** [`./appendPredictions.ts`](./appendPredictions.ts) — do not duplicate.
 - **Strip for DB:** [`../shared/orchestratorPersist/stripTripPredictionsForStorage.ts`](../shared/orchestratorPersist/stripTripPredictionsForStorage.ts) — used from lifecycle mutations where persistence must omit ML blobs.
 

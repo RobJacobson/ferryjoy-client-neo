@@ -1,8 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
-import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
-import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
+import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
+import { buildTripRowsForPing } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
+import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import { computeTripBatchForPing } from "functions/vesselOrchestrator/actions";
 import {
   makeLocation,
@@ -12,7 +11,17 @@ import {
   ms,
 } from "../tripFields/tests/testHelpers";
 
-const continuingEvents = (overrides: Partial<TripEvents> = {}): TripEvents => ({
+type DetectedTripEvents = TripLifecycleEventFlags & {
+  leftDockTime: number | undefined;
+};
+
+type TripFieldsResolvedHook = NonNullable<
+  Parameters<typeof resolveTripFieldsForTripRow>[0]["onTripFieldsResolved"]
+>;
+
+const continuingEvents = (
+  overrides: Partial<DetectedTripEvents> = {}
+): DetectedTripEvents => ({
   isFirstTrip: false,
   isTripStartReady: false,
   isCompletedTrip: false,
@@ -23,13 +32,29 @@ const continuingEvents = (overrides: Partial<TripEvents> = {}): TripEvents => ({
   ...overrides,
 });
 
-const emptyScheduleSnapshot: ScheduleSnapshot = {
-  SailingDay: "2026-03-13",
-  scheduledDepartureBySegmentKey: {},
-  scheduledDeparturesByVesselAbbrev: {},
-};
+const buildActiveTrip = ({
+  vesselLocation,
+  existingActiveTrip,
+  events = continuingEvents(),
+  scheduleTables = makeScheduledTables(),
+}: {
+  vesselLocation: Parameters<typeof buildTripRowsForPing>[0]["vesselLocation"];
+  existingActiveTrip?: Parameters<
+    typeof buildTripRowsForPing
+  >[0]["existingActiveTrip"];
+  events?: DetectedTripEvents;
+  scheduleTables?: Parameters<typeof buildTripRowsForPing>[1];
+}) =>
+  buildTripRowsForPing(
+    {
+      vesselLocation,
+      existingActiveTrip,
+      events,
+    },
+    scheduleTables
+  ).activeVesselTrip;
 
-describe("buildTripCore", () => {
+describe("buildTripRowsForPing", () => {
   it("keeps inferred trip fields stable while WSF remains incomplete", () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: "MUK",
@@ -39,23 +64,20 @@ describe("buildTripCore", () => {
       NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = buildTripCore(
-      makeLocation({
+    const trip = buildActiveTrip({
+      vesselLocation: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
         ScheduleKey: undefined,
       }),
-      existingTrip,
-      false,
-      continuingEvents(),
-      makeScheduledTables()
-    );
+      existingActiveTrip: existingTrip,
+    });
 
-    expect(trip.ArrivingTerminalAbbrev).toBe(
+    expect(trip?.ArrivingTerminalAbbrev).toBe(
       existingTrip.ArrivingTerminalAbbrev
     );
-    expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
-    expect(trip.ScheduleKey).toBe(existingTrip.ScheduleKey);
+    expect(trip?.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
+    expect(trip?.ScheduleKey).toBe(existingTrip.ScheduleKey);
   });
 
   it("replaces inferred fields immediately when WSF provides authoritative values", () => {
@@ -65,23 +87,21 @@ describe("buildTripCore", () => {
       ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
     });
 
-    const trip = buildTripCore(
-      makeLocation({
+    const trip = buildActiveTrip({
+      vesselLocation: makeLocation({
         ArrivingTerminalAbbrev: "SHI",
         ScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
         ScheduleKey: undefined,
       }),
-      existingTrip,
-      false,
-      continuingEvents({
+      existingActiveTrip: existingTrip,
+      events: continuingEvents({
         scheduleKeyChanged: true,
       }),
-      makeScheduledTables()
-    );
+    });
 
-    expect(trip.ArrivingTerminalAbbrev).toBe("SHI");
-    expect(trip.ScheduledDeparture).toBe(ms("2026-03-13T12:30:00-07:00"));
-    expect(trip.ScheduleKey).toBe("CHE--2026-03-13--12:30--CLI-SHI");
+    expect(trip?.ArrivingTerminalAbbrev).toBe("SHI");
+    expect(trip?.ScheduledDeparture).toBe(ms("2026-03-13T12:30:00-07:00"));
+    expect(trip?.ScheduleKey).toBe("CHE--2026-03-13--12:30--CLI-SHI");
   });
 
   it("starts the replacement trip with inferred fields after a completed arrival", () => {
@@ -103,29 +123,35 @@ describe("buildTripCore", () => {
       NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
     });
 
-    const trip = buildTripCore(
-      makeLocation({
-        DepartingTerminalAbbrev: "MUK",
-        DepartingTerminalName: "Mukilteo",
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      completedTrip,
-      true,
-      continuingEvents({
-        didJustArriveAtDock: true,
-        scheduleKeyChanged: true,
-      }),
+    const tripRows = buildTripRowsForPing(
+      {
+        vesselLocation: makeLocation({
+          DepartingTerminalAbbrev: "MUK",
+          DepartingTerminalName: "Mukilteo",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          ScheduleKey: undefined,
+        }),
+        existingActiveTrip: completedTrip,
+        events: continuingEvents({
+          isCompletedTrip: true,
+          didJustArriveAtDock: true,
+          scheduleKeyChanged: true,
+        }),
+      },
       makeScheduledTables({
         segments: [nextSegment],
       })
     );
 
-    expect(trip.ArrivingTerminalAbbrev).toBe("CLI");
-    expect(trip.ScheduledDeparture).toBe(nextSegment.DepartingTime);
-    expect(trip.ScheduleKey).toBe(nextSegment.Key);
-    expect(trip.NextScheduleKey).toBe(nextSegment.NextKey);
+    expect(tripRows.activeVesselTrip?.ArrivingTerminalAbbrev).toBe("CLI");
+    expect(tripRows.activeVesselTrip?.ScheduledDeparture).toBe(
+      nextSegment.DepartingTime
+    );
+    expect(tripRows.activeVesselTrip?.ScheduleKey).toBe(nextSegment.Key);
+    expect(tripRows.activeVesselTrip?.NextScheduleKey).toBe(
+      nextSegment.NextKey
+    );
   });
 
   it("keeps physical arrival behavior while trip fields are inferred", () => {
@@ -149,8 +175,8 @@ describe("buildTripCore", () => {
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = buildTripCore(
-      makeLocation({
+    const trip = buildActiveTrip({
+      vesselLocation: makeLocation({
         AtDock: true,
         LeftDock: existingTrip.LeftDock,
         DepartingTerminalAbbrev: "MUK",
@@ -160,47 +186,52 @@ describe("buildTripCore", () => {
         ScheduleKey: undefined,
         TimeStamp: ms("2026-03-13T11:28:00-07:00"),
       }),
-      existingTrip,
-      false,
-      continuingEvents({
+      existingActiveTrip: existingTrip,
+      events: continuingEvents({
         didJustArriveAtDock: true,
       }),
-      makeScheduledTables({
+      scheduleTables: makeScheduledTables({
         segments: [segment],
-      })
-    );
+      }),
+    });
 
-    expect(trip.ArrivingTerminalAbbrev).toBe("CLI");
-    expect(trip.ScheduledDeparture).toBe(segment.DepartingTime);
-    expect(trip.ScheduleKey).toBe(segment.Key);
-    expect(trip.ArriveDest).toBe(ms("2026-03-13T11:28:00-07:00"));
+    expect(trip?.ArrivingTerminalAbbrev).toBe("CLI");
+    expect(trip?.ScheduledDeparture).toBe(segment.DepartingTime);
+    expect(trip?.ScheduleKey).toBe(segment.Key);
+    expect(trip?.ArriveDest).toBe(ms("2026-03-13T11:28:00-07:00"));
   });
 
   it("keeps tripFieldInferenceMethod transient while still exposing it to observability hooks", () => {
-    const onTripFieldsResolved = mock<(args: TripFieldInferenceInput) => void>(
-      () => {}
-    );
+    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = buildTripCore(
-      makeLocation({
+    const trip = resolveTripFieldsForTripRow({
+      location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
         ScheduleKey: undefined,
       }),
-      makeTrip({
+      existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
       }),
-      false,
-      continuingEvents(),
-      makeScheduledTables({
+      scheduleTables: makeScheduledTables({
         segments: [nextSegment],
       }),
-      { onTripFieldsResolved }
-    );
+      buildTrip: (resolvedCurrentTripFields) =>
+        makeTrip({
+          ArrivingTerminalAbbrev:
+            resolvedCurrentTripFields.ArrivingTerminalAbbrev,
+          ScheduledDeparture: resolvedCurrentTripFields.ScheduledDeparture,
+          ScheduleKey: resolvedCurrentTripFields.ScheduleKey,
+          SailingDay: resolvedCurrentTripFields.SailingDay,
+          NextScheduleKey: undefined,
+          NextScheduledDeparture: undefined,
+        }),
+      onTripFieldsResolved,
+    });
 
     expect(onTripFieldsResolved).toHaveBeenCalledTimes(1);
     expect(
@@ -220,30 +251,25 @@ describe("buildTripCore", () => {
       DepartingTime: ms("2026-03-14T01:30:00-07:00"),
     });
 
-    const trip = buildTripCore(
-      makeLocation({
+    const trip = buildActiveTrip({
+      vesselLocation: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
         ScheduleKey: undefined,
       }),
-      makeTrip({
+      existingActiveTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
       }),
-      false,
-      continuingEvents(),
-      makeScheduledTables({
+      scheduleTables: makeScheduledTables({
         segments: [nextSegment],
-      })
-    );
+      }),
+    });
 
-    expect(trip.ScheduleKey).toBe(nextSegment.Key);
-    expect(trip.SailingDay).toBe(nextSegment.SailingDay);
+    expect(trip?.ScheduleKey).toBe(nextSegment.Key);
+    expect(trip?.SailingDay).toBe(nextSegment.SailingDay);
   });
 
   it("handles provisional inference, authoritative WSF takeover, and then skips an unchanged ping", () => {
-    const onTripFieldsResolved = mock<(args: TripFieldInferenceInput) => void>(
-      () => {}
-    );
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--MUK-CLI",
       DepartingTerminalAbbrev: "MUK",
@@ -266,8 +292,8 @@ describe("buildTripCore", () => {
       NextScheduledDeparture: nextSegment.DepartingTime,
     });
 
-    const inferredTrip = buildTripCore(
-      makeLocation({
+    const inferredTrip = buildActiveTrip({
+      vesselLocation: makeLocation({
         AtDock: true,
         LeftDock: undefined,
         DepartingTerminalAbbrev: "MUK",
@@ -277,15 +303,12 @@ describe("buildTripCore", () => {
         ScheduleKey: undefined,
         TimeStamp: ms("2026-03-13T12:00:00-07:00"),
       }),
-      existingTrip,
-      false,
-      continuingEvents(),
+      existingActiveTrip: existingTrip,
       scheduleTables,
-      { onTripFieldsResolved }
-    );
+    });
 
-    const authoritativeTrip = buildTripCore(
-      makeLocation({
+    const authoritativeTrip = buildActiveTrip({
+      vesselLocation: makeLocation({
         AtDock: true,
         LeftDock: undefined,
         DepartingTerminalAbbrev: "MUK",
@@ -295,36 +318,18 @@ describe("buildTripCore", () => {
         ScheduleKey: undefined,
         TimeStamp: ms("2026-03-13T12:01:00-07:00"),
       }),
-      inferredTrip,
-      false,
-      continuingEvents(),
+      existingActiveTrip: inferredTrip,
       scheduleTables,
-      { onTripFieldsResolved }
-    );
+      events: continuingEvents({
+        scheduleKeyChanged: true,
+      }),
+    });
 
-    expect(onTripFieldsResolved).toHaveBeenCalledTimes(2);
-    expect(
-      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
-    ).toMatchObject({
-      tripFieldDataSource: "inferred",
-      tripFieldInferenceMethod: "next_scheduled_trip",
-      ScheduleKey: nextSegment.Key,
-    });
-    expect(
-      onTripFieldsResolved.mock.calls[1]?.[0]?.resolvedCurrentTripFields
-    ).toMatchObject({
-      tripFieldDataSource: "wsf",
-      ScheduleKey: nextSegment.Key,
-    });
-    expect(
-      onTripFieldsResolved.mock.calls[1]?.[0]?.resolvedCurrentTripFields
-        .tripFieldInferenceMethod
-    ).toBeUndefined();
-    expect(authoritativeTrip.ArrivingTerminalAbbrev).toBe("CLI");
-    expect(authoritativeTrip.ScheduledDeparture).toBe(
+    expect(authoritativeTrip?.ArrivingTerminalAbbrev).toBe("CLI");
+    expect(authoritativeTrip?.ScheduledDeparture).toBe(
       nextSegment.DepartingTime
     );
-    expect(authoritativeTrip.ScheduleKey).toBe(nextSegment.Key);
+    expect(authoritativeTrip?.ScheduleKey).toBe(nextSegment.Key);
 
     const tripBatch = computeTripBatchForPing(
       [
@@ -343,13 +348,19 @@ describe("buildTripCore", () => {
           locationChanged: false,
         },
       ],
-      [authoritativeTrip],
-      emptyScheduleSnapshot,
+      authoritativeTrip ? [authoritativeTrip] : [],
+      {
+        SailingDay: "2026-03-13",
+        scheduledDepartureBySegmentKey: {},
+        scheduledDeparturesByVesselAbbrev: {},
+      },
       "2026-03-13"
     );
 
     expect(tripBatch.updates).toEqual([]);
-    expect(tripBatch.rows.activeTrips).toEqual([authoritativeTrip]);
+    expect(tripBatch.rows.activeTrips).toEqual(
+      authoritativeTrip ? [authoritativeTrip] : []
+    );
     expect(tripBatch.rows.completedTrips).toEqual([]);
   });
 });

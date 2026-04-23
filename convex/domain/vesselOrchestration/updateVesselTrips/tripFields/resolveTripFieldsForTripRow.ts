@@ -1,31 +1,23 @@
+import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type {
-  ResolvedCurrentTripFields,
-  TripFieldDataSource,
-  TripFieldInferenceMethod,
-} from "./types";
+import { getFallbackTripFields } from "./getFallbackTripFields";
+import { getNextScheduledTripFromExistingTrip } from "./getNextScheduledTripFromExistingTrip";
+import { getRolledOverScheduledTrip } from "./getRolledOverScheduledTrip";
+import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
+import { hasWsfTripFields } from "./hasWsfTripFields";
+import type { ResolvedCurrentTripFields, ScheduledTripMatch } from "./types";
 
-type TripFieldSnapshot = {
-  ArrivingTerminalAbbrev?: string;
-  ScheduledDeparture?: number;
-  ScheduleKey?: string;
-};
-
-/**
- * Inputs for trip-field inference logging: full feed location, optional prior
- * active trip, and resolved current-trip fields from schedule/WSF policy.
- */
-export type TripFieldInferenceInput = {
+type TripFieldInferenceInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   resolvedCurrentTripFields: ResolvedCurrentTripFields;
 };
 
-export type TripFieldInferenceLogContext = {
+type TripFieldInferenceLogContext = {
   vesselAbbrev: string;
-  tripFieldDataSource: TripFieldDataSource;
-  tripFieldInferenceMethod?: TripFieldInferenceMethod;
+  tripFieldDataSource: ResolvedCurrentTripFields["tripFieldDataSource"];
+  tripFieldInferenceMethod?: ResolvedCurrentTripFields["tripFieldInferenceMethod"];
   reason:
     | "inferred_trip_fields_started"
     | "inferred_trip_fields_updated"
@@ -41,12 +33,22 @@ type TripFieldInferenceLogger = (
   context: TripFieldInferenceLogContext
 ) => void;
 
-/**
- * Builds a snapshot of the three comparable trip-field columns.
- *
- * @param trip - Location, trip row, or resolved fields carrying those columns
- * @returns Plain object (each property may still be undefined)
- */
+type ResolveTripFieldsForTripRowInput = {
+  location: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
+  scheduleTables: ScheduledSegmentTables;
+  buildTrip: (
+    resolvedCurrentTripFields: ResolvedCurrentTripFields
+  ) => ConvexVesselTrip;
+  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void;
+};
+
+type TripFieldSnapshot = {
+  ArrivingTerminalAbbrev?: string;
+  ScheduledDeparture?: number;
+  ScheduleKey?: string;
+};
+
 const tripFieldSnapshotFrom = (
   trip: ConvexVesselTrip | ConvexVesselLocation | ResolvedCurrentTripFields
 ): TripFieldSnapshot => ({
@@ -75,15 +77,7 @@ const hasPartialWsfConflict = (
   (location.ScheduleKey !== undefined &&
     location.ScheduleKey !== resolvedTripFields.ScheduleKey);
 
-/**
- * Builds structured log context when resolved trip fields warrant observability.
- *
- * @param location - Raw location row for this ping
- * @param existingTrip - Prior active trip, when present
- * @param resolvedCurrentTripFields - Output of current-trip resolution
- * @returns Log context, or undefined when no log line should emit
- */
-export const getTripFieldInferenceLogContext = ({
+const getTripFieldInferenceLogContext = ({
   location,
   existingTrip,
   resolvedCurrentTripFields,
@@ -150,14 +144,7 @@ const buildTripFieldInferenceMessage = (
   }
 };
 
-/**
- * Emits trip-field inference observability when {@link getTripFieldInferenceLogContext}
- * returns a payload.
- *
- * @param args - Same inputs as `getTripFieldInferenceLogContext`
- * @param logger - Log sink (defaults to `console.info`)
- */
-export const logTripFieldInference = (
+const logTripFieldInference = (
   args: TripFieldInferenceInput,
   logger: TripFieldInferenceLogger = console.info
 ): void => {
@@ -167,4 +154,121 @@ export const logTripFieldInference = (
   }
 
   logger(buildTripFieldInferenceMessage(context), context);
+};
+
+const resolveCurrentTripFields = ({
+  location,
+  existingTrip,
+  scheduleTables,
+}: Omit<
+  ResolveTripFieldsForTripRowInput,
+  "buildTrip" | "onTripFieldsResolved"
+>): ResolvedCurrentTripFields => {
+  if (hasWsfTripFields(location)) {
+    return getTripFieldsFromWsf(location);
+  }
+
+  const scheduleMatch =
+    getNextScheduledTripFromExistingTrip({
+      location,
+      existingTrip,
+      scheduleTables,
+    }) ??
+    getRolledOverScheduledTrip({
+      location,
+      existingTrip,
+      scheduleTables,
+    });
+
+  if (scheduleMatch) {
+    return resolvedFieldsFromScheduleMatch(scheduleMatch);
+  }
+
+  return getFallbackTripFields({
+    location,
+    existingTrip,
+  });
+};
+
+const resolvedFieldsFromScheduleMatch = (
+  match: ScheduledTripMatch
+): ResolvedCurrentTripFields => ({
+  ArrivingTerminalAbbrev: match.segment.ArrivingTerminalAbbrev,
+  ScheduledDeparture: match.segment.DepartingTime,
+  ScheduleKey: match.segment.Key,
+  SailingDay: match.segment.SailingDay,
+  tripFieldDataSource: "inferred",
+  tripFieldInferenceMethod: match.tripFieldInferenceMethod,
+});
+
+const attachNextScheduledTripFields = ({
+  baseTrip,
+  existingTrip,
+  scheduleTables,
+}: {
+  baseTrip: ConvexVesselTrip;
+  existingTrip: ConvexVesselTrip | undefined;
+  scheduleTables: ScheduledSegmentTables;
+}): ConvexVesselTrip => {
+  const segmentKey = baseTrip.ScheduleKey;
+  if (!segmentKey) {
+    return baseTrip;
+  }
+
+  if (existingTrip?.ScheduleKey === segmentKey) {
+    return {
+      ...baseTrip,
+      NextScheduleKey: baseTrip.NextScheduleKey ?? existingTrip.NextScheduleKey,
+      NextScheduledDeparture:
+        baseTrip.NextScheduledDeparture ?? existingTrip.NextScheduledDeparture,
+    };
+  }
+
+  const scheduledSegment =
+    scheduleTables.scheduledDepartureBySegmentKey[segmentKey];
+  if (!scheduledSegment) {
+    return {
+      ...baseTrip,
+      NextScheduleKey: undefined,
+      NextScheduledDeparture: undefined,
+    };
+  }
+
+  return {
+    ...baseTrip,
+    NextScheduleKey: scheduledSegment.NextKey ?? baseTrip.NextScheduleKey,
+    NextScheduledDeparture:
+      scheduledSegment.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
+  };
+};
+
+export const resolveTripFieldsForTripRow = ({
+  location,
+  existingTrip,
+  scheduleTables,
+  buildTrip,
+  onTripFieldsResolved,
+}: ResolveTripFieldsForTripRowInput): ConvexVesselTrip => {
+  const resolvedCurrentTripFields = resolveCurrentTripFields({
+    location,
+    existingTrip,
+    scheduleTables,
+  });
+  const inferenceInput = {
+    location,
+    existingTrip,
+    resolvedCurrentTripFields,
+  };
+
+  if (onTripFieldsResolved !== undefined) {
+    onTripFieldsResolved(inferenceInput);
+  } else {
+    logTripFieldInference(inferenceInput);
+  }
+
+  return attachNextScheduledTripFields({
+    baseTrip: buildTrip(resolvedCurrentTripFields),
+    existingTrip,
+    scheduleTables,
+  });
 };

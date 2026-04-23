@@ -32,12 +32,10 @@ export const getRolledOverScheduledTrip = ({
   }
 
   const priorTripSailingDay = getSailingDay(new Date(scheduledDeparture));
-  const nextDeparture = [
-    priorTripSailingDay,
-    scheduleTables.sailingDay,
-  ]
-    .filter((sailingDay, index, sailingDays) =>
-      sailingDays.indexOf(sailingDay) === index
+  const nextDeparture = [priorTripSailingDay, scheduleTables.sailingDay]
+    .filter(
+      (sailingDay, index, sailingDays) =>
+        sailingDays.indexOf(sailingDay) === index
     )
     .flatMap((sailingDay) =>
       getScheduledDeparturesForVesselAndSailingDay(

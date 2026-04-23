@@ -17,9 +17,8 @@ export const DEPART_NEXT_ML_PREDICTION_TYPES = [
  * @param nextScheduleKey - Next segment key from the completed trip row
  * @returns dep-dock boundary key for `eventsPredicted` lookup
  */
-const buildDepartNextDepDockBoundaryKey = (
-  nextScheduleKey: string
-): string => buildBoundaryKey(nextScheduleKey, "dep-dock");
+const buildDepartNextDepDockBoundaryKey = (nextScheduleKey: string): string =>
+  buildBoundaryKey(nextScheduleKey, "dep-dock");
 
 type DepartNextLegContext =
   | { ok: false; reason: "no_next_leg_context" }

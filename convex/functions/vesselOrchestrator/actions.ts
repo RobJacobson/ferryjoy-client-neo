@@ -16,8 +16,6 @@ import type {
   PredictedTripComputation,
   ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
-import { computeVesselTripsBatch } from "domain/vesselOrchestration/updateVesselTrips";
-import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
   predictionModelTypesForTrip,
@@ -25,8 +23,10 @@ import {
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
+import { computeVesselTripsBatch } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
@@ -34,7 +34,7 @@ import type {
   VesselLocationUpdates,
   VesselPredictionUpdates,
   VesselTimelineUpdates,
-  VesselTripUpdates,
+  VesselTripUpdate,
 } from "./pipelineTypes";
 import type { OrchestratorPingPersistence } from "./schemas";
 
@@ -117,19 +117,19 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
  */
 type OrchestratorPerVesselStageOutputs = {
   location: VesselLocationUpdates;
-  trip: VesselTripUpdates;
+  trip: VesselTripUpdate;
   prediction: VesselPredictionUpdates;
   timeline: VesselTimelineUpdates;
 };
 
 type OrchestratorTripStage = {
-  tripUpdates: ReadonlyArray<VesselTripUpdates>;
+  tripUpdates: ReadonlyArray<VesselTripUpdate>;
   tripRows: RunUpdateVesselTripsOutput;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
 };
 
 type PredictionStageInputs = {
-  changedTripUpdates: ReadonlyArray<VesselTripUpdates>;
+  changedTripUpdates: ReadonlyArray<VesselTripUpdate>;
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
 };
@@ -316,7 +316,7 @@ export const updateVesselTrips = (
  */
 export const runPredictionStage = async (
   ctx: ActionCtx,
-  tripUpdates: ReadonlyArray<VesselTripUpdates>,
+  tripUpdates: ReadonlyArray<VesselTripUpdate>,
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): Promise<ReadonlyArray<VesselPredictionUpdates>> => {
@@ -426,7 +426,7 @@ const computeTripBatchForPing = (
   scheduleSnapshot: ScheduleSnapshot,
   sailingDay: string
 ): {
-  updates: ReadonlyArray<VesselTripUpdates>;
+  updates: ReadonlyArray<VesselTripUpdate>;
   rows: RunUpdateVesselTripsOutput;
 } => {
   const changedVesselAbbrevs = new Set(
@@ -467,11 +467,11 @@ const logTripStageLocationSkipSummary = (
   });
 };
 
-const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdates): boolean =>
+const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdate): boolean =>
   tripUpdate.tripStorageChanged || tripUpdate.tripLifecycleChanged;
 
 const buildPredictionStageInputs = (
-  tripUpdates: ReadonlyArray<VesselTripUpdates>,
+  tripUpdates: ReadonlyArray<VesselTripUpdate>,
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): PredictionStageInputs => {
@@ -519,9 +519,11 @@ const changedLocationsFromUpdates = (
     .map((update) => update.vesselLocation);
 
 const buildPredictionUpdatesByVessel = (
-  tripUpdates: ReadonlyArray<VesselTripUpdates>,
+  tripUpdates: ReadonlyArray<VesselTripUpdate>,
   predictionRows: ReadonlyArray<
-    Awaited<ReturnType<typeof runVesselPredictionPing>>["predictionRows"][number]
+    Awaited<
+      ReturnType<typeof runVesselPredictionPing>
+    >["predictionRows"][number]
   >,
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
@@ -531,7 +533,10 @@ const buildPredictionUpdatesByVessel = (
     ...completedHandoffs.map((handoff) => handoff.tripToComplete.VesselAbbrev),
   ]);
 
-  const predictionRowsByVessel = new Map<string, Array<(typeof predictionRows)[number]>>();
+  const predictionRowsByVessel = new Map<
+    string,
+    Array<(typeof predictionRows)[number]>
+  >();
   for (const predictionRow of predictionRows) {
     const rows = predictionRowsByVessel.get(predictionRow.VesselAbbrev) ?? [];
     rows.push(predictionRow);
@@ -546,7 +551,10 @@ const buildPredictionUpdatesByVessel = (
     const computations =
       predictedTripComputationsByVessel.get(computation.vesselAbbrev) ?? [];
     computations.push(computation);
-    predictedTripComputationsByVessel.set(computation.vesselAbbrev, computations);
+    predictedTripComputationsByVessel.set(
+      computation.vesselAbbrev,
+      computations
+    );
   }
 
   const completedHandoffsByVessel = new Map<
@@ -555,8 +563,9 @@ const buildPredictionUpdatesByVessel = (
   >();
   for (const completedHandoff of completedHandoffs) {
     const handoffs =
-      completedHandoffsByVessel.get(completedHandoff.tripToComplete.VesselAbbrev) ??
-      [];
+      completedHandoffsByVessel.get(
+        completedHandoff.tripToComplete.VesselAbbrev
+      ) ?? [];
     handoffs.push(completedHandoff);
     completedHandoffsByVessel.set(
       completedHandoff.tripToComplete.VesselAbbrev,
@@ -576,7 +585,9 @@ const buildPredictionUpdatesByVessel = (
 const mergePredictionRows = (
   predictionUpdates: ReadonlyArray<VesselPredictionUpdates>
 ): ReadonlyArray<VesselPredictionUpdates["predictionRows"][number]> =>
-  predictionUpdates.flatMap((predictionUpdate) => predictionUpdate.predictionRows);
+  predictionUpdates.flatMap(
+    (predictionUpdate) => predictionUpdate.predictionRows
+  );
 
 const mergePredictedTripComputations = (
   predictionUpdates: ReadonlyArray<VesselPredictionUpdates>

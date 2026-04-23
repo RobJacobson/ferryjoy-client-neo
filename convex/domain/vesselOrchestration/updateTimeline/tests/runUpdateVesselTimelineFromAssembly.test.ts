@@ -83,4 +83,3 @@ describe("runUpdateVesselTimelineFromAssembly", () => {
     expect(out.predictedEvents).toHaveLength(0);
   });
 });
-

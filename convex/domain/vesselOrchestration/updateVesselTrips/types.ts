@@ -35,7 +35,7 @@ export type RunUpdateVesselTripsOutput = {
  * this vessel after the ping. `replacementTrip` is populated only when the ping
  * closes a prior trip and starts a new active trip in the same pass.
  */
-export type VesselTripUpdates = {
+export type VesselTripUpdate = {
   vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
   activeTripCandidate?: ConvexVesselTrip;

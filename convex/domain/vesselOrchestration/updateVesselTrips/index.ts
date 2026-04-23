@@ -7,6 +7,6 @@ export {
   computeVesselTripsRows,
 } from "./computeVesselTripsBatch";
 export type {
-  RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
+  VesselTripUpdate,
 } from "./types";

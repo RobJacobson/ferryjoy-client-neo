@@ -4,8 +4,8 @@
 
 import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
-import type { ConvexScheduledDockEvent } from "./schemas";
 import { materializeOrchestratorScheduleSnapshot } from "functions/vesselOrchestrator/materializeScheduleSnapshot";
+import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
  * Upsert the scheduled-event backbone rows for one sailing day using the
@@ -58,7 +58,10 @@ export const upsertScheduledRowsForSailingDay = async (
     await ctx.db.replace(existing._id, nextRow);
   }
 
-  const snapshot = materializeOrchestratorScheduleSnapshot(SailingDay, nextRows);
+  const snapshot = materializeOrchestratorScheduleSnapshot(
+    SailingDay,
+    nextRows
+  );
   const existingSnapshot = await ctx.db
     .query("vesselOrchestratorScheduleSnapshots")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))

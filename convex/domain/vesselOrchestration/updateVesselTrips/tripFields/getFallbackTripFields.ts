@@ -14,7 +14,7 @@ import type { ResolvedCurrentTripFields } from "./types";
  * departure fields remains `tripFieldDataSource: "wsf"`.
  *
  * Next-leg schedule fields are not part of this contract; they are attached
- * later in `attachNextScheduledTripFields`.
+ * later by `resolveTripFieldsForTripRow`.
  *
  * @param location - Raw location for this ping
  * @param existingTrip - Prior trip row for same-dock reuse, when present
@@ -49,7 +49,7 @@ export const getFallbackTripFields = ({
     ScheduleKey:
       location.ScheduleKey ?? reusedTrip?.ScheduleKey ?? identity.ScheduleKey,
     SailingDay: identity.SailingDay ?? reusedTrip?.SailingDay,
-    // `resolveCurrentTripFields` only reaches this helper after confirming
+    // `resolveTripFieldsForTripRow` only reaches this helper after confirming
     // the feed is incomplete, so the resolved row remains non-authoritative
     // even when we preserve partial WSF values instead of reusing persisted
     // provisional ones.

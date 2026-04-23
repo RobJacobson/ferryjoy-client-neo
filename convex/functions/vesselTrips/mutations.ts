@@ -34,11 +34,7 @@ export const completeAndStartNewTrip = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     try {
-      await completeAndStartNewTripInDb(
-        ctx,
-        args.completedTrip,
-        args.newTrip
-      );
+      await completeAndStartNewTripInDb(ctx, args.completedTrip, args.newTrip);
       return null;
     } catch (error) {
       if (error instanceof ConvexError) {
@@ -191,7 +187,11 @@ export const setDepartNextActualsForMostRecentCompletedTripInDb = async (
   }
 
   const { depKey, actualMs } = leg;
-  const anyUpdated = await actualizeDepartNextMlPredictions(ctx, depKey, actualMs);
+  const anyUpdated = await actualizeDepartNextMlPredictions(
+    ctx,
+    depKey,
+    actualMs
+  );
 
   if (!anyUpdated) {
     return {

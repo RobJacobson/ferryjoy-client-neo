@@ -32,4 +32,3 @@ export const buildTripsComputeStorageRows = (
       : null,
   leaveDockEffects: tripsCompute.current.pendingLeaveDockEffects,
 });
-

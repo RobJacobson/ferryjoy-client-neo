@@ -5,33 +5,27 @@
  * event bundle consumed by the trip builders.
  */
 
+import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
 
-export type TripEvents = {
-  isFirstTrip: boolean;
-  isTripStartReady: boolean;
-  isCompletedTrip: boolean;
-  didJustArriveAtDock: boolean;
-  didJustLeaveDock: boolean;
+type DetectedTripEvents = TripLifecycleEventFlags & {
   leftDockTime: number | undefined;
-  scheduleKeyChanged: boolean;
 };
 
 /**
  * Returns the persisted departure timestamp for lifecycle, preferring
  * `LeftDockActual` over legacy departure mirrors.
  */
-export const getPhysicalDepartureStamp = (
+const getPhysicalDepartureStamp = (
   trip: ConvexVesselTrip | undefined
 ): number | undefined => trip?.LeftDockActual ?? trip?.LeftDock;
 
-const rawPingSuggestsDocked = (
-  location: ConvexVesselLocation
-): boolean => location.AtDock && !(location.Speed > 1);
+const rawPingSuggestsDocked = (location: ConvexVesselLocation): boolean =>
+  location.AtDock && !(location.Speed > 1);
 
-export const rawDepartureIsContradictory = (
+const rawDepartureIsContradictory = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): boolean =>
@@ -78,17 +72,18 @@ const rawDidJustArriveAtDock = (
   }
 
   return (
-    currLocation.DepartingTerminalAbbrev !== existingTrip.DepartingTerminalAbbrev
+    currLocation.DepartingTerminalAbbrev !==
+    existingTrip.DepartingTerminalAbbrev
   );
 };
 
-export type PhysicalState = {
+type PhysicalState = {
   didJustLeaveDock: boolean;
   didJustArriveAtDock: boolean;
   leftDockTime: number | undefined;
 };
 
-export const resolvePhysicalState = (
+const resolvePhysicalState = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): PhysicalState => {
@@ -117,7 +112,7 @@ export const resolvePhysicalState = (
   };
 };
 
-export const hasTripEvidence = (
+const hasTripEvidence = (
   existingTrip: ConvexVesselTrip | undefined
 ): existingTrip is ConvexVesselTrip =>
   Boolean(
@@ -149,7 +144,7 @@ const getRawLifecycleScheduleKey = (
 export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
-): TripEvents => {
+): DetectedTripEvents => {
   const physical = resolvePhysicalState(existingTrip, currLocation);
   const continuingScheduleKey = getRawLifecycleScheduleKey(
     existingTrip,

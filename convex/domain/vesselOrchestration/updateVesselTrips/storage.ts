@@ -1,20 +1,3 @@
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-
-export const areTripStorageRowsEqual = (
-  existingTrip: ConvexVesselTrip | undefined,
-  nextTrip: ConvexVesselTrip | undefined
-): boolean => {
-  if (existingTrip === undefined || nextTrip === undefined) {
-    return existingTrip === nextTrip;
-  }
-
-  return (
-    JSON.stringify(stripTripPredictionsForStorage(existingTrip)) ===
-    JSON.stringify(stripTripPredictionsForStorage(nextTrip))
-  );
-};
-
 export const logTripPipelineFailure = (
   vesselAbbrev: string,
   phase: string,
@@ -26,4 +9,3 @@ export const logTripPipelineFailure = (
     err
   );
 };
-

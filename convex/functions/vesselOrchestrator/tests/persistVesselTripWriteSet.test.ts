@@ -69,11 +69,15 @@ describe("persistVesselTripWriteSet", () => {
       TimeStamp: ms("2026-03-13T06:40:00-07:00"),
     });
 
-    const completeCalls: Array<{ completedTrip: ConvexVesselTrip; newTrip: ConvexVesselTrip }> =
-      [];
+    const completeCalls: Array<{
+      completedTrip: ConvexVesselTrip;
+      newTrip: ConvexVesselTrip;
+    }> = [];
     const upsertCalls: ConvexVesselTrip[][] = [];
-    const leaveDockCalls: Array<{ vesselAbbrev: string; actualDepartMs: number }> =
-      [];
+    const leaveDockCalls: Array<{
+      vesselAbbrev: string;
+      actualDepartMs: number;
+    }> = [];
 
     const result = await persistVesselTripWriteSet(
       {
@@ -117,4 +121,3 @@ describe("persistVesselTripWriteSet", () => {
     expect(leaveDockCalls[0]?.vesselAbbrev).toBe("TAC");
   });
 });
-

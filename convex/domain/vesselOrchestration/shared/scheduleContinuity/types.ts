@@ -18,7 +18,9 @@ import type { CompactScheduledDepartureEvent } from "../scheduleSnapshot/schedul
 export type ScheduledSegmentTables = {
   /** Calendar day these tables were narrowed to from the snapshot. */
   sailingDay: string;
-  scheduledDepartureBySegmentKey: Readonly<Record<string, ConvexInferredScheduledSegment>>;
+  scheduledDepartureBySegmentKey: Readonly<
+    Record<string, ConvexInferredScheduledSegment>
+  >;
   scheduledDeparturesByVesselAbbrev: Readonly<
     Record<string, readonly CompactScheduledDepartureEvent[]>
   >;

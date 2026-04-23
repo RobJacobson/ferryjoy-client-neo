@@ -14,14 +14,14 @@
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
  */
 
-import type {
-  CompletedTripBoundaryFact,
-  CurrentTripLifecycleBranchResult,
-} from "domain/vesselOrchestration/shared/pingHandshake/types";
 import {
   mergePingEventWrites,
   type TimelinePingProjectionInput,
 } from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
+import type {
+  CompletedTripBoundaryFact,
+  CurrentTripLifecycleBranchResult,
+} from "domain/vesselOrchestration/shared/pingHandshake/types";
 import {
   buildPingEventWritesFromCompletedFacts,
   buildPingEventWritesFromCurrentMessages,
