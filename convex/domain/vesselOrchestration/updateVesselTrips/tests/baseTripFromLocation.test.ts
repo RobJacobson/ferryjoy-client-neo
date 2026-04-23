@@ -1,11 +1,13 @@
 /**
- * Characterization tests for the prepared-location base trip builder.
+ * Characterization tests for the raw-location + resolved trip-field base trip
+ * builder.
  *
  * These tests lock in the subtle scenario-specific field rules so the builder
  * can be refactored with confidence.
  */
 
 import { describe, expect, it } from "bun:test";
+import type { ResolvedCurrentTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields/types";
 import { baseTripFromLocation } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/baseTripFromLocation";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -13,6 +15,11 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 import { getSailingDay } from "shared/time";
 
 const ms = (iso: string) => new Date(iso).getTime();
+
+/** Resolution with no field overrides (raw location values win). */
+const locationOnlyTripFieldResolution: ResolvedCurrentTripFields = {
+  tripFieldDataSource: "wsf",
+};
 
 describe("baseTripFromLocation", () => {
   it("uses the current scheduled departure to set SailingDay on trip start", () => {
@@ -23,7 +30,12 @@ describe("baseTripFromLocation", () => {
     });
     const scheduledDeparture = currLocation.ScheduledDeparture;
 
-    const trip = baseTripFromLocation(currLocation, undefined, true);
+    const trip = baseTripFromLocation(
+      currLocation,
+      undefined,
+      true,
+      locationOnlyTripFieldResolution
+    );
 
     expect(scheduledDeparture).toBeDefined();
     expect(trip.ScheduledDeparture).toBe(scheduledDeparture);
@@ -41,7 +53,12 @@ describe("baseTripFromLocation", () => {
       TimeStamp: ms("2026-03-13T01:00:00-07:00"),
     });
 
-    const trip = baseTripFromLocation(currLocation, existingTrip, false);
+    const trip = baseTripFromLocation(
+      currLocation,
+      existingTrip,
+      false,
+      locationOnlyTripFieldResolution
+    );
 
     expect(trip.ScheduledDeparture).toBeUndefined();
     expect(trip.SailingDay).toBeUndefined();
@@ -53,7 +70,12 @@ describe("baseTripFromLocation", () => {
       ScheduledDeparture: undefined,
     });
 
-    const trip = baseTripFromLocation(currLocation, undefined, false);
+    const trip = baseTripFromLocation(
+      currLocation,
+      undefined,
+      false,
+      locationOnlyTripFieldResolution
+    );
 
     expect(trip.ScheduledDeparture).toBeUndefined();
     expect(trip.SailingDay).toBeUndefined();
@@ -73,7 +95,12 @@ describe("baseTripFromLocation", () => {
       TimeStamp: ms("2026-03-13T06:30:05-07:00"),
     });
 
-    const trip = baseTripFromLocation(currLocation, existingTrip, true);
+    const trip = baseTripFromLocation(
+      currLocation,
+      existingTrip,
+      true,
+      locationOnlyTripFieldResolution
+    );
 
     expect(trip.DepartingTerminalAbbrev).toBe(
       currLocation.DepartingTerminalAbbrev
@@ -94,7 +121,12 @@ describe("baseTripFromLocation", () => {
       TimeStamp: ms("2026-03-13T06:29:56-07:00"),
     });
 
-    const trip = baseTripFromLocation(currLocation, undefined, false);
+    const trip = baseTripFromLocation(
+      currLocation,
+      undefined,
+      false,
+      locationOnlyTripFieldResolution
+    );
 
     expect(trip.StartTime).toBe(currLocation.TimeStamp);
     expect(trip.TripStart).toBe(currLocation.TimeStamp);
@@ -114,7 +146,12 @@ describe("baseTripFromLocation", () => {
       TimeStamp: ms("2026-03-13T05:41:00-07:00"),
     });
 
-    const trip = baseTripFromLocation(currLocation, undefined, false);
+    const trip = baseTripFromLocation(
+      currLocation,
+      undefined,
+      false,
+      locationOnlyTripFieldResolution
+    );
 
     expect(trip.TripKey).toBe(
       generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp)
@@ -125,7 +162,7 @@ describe("baseTripFromLocation", () => {
     expect(trip.LeftDock).toBe(currLocation.LeftDock);
   });
 
-  it("derives continuing trip fields from the prepared location", () => {
+  it("derives continuing trip fields from the raw location when resolution adds no overrides", () => {
     const tripStartMs = ms("2026-04-04T16:53:06-07:00");
     const existingTrip = makeTrip({
       VesselAbbrev: "CAT",
@@ -153,7 +190,12 @@ describe("baseTripFromLocation", () => {
       TimeStamp: ms("2026-04-04T16:56:05-07:00"),
     });
 
-    const trip = baseTripFromLocation(currLocation, existingTrip, false);
+    const trip = baseTripFromLocation(
+      currLocation,
+      existingTrip,
+      false,
+      locationOnlyTripFieldResolution
+    );
 
     expect(trip.ScheduleKey).toBe("CAT--2026-04-04--18:45--SOU-VAI");
     expect(trip.ScheduledDeparture).toBe(ms("2026-04-04T18:45:00-07:00"));
@@ -168,7 +210,12 @@ describe("baseTripFromLocation", () => {
     });
 
     expect(() =>
-      baseTripFromLocation(currLocation, existingTrip, false)
+      baseTripFromLocation(
+        currLocation,
+        existingTrip,
+        false,
+        locationOnlyTripFieldResolution
+      )
     ).toThrow("Continuing vessel trip is missing TripKey");
   });
 });

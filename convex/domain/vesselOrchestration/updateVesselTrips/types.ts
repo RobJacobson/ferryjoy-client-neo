@@ -51,7 +51,7 @@ export type VesselTripUpdates = {
 /**
  * One feed row joined with optional prior active trip and {@link TripEvents}.
  *
- * Produced by {@link calculatedTripUpdateForFeedRow}; consumed by
+ * Produced by {@link computeVesselTripUpdates}; consumed by
  * {@link tripRowsForVesselPing}.
  */
 export type CalculatedTripUpdate = {

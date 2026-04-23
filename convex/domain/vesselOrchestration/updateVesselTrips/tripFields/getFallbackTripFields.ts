@@ -1,7 +1,7 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
-import type { InferredTripFields } from "./types";
+import type { ResolvedCurrentTripFields } from "./types";
 
 /**
  * Preserve any direct WSF values that exist. When WSF remains incomplete for
@@ -12,6 +12,13 @@ import type { InferredTripFields } from "./types";
  * reusing persisted provisional fields still yields `tripFieldDataSource:
  * "inferred"`, while deriving a `ScheduleKey` from direct WSF destination +
  * departure fields remains `tripFieldDataSource: "wsf"`.
+ *
+ * Next-leg schedule fields are not part of this contract; they are attached
+ * later in `attachNextScheduledTripFields`.
+ *
+ * @param location - Raw location for this ping
+ * @param existingTrip - Prior trip row for same-dock reuse, when present
+ * @returns Resolved current-trip fields for incomplete-feed cases
  */
 export const getFallbackTripFields = ({
   location,
@@ -37,11 +44,9 @@ export const getFallbackTripFields = ({
         | "ScheduledDeparture"
         | "ScheduleKey"
         | "SailingDay"
-        | "NextScheduleKey"
-        | "NextScheduledDeparture"
       >
     | undefined;
-}): InferredTripFields => {
+}): ResolvedCurrentTripFields => {
   const shouldReuseExistingTripFields = isSameDockWindowReuseCandidate(
     location,
     existingTrip
@@ -73,13 +78,7 @@ export const getFallbackTripFields = ({
     SailingDay:
       identity.SailingDay ??
       (shouldReuseExistingTripFields ? existingTrip?.SailingDay : undefined),
-    NextScheduleKey: shouldReuseExistingTripFields
-      ? existingTrip?.NextScheduleKey
-      : undefined,
-    NextScheduledDeparture: shouldReuseExistingTripFields
-      ? existingTrip?.NextScheduledDeparture
-      : undefined,
-    // `inferTripFieldsFromSchedule` only reaches this helper after confirming
+    // `resolveCurrentTripFields` only reaches this helper after confirming
     // the feed is incomplete, so the resolved row remains non-authoritative
     // even when we preserve partial WSF values instead of reusing persisted
     // provisional ones.
@@ -93,10 +92,7 @@ const isSameDockWindowReuseCandidate = (
     "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
   >,
   existingTrip:
-    | Pick<
-        ConvexVesselTrip,
-        "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
-      >
+    | Pick<ConvexVesselTrip, "AtDock" | "LeftDock" | "DepartingTerminalAbbrev">
     | undefined
 ): boolean =>
   Boolean(

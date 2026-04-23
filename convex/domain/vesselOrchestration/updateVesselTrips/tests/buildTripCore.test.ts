@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
+import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip";
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import { computeTripUpdatesForPing } from "functions/vesselOrchestrator/actions";
@@ -11,9 +12,7 @@ import {
   ms,
 } from "../tripFields/tests/testHelpers";
 
-const continuingEvents = (
-  overrides: Partial<TripEvents> = {}
-): TripEvents => ({
+const continuingEvents = (overrides: Partial<TripEvents> = {}): TripEvents => ({
   isFirstTrip: false,
   isTripStartReady: false,
   isCompletedTrip: false,
@@ -51,7 +50,9 @@ describe("buildTripCore", () => {
       makeScheduledTables()
     );
 
-    expect(trip.ArrivingTerminalAbbrev).toBe(existingTrip.ArrivingTerminalAbbrev);
+    expect(trip.ArrivingTerminalAbbrev).toBe(
+      existingTrip.ArrivingTerminalAbbrev
+    );
     expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
     expect(trip.ScheduleKey).toBe(existingTrip.ScheduleKey);
   });
@@ -175,7 +176,9 @@ describe("buildTripCore", () => {
   });
 
   it("keeps tripFieldInferenceMethod transient while still exposing it to observability hooks", () => {
-    const onTripFieldsResolved = mock(() => {});
+    const onTripFieldsResolved = mock<(args: TripFieldInferenceInput) => void>(
+      () => {}
+    );
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -199,13 +202,13 @@ describe("buildTripCore", () => {
     );
 
     expect(onTripFieldsResolved).toHaveBeenCalledTimes(1);
-    expect(onTripFieldsResolved.mock.calls[0]?.[0]?.inferredTripFields).toMatchObject(
-      {
-        tripFieldDataSource: "inferred",
-        tripFieldInferenceMethod: "next_scheduled_trip",
-        ScheduleKey: nextSegment.Key,
-      }
-    );
+    expect(
+      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
+    ).toMatchObject({
+      tripFieldDataSource: "inferred",
+      tripFieldInferenceMethod: "next_scheduled_trip",
+      ScheduleKey: nextSegment.Key,
+    });
     expect("tripFieldInferenceMethod" in trip).toBe(false);
   });
 
@@ -237,7 +240,9 @@ describe("buildTripCore", () => {
   });
 
   it("handles provisional inference, authoritative WSF takeover, and then skips an unchanged ping", () => {
-    const onTripFieldsResolved = mock(() => {});
+    const onTripFieldsResolved = mock<(args: TripFieldInferenceInput) => void>(
+      () => {}
+    );
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--MUK-CLI",
       DepartingTerminalAbbrev: "MUK",
@@ -253,7 +258,6 @@ describe("buildTripCore", () => {
       AtDock: true,
       LeftDock: undefined,
       DepartingTerminalAbbrev: "MUK",
-      DepartingTerminalName: "Mukilteo",
       ArrivingTerminalAbbrev: "MUK",
       ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
       ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -298,25 +302,27 @@ describe("buildTripCore", () => {
     );
 
     expect(onTripFieldsResolved).toHaveBeenCalledTimes(2);
-    expect(onTripFieldsResolved.mock.calls[0]?.[0]?.inferredTripFields).toMatchObject(
-      {
-        tripFieldDataSource: "inferred",
-        tripFieldInferenceMethod: "next_scheduled_trip",
-        ScheduleKey: nextSegment.Key,
-      }
-    );
-    expect(onTripFieldsResolved.mock.calls[1]?.[0]?.inferredTripFields).toMatchObject(
-      {
-        tripFieldDataSource: "wsf",
-        ScheduleKey: nextSegment.Key,
-      }
-    );
     expect(
-      onTripFieldsResolved.mock.calls[1]?.[0]?.inferredTripFields
+      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
+    ).toMatchObject({
+      tripFieldDataSource: "inferred",
+      tripFieldInferenceMethod: "next_scheduled_trip",
+      ScheduleKey: nextSegment.Key,
+    });
+    expect(
+      onTripFieldsResolved.mock.calls[1]?.[0]?.resolvedCurrentTripFields
+    ).toMatchObject({
+      tripFieldDataSource: "wsf",
+      ScheduleKey: nextSegment.Key,
+    });
+    expect(
+      onTripFieldsResolved.mock.calls[1]?.[0]?.resolvedCurrentTripFields
         .tripFieldInferenceMethod
     ).toBeUndefined();
     expect(authoritativeTrip.ArrivingTerminalAbbrev).toBe("CLI");
-    expect(authoritativeTrip.ScheduledDeparture).toBe(nextSegment.DepartingTime);
+    expect(authoritativeTrip.ScheduledDeparture).toBe(
+      nextSegment.DepartingTime
+    );
     expect(authoritativeTrip.ScheduleKey).toBe(nextSegment.Key);
 
     const tripUpdates = computeTripUpdatesForPing(

@@ -1,12 +1,13 @@
 /**
- * Base vessel trip from location-shaped inputs.
+ * Base vessel trip from raw location plus resolved current-trip fields.
  *
- * Builds the base {@link ConvexVesselTrip} for a single ping from a prepared
- * location. Callers typically pass locations after trip-field inference in
+ * Builds the base {@link ConvexVesselTrip} for a single ping. Callers pass
+ * {@link ResolvedCurrentTripFields} from `resolveCurrentTripFields` in
  * `buildTripCore`; raw-feed lifecycle detection remains in
  * `detectTripEvents.ts`.
  */
 
+import type { ResolvedCurrentTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
@@ -14,21 +15,26 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 import { type DerivedTripInputs, deriveTripInputs } from "./tripDerivation";
 
 /**
- * Builds the base trip from the current location and previous trip state.
+ * Builds the base trip from the current location, resolved trip fields, and
+ * previous trip state.
  *
- * @param currLocation - Prepared location for this step (see module doc)
+ * @param currLocation - Raw vessel location for this ping
  * @param existingTrip - Current trip when one exists for the vessel
  * @param isTripStart - True when starting a new trip row (replacement active or boundary)
+ * @param resolvedCurrentTripFields - Resolved schedule-facing fields for this row
  * @returns Location-derived trip before next-leg schedule merge in `buildTripCore`
  */
 export const baseTripFromLocation = (
   currLocation: ConvexVesselLocation,
-  existingTrip?: ConvexVesselTrip,
-  isTripStart = false
+  existingTrip: ConvexVesselTrip | undefined,
+  isTripStart: boolean,
+  resolvedCurrentTripFields: ResolvedCurrentTripFields
 ): ConvexVesselTrip => {
-  // `currLocation` is prepared before this step, including any provisional trip
-  // fields supplied by `tripFields/`.
-  const tripInputs = deriveTripInputs(existingTrip, currLocation);
+  const tripInputs = deriveTripInputs(
+    existingTrip,
+    currLocation,
+    resolvedCurrentTripFields
+  );
   if (isTripStart) {
     return baseTripForStart(currLocation, existingTrip, tripInputs);
   }
@@ -39,7 +45,7 @@ export const baseTripFromLocation = (
 /**
  * Build the base trip for a new trip start.
  *
- * @param currLocation - Prepared location for this ping
+ * @param currLocation - Raw location for this ping
  * @param existingTrip - Previous trip state, when present
  * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a newly started trip
@@ -123,7 +129,7 @@ const tripKeyForContinuing = (
 /**
  * Build the base trip for a continuing or first-seen trip.
  *
- * @param currLocation - Prepared location for this ping
+ * @param currLocation - Raw location for this ping
  * @param existingTrip - Current ongoing trip, when one exists
  * @param tripInputs - Shared derived values for this ping
  * @returns Base trip for a continuing or first-seen trip

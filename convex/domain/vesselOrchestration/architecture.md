@@ -205,15 +205,15 @@ What it means:
 
 ## Path 4: Inferred trip fields when WSF is incomplete
 
-1. `buildTripCore` asks `tripFields/inferTripFieldsFromSchedule` whether WSF
-   is authoritative for this ping.
+1. `buildTripCore` calls `tripFields/resolveCurrentTripFields` to decide whether
+   WSF is authoritative for this ping.
 2. It tries, in order:
    - use WSF trip fields when present,
    - infer provisional trip fields from schedule evidence
      (`NextScheduleKey`/rollover),
    - fallback to partial WSF plus already-known provisional fields when needed.
-3. Applies the inferred trip fields to a prepared location before trip
-   building.
+3. Merges the raw location with `ResolvedCurrentTripFields` inside
+   `baseTripFromLocation` / `deriveTripInputs` (no location-shaped overlay).
 
 What it means:
 - Prevents incomplete WSF pings from dropping destination/schedule fields while
@@ -261,10 +261,10 @@ branches, equality, and strip-for-storage. ML overlay for the orchestrator ping 
 - `processCurrentTripsPingLogging.ts` — Schedule/boundary diagnostics.
 - `buildTrip.ts` — **`buildTripCore`** (schedule + gates) and **`buildTrip`** (composer: core + `applyVesselPredictions`). Orchestrator pings inject **`buildTripCore` only**; ML runs in **updateVesselPredictions**.
 - `buildCompletedTrip.ts` — Canonical completed trip row.
-- `baseTripFromLocation.ts` — Start/continue base trip shapes from prepared
-  locations.
-- `tripDerivation.ts` — Shared prepared-location inputs and departure-state
-  derivation for base trip build.
+- `baseTripFromLocation.ts` — Start/continue base trip shapes from raw locations
+  plus `ResolvedCurrentTripFields`.
+- `tripDerivation.ts` — Shared trip inputs and departure-state derivation for base
+  trip build.
 - `physicalDockSeaDebounce.ts` — Leave/arrive debounce.
 - **`../updateVesselPredictions/appendPredictions.ts`** / **`../updateVesselPredictions/applyVesselPredictions.ts`** — **updateVesselPredictions** ML tail.
 - **`../shared/orchestratorPersist/stripTripPredictionsForStorage.ts`** — Strip blobs before DB writes.
@@ -279,10 +279,8 @@ Adapter types for `buildTrip` live in **`domain/vesselOrchestration/updateVessel
 
 ## `updateVesselTrips/tripFields/` (trip-field inference and schedule evidence)
 
-- `inferTripFieldsFromSchedule.ts`
-  - Public trip-field inference entrypoint for WSF vs schedule evidence.
-- `applyInferredTripFields.ts`
-  - Overlays the inferred or normalized trip fields onto the current location.
+- `resolveCurrentTripFields.ts`
+  - Public entrypoint for WSF vs schedule evidence into `ResolvedCurrentTripFields`.
 - `attachNextScheduledTripFields.ts`
   - Adds next-leg schedule fields after base-trip construction.
 

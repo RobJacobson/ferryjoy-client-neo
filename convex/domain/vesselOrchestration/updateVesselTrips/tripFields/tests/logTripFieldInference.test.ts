@@ -2,8 +2,9 @@ import { describe, expect, it, mock } from "bun:test";
 import {
   getTripFieldInferenceLogContext,
   logTripFieldInference,
+  type TripFieldInferenceLogContext,
 } from "../logTripFieldInference";
-import { ms, makeLocation, makeTrip } from "./testHelpers";
+import { makeLocation, makeTrip, ms } from "./testHelpers";
 
 describe("logTripFieldInference", () => {
   it("logs when provisional trip fields first start from schedule evidence", () => {
@@ -14,7 +15,7 @@ describe("logTripFieldInference", () => {
         ScheduleKey: undefined,
       }),
       existingTrip: undefined,
-      inferredTripFields: {
+      resolvedCurrentTripFields: {
         ArrivingTerminalAbbrev: "MUK",
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -42,7 +43,7 @@ describe("logTripFieldInference", () => {
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
       }),
-      inferredTripFields: {
+      resolvedCurrentTripFields: {
         ArrivingTerminalAbbrev: "MUK",
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -66,7 +67,7 @@ describe("logTripFieldInference", () => {
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
       }),
-      inferredTripFields: {
+      resolvedCurrentTripFields: {
         ArrivingTerminalAbbrev: "MUK",
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -79,7 +80,9 @@ describe("logTripFieldInference", () => {
   });
 
   it("logs when WSF authoritative fields replace prior trip fields", () => {
-    const logger = mock(() => {});
+    const logger = mock<
+      (message: string, context: TripFieldInferenceLogContext) => void
+    >(() => {});
 
     logTripFieldInference(
       {
@@ -93,7 +96,7 @@ describe("logTripFieldInference", () => {
           ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
           ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
         }),
-        inferredTripFields: {
+        resolvedCurrentTripFields: {
           ArrivingTerminalAbbrev: "SHI",
           ScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
           ScheduleKey: "CHE--2026-03-13--12:30--CLI-SHI",
@@ -112,13 +115,15 @@ describe("logTripFieldInference", () => {
   });
 
   it("does not log unchanged WSF trip fields", () => {
-    const logger = mock(() => {});
+    const logger = mock<
+      (message: string, context: TripFieldInferenceLogContext) => void
+    >(() => {});
 
     logTripFieldInference(
       {
         location: makeLocation(),
         existingTrip: makeTrip(),
-        inferredTripFields: {
+        resolvedCurrentTripFields: {
           ArrivingTerminalAbbrev: "MUK",
           ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
           ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -132,7 +137,9 @@ describe("logTripFieldInference", () => {
   });
 
   it("does not log when WSF is authoritative on an initial trip with no prior fields", () => {
-    const logger = mock(() => {});
+    const logger = mock<
+      (message: string, context: TripFieldInferenceLogContext) => void
+    >(() => {});
 
     logTripFieldInference(
       {
@@ -142,7 +149,7 @@ describe("logTripFieldInference", () => {
           ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
         }),
         existingTrip: undefined,
-        inferredTripFields: {
+        resolvedCurrentTripFields: {
           ArrivingTerminalAbbrev: "MUK",
           ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
           ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
@@ -156,7 +163,9 @@ describe("logTripFieldInference", () => {
   });
 
   it("does not log when WSF remains authoritative but only ScheduleKey is backfilled", () => {
-    const logger = mock(() => {});
+    const logger = mock<
+      (message: string, context: TripFieldInferenceLogContext) => void
+    >(() => {});
 
     logTripFieldInference(
       {
@@ -170,7 +179,7 @@ describe("logTripFieldInference", () => {
           ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
           ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
         }),
-        inferredTripFields: {
+        resolvedCurrentTripFields: {
           ArrivingTerminalAbbrev: "MUK",
           ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
           ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",

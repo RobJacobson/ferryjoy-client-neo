@@ -1,11 +1,13 @@
 /**
  * Shared trip-derivation helpers for vessel trip updates.
  *
- * Base-trip construction derives from an already-prepared location. Raw-feed
- * lifecycle detection stays in `detectTripEvents.ts` so trip-field inference
- * policy remains isolated in `tripFields/`.
+ * Base-trip construction merges raw {@link ConvexVesselLocation} with
+ * {@link ResolvedCurrentTripFields} from `tripFields/`. Raw-feed lifecycle
+ * detection stays in `detectTripEvents.ts` so trip-field inference policy
+ * remains isolated in `tripFields/`.
  */
 
+import type { ResolvedCurrentTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
@@ -82,15 +84,18 @@ export const getDockDepartureState = (
 };
 
 /**
- * Normalizes inputs for base trip construction from the prepared location.
+ * Normalizes inputs for base trip construction from the raw location plus
+ * resolved current-trip fields.
  *
  * @param existingTrip - Previous trip state for the vessel
- * @param currLocation - Location for this derivation
+ * @param currLocation - Raw location for this derivation
+ * @param resolvedCurrentTripFields - Resolved schedule-facing fields for this row
  * @returns Normalized trip inputs for this ping
  */
 export const deriveTripInputs = (
   existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation
+  currLocation: ConvexVesselLocation,
+  resolvedCurrentTripFields: ResolvedCurrentTripFields
 ): DerivedTripInputs => {
   const physicalBoundaries = resolveDebouncedPhysicalBoundaries(
     existingTrip,
@@ -101,23 +106,38 @@ export const deriveTripInputs = (
     currLocation,
     physicalBoundaries
   );
+
+  const arrivingTerminalAbbrev =
+    resolvedCurrentTripFields.ArrivingTerminalAbbrev ??
+    currLocation.ArrivingTerminalAbbrev;
+  const scheduledDeparture =
+    resolvedCurrentTripFields.ScheduledDeparture ??
+    currLocation.ScheduledDeparture;
+
   const identity = deriveTripIdentity({
     vesselAbbrev: currLocation.VesselAbbrev,
     departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
-    scheduledDepartureMs: currLocation.ScheduledDeparture,
+    arrivingTerminalAbbrev,
+    scheduledDepartureMs: scheduledDeparture,
   });
-  const scheduleKey = currLocation.ScheduleKey ?? identity.ScheduleKey;
+
+  const scheduleKey =
+    resolvedCurrentTripFields.ScheduleKey ??
+    currLocation.ScheduleKey ??
+    identity.ScheduleKey;
+
+  const sailingDay =
+    resolvedCurrentTripFields.SailingDay ?? identity.SailingDay;
 
   return {
-    currentArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
-    currentScheduledDeparture: currLocation.ScheduledDeparture,
+    currentArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    currentScheduledDeparture: scheduledDeparture,
     startScheduleKey: scheduleKey,
-    startSailingDay: identity.SailingDay,
-    continuingArrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
-    continuingScheduledDeparture: currLocation.ScheduledDeparture,
+    startSailingDay: sailingDay,
+    continuingArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    continuingScheduledDeparture: scheduledDeparture,
     continuingScheduleKey: scheduleKey,
-    continuingSailingDay: identity.SailingDay,
+    continuingSailingDay: sailingDay,
     leftDockTime,
     didJustLeaveDock,
     previousCompletedTrip: hasTripEvidence(existingTrip)

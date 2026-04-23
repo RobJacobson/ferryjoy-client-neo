@@ -1,14 +1,23 @@
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildInferredTripFields } from "./buildInferredTripFields";
+import { buildResolvedCurrentTripFields } from "./buildResolvedCurrentTripFields";
 import { findScheduledTripMatch } from "./findScheduledTripMatch";
 import { getFallbackTripFields } from "./getFallbackTripFields";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
-import type { InferredTripFields } from "./types";
+import type { ResolvedCurrentTripFields } from "./types";
 
-export const inferTripFieldsFromSchedule = ({
+/**
+ * Resolves schedule-facing fields for the current trip row from WSF, schedule
+ * evidence, or safe fallback reuse.
+ *
+ * @param location - Raw vessel location for this ping
+ * @param existingTrip - Prior active trip for carry-forward context
+ * @param scheduleTables - Prefetched schedule evidence tables
+ * @returns {@link ResolvedCurrentTripFields} (next-leg fields are not included)
+ */
+export const resolveCurrentTripFields = ({
   location,
   existingTrip,
   scheduleTables,
@@ -16,7 +25,7 @@ export const inferTripFieldsFromSchedule = ({
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   scheduleTables: ScheduledSegmentTables;
-}): InferredTripFields => {
+}): ResolvedCurrentTripFields => {
   if (hasWsfTripFields(location)) {
     return getTripFieldsFromWsf(location);
   }
@@ -27,7 +36,7 @@ export const inferTripFieldsFromSchedule = ({
     scheduleTables,
   });
   if (match) {
-    return buildInferredTripFields(match);
+    return buildResolvedCurrentTripFields(match);
   }
 
   return getFallbackTripFields({

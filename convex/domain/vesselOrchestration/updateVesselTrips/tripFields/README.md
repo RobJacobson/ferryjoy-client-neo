@@ -7,9 +7,9 @@ This folder owns one narrow concern:
 > Given one vessel-location ping, determine the scheduled-trip fields we should
 > use for trip construction when WSF is incomplete.
 
-In code, this concern is called **inferred trip fields**. In prose, these are
-best understood as **provisional trip fields**: temporary schedule-backed values
-that fill the gap until WSF provides authoritative data.
+In code, the narrowed output is `ResolvedCurrentTripFields` (see `types.ts`). In
+prose, provisional schedule-backed values fill the gap until WSF provides
+authoritative data.
 
 ## Scope
 
@@ -19,7 +19,6 @@ that fill the gap until WSF provides authoritative data.
 - Inferring provisional trip fields from schedule evidence when WSF is incomplete
 - Reusing already-known provisional fields when that is safer than claiming a
   new schedule match
-- Applying those resolved fields to the location used by trip construction
 - Attaching next-leg schedule fields after the base trip row is built
 - Emitting low-noise observability about meaningful inference transitions
 
@@ -56,10 +55,11 @@ schedule context.
 
 The durable semantic contract is:
 
-- resolved trip fields:
+- resolved current-trip fields:
   - `ArrivingTerminalAbbrev`
   - `ScheduledDeparture`
   - `ScheduleKey`
+  - `SailingDay`
 - `tripFieldDataSource: "wsf" | "inferred"`
 
 Interpretation:
@@ -87,9 +87,8 @@ The happy-path pipeline for this folder is:
 ```text
 raw location ping
   -> hasWsfTripFields
-  -> inferTripFieldsFromSchedule
-  -> applyInferredTripFields
-  -> base trip build (outside this folder)
+  -> resolveCurrentTripFields
+  -> base trip build merges raw location + resolution (tripLifecycle/)
   -> attachNextScheduledTripFields
 ```
 
@@ -106,10 +105,9 @@ This is the simplest and preferred case.
    - `tripFieldDataSource: "wsf"`
    - a locally derived `ScheduleKey` when WSF omitted that key but the direct
      fields are sufficient to derive it safely
-3. [`applyInferredTripFields.ts`](./applyInferredTripFields.ts) overlays those
-   resolved fields onto the location used by trip construction
-4. The trip row is built outside this folder
-5. [`attachNextScheduledTripFields.ts`](./attachNextScheduledTripFields.ts)
+3. `tripLifecycle/buildTripCore` passes the raw location plus
+   `ResolvedCurrentTripFields` into `baseTripFromLocation` (no location overlay)
+4. [`attachNextScheduledTripFields.ts`](./attachNextScheduledTripFields.ts)
    adds `NextScheduleKey` / `NextScheduledDeparture` when the schedule evidence
    supports them
 
@@ -122,22 +120,22 @@ This is the main inference case.
    schedule-backed match in this order:
    - [`getNextScheduledTripFromExistingTrip.ts`](./getNextScheduledTripFromExistingTrip.ts)
    - [`getRolledOverScheduledTrip.ts`](./getRolledOverScheduledTrip.ts)
-3. [`buildInferredTripFields.ts`](./buildInferredTripFields.ts) converts the
-   matched scheduled segment into:
+3. [`buildResolvedCurrentTripFields.ts`](./buildResolvedCurrentTripFields.ts)
+   converts the matched scheduled segment into current-trip resolution only:
    - `ArrivingTerminalAbbrev`
    - `ScheduledDeparture`
    - `ScheduleKey`
-   - optional next-leg fields
+   - `SailingDay` (when the segment carries it)
    - `tripFieldDataSource: "inferred"`
    - `tripFieldInferenceMethod`
-4. Those resolved fields are applied to the trip-build location
-5. Downstream trip construction uses the prepared location as if the feed had
-   supplied those fields directly
+4. `tripLifecycle` merges that resolution with the raw location inside
+   `deriveTripInputs` / `baseTripFromLocation` (next-leg fields are **not** part
+   of this contract; see `attachNextScheduledTripFields`)
 
 ## Decision Order
 
-[`inferTripFieldsFromSchedule.ts`](./inferTripFieldsFromSchedule.ts) is the
-canonical entrypoint. Its policy is intentionally short:
+[`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts) is the canonical
+entrypoint. Its policy is intentionally short:
 
 1. If WSF has both direct fields, use WSF
 2. Otherwise try `NextScheduleKey` from the existing trip
@@ -222,20 +220,13 @@ even though the values were copied from the existing trip row. The semantic
 question is whether the fields are still provisional, not where the bytes came
 from.
 
-## Applying Fields
+## Resolution seam to `tripLifecycle/`
 
-[`applyInferredTripFields.ts`](./applyInferredTripFields.ts) is intentionally
-small:
-
-- it overlays resolved fields onto the location used for trip construction
-- it never deletes stronger existing values
-- it is limited to:
-  - `ArrivingTerminalAbbrev`
-  - `ScheduledDeparture`
-  - `ScheduleKey`
-
-This keeps the boundary clear: this folder prepares trip fields, while
-`tripLifecycle/` builds the actual storage row.
+`ResolvedCurrentTripFields` stops at current-trip schedule identity. The raw
+`ConvexVesselLocation` is unchanged; `tripLifecycle/baseTripFromLocation` calls
+`deriveTripInputs`, which prefers resolved values when present and otherwise
+falls back to the feed. That replaces the old “overlay onto a prepared location,
+then re-derive identity” staging step.
 
 ## Next-Leg Enrichment
 
@@ -341,15 +332,14 @@ Handling:
 
 | File | Role |
 | --- | --- |
-| [`inferTripFieldsFromSchedule.ts`](./inferTripFieldsFromSchedule.ts) | Canonical policy entrypoint |
+| [`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts) | Canonical policy entrypoint |
 | [`hasWsfTripFields.ts`](./hasWsfTripFields.ts) | Decide whether WSF is authoritative |
 | [`getTripFieldsFromWsf.ts`](./getTripFieldsFromWsf.ts) | Normalize the WSF path into the common return shape |
 | [`findScheduledTripMatch.ts`](./findScheduledTripMatch.ts) | Compose schedule-backed inference paths |
 | [`getNextScheduledTripFromExistingTrip.ts`](./getNextScheduledTripFromExistingTrip.ts) | Inference from `NextScheduleKey` |
 | [`getRolledOverScheduledTrip.ts`](./getRolledOverScheduledTrip.ts) | Inference from schedule rollover |
-| [`buildInferredTripFields.ts`](./buildInferredTripFields.ts) | Convert a scheduled match into resolved trip fields |
+| [`buildResolvedCurrentTripFields.ts`](./buildResolvedCurrentTripFields.ts) | Convert a scheduled match into resolved current-trip fields |
 | [`getFallbackTripFields.ts`](./getFallbackTripFields.ts) | Preserve partial WSF values and safely reuse stable provisional fields |
-| [`applyInferredTripFields.ts`](./applyInferredTripFields.ts) | Overlay resolved fields onto the build location |
 | [`attachNextScheduledTripFields.ts`](./attachNextScheduledTripFields.ts) | Attach next-leg schedule hints after trip build |
 | [`logTripFieldInference.ts`](./logTripFieldInference.ts) | Low-noise observability policy |
 | [`types.ts`](./types.ts) | Durable vs transient metadata contract |
@@ -359,11 +349,12 @@ Handling:
 If you are new to this code, read in this order:
 
 1. [`types.ts`](./types.ts)
-2. [`inferTripFieldsFromSchedule.ts`](./inferTripFieldsFromSchedule.ts)
+2. [`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts)
 3. [`findScheduledTripMatch.ts`](./findScheduledTripMatch.ts)
 4. [`getFallbackTripFields.ts`](./getFallbackTripFields.ts)
 5. [`attachNextScheduledTripFields.ts`](./attachNextScheduledTripFields.ts)
 6. [`logTripFieldInference.ts`](./logTripFieldInference.ts)
 
 Then jump to [`tripLifecycle/buildTrip.ts`](../tripLifecycle/buildTrip.ts) to see
-how the prepared location is consumed by the wider trip-update pipeline.
+how raw locations plus `ResolvedCurrentTripFields` flow into the wider trip-update
+pipeline.

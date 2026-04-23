@@ -1,29 +1,24 @@
 /**
- * Schedule-half trip build for one live location ping: infer trip fields, build
- * the base trip from the prepared location, then enrich next-leg schedule
- * fields.
+ * Schedule-half trip build for one live location ping: resolve current trip
+ * fields, build the base trip from raw location + resolution, then enrich
+ * next-leg schedule fields.
  *
  * ML prediction overlays run in **updateVesselPredictions** after rows persist;
  * this module does not attach prediction fields.
  */
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import {
-  applyInferredTripFields,
   attachNextScheduledTripFields,
-  inferTripFieldsFromSchedule,
+  resolveCurrentTripFields,
 } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
-import type { InferredTripFields } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { baseTripFromLocation } from "./baseTripFromLocation";
 import type { TripEvents } from "./tripEventTypes";
 
 type BuildTripCoreOptions = {
-  onTripFieldsResolved?: (args: {
-    location: ConvexVesselLocation;
-    existingTrip: ConvexVesselTrip | undefined;
-    inferredTripFields: InferredTripFields;
-  }) => void;
+  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void;
 };
 
 /**
@@ -50,7 +45,7 @@ export const buildTripCore = (
   scheduleTables: ScheduledSegmentTables,
   options?: BuildTripCoreOptions
 ): ConvexVesselTrip => {
-  const inferredTripFields = inferTripFieldsFromSchedule({
+  const resolvedCurrentTripFields = resolveCurrentTripFields({
     location: currLocation,
     existingTrip,
     scheduleTables,
@@ -58,30 +53,22 @@ export const buildTripCore = (
   options?.onTripFieldsResolved?.({
     location: currLocation,
     existingTrip,
-    inferredTripFields,
+    resolvedCurrentTripFields,
   });
-  const locationWithTripFields = applyInferredTripFields(
-    currLocation,
-    inferredTripFields
-  );
   const baseTrip = baseTripFromLocation(
-    locationWithTripFields,
+    currLocation,
     existingTrip,
-    tripStart
-  );
-  const withResolvedContractFields = applyResolvedTripContractFields(
-    baseTrip,
-    inferredTripFields
+    tripStart,
+    resolvedCurrentTripFields
   );
   const withArriveDest = {
     ...baseTrip,
-    ...withResolvedContractFields,
     // Same-trip arrivals are only stamped on continuing trips that were not
     // rolled over into a replacement trip.
     ArriveDest:
-      withResolvedContractFields.ArriveDest ??
+      baseTrip.ArriveDest ??
       (!tripStart && events.didJustArriveAtDock
-        ? locationWithTripFields.TimeStamp
+        ? currLocation.TimeStamp
         : undefined),
   };
   const physicalIdentityReplaced =
@@ -109,17 +96,6 @@ export const buildTripCore = (
     scheduleTables,
   });
 };
-
-const applyResolvedTripContractFields = (
-  trip: ConvexVesselTrip,
-  inferredTripFields: Pick<InferredTripFields, "SailingDay">
-): ConvexVesselTrip => ({
-  ...trip,
-  // `SailingDay` is part of the resolved trip-fields contract and may come
-  // from schedule-backed inference even when the prepared location shape
-  // cannot carry it directly.
-  SailingDay: inferredTripFields.SailingDay ?? trip.SailingDay,
-});
 
 /**
  * Returns whether a continuing trip has detached from schedule alignment.

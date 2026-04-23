@@ -20,12 +20,11 @@ back into trip-internal artifacts.
 
 | Path | Role |
 | --- | --- |
-| [`calculatedTripUpdate.ts`](./calculatedTripUpdate.ts) | Join each feed row to its prior active (by vessel) and run `detectTripEvents` |
 | [`tripRowsForVesselPing.ts`](./tripRowsForVesselPing.ts) | For one calculated update, emit optional completed close and/or active row |
-| [`computeVesselTripUpdates.ts`](./computeVesselTripUpdates.ts) | Canonical internal one-vessel seam: package the per-vessel trip outcome plus lifecycle/storage flags |
+| [`computeVesselTripUpdates.ts`](./computeVesselTripUpdates.ts) | Join each feed row to its prior active, run `detectTripEvents`, then package the per-vessel trip outcome plus lifecycle/storage flags |
 | [`computeVesselTripsRows.ts`](./computeVesselTripsRows.ts) | Narrow the schedule snapshot into schedule evidence, map each location through the per-vessel steps, merge actives |
-| [`tripFields/`](./tripFields/) | Canonical owner of inferred trip fields: prefer WSF when present, otherwise infer provisional trip fields from schedule evidence |
-| [`tripLifecycle/`](./tripLifecycle/) | Physical lifecycle detection plus base-trip builders that consume already-prepared locations |
+| [`tripFields/`](./tripFields/) | Canonical owner of `ResolvedCurrentTripFields`: prefer WSF when present, otherwise infer provisional trip fields from schedule evidence |
+| [`tripLifecycle/`](./tripLifecycle/) | Physical lifecycle detection plus base-trip builders that merge raw locations with resolved current-trip fields |
 
 ## Subdomain Notes
 

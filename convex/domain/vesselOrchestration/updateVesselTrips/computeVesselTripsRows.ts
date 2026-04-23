@@ -6,8 +6,8 @@
  * prior actives.
  *
  * Flow: schedule snapshot narrowing → per-feed
- * {@link calculateTripUpdateForVessel} → {@link tripRowsForVesselPing} →
- * merge carry-forward.
+ * {@link computeVesselTripUpdates} (join row to prior active + `detectTripEvents`) →
+ * {@link tripRowsForVesselPing} → merge carry-forward.
  */
 
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";

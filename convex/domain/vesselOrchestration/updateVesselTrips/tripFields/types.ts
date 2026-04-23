@@ -6,13 +6,16 @@ export type TripFieldInferenceMethod =
   | "next_scheduled_trip"
   | "schedule_rollover";
 
-export type InferredTripFields = {
+/**
+ * Resolved schedule-facing fields for the **current** trip row, before next-leg
+ * enrichment. Next-leg fields are owned exclusively by
+ * {@link attachNextScheduledTripFields}.
+ */
+export type ResolvedCurrentTripFields = {
   ArrivingTerminalAbbrev?: string;
   ScheduledDeparture?: number;
   ScheduleKey?: string;
   SailingDay?: string;
-  NextScheduleKey?: string;
-  NextScheduledDeparture?: number;
   // Durable semantic source for the resolved trip fields. This describes
   // whether the trip row should be treated as authoritative WSF state or as
   // provisional schedule-backed state; it is not about which helper supplied a
