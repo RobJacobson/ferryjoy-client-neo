@@ -1,3 +1,6 @@
+/**
+ * Trip-field resolution and schedule attachment for one trip row.
+ */
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -49,6 +52,50 @@ type TripFieldSnapshot = {
   ScheduleKey?: string;
 };
 
+/**
+ * Resolves trip fields, emits inference diagnostics, and attaches next-leg fields.
+ *
+ * @param input - Location, prior trip, schedule tables, and trip builder callback
+ * @returns Built trip row with resolved current and next schedule fields
+ */
+export const resolveTripFieldsForTripRow = ({
+  location,
+  existingTrip,
+  scheduleTables,
+  buildTrip,
+  onTripFieldsResolved,
+}: ResolveTripFieldsForTripRowInput): ConvexVesselTrip => {
+  const resolvedCurrentTripFields = resolveCurrentTripFields({
+    location,
+    existingTrip,
+    scheduleTables,
+  });
+  const inferenceInput = {
+    location,
+    existingTrip,
+    resolvedCurrentTripFields,
+  };
+
+  // Emit inference diagnostics by default, but allow callers to intercept.
+  if (onTripFieldsResolved !== undefined) {
+    onTripFieldsResolved(inferenceInput);
+  } else {
+    logTripFieldInference(inferenceInput);
+  }
+
+  return attachNextScheduledTripFields({
+    baseTrip: buildTrip(resolvedCurrentTripFields),
+    existingTrip,
+    scheduleTables,
+  });
+};
+
+/**
+ * Extracts comparable trip-field values from a row-like object.
+ *
+ * @param trip - Trip/location/resolved fields object containing trip-field keys
+ * @returns Snapshot of arriving terminal, scheduled departure, and schedule key
+ */
 const tripFieldSnapshotFrom = (
   trip: ConvexVesselTrip | ConvexVesselLocation | ResolvedCurrentTripFields
 ): TripFieldSnapshot => ({
@@ -57,6 +104,13 @@ const tripFieldSnapshotFrom = (
   ScheduleKey: trip.ScheduleKey,
 });
 
+/**
+ * Compares two trip-field snapshots for equality.
+ *
+ * @param left - First snapshot to compare
+ * @param right - Second snapshot to compare
+ * @returns True when all tracked trip-field values are equal
+ */
 const areTripFieldsEqual = (
   left: TripFieldSnapshot | undefined,
   right: TripFieldSnapshot | undefined
@@ -65,6 +119,13 @@ const areTripFieldsEqual = (
   left?.ScheduledDeparture === right?.ScheduledDeparture &&
   left?.ScheduleKey === right?.ScheduleKey;
 
+/**
+ * Detects whether partial WSF fields conflict with resolved inference.
+ *
+ * @param location - Raw WSF location row for this ping
+ * @param resolvedTripFields - Resolved trip fields from inference path
+ * @returns True when any present WSF field disagrees with resolved values
+ */
 const hasPartialWsfConflict = (
   location: ConvexVesselLocation,
   resolvedTripFields: TripFieldSnapshot
@@ -77,6 +138,12 @@ const hasPartialWsfConflict = (
   (location.ScheduleKey !== undefined &&
     location.ScheduleKey !== resolvedTripFields.ScheduleKey);
 
+/**
+ * Builds structured inference-log context when a meaningful transition occurred.
+ *
+ * @param input - Location, prior trip, and resolved trip fields
+ * @returns Log context describing the inference outcome, or undefined when no log needed
+ */
 const getTripFieldInferenceLogContext = ({
   location,
   existingTrip,
@@ -129,6 +196,12 @@ const getTripFieldInferenceLogContext = ({
   };
 };
 
+/**
+ * Formats a human-readable message for trip-field inference logs.
+ *
+ * @param context - Structured inference-log context
+ * @returns Single log line describing the inferred-field transition
+ */
 const buildTripFieldInferenceMessage = (
   context: TripFieldInferenceLogContext
 ): string => {
@@ -144,6 +217,13 @@ const buildTripFieldInferenceMessage = (
   }
 };
 
+/**
+ * Emits structured trip-field inference logs when resolution changed meaningfully.
+ *
+ * @param args - Location, prior trip, and resolved trip fields
+ * @param logger - Optional logger implementation for tests/callers
+ * @returns No return value; logs when context indicates a meaningful event
+ */
 const logTripFieldInference = (
   args: TripFieldInferenceInput,
   logger: TripFieldInferenceLogger = console.info
@@ -156,6 +236,12 @@ const logTripFieldInference = (
   logger(buildTripFieldInferenceMessage(context), context);
 };
 
+/**
+ * Resolves current-trip fields from WSF, schedule evidence, or fallback logic.
+ *
+ * @param input - Location, prior trip, and schedule lookup tables
+ * @returns Resolved current-trip fields with data-source metadata
+ */
 const resolveCurrentTripFields = ({
   location,
   existingTrip,
@@ -169,6 +255,7 @@ const resolveCurrentTripFields = ({
   }
 
   const scheduleMatch =
+    // Prefer explicit next-segment continuity before rollover lookup.
     getNextScheduledTripFromExistingTrip({
       location,
       existingTrip,
@@ -190,6 +277,12 @@ const resolveCurrentTripFields = ({
   });
 };
 
+/**
+ * Converts a matched scheduled segment into resolved current-trip fields.
+ *
+ * @param match - Scheduled segment match and inference method
+ * @returns Resolved fields marked as inferred from schedule evidence
+ */
 const resolvedFieldsFromScheduleMatch = (
   match: ScheduledTripMatch
 ): ResolvedCurrentTripFields => ({
@@ -201,6 +294,12 @@ const resolvedFieldsFromScheduleMatch = (
   tripFieldInferenceMethod: match.tripFieldInferenceMethod,
 });
 
+/**
+ * Attaches next scheduled segment fields while preserving continuity when possible.
+ *
+ * @param args - Built trip row, prior trip row, and schedule lookup tables
+ * @returns Trip row with next schedule key/departure fields populated or cleared
+ */
 const attachNextScheduledTripFields = ({
   baseTrip,
   existingTrip,
@@ -240,35 +339,4 @@ const attachNextScheduledTripFields = ({
     NextScheduledDeparture:
       scheduledSegment.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
   };
-};
-
-export const resolveTripFieldsForTripRow = ({
-  location,
-  existingTrip,
-  scheduleTables,
-  buildTrip,
-  onTripFieldsResolved,
-}: ResolveTripFieldsForTripRowInput): ConvexVesselTrip => {
-  const resolvedCurrentTripFields = resolveCurrentTripFields({
-    location,
-    existingTrip,
-    scheduleTables,
-  });
-  const inferenceInput = {
-    location,
-    existingTrip,
-    resolvedCurrentTripFields,
-  };
-
-  if (onTripFieldsResolved !== undefined) {
-    onTripFieldsResolved(inferenceInput);
-  } else {
-    logTripFieldInference(inferenceInput);
-  }
-
-  return attachNextScheduledTripFields({
-    baseTrip: buildTrip(resolvedCurrentTripFields),
-    existingTrip,
-    scheduleTables,
-  });
 };

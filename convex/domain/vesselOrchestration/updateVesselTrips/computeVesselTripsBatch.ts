@@ -1,3 +1,6 @@
+/**
+ * Batch trip update computation across vessel location rows.
+ */
 import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { computeVesselTripUpdate } from "./computeVesselTripUpdate";
@@ -18,27 +21,16 @@ type ComputeVesselTripsBatchResult = {
   rows: RunUpdateVesselTripsOutput;
 };
 
-const activeTripsByVesselAbbrev = (
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
-): Map<string, ConvexVesselTrip> =>
-  new Map(
-    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
-  );
-
-const mergeActiveTripRows = (
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
-  processedActiveTrips: ReadonlyArray<ConvexVesselTrip>
-): ReadonlyArray<ConvexVesselTrip> => {
-  const mergedByVessel = new Map<string, ConvexVesselTrip>([
-    ...existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
-    ...processedActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
-  ]);
-  return [...mergedByVessel.values()];
-};
-
+/**
+ * Computes trip updates for a batch of vessel locations.
+ *
+ * @param input - Batch input containing locations, active trips, and schedule data
+ * @returns Per-vessel updates and merged active/completed trip rows
+ */
 export const computeVesselTripsBatch = (
   input: ComputeVesselTripsBatchInput
 ): ComputeVesselTripsBatchResult => {
+  // Build schedule lookup tables once for the whole batch.
   const scheduleTables = createScheduledSegmentTablesFromSnapshot(
     input.scheduleSnapshot,
     input.sailingDay
@@ -46,10 +38,12 @@ export const computeVesselTripsBatch = (
   const existingActiveTripsByVessel = activeTripsByVesselAbbrev(
     input.existingActiveTrips
   );
+  // Optionally narrow processing for targeted replays/tests.
   const vesselLocations =
     input.shouldProcessLocation === undefined
       ? input.vesselLocations
       : input.vesselLocations.filter(input.shouldProcessLocation);
+  // Compute each vessel in isolation using the same schedule evidence.
   const updates = vesselLocations.map((vesselLocation) =>
     computeVesselTripUpdate({
       vesselLocation,
@@ -78,6 +72,44 @@ export const computeVesselTripsBatch = (
   };
 };
 
+/**
+ * Computes only persisted trip rows for a batch input.
+ *
+ * @param input - Batch input containing locations, active trips, and schedule data
+ * @returns Active and completed trip rows ready for persistence
+ */
 export const computeVesselTripsRows = (
   input: RunUpdateVesselTripsInput
 ): RunUpdateVesselTripsOutput => computeVesselTripsBatch(input).rows;
+
+/**
+ * Indexes active trips by vessel abbreviation for O(1) lookup.
+ *
+ * @param existingActiveTrips - Active trip rows from storage
+ * @returns Map keyed by vessel abbreviation
+ */
+const activeTripsByVesselAbbrev = (
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
+): Map<string, ConvexVesselTrip> =>
+  new Map(
+    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
+  );
+
+/**
+ * Merges processed active rows into existing rows by vessel key.
+ *
+ * @param existingActiveTrips - Existing active rows from storage
+ * @param processedActiveTrips - Newly computed active rows for processed vessels
+ * @returns Active rows with processed vessels replaced and others preserved
+ */
+const mergeActiveTripRows = (
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
+  processedActiveTrips: ReadonlyArray<ConvexVesselTrip>
+): ReadonlyArray<ConvexVesselTrip> => {
+  // Prefer processed rows while preserving untouched vessels.
+  const mergedByVessel = new Map<string, ConvexVesselTrip>([
+    ...existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
+    ...processedActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
+  ]);
+  return [...mergedByVessel.values()];
+};

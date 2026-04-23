@@ -57,6 +57,42 @@ type ResolvedTripIdentity = {
   previousCompletedTrip: ConvexVesselTrip | undefined;
 };
 
+/**
+ * Builds completed/active trip rows for one vessel ping.
+ *
+ * @param update - Trip build input for the vessel ping
+ * @param scheduleTables - Prepared schedule lookup tables
+ * @returns Completed and/or active trip rows derived from lifecycle state
+ */
+export const buildTripRowsForPing = (
+  update: TripBuildInput,
+  scheduleTables: ScheduledSegmentTables
+): TripRowOutcome => {
+  // Finalize and immediately seed the next active trip when arrival completes.
+  if (
+    update.events.isCompletedTrip &&
+    update.existingActiveTrip !== undefined
+  ) {
+    return tripRowsWhenCompleting(
+      update as CompletedTripUpdate,
+      scheduleTables
+    );
+  }
+
+  // Ignore impossible completion events when no prior active trip exists.
+  if (update.events.isCompletedTrip) {
+    return {};
+  }
+
+  return tripRowsWhenContinuing(update, scheduleTables);
+};
+
+/**
+ * Checks whether a trip has meaningful lifecycle evidence.
+ *
+ * @param existingTrip - Current active trip row, if present
+ * @returns True when departure/arrival evidence exists
+ */
 const hasTripEvidence = (
   existingTrip: ConvexVesselTrip | undefined
 ): existingTrip is ConvexVesselTrip =>
@@ -68,6 +104,14 @@ const hasTripEvidence = (
         existingTrip.ArriveDest !== undefined)
   );
 
+/**
+ * Resolves trip identity fields from resolved fields, feed values, and fallbacks.
+ *
+ * @param existingTrip - Current active trip row, if present
+ * @param currLocation - Incoming vessel location ping
+ * @param resolvedCurrentTripFields - Resolved current-trip fields from trip-field pipeline
+ * @returns Resolved identity parts used by base trip construction
+ */
 const resolveTripIdentity = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation,
@@ -100,6 +144,12 @@ const resolveTripIdentity = (
   };
 };
 
+/**
+ * Builds the base active trip row for start or continuation scenarios.
+ *
+ * @param context - Location, existing trip, lifecycle flags, and resolved fields
+ * @returns Base active trip row before schedule-next attachment adjustments
+ */
 const buildBaseTrip = ({
   currLocation,
   existingTrip,
@@ -216,6 +266,14 @@ const buildBaseTrip = ({
   };
 };
 
+/**
+ * Finalizes an active trip into a completed trip row.
+ *
+ * @param existingTrip - Active trip row to finalize
+ * @param currLocation - Incoming vessel location ping
+ * @param hasTrustedArrival - Whether current ping qualifies as trusted arrival evidence
+ * @returns Completed trip row with finalized timestamps and durations
+ */
 const buildCompletedTrip = (
   existingTrip: ConvexVesselTrip,
   currLocation: ConvexVesselLocation,
@@ -253,6 +311,16 @@ const buildCompletedTrip = (
   };
 };
 
+/**
+ * Builds an active trip row and resolves schedule-linked trip fields.
+ *
+ * @param vesselLocation - Incoming vessel location ping
+ * @param existingTrip - Current active trip row, if present
+ * @param tripStart - Whether this row represents a newly started trip
+ * @param events - Lifecycle events for this ping
+ * @param scheduleTables - Prepared schedule lookup tables
+ * @returns Active trip row with resolved current/next schedule fields
+ */
 const buildActiveTripForUpdate = (
   vesselLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
@@ -274,12 +342,14 @@ const buildActiveTripForUpdate = (
       });
       const withArriveDest = {
         ...baseTrip,
+        // Seal arrival timestamp on the transition ping when needed.
         ArriveDest:
           baseTrip.ArriveDest ??
           (!tripStart && events.didJustArriveAtDock
             ? vesselLocation.TimeStamp
             : undefined),
       };
+      // Clear next-leg schedule hints when physical identity or schedule anchor flips.
       const physicalIdentityReplaced =
         existingTrip?.TripKey !== undefined &&
         withArriveDest.TripKey !== undefined &&
@@ -299,11 +369,19 @@ const buildActiveTripForUpdate = (
     },
   });
 
+/**
+ * Builds rows for the completion path and seeds a replacement active row.
+ *
+ * @param update - Trip build input narrowed to completion with existing active trip
+ * @param scheduleTables - Prepared schedule lookup tables
+ * @returns Completed row plus replacement active row when successful
+ */
 const tripRowsWhenCompleting = (
   update: CompletedTripUpdate,
   scheduleTables: ScheduledSegmentTables
 ): TripRowOutcome => {
   try {
+    // Snapshot completed row before constructing the next active leg.
     const completedVesselTrip = buildCompletedTrip(
       update.existingActiveTrip,
       update.vesselLocation,
@@ -329,6 +407,13 @@ const tripRowsWhenCompleting = (
   }
 };
 
+/**
+ * Builds rows for the continuation path without finalizing a trip.
+ *
+ * @param update - Trip build input for continuation
+ * @param scheduleTables - Prepared schedule lookup tables
+ * @returns Active row update or safe fallback on failure
+ */
 const tripRowsWhenContinuing = (
   update: TripBuildInput,
   scheduleTables: ScheduledSegmentTables
@@ -354,25 +439,4 @@ const tripRowsWhenContinuing = (
       ? { activeVesselTrip: update.existingActiveTrip }
       : {};
   }
-};
-
-export const buildTripRowsForPing = (
-  update: TripBuildInput,
-  scheduleTables: ScheduledSegmentTables
-): TripRowOutcome => {
-  if (
-    update.events.isCompletedTrip &&
-    update.existingActiveTrip !== undefined
-  ) {
-    return tripRowsWhenCompleting(
-      update as CompletedTripUpdate,
-      scheduleTables
-    );
-  }
-
-  if (update.events.isCompletedTrip) {
-    return {};
-  }
-
-  return tripRowsWhenContinuing(update, scheduleTables);
 };

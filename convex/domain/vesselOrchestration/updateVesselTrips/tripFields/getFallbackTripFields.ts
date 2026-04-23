@@ -57,6 +57,13 @@ export const getFallbackTripFields = ({
   };
 };
 
+/**
+ * Checks whether existing inferred fields should be reused in same dock window.
+ *
+ * @param location - Raw location for this ping
+ * @param existingTrip - Prior trip row for potential reuse
+ * @returns True when both rows represent the same pre-departure dock window
+ */
 const isSameDockWindowReuseCandidate = (
   location: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined
