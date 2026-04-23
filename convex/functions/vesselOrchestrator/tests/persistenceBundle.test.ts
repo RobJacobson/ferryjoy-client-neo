@@ -155,10 +155,6 @@ describe("buildOrchestratorPersistenceBundle", () => {
       }),
       locationChanged: true,
     };
-    const unchangedLocationUpdate: VesselLocationUpdates = {
-      vesselLocation: makeLocation("TAC"),
-      locationChanged: false,
-    };
     const cheTrip = makeTrip("CHE", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
@@ -167,7 +163,12 @@ describe("buildOrchestratorPersistenceBundle", () => {
     });
     const bundle = buildOrchestratorPersistenceBundle({
       pingStartedAt: ms("2026-03-13T06:35:00-07:00"),
-      locationUpdates: [changedLocationUpdate, unchangedLocationUpdate],
+      changedLocations: [
+        {
+          vesselLocation: changedLocationUpdate.vesselLocation,
+          existingLocationId: changedLocationUpdate.existingLocationId,
+        },
+      ],
       existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
       tripStage: {
         tripUpdates: [

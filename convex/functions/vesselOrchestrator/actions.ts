@@ -48,6 +48,11 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { OrchestratorPingPersistence } from "./schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
+type ChangedLocationWrite =
+  OrchestratorPingPersistence["changedLocations"][number];
+type PredictionRows = OrchestratorPingPersistence["predictionRows"];
+type PredictedTripComputations =
+  OrchestratorPingPersistence["predictedTripComputations"];
 
 type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
@@ -56,7 +61,7 @@ type OrchestratorSnapshot = {
   storedLocations: ReadonlyArray<StoredVesselLocation>;
 };
 
-type OrchestratorTripStage = {
+type TripStageResult = {
   tripUpdates: ReadonlyArray<VesselTripUpdate>;
   tripRows: RunUpdateVesselTripsOutput;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
@@ -68,17 +73,24 @@ type PredictionStageInputs = {
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
 };
 
-type PredictionStageOutput = Pick<
-  OrchestratorPingPersistence,
-  "predictionRows" | "predictedTripComputations"
->;
+type PredictionStageResult = {
+  predictionRows: PredictionRows;
+  predictedTripComputations: PredictedTripComputations;
+};
+
+type LoadVesselLocationUpdatesArgs = {
+  pingStartedAt: number;
+  storedLocations: ReadonlyArray<StoredVesselLocation>;
+  terminalsIdentity: ReadonlyArray<TerminalIdentity>;
+  vesselsIdentity: ReadonlyArray<VesselIdentity>;
+};
 
 type BuildOrchestratorPersistenceBundleArgs = {
   pingStartedAt: number;
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>;
+  changedLocations: ReadonlyArray<ChangedLocationWrite>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
-  tripStage: OrchestratorTripStage;
-  predictionStage: PredictionStageOutput;
+  tripStage: TripStageResult;
+  predictionStage: PredictionStageResult;
 };
 
 /**
@@ -122,6 +134,9 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   if (changedLocationUpdates.length === 0) {
     return;
   }
+  const changedLocations = changedLocationUpdatesFromUpdates(
+    changedLocationUpdates
+  );
 
   const tripStage = await runTripStage(
     ctx,
@@ -139,7 +154,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
     buildOrchestratorPersistenceBundle({
       pingStartedAt,
-      locationUpdates,
+      changedLocations,
       existingActiveTrips: snapshot.activeTrips,
       tripStage,
       predictionStage,
@@ -181,12 +196,7 @@ const loadVesselLocationUpdates = async ({
   storedLocations,
   terminalsIdentity,
   vesselsIdentity,
-}: {
-  pingStartedAt: number;
-  storedLocations: ReadonlyArray<StoredVesselLocation>;
-  terminalsIdentity: ReadonlyArray<TerminalIdentity>;
-  vesselsIdentity: ReadonlyArray<VesselIdentity>;
-}): Promise<ReadonlyArray<VesselLocationUpdates>> => {
+}: LoadVesselLocationUpdatesArgs): Promise<ReadonlyArray<VesselLocationUpdates>> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
   const { vesselLocations } = await computeVesselLocationRows({
     pingStartedAt,
@@ -269,7 +279,7 @@ const runTripStage = async (
   ctx: ActionCtx,
   changedLocationUpdates: ReadonlyArray<VesselLocationUpdates>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
-): Promise<OrchestratorTripStage> => {
+): Promise<TripStageResult> => {
   const scheduleAccess = createScheduleContinuityAccess(ctx);
   return computeTripStageForLocations(
     changedLocationUpdates,
@@ -290,7 +300,7 @@ const computeTripStageForLocations = async (
   changedLocationUpdates: ReadonlyArray<VesselLocationUpdates>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleAccess: ScheduleContinuityAccess
-): Promise<OrchestratorTripStage> => {
+): Promise<TripStageResult> => {
   const activeTripsByVessel = new Map(
     existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
@@ -375,7 +385,7 @@ export const runPredictionStage = async (
   tripUpdates: ReadonlyArray<VesselTripUpdate>,
   trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
-): Promise<PredictionStageOutput> => {
+): Promise<PredictionStageResult> => {
   const predictionInputs = buildPredictionStageInputs(
     tripUpdates,
     trips,
@@ -662,13 +672,13 @@ const buildPredictionStageInputs = (
  */
 const buildOrchestratorPersistenceBundle = ({
   pingStartedAt,
-  locationUpdates,
+  changedLocations,
   existingActiveTrips,
   tripStage,
   predictionStage,
 }: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => ({
   pingStartedAt,
-  changedLocations: [...changedLocationUpdatesFromUpdates(locationUpdates)],
+  changedLocations: [...changedLocations],
   existingActiveTrips: [...existingActiveTrips],
   tripRows: {
     activeTrips: [...tripStage.tripRows.activeTrips],
@@ -686,7 +696,7 @@ const buildOrchestratorPersistenceBundle = ({
  */
 const changedLocationUpdatesFromUpdates = (
   locationUpdates: ReadonlyArray<VesselLocationUpdates>
-): ReadonlyArray<OrchestratorPingPersistence["changedLocations"][number]> =>
+): ReadonlyArray<ChangedLocationWrite> =>
   locationUpdates
     .filter((update) => update.locationChanged)
     .map((update) => ({

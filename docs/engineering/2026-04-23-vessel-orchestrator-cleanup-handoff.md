@@ -49,9 +49,25 @@ Most likely areas:
 
 - further simplification of `actions.ts`
 - trimming leftover transitional DTOs and compatibility helpers
+- removing unnecessary utility typing such as `Pick<...>` aliases when a small
+  explicit local type would be clearer
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups
+
+### 2a. Specific style preference: avoid `Pick` unless it is clearly needed
+
+There is a preference to avoid `Pick<...>` in this area when it adds indirection
+without buying much.
+
+Preferred direction:
+
+- replace small `Pick<...>` helper aliases with explicit local object types
+- keep action-layer and persistence-layer shapes obvious at the point of use
+- choose the simpler type spelling when both options are equivalent
+
+`Pick` is still acceptable when it genuinely prevents duplication or is needed
+to stay aligned with a shared contract, but it should not be the default.
 
 ### 3. Preserve these invariants
 
@@ -75,4 +91,5 @@ Most likely areas:
 
 Read the cleanup PRD and implementation overview first, then review the current
 orchestrator code. Focus on simplifying the current hot path further without
-reintroducing broad reads or per-vessel Convex fan-out.
+reintroducing broad reads or per-vessel Convex fan-out. Prefer explicit local
+types over `Pick<...>` when the latter adds needless complexity.

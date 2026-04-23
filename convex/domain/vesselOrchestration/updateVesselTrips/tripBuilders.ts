@@ -36,6 +36,11 @@ type CompletedTripUpdate = TripBuildInput & {
   existingActiveTrip: ConvexVesselTrip;
 };
 
+type TripBuildLifecycleEvidence = {
+  didJustLeaveDock: boolean;
+  leftDockTime: number | undefined;
+};
+
 type TripBuildContext = {
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
@@ -46,7 +51,7 @@ type TripBuildContext = {
     ScheduleKey?: string;
     SailingDay?: string;
   };
-  events: Pick<TripBuildEvents, "didJustLeaveDock" | "leftDockTime">;
+  events: TripBuildLifecycleEvidence;
 };
 
 type ResolvedTripIdentity = {
