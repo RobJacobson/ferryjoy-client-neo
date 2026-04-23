@@ -68,7 +68,9 @@ export const materializeOrchestratorScheduleSnapshot = (
         DepartingTerminalAbbrev: row.TerminalAbbrev,
         ArrivingTerminalAbbrev: row.NextTerminalAbbrev,
         DepartingTime: row.ScheduledDeparture,
-        NextKey: nextRow ? getSegmentKeyFromBoundaryKey(nextRow.Key) : undefined,
+        NextKey: nextRow
+          ? getSegmentKeyFromBoundaryKey(nextRow.Key)
+          : undefined,
         NextDepartingTime: nextRow?.ScheduledDeparture,
       };
     }

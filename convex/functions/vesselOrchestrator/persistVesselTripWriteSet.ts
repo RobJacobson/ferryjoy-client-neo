@@ -13,21 +13,15 @@ import type {
   CurrentTripActualEventMessage,
   CurrentTripLifecycleBranchResult,
   CurrentTripPredictedEventMessage,
+  TripLifecycleEventFlags,
   VesselTripPersistResult,
 } from "domain/vesselOrchestration/shared";
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
+import {
+  areTripStorageRowsEqual,
+  stripTripPredictionsForStorage,
+} from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import { areTripStorageRowsEqual } from "domain/vesselOrchestration/updateVesselTrips/storageRowsEqual";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-
-type TripEvents = {
-  isFirstTrip: boolean;
-  isTripStartReady: boolean;
-  isCompletedTrip: boolean;
-  didJustArriveAtDock: boolean;
-  didJustLeaveDock: boolean;
-  scheduleKeyChanged: boolean;
-};
 
 /**
  * Result payload returned by `upsertVesselTripsBatch`.
@@ -256,7 +250,7 @@ const replacementActiveTripForCompletedVessel = (
 const completionTripEvents = (
   existingTrip: ConvexVesselTrip,
   completedTrip: ConvexVesselTrip
-): TripEvents => ({
+): TripLifecycleEventFlags => ({
   isFirstTrip: false,
   isTripStartReady: true,
   isCompletedTrip: true,
@@ -273,7 +267,7 @@ const completionTripEvents = (
 const currentTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip
-): TripEvents => ({
+): TripLifecycleEventFlags => ({
   isFirstTrip: existingTrip === undefined,
   isTripStartReady:
     nextTrip.DepartingTerminalAbbrev !== undefined &&

@@ -11,6 +11,18 @@
  * Tests may import `orchestratorTimelineProjection` internals directly.
  */
 
+export type {
+  PingEventWrites,
+  TimelinePingProjectionInput,
+} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
+export type {
+  CompletedTripBoundaryFact,
+  CurrentTripActualEventMessage,
+  CurrentTripLifecycleBranchResult,
+  CurrentTripPredictedEventMessage,
+  TripPingLifecycleOutcome,
+  VesselTripPersistResult,
+} from "domain/vesselOrchestration/shared/pingHandshake/types";
 export {
   type BuildTimelinePingProjectionInputArgs,
   buildTimelinePingProjectionInput,
@@ -26,15 +38,3 @@ export type {
   TimelineTripComputationPersist,
 } from "./contracts";
 export { runUpdateVesselTimelineFromAssembly } from "./orchestratorTimelineProjection";
-export type {
-  PingEventWrites,
-  TimelinePingProjectionInput,
-} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
-export type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripLifecycleBranchResult,
-  CurrentTripPredictedEventMessage,
-  TripPingLifecycleOutcome,
-  VesselTripPersistResult,
-} from "domain/vesselOrchestration/shared/pingHandshake/types";

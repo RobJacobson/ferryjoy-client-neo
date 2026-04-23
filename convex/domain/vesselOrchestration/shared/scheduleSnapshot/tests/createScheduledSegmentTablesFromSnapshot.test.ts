@@ -55,18 +55,10 @@ describe("createScheduledSegmentTablesFromSnapshot", () => {
     );
     expect(mar13.sailingDay).toBe("2026-03-13");
     expect(
-      getScheduledDeparturesForVesselAndSailingDay(
-        mar13,
-        "CHE",
-        "2026-03-14"
-      )
+      getScheduledDeparturesForVesselAndSailingDay(mar13, "CHE", "2026-03-14")
     ).toEqual([]);
     expect(
-      getScheduledDeparturesForVesselAndSailingDay(
-        mar13,
-        "ZZZ",
-        "2026-03-13"
-      )
+      getScheduledDeparturesForVesselAndSailingDay(mar13, "ZZZ", "2026-03-13")
     ).toEqual([]);
 
     const mar14Snapshot: ScheduleSnapshot = {

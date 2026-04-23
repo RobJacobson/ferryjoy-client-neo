@@ -10,7 +10,9 @@ import { vesselLocationUpdateValidationSchema } from "./schemas";
 
 type UpdatesReadDb = {
   query: (table: "vesselLocationsUpdates") => {
-    collect: () => Promise<Array<ConvexVesselLocationUpdate & Record<string, unknown>>>;
+    collect: () => Promise<
+      Array<ConvexVesselLocationUpdate & Record<string, unknown>>
+    >;
   };
 };
 

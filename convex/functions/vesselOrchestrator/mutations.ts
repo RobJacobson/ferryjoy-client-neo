@@ -10,13 +10,13 @@ import { v } from "convex/values";
 import { runUpdateVesselTimelineFromAssembly } from "domain/vesselOrchestration/updateTimeline";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { projectPredictedDockWriteBatchesInDb } from "functions/events/eventsPredicted/mutations";
+import { bulkUpsertLocationsAndUpdatesInDb } from "functions/vesselLocationsUpdates/mutations";
 import { batchUpsertProposalsInDb } from "functions/vesselTripPredictions/mutations";
 import {
   completeAndStartNewTripInDb,
   setDepartNextActualsForMostRecentCompletedTripInDb,
   upsertVesselTripsBatchInDb,
 } from "functions/vesselTrips/mutations";
-import { bulkUpsertLocationsAndUpdatesInDb } from "functions/vesselLocationsUpdates/mutations";
 import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
 import { orchestratorPingPersistenceSchema } from "./schemas";
 

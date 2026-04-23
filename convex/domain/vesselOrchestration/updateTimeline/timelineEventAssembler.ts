@@ -12,6 +12,15 @@ import {
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,
 } from "domain/timelineRows";
+import {
+  mergePingEventWrites,
+  type PingEventWrites,
+} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
+import type {
+  CompletedTripBoundaryFact,
+  CurrentTripActualEventMessage,
+  CurrentTripPredictedEventMessage,
+} from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,
@@ -20,15 +29,6 @@ import {
   buildArrivalActualDockWriteForTrip,
   buildDepartureActualDockWriteForTrip,
 } from "./actualDockWritesFromTrip";
-import type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripPredictedEventMessage,
-} from "domain/vesselOrchestration/shared/pingHandshake/types";
-import {
-  mergePingEventWrites,
-  type PingEventWrites,
-} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
 
 /**
  * Replacement row for predicted timeline writes after **updateVesselPredictions**.
@@ -56,8 +56,7 @@ const completedBoundaryNewTripForTimeline = (
 const currentTripProposedForActuals = (
   message: CurrentTripActualEventMessage
 ): ConvexVesselTripWithML =>
-  message.finalProposed ??
-  (message.scheduleTrip as ConvexVesselTripWithML);
+  message.finalProposed ?? (message.scheduleTrip as ConvexVesselTripWithML);
 
 /**
  * Trip shape for current-branch predicted batches (needs ML when present).
@@ -68,8 +67,7 @@ const currentTripProposedForActuals = (
 const currentTripProposedForPredicted = (
   message: CurrentTripPredictedEventMessage
 ): ConvexVesselTripWithML =>
-  message.finalProposed ??
-  (message.scheduleTrip as ConvexVesselTripWithML);
+  message.finalProposed ?? (message.scheduleTrip as ConvexVesselTripWithML);
 
 type TaggedActualDockRow = {
   vesselAbbrev: string;

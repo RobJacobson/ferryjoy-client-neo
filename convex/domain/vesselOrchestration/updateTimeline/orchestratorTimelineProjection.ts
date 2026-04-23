@@ -4,6 +4,7 @@
  */
 
 import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
+import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -18,7 +19,6 @@ import type {
   RunUpdateVesselTimelineOutput,
   TimelineTripComputation,
 } from "./contracts";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared/pingHandshake/types";
 
 /**
  * Schedule identity for matching completed-handoff facts to prediction-stage

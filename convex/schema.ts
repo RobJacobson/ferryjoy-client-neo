@@ -3,9 +3,7 @@ import { eventsActualSchema } from "functions/events/eventsActual/schemas";
 import { eventsPredictedSchema } from "functions/events/eventsPredicted/schemas";
 import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { keyValueStoreSchema } from "functions/keyValueStore/schemas";
-import {
-  modelParametersSchema,
-} from "functions/predictions/schemas";
+import { modelParametersSchema } from "functions/predictions/schemas";
 import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { terminalTopologySchema } from "functions/terminalsTopology/schemas";

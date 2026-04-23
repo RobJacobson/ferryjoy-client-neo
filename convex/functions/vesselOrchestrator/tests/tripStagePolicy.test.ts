@@ -1,11 +1,11 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
-  computeTripUpdatesForPing,
+  computeTripBatchForPing,
   logTripStageLocationSkipSummary,
 } from "../actions";
 
@@ -91,7 +91,7 @@ const makeLocationUpdate = (
 
 describe("trip stage schedule-inference gating", () => {
   it("skips trip recomputation for unchanged locations", () => {
-    const tripUpdates = computeTripUpdatesForPing(
+    const tripBatch = computeTripBatchForPing(
       [
         makeLocationUpdate("CHE", false),
         makeLocationUpdate("TAC", true, {
@@ -103,8 +103,9 @@ describe("trip stage schedule-inference gating", () => {
       "2026-03-13"
     );
 
-    expect(tripUpdates).toHaveLength(1);
-    expect(tripUpdates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
+    expect(tripBatch.updates).toHaveLength(1);
+    expect(tripBatch.updates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
+    expect(tripBatch.rows.activeTrips).toHaveLength(2);
   });
 
   it("logs one aggregated skip summary when every location is unchanged", () => {

@@ -1,17 +1,16 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
-import type { InferredTripFields } from "./types";
+import type { ResolvedCurrentTripFields } from "./types";
 
+/**
+ * Builds resolved current-trip fields from authoritative WSF feed values.
+ *
+ * @param location - Raw location row with complete WSF trip fields
+ * @returns Resolved current-trip fields tagged as WSF-sourced
+ */
 export const getTripFieldsFromWsf = (
-  location: Pick<
-    ConvexVesselLocation,
-    | "VesselAbbrev"
-    | "DepartingTerminalAbbrev"
-    | "ArrivingTerminalAbbrev"
-    | "ScheduledDeparture"
-    | "ScheduleKey"
-  >
-): InferredTripFields => {
+  location: ConvexVesselLocation
+): ResolvedCurrentTripFields => {
   // `tripFieldDataSource: "wsf"` is the durable semantic contract for this
   // row, even if `ScheduleKey` is synthesized locally from the authoritative
   // WSF destination/departure pair.

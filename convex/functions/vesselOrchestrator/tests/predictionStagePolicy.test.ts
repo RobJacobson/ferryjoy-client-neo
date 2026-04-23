@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
-import type { VesselTripUpdates } from "domain/vesselOrchestration/updateVesselTrips/types";
+import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -76,8 +76,8 @@ const makeLocation = (
 
 const makeTripUpdate = (
   vesselAbbrev: string,
-  overrides: Partial<VesselTripUpdates> = {}
-): VesselTripUpdates => ({
+  overrides: Partial<VesselTripUpdate> = {}
+): VesselTripUpdate => ({
   vesselLocation: makeLocation(vesselAbbrev),
   existingActiveTrip: makeTrip(vesselAbbrev),
   activeTripCandidate: makeTrip(vesselAbbrev),

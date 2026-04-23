@@ -29,7 +29,7 @@ const predictionModelAccessFromContext = (
     async (pairKey, modelTypes) =>
       // Access interface expects `Record<ModelType, ...>` even when callers pass
       // a subset of `ModelType[]`; build only requested keys and narrow once.
-      (Object.fromEntries(
+      Object.fromEntries(
         modelTypes.map((modelType) => [
           modelType,
           context.productionModelsByPair?.[pairKey]?.[modelType] ?? null,
@@ -38,7 +38,7 @@ const predictionModelAccessFromContext = (
         ReturnType<
           VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"]
         >
-      >);
+      >;
 
   return {
     loadModelForProductionPair,

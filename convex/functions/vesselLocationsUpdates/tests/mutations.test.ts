@@ -140,7 +140,9 @@ const createDb = (initial: Record<string, DbDoc[]>): MockDb => {
           collect,
           withIndex: (
             _indexName: string,
-            apply: (q: { eq: (field: string, value: unknown) => unknown }) => unknown
+            apply: (q: {
+              eq: (field: string, value: unknown) => unknown;
+            }) => unknown
           ) => ({
             unique: async () => {
               const state: { field?: string; value?: unknown } = {};
@@ -154,7 +156,8 @@ const createDb = (initial: Record<string, DbDoc[]>): MockDb => {
               return (
                 [...(tables.vesselLocations ?? [])].find(
                   (row) =>
-                    state.field !== undefined && row[state.field] === state.value
+                    state.field !== undefined &&
+                    row[state.field] === state.value
                 ) ?? null
               );
             },

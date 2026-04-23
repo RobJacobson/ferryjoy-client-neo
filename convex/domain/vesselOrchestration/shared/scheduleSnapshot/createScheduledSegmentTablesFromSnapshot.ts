@@ -13,7 +13,9 @@ export const createScheduledSegmentTablesFromSnapshot = (
   return {
     sailingDay,
     scheduledDepartureBySegmentKey:
-      snapshot.SailingDay === sailingDay ? snapshot.scheduledDepartureBySegmentKey : {},
+      snapshot.SailingDay === sailingDay
+        ? snapshot.scheduledDepartureBySegmentKey
+        : {},
     scheduledDeparturesByVesselAbbrev:
       snapshot.SailingDay === sailingDay
         ? snapshot.scheduledDeparturesByVesselAbbrev

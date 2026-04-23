@@ -7,27 +7,28 @@
  * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler.ts`).
  */
 
-import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/tripLifecycle/tripEventTypes";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
+import type { TripLifecycleEventFlags } from "../tripLifecycle";
 
 /**
  * One successful trip-boundary transition: trips ready for timeline writes.
  *
- * `scheduleTrip` is the replacement active row from {@link buildTripCore} (schedule
- * fields applied, no ML). **updateVesselPredictions** attaches ML into {@link newTrip}
- * before timeline projection (`buildTimelinePingProjectionInput`).
+ * `scheduleTrip` is the replacement active row from `buildTripRowsForPing`
+ * (schedule fields applied, no ML). **updateVesselPredictions** attaches ML
+ * into {@link newTrip} before timeline projection
+ * (`buildTimelinePingProjectionInput`).
  */
 export type CompletedTripBoundaryFact = {
   existingTrip: ConvexVesselTrip;
   tripToComplete: ConvexVesselTrip;
   /**
-   * Trip events for the boundary ping (same bundle passed to {@link buildTripCore}).
+   * Trip events for the boundary ping from the trip stage.
    * Required for prediction gate derivation and timeline parity.
    */
-  events: TripEvents;
+  events: TripLifecycleEventFlags;
   /** Replacement active row after schedule enrichment (pre-ML). */
   scheduleTrip: ConvexVesselTrip;
   /**
@@ -42,8 +43,8 @@ export type CompletedTripBoundaryFact = {
  * Per-vessel message to build sparse `eventsActual` patches on the current path.
  */
 export type CurrentTripActualEventMessage = {
-  events: TripEvents;
-  /** Schedule-enriched trip row from {@link buildTripCore} (pre-ML overlay). */
+  events: TripLifecycleEventFlags;
+  /** Schedule-enriched trip row from the trip stage (pre-ML overlay). */
   scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
   requiresSuccessfulUpsert: boolean;
@@ -107,18 +108,18 @@ export type TripComputation =
   | {
       branch: "completed";
       vesselAbbrev: string;
-      events: TripEvents;
+      events: TripLifecycleEventFlags;
       existingTrip: ConvexVesselTrip;
       completedTrip: ConvexVesselTrip;
       /** Replacement active row used for persist gates (same as `scheduleTrip` today). */
       activeTrip: ConvexVesselTrip;
-      /** Schedule-enriched row from {@link buildTripCore} (pre-ML). */
+      /** Schedule-enriched row from the trip stage (pre-ML). */
       scheduleTrip: ConvexVesselTrip;
     }
   | {
       branch: "current";
       vesselAbbrev: string;
-      events?: TripEvents;
+      events?: TripLifecycleEventFlags;
       existingTrip?: ConvexVesselTrip;
       activeTrip: ConvexVesselTrip;
       scheduleTrip: ConvexVesselTrip;

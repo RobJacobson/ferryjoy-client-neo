@@ -1,7 +1,7 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
-import type { InferredTripFields } from "./types";
+import type { ResolvedCurrentTripFields } from "./types";
 
 /**
  * Preserve any direct WSF values that exist. When WSF remains incomplete for
@@ -12,50 +12,30 @@ import type { InferredTripFields } from "./types";
  * reusing persisted provisional fields still yields `tripFieldDataSource:
  * "inferred"`, while deriving a `ScheduleKey` from direct WSF destination +
  * departure fields remains `tripFieldDataSource: "wsf"`.
+ *
+ * Next-leg schedule fields are not part of this contract; they are attached
+ * later by `resolveTripFieldsForTripRow`.
+ *
+ * @param location - Raw location for this ping
+ * @param existingTrip - Prior trip row for same-dock reuse, when present
+ * @returns Resolved current-trip fields for incomplete-feed cases
  */
 export const getFallbackTripFields = ({
   location,
   existingTrip,
 }: {
-  location: Pick<
-    ConvexVesselLocation,
-    | "AtDock"
-    | "LeftDock"
-    | "VesselAbbrev"
-    | "DepartingTerminalAbbrev"
-    | "ArrivingTerminalAbbrev"
-    | "ScheduledDeparture"
-    | "ScheduleKey"
-  >;
-  existingTrip:
-    | Pick<
-        ConvexVesselTrip,
-        | "AtDock"
-        | "LeftDock"
-        | "DepartingTerminalAbbrev"
-        | "ArrivingTerminalAbbrev"
-        | "ScheduledDeparture"
-        | "ScheduleKey"
-        | "SailingDay"
-        | "NextScheduleKey"
-        | "NextScheduledDeparture"
-      >
-    | undefined;
-}): InferredTripFields => {
+  location: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
+}): ResolvedCurrentTripFields => {
   const shouldReuseExistingTripFields = isSameDockWindowReuseCandidate(
     location,
     existingTrip
   );
+  const reusedTrip = shouldReuseExistingTripFields ? existingTrip : undefined;
   const arrivingTerminalAbbrev =
-    location.ArrivingTerminalAbbrev ??
-    (shouldReuseExistingTripFields
-      ? existingTrip?.ArrivingTerminalAbbrev
-      : undefined);
+    location.ArrivingTerminalAbbrev ?? reusedTrip?.ArrivingTerminalAbbrev;
   const scheduledDeparture =
-    location.ScheduledDeparture ??
-    (shouldReuseExistingTripFields
-      ? existingTrip?.ScheduledDeparture
-      : undefined);
+    location.ScheduledDeparture ?? reusedTrip?.ScheduledDeparture;
   const identity = deriveTripIdentity({
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
@@ -67,19 +47,9 @@ export const getFallbackTripFields = ({
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     ScheduledDeparture: scheduledDeparture,
     ScheduleKey:
-      location.ScheduleKey ??
-      (shouldReuseExistingTripFields ? existingTrip?.ScheduleKey : undefined) ??
-      identity.ScheduleKey,
-    SailingDay:
-      identity.SailingDay ??
-      (shouldReuseExistingTripFields ? existingTrip?.SailingDay : undefined),
-    NextScheduleKey: shouldReuseExistingTripFields
-      ? existingTrip?.NextScheduleKey
-      : undefined,
-    NextScheduledDeparture: shouldReuseExistingTripFields
-      ? existingTrip?.NextScheduledDeparture
-      : undefined,
-    // `inferTripFieldsFromSchedule` only reaches this helper after confirming
+      location.ScheduleKey ?? reusedTrip?.ScheduleKey ?? identity.ScheduleKey,
+    SailingDay: identity.SailingDay ?? reusedTrip?.SailingDay,
+    // `resolveTripFieldsForTripRow` only reaches this helper after confirming
     // the feed is incomplete, so the resolved row remains non-authoritative
     // even when we preserve partial WSF values instead of reusing persisted
     // provisional ones.
@@ -87,17 +57,16 @@ export const getFallbackTripFields = ({
   };
 };
 
+/**
+ * Checks whether existing inferred fields should be reused in same dock window.
+ *
+ * @param location - Raw location for this ping
+ * @param existingTrip - Prior trip row for potential reuse
+ * @returns True when both rows represent the same pre-departure dock window
+ */
 const isSameDockWindowReuseCandidate = (
-  location: Pick<
-    ConvexVesselLocation,
-    "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
-  >,
-  existingTrip:
-    | Pick<
-        ConvexVesselTrip,
-        "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
-      >
-    | undefined
+  location: ConvexVesselLocation,
+  existingTrip: ConvexVesselTrip | undefined
 ): boolean =>
   Boolean(
     location.AtDock &&

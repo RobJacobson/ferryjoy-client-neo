@@ -82,11 +82,13 @@ export const makeScheduledSegment = (
   ...overrides,
 });
 
-export const makeScheduledTables = (options: {
-  sailingDay?: string;
-  segments?: ConvexInferredScheduledSegment[];
-  scheduledDeparturesByVesselAbbrev?: ScheduledSegmentTables["scheduledDeparturesByVesselAbbrev"];
-} = {}): ScheduledSegmentTables => ({
+export const makeScheduledTables = (
+  options: {
+    sailingDay?: string;
+    segments?: ConvexInferredScheduledSegment[];
+    scheduledDeparturesByVesselAbbrev?: ScheduledSegmentTables["scheduledDeparturesByVesselAbbrev"];
+  } = {}
+): ScheduledSegmentTables => ({
   sailingDay: options.sailingDay ?? "2026-03-13",
   scheduledDepartureBySegmentKey: Object.fromEntries(
     (options.segments ?? []).map((segment) => [segment.Key, segment] as const)

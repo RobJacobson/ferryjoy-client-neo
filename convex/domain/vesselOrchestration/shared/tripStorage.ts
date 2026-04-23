@@ -1,10 +1,6 @@
-import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { stripTripPredictionsForStorage } from "./orchestratorPersist";
 
-/**
- * Compares the persisted shape of two trip rows so downstream stages can reason
- * about whether the active-trip storage row would actually change.
- */
 export const areTripStorageRowsEqual = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip | undefined

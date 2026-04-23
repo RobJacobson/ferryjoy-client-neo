@@ -4,10 +4,8 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import {
-  vesselTripPredictionProposalSchema,
-} from "functions/vesselTripPredictions/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
   vesselTripStoredSchema,
   vesselTripWithMlSchema,
@@ -54,7 +52,7 @@ export type {
   VesselLocationUpdates,
   VesselPredictionUpdates,
   VesselTimelineUpdates,
-  VesselTripUpdates,
+  VesselTripUpdate,
 } from "./pipelineTypes";
 
 export const tripRowsForPingSchema = v.object({
