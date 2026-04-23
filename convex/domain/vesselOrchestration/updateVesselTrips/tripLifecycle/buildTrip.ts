@@ -107,8 +107,6 @@ export const buildTripCore = (
     baseTrip: withScheduleKeyChangeClearedDerivedState,
     existingTrip,
     scheduleTables,
-    events,
-    tripStart,
   });
 };
 

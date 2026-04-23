@@ -42,12 +42,9 @@ export const getFallbackTripFields = ({
       >
     | undefined;
 }): InferredTripFields => {
-  const shouldReuseExistingTripFields = Boolean(
-    location.AtDock &&
-      location.LeftDock === undefined &&
-      existingTrip?.AtDock &&
-      existingTrip.LeftDock === undefined &&
-      existingTrip.DepartingTerminalAbbrev === location.DepartingTerminalAbbrev
+  const shouldReuseExistingTripFields = isSameDockWindowReuseCandidate(
+    location,
+    existingTrip
   );
   const arrivingTerminalAbbrev =
     location.ArrivingTerminalAbbrev ??
@@ -89,3 +86,23 @@ export const getFallbackTripFields = ({
     tripFieldDataSource: "inferred",
   };
 };
+
+const isSameDockWindowReuseCandidate = (
+  location: Pick<
+    ConvexVesselLocation,
+    "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
+  >,
+  existingTrip:
+    | Pick<
+        ConvexVesselTrip,
+        "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
+      >
+    | undefined
+): boolean =>
+  Boolean(
+    location.AtDock &&
+      location.LeftDock === undefined &&
+      existingTrip?.AtDock &&
+      existingTrip.LeftDock === undefined &&
+      existingTrip.DepartingTerminalAbbrev === location.DepartingTerminalAbbrev
+  );

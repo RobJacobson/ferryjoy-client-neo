@@ -22,8 +22,6 @@ describe("attachNextScheduledTripFields", () => {
       }),
       existingTrip,
       scheduleTables: makeScheduledTables(),
-      events: { scheduleKeyChanged: false },
-      tripStart: false,
     });
 
     expect(trip.NextScheduleKey).toBe(existingTrip.NextScheduleKey);
@@ -50,8 +48,6 @@ describe("attachNextScheduledTripFields", () => {
       scheduleTables: makeScheduledTables({
         segments: [scheduledSegment],
       }),
-      events: { scheduleKeyChanged: true },
-      tripStart: false,
     });
 
     expect(trip.NextScheduleKey).toBe(scheduledSegment.NextKey);
