@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import { buildTripRowsForPing } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
-import { computeTripBatchForPing } from "functions/vesselOrchestrator/actions";
+import { computeTripBatchForPing } from "functions/vesselOrchestrator/testing";
 import {
   makeLocation,
   makeScheduledSegment,

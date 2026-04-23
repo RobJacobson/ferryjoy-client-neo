@@ -1,6 +1,7 @@
 /**
  * Batch trip update computation across vessel location rows.
  */
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { computeVesselTripUpdate } from "./computeVesselTripUpdate";
 import type {
@@ -9,10 +10,10 @@ import type {
   VesselTripUpdate,
 } from "./types";
 
+type TripLocationFilter = (location: ConvexVesselLocation) => boolean;
+
 type ComputeVesselTripsBatchInput = RunUpdateVesselTripsInput & {
-  shouldProcessLocation?: (
-    location: RunUpdateVesselTripsInput["vesselLocations"][number]
-  ) => boolean;
+  shouldProcessLocation?: TripLocationFilter;
 };
 
 type ComputeVesselTripsBatchResult = {

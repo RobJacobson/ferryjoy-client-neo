@@ -211,8 +211,8 @@ persist once
 ### Likely file targets
 
 - `convex/functions/vesselOrchestrator/actions.ts`
-- `convex/functions/vesselOrchestrator/pipelineTypes.ts`
 - `convex/functions/vesselOrchestrator/schemas.ts`
+- `convex/functions/vesselOrchestrator/testing.ts`
 
 ### Definition of done
 

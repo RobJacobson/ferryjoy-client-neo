@@ -190,9 +190,9 @@ import type * as functions_vesselLocationsHistoric_schemas from "../functions/ve
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
-import type * as functions_vesselOrchestrator_pipelineTypes from "../functions/vesselOrchestrator/pipelineTypes.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_schemas from "../functions/vesselOrchestrator/schemas.js";
+import type * as functions_vesselOrchestrator_testing from "../functions/vesselOrchestrator/testing.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
 import type * as functions_vesselPings_index from "../functions/vesselPings/index.js";
 import type * as functions_vesselPings_mutations from "../functions/vesselPings/mutations.js";
@@ -430,9 +430,9 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
-  "functions/vesselOrchestrator/pipelineTypes": typeof functions_vesselOrchestrator_pipelineTypes;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/schemas": typeof functions_vesselOrchestrator_schemas;
+  "functions/vesselOrchestrator/testing": typeof functions_vesselOrchestrator_testing;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
   "functions/vesselPings/index": typeof functions_vesselPings_index;
   "functions/vesselPings/mutations": typeof functions_vesselPings_mutations;

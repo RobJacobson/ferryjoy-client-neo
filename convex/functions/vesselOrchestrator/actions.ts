@@ -23,9 +23,7 @@ import type {
   CompletedTripBoundaryFact,
   PredictedTripComputation,
   ScheduleContinuityAccess,
-  ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
-import { createScheduleContinuityAccessFromSnapshot } from "domain/vesselOrchestration/shared";
 import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
@@ -682,37 +680,6 @@ export type { PredictionStageInputs };
 export {
   buildOrchestratorPersistenceBundle,
   buildPredictionStageInputs,
-  computeTripBatchForPing,
   logTripStageLocationSkipSummary,
   shouldContinueAfterTripUpdate,
-};
-
-/**
- * Backward-compatible helper for focused tests that still provide a snapshot.
- *
- * @param locationUpdates - Location updates for the ping
- * @param existingActiveTrips - Active trips from storage
- * @param scheduleSnapshot - In-memory schedule snapshot for tests
- * @param sailingDay - Sailing day represented by the snapshot
- * @returns Trip updates and authoritative trip rows for the ping
- */
-const computeTripBatchForPing = async (
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>,
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
-  scheduleSnapshot: ScheduleSnapshot,
-  sailingDay: string
-): Promise<{
-  updates: ReadonlyArray<VesselTripUpdate>;
-  rows: RunUpdateVesselTripsOutput;
-}> => {
-  const tripStage = await computeTripStageForLocations(
-    locationUpdates.filter((update) => update.locationChanged),
-    existingActiveTrips,
-    createScheduleContinuityAccessFromSnapshot(scheduleSnapshot, sailingDay)
-  );
-
-  return {
-    updates: tripStage.tripUpdates,
-    rows: tripStage.tripRows,
-  };
 };

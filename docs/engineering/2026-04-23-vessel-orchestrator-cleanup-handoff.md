@@ -32,6 +32,10 @@ The latest cleanup pass also tightened the local code shape:
   instead of re-filtering full `tripRows`
 - a few remaining utility/indexed-access aliases in the touched path were
   replaced with explicit local types
+- `pipelineTypes.ts` was removed and `VesselLocationUpdates` now lives directly
+  in `schemas.ts`
+- the snapshot-only `computeTripBatchForPing` compatibility helper moved out of
+  `actions.ts` into `convex/functions/vesselOrchestrator/testing.ts`
 
 I also fixed one follow-up issue during review:
 
@@ -75,6 +79,8 @@ Most likely areas:
 - trimming leftover transitional DTOs and compatibility helpers
 - removing any remaining unnecessary utility typing or indexed-access aliasing
   when a small explicit local type would be clearer
+- keeping snapshot-only compatibility helpers out of production hot-path files
+  when they can live in `testing.ts`
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups

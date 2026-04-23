@@ -3,9 +3,17 @@
  */
 import { areTripStorageRowsEqual } from "domain/vesselOrchestration/shared";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { detectTripEvents } from "./lifecycle";
 import { buildTripRowsForPing } from "./tripBuilders";
 import type { VesselTripUpdate } from "./types";
+
+type ComputeVesselTripUpdateInput = {
+  vesselLocation: ConvexVesselLocation;
+  existingActiveTrip?: ConvexVesselTrip;
+  scheduleAccess: ScheduleContinuityAccess;
+};
 
 /**
  * Computes storage and lifecycle changes for one vessel ping.
@@ -13,11 +21,9 @@ import type { VesselTripUpdate } from "./types";
  * @param input - Vessel location, optional active trip, and schedule lookup tables
  * @returns Trip update containing candidate rows and change indicators
  */
-export const computeVesselTripUpdate = async (input: {
-  vesselLocation: VesselTripUpdate["vesselLocation"];
-  existingActiveTrip?: VesselTripUpdate["existingActiveTrip"];
-  scheduleAccess: ScheduleContinuityAccess;
-}): Promise<VesselTripUpdate> => {
+export const computeVesselTripUpdate = async (
+  input: ComputeVesselTripUpdateInput
+): Promise<VesselTripUpdate> => {
   // Detect lifecycle transitions before mutating trip rows.
   const events = detectTripEvents(
     input.existingActiveTrip,

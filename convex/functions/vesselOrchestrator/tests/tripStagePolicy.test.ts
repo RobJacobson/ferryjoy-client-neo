@@ -1,13 +1,11 @@
 import { describe, expect, it, mock, spyOn } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import {
-  computeTripBatchForPing,
-  logTripStageLocationSkipSummary,
-} from "../actions";
+import { logTripStageLocationSkipSummary } from "../actions";
+import { computeTripBatchForPing } from "../testing";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
