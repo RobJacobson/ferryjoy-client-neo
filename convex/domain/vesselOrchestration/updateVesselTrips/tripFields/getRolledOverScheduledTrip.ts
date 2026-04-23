@@ -31,16 +31,26 @@ export const getRolledOverScheduledTrip = ({
     return null;
   }
 
-  const departures = getScheduledDeparturesForVesselAndSailingDay(
-    scheduleTables,
-    location.VesselAbbrev,
-    getSailingDay(new Date(scheduledDeparture))
-  );
-  const nextDeparture = departures.find(
-    (departure) =>
-      departure.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-      departure.ScheduledDeparture > scheduledDeparture
-  );
+  const priorTripSailingDay = getSailingDay(new Date(scheduledDeparture));
+  const nextDeparture = [
+    priorTripSailingDay,
+    scheduleTables.sailingDay,
+  ]
+    .filter((sailingDay, index, sailingDays) =>
+      sailingDays.indexOf(sailingDay) === index
+    )
+    .flatMap((sailingDay) =>
+      getScheduledDeparturesForVesselAndSailingDay(
+        scheduleTables,
+        location.VesselAbbrev,
+        sailingDay
+      )
+    )
+    .find(
+      (departure) =>
+        departure.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+        departure.ScheduledDeparture > scheduledDeparture
+    );
   if (!nextDeparture) {
     return null;
   }

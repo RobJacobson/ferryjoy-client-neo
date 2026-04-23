@@ -92,6 +92,49 @@ raw location ping
   -> attachNextScheduledTripFields
 ```
 
+### Happy-path execution map
+
+This is the major entry-to-exit flow when things go well and we can attach a
+coherent scheduled identity to the row:
+
+```text
+                         ENTRY
+                           |
+                           v
+                raw vessel location ping
+                           |
+                           v
+              resolveCurrentTripFields(...)
+                           |
+             +-------------+-------------+
+             |                           |
+             | WSF authoritative         | WSF incomplete
+             v                           v
+      getTripFieldsFromWsf        schedule evidence lookup
+             |                           |
+             |                           +-----------------------------+
+             |                           |                             |
+             |                           | next key hit                | rollover hit
+             |                           v                             v
+             |                getNextScheduledTrip...        getRolledOverScheduledTrip
+             |                           |                             |
+             +-------------+-------------+-------------+---------------+
+                                           |
+                                           v
+                            ResolvedCurrentTripFields
+                                           |
+                                           v
+                     tripLifecycle/baseTripFromLocation(...)
+                                           |
+                                           v
+                       attachNextScheduledTripFields(...)
+                                           |
+                                           v
+                                  ConvexVesselTrip row
+                                           |
+                                          EXIT
+```
+
 ### Happy path: WSF is authoritative
 
 This is the simplest and preferred case.
@@ -146,6 +189,47 @@ That means this folder has one clear precedence rule:
 | 3 | Schedule rollover | Next scheduled departure can be inferred from time + terminal |
 | 4 | Safe fallback | Preserve stable provisional fields or partial WSF values without claiming a new match |
 
+### Branch map
+
+The main branching logic is intentionally narrow. Almost every interesting case
+is a variation on this tree:
+
+```text
+resolveCurrentTripFields(location, existingTrip, scheduleTables)
+|
++-- hasWsfTripFields(location)?
+|   |
+|   +-- yes --> getTripFieldsFromWsf --> resolved as `tripFieldDataSource: "wsf"`
+|   |
+|   +-- no
+|       |
+|       +-- existingTrip.NextScheduleKey resolves and terminal matches?
+|       |   |
+|       |   +-- yes --> infer from scheduled segment
+|       |   |           `tripFieldInferenceMethod: "next_scheduled_trip"`
+|       |   |
+|       |   +-- no
+|       |       |
+|       |       +-- later same-terminal departure found by rollover lookup?
+|       |           |
+|       |           +-- yes --> infer from scheduled segment
+|       |           |           `tripFieldInferenceMethod: "schedule_rollover"`
+|       |           |
+|       |           +-- no --> getFallbackTripFields
+|       |                       preserve partial WSF and/or reuse stable trip fields
+|       |
+|       +-- all non-WSF outcomes are still `tripFieldDataSource: "inferred"`
+|
++-- baseTripFromLocation merges raw feed + resolved current-trip fields
+|
++-- attachNextScheduledTripFields
+    |
+    +-- no `ScheduleKey` --> leave next-leg fields empty
+    +-- same `ScheduleKey` --> preserve existing next-leg fields
+    +-- new `ScheduleKey` with known segment --> attach `NextKey` / `NextDepartingTime`
+    +-- new `ScheduleKey` with missing segment --> clear stale next-leg fields
+```
+
 ## Schedule Evidence Paths
 
 ### Path 1: next scheduled trip
@@ -173,13 +257,15 @@ path when there is no trustworthy `NextScheduleKey`.
 Use it when:
 
 - the existing trip has a prior `ScheduledDeparture`
-- the schedule tables contain a later departure for the same vessel
+- the prior trip's sailing day or the current schedule snapshot day contains a
+  later departure for the same vessel
 - that later departure matches the vessel's current departing terminal
 
 This is how the code says, in effect:
 
 > We do not know the next leg directly, but based on the vessel's last scheduled
-> departure and today's schedule, this appears to be the next scheduled segment.
+> departure and the current schedule snapshot, this appears to be the next
+> scheduled segment.
 
 That path marks:
 
@@ -195,6 +281,11 @@ This function does two important things:
 
 1. Preserve any direct WSF values that do exist
 2. Reuse already-known provisional fields only in a narrow same-dock-window case
+
+Implementation note:
+
+- the helper computes a single `reusedTrip` alias after the reuse check so the
+  fallback field selection stays linear and easy to audit
 
 The reuse case is intentionally conservative. It requires:
 
@@ -239,8 +330,10 @@ Behavior:
 - if the built row has no `ScheduleKey`, do nothing
 - if the `ScheduleKey` is unchanged from the existing trip, preserve existing
   next-leg fields when the current row has not already provided them
-- otherwise look up the scheduled segment and attach its `NextKey` /
-  `NextDepartingTime`
+- if the `ScheduleKey` changed and the new segment is present in the snapshot,
+  attach its `NextKey` / `NextDepartingTime`
+- if the `ScheduleKey` changed and the new segment is missing, clear carried
+  next-leg fields instead of keeping stale hints from the previous segment
 
 ## Observability
 
@@ -269,6 +362,38 @@ What is intentionally silent:
 - initial authoritative WSF rows with no prior trip fields
 
 ## Edge Cases
+
+### Edge-case branch summary
+
+These are the major "why did we go down that path?" cases:
+
+```text
+WSF complete?
+|
++-- yes --> authoritative WSF path
+|
++-- no
+    |
+    +-- next scheduled segment is trustworthy?
+    |   |
+    |   +-- yes --> inferred from `NextScheduleKey`
+    |   +-- no
+    |
+    +-- rollover lookup finds a later departure?
+    |   |
+    |   +-- yes --> inferred from schedule rollover
+    |   +-- no
+    |
+    +-- same dock window and existing provisional trip is stable?
+    |   |
+    |   +-- yes --> reuse existing provisional fields
+    |   +-- no
+    |
+    +-- partial WSF fields exist?
+        |
+        +-- yes --> preserve what WSF gave us, but still mark as inferred
+        +-- no --> return the safest sparse inferred result we can
+```
 
 ### WSF omits destination/departure at trip start
 

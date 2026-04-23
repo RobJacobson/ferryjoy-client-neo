@@ -31,16 +31,11 @@ export const getFallbackTripFields = ({
     location,
     existingTrip
   );
+  const reusedTrip = shouldReuseExistingTripFields ? existingTrip : undefined;
   const arrivingTerminalAbbrev =
-    location.ArrivingTerminalAbbrev ??
-    (shouldReuseExistingTripFields
-      ? existingTrip?.ArrivingTerminalAbbrev
-      : undefined);
+    location.ArrivingTerminalAbbrev ?? reusedTrip?.ArrivingTerminalAbbrev;
   const scheduledDeparture =
-    location.ScheduledDeparture ??
-    (shouldReuseExistingTripFields
-      ? existingTrip?.ScheduledDeparture
-      : undefined);
+    location.ScheduledDeparture ?? reusedTrip?.ScheduledDeparture;
   const identity = deriveTripIdentity({
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
@@ -52,12 +47,8 @@ export const getFallbackTripFields = ({
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
     ScheduledDeparture: scheduledDeparture,
     ScheduleKey:
-      location.ScheduleKey ??
-      (shouldReuseExistingTripFields ? existingTrip?.ScheduleKey : undefined) ??
-      identity.ScheduleKey,
-    SailingDay:
-      identity.SailingDay ??
-      (shouldReuseExistingTripFields ? existingTrip?.SailingDay : undefined),
+      location.ScheduleKey ?? reusedTrip?.ScheduleKey ?? identity.ScheduleKey,
+    SailingDay: identity.SailingDay ?? reusedTrip?.SailingDay,
     // `resolveCurrentTripFields` only reaches this helper after confirming
     // the feed is incomplete, so the resolved row remains non-authoritative
     // even when we preserve partial WSF values instead of reusing persisted

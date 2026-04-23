@@ -55,4 +55,23 @@ describe("attachNextScheduledTripFields", () => {
       scheduledSegment.NextDepartingTime
     );
   });
+
+  it("clears carried next scheduled trip fields when the segment changes and no replacement segment exists", () => {
+    const trip = attachNextScheduledTripFields({
+      baseTrip: makeTrip({
+        ScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
+        NextScheduleKey: "STALE-NEXT-KEY",
+        NextScheduledDeparture: ms("2026-03-13T14:00:00-07:00"),
+      }),
+      existingTrip: makeTrip({
+        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+        NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+        NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+      }),
+      scheduleTables: makeScheduledTables(),
+    });
+
+    expect(trip.NextScheduleKey).toBeUndefined();
+    expect(trip.NextScheduledDeparture).toBeUndefined();
+  });
 });

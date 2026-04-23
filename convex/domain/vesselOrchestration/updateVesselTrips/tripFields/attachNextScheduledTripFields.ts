@@ -41,7 +41,11 @@ export const attachNextScheduledTripFields = ({
   const scheduledSegment =
     scheduleTables.scheduledDepartureBySegmentKey[segmentKey];
   if (!scheduledSegment) {
-    return baseTrip;
+    return {
+      ...baseTrip,
+      NextScheduleKey: undefined,
+      NextScheduledDeparture: undefined,
+    };
   }
 
   return {

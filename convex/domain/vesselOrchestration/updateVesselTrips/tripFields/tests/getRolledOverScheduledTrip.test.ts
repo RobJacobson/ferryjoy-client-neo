@@ -52,4 +52,40 @@ describe("getRolledOverScheduledTrip", () => {
 
     expect(match).toBeNull();
   });
+
+  it("can roll forward using the current snapshot day when the previous trip was on the prior sailing day", () => {
+    const nextDaySegment = makeScheduledSegment({
+      Key: "CHE--2026-03-14--05:30--CLI-MUK",
+      SailingDay: "2026-03-14",
+      DepartingTime: ms("2026-03-14T05:30:00-07:00"),
+    });
+
+    const match = getRolledOverScheduledTrip({
+      location: makeLocation({
+        VesselAbbrev: "CHE",
+        DepartingTerminalAbbrev: "CLI",
+        TimeStamp: ms("2026-03-14T05:10:00-07:00"),
+      }),
+      existingTrip: makeTrip({
+        NextScheduleKey: undefined,
+        ScheduledDeparture: ms("2026-03-13T23:30:00-07:00"),
+      }),
+      scheduleTables: makeScheduledTables({
+        sailingDay: "2026-03-14",
+        segments: [nextDaySegment],
+        scheduledDeparturesByVesselAbbrev: {
+          CHE: [
+            {
+              Key: `${nextDaySegment.Key}--dep-dock`,
+              ScheduledDeparture: nextDaySegment.DepartingTime,
+              TerminalAbbrev: "CLI",
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(match?.segment.Key).toBe(nextDaySegment.Key);
+    expect(match?.tripFieldInferenceMethod).toBe("schedule_rollover");
+  });
 });
