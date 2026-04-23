@@ -5,7 +5,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
-  computeTripUpdatesForPing,
+  computeTripBatchForPing,
   logTripStageLocationSkipSummary,
 } from "../actions";
 
@@ -91,7 +91,7 @@ const makeLocationUpdate = (
 
 describe("trip stage schedule-inference gating", () => {
   it("skips trip recomputation for unchanged locations", () => {
-    const tripBatch = computeTripUpdatesForPing(
+    const tripBatch = computeTripBatchForPing(
       [
         makeLocationUpdate("CHE", false),
         makeLocationUpdate("TAC", true, {

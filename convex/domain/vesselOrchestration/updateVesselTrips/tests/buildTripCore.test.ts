@@ -3,7 +3,7 @@ import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/schedul
 import type { TripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
 import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
 import { buildTripCore } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
-import { computeTripUpdatesForPing } from "functions/vesselOrchestrator/actions";
+import { computeTripBatchForPing } from "functions/vesselOrchestrator/actions";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -326,7 +326,7 @@ describe("buildTripCore", () => {
     );
     expect(authoritativeTrip.ScheduleKey).toBe(nextSegment.Key);
 
-    const tripBatch = computeTripUpdatesForPing(
+    const tripBatch = computeTripBatchForPing(
       [
         {
           vesselLocation: makeLocation({

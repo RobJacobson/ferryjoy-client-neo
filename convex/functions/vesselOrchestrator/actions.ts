@@ -194,7 +194,7 @@ const runTripStage = async (
   );
   const sailingDay = getSailingDay(new Date(pingStartedAt));
   logTripStageLocationSkipSummary(locationUpdates);
-  const tripBatch = computeTripUpdatesForPing(
+  const tripBatch = computeTripBatchForPing(
     locationUpdates,
     activeTrips,
     scheduleSnapshot,
@@ -420,7 +420,7 @@ const loadPredictionContext = async (
   return { productionModelsByPair };
 };
 
-const computeTripUpdatesForPing = (
+const computeTripBatchForPing = (
   locationUpdates: ReadonlyArray<VesselLocationUpdates>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleSnapshot: ScheduleSnapshot,
@@ -589,7 +589,7 @@ export type { OrchestratorPerVesselStageOutputs, PredictionStageInputs };
 export {
   buildOrchestratorPersistenceBundle,
   buildPredictionStageInputs,
-  computeTripUpdatesForPing,
+  computeTripBatchForPing,
   logTripStageLocationSkipSummary,
   shouldContinueAfterTripUpdate,
 };
