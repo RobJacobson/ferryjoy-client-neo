@@ -116,18 +116,13 @@ This is the simplest and preferred case.
 This is the main inference case.
 
 1. `hasWsfTripFields(...)` returns `false`
-2. [`findScheduledTripMatch.ts`](./findScheduledTripMatch.ts) looks for the best
-   schedule-backed match in this order:
+2. [`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts) tries schedule
+   evidence in order:
    - [`getNextScheduledTripFromExistingTrip.ts`](./getNextScheduledTripFromExistingTrip.ts)
-   - [`getRolledOverScheduledTrip.ts`](./getRolledOverScheduledTrip.ts)
-3. [`buildResolvedCurrentTripFields.ts`](./buildResolvedCurrentTripFields.ts)
-   converts the matched scheduled segment into current-trip resolution only:
-   - `ArrivingTerminalAbbrev`
-   - `ScheduledDeparture`
-   - `ScheduleKey`
-   - `SailingDay` (when the segment carries it)
-   - `tripFieldDataSource: "inferred"`
-   - `tripFieldInferenceMethod`
+   - else [`getRolledOverScheduledTrip.ts`](./getRolledOverScheduledTrip.ts)
+3. A hit maps the segment to current-trip resolution (`ArrivingTerminalAbbrev`,
+   `ScheduledDeparture`, `ScheduleKey`, optional `SailingDay`,
+   `tripFieldDataSource: "inferred"`, `tripFieldInferenceMethod`)
 4. `tripLifecycle` merges that resolution with the raw location inside
    `deriveTripInputs` / `baseTripFromLocation` (next-leg fields are **not** part
    of this contract; see `attachNextScheduledTripFields`)
@@ -332,13 +327,11 @@ Handling:
 
 | File | Role |
 | --- | --- |
-| [`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts) | Canonical policy entrypoint |
+| [`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts) | Canonical policy entrypoint (WSF → next key → rollover → fallback) |
 | [`hasWsfTripFields.ts`](./hasWsfTripFields.ts) | Decide whether WSF is authoritative |
 | [`getTripFieldsFromWsf.ts`](./getTripFieldsFromWsf.ts) | Normalize the WSF path into the common return shape |
-| [`findScheduledTripMatch.ts`](./findScheduledTripMatch.ts) | Compose schedule-backed inference paths |
 | [`getNextScheduledTripFromExistingTrip.ts`](./getNextScheduledTripFromExistingTrip.ts) | Inference from `NextScheduleKey` |
 | [`getRolledOverScheduledTrip.ts`](./getRolledOverScheduledTrip.ts) | Inference from schedule rollover |
-| [`buildResolvedCurrentTripFields.ts`](./buildResolvedCurrentTripFields.ts) | Convert a scheduled match into resolved current-trip fields |
 | [`getFallbackTripFields.ts`](./getFallbackTripFields.ts) | Preserve partial WSF values and safely reuse stable provisional fields |
 | [`attachNextScheduledTripFields.ts`](./attachNextScheduledTripFields.ts) | Attach next-leg schedule hints after trip build |
 | [`logTripFieldInference.ts`](./logTripFieldInference.ts) | Low-noise observability policy |
@@ -350,7 +343,7 @@ If you are new to this code, read in this order:
 
 1. [`types.ts`](./types.ts)
 2. [`resolveCurrentTripFields.ts`](./resolveCurrentTripFields.ts)
-3. [`findScheduledTripMatch.ts`](./findScheduledTripMatch.ts)
+3. [`getNextScheduledTripFromExistingTrip.ts`](./getNextScheduledTripFromExistingTrip.ts) / [`getRolledOverScheduledTrip.ts`](./getRolledOverScheduledTrip.ts)
 4. [`getFallbackTripFields.ts`](./getFallbackTripFields.ts)
 5. [`attachNextScheduledTripFields.ts`](./attachNextScheduledTripFields.ts)
 6. [`logTripFieldInference.ts`](./logTripFieldInference.ts)

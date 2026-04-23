@@ -8,16 +8,22 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { getSailingDay } from "shared/time";
 import type { ScheduledTripMatch } from "./types";
 
+/**
+ * When `NextScheduleKey` is unavailable, find the next same-terminal scheduled
+ * departure after the prior trip's departure time and map it to a segment.
+ *
+ * @param location - Raw vessel location for this ping
+ * @param existingTrip - Prior active trip (uses `ScheduledDeparture`)
+ * @param scheduleTables - Prefetched schedule evidence tables
+ * @returns Match tagged `schedule_rollover`, or null
+ */
 export const getRolledOverScheduledTrip = ({
   location,
   existingTrip,
   scheduleTables,
 }: {
-  location: Pick<
-    ConvexVesselLocation,
-    "VesselAbbrev" | "DepartingTerminalAbbrev"
-  >;
-  existingTrip: Pick<ConvexVesselTrip, "ScheduledDeparture"> | undefined;
+  location: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
   scheduleTables: ScheduledSegmentTables;
 }): ScheduledTripMatch | null => {
   const scheduledDeparture = existingTrip?.ScheduledDeparture;

@@ -24,28 +24,8 @@ export const getFallbackTripFields = ({
   location,
   existingTrip,
 }: {
-  location: Pick<
-    ConvexVesselLocation,
-    | "AtDock"
-    | "LeftDock"
-    | "VesselAbbrev"
-    | "DepartingTerminalAbbrev"
-    | "ArrivingTerminalAbbrev"
-    | "ScheduledDeparture"
-    | "ScheduleKey"
-  >;
-  existingTrip:
-    | Pick<
-        ConvexVesselTrip,
-        | "AtDock"
-        | "LeftDock"
-        | "DepartingTerminalAbbrev"
-        | "ArrivingTerminalAbbrev"
-        | "ScheduledDeparture"
-        | "ScheduleKey"
-        | "SailingDay"
-      >
-    | undefined;
+  location: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
 }): ResolvedCurrentTripFields => {
   const shouldReuseExistingTripFields = isSameDockWindowReuseCandidate(
     location,
@@ -87,13 +67,8 @@ export const getFallbackTripFields = ({
 };
 
 const isSameDockWindowReuseCandidate = (
-  location: Pick<
-    ConvexVesselLocation,
-    "AtDock" | "LeftDock" | "DepartingTerminalAbbrev"
-  >,
-  existingTrip:
-    | Pick<ConvexVesselTrip, "AtDock" | "LeftDock" | "DepartingTerminalAbbrev">
-    | undefined
+  location: ConvexVesselLocation,
+  existingTrip: ConvexVesselTrip | undefined
 ): boolean =>
   Boolean(
     location.AtDock &&

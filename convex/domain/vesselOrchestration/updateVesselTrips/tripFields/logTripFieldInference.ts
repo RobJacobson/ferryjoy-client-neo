@@ -99,6 +99,16 @@ export const getTripFieldInferenceLogContext = ({
     resolvedTripFields
   );
 
+  const shared = {
+    vesselAbbrev: location.VesselAbbrev,
+    tripFieldDataSource: resolvedCurrentTripFields.tripFieldDataSource,
+    tripFieldInferenceMethod:
+      resolvedCurrentTripFields.tripFieldInferenceMethod,
+    previousTripFields,
+    resolvedTripFields,
+    rawWsfTripFields,
+  };
+
   if (resolvedCurrentTripFields.tripFieldDataSource === "inferred") {
     const reason = hasPartialWsfConflict(location, resolvedTripFields)
       ? "partial_wsf_conflict_with_inference"
@@ -112,35 +122,16 @@ export const getTripFieldInferenceLogContext = ({
       return undefined;
     }
 
-    return {
-      vesselAbbrev: location.VesselAbbrev,
-      tripFieldDataSource: resolvedCurrentTripFields.tripFieldDataSource,
-      tripFieldInferenceMethod:
-        resolvedCurrentTripFields.tripFieldInferenceMethod,
-      reason,
-      previousTripFields,
-      resolvedTripFields,
-      rawWsfTripFields,
-    };
+    return { ...shared, reason };
   }
 
-  if (!tripFieldsChanged) {
-    return undefined;
-  }
-
-  if (existingTrip === undefined) {
+  if (!tripFieldsChanged || existingTrip === undefined) {
     return undefined;
   }
 
   return {
-    vesselAbbrev: location.VesselAbbrev,
-    tripFieldDataSource: resolvedCurrentTripFields.tripFieldDataSource,
-    tripFieldInferenceMethod:
-      resolvedCurrentTripFields.tripFieldInferenceMethod,
+    ...shared,
     reason: "wsf_trip_fields_replaced_prior_values",
-    previousTripFields,
-    resolvedTripFields,
-    rawWsfTripFields,
   };
 };
 

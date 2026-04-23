@@ -123,8 +123,6 @@ import type * as domain_vesselOrchestration_updateVesselTrips_index from "../dom
 import type * as domain_vesselOrchestration_updateVesselTrips_logTripPipelineFailure from "../domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_storageRowsEqual from "../domain/vesselOrchestration/updateVesselTrips/storageRowsEqual.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_attachNextScheduledTripFields from "../domain/vesselOrchestration/updateVesselTrips/tripFields/attachNextScheduledTripFields.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_buildResolvedCurrentTripFields from "../domain/vesselOrchestration/updateVesselTrips/tripFields/buildResolvedCurrentTripFields.js";
-import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_findScheduledTripMatch from "../domain/vesselOrchestration/updateVesselTrips/tripFields/findScheduledTripMatch.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_getFallbackTripFields from "../domain/vesselOrchestration/updateVesselTrips/tripFields/getFallbackTripFields.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_getNextScheduledTripFromExistingTrip from "../domain/vesselOrchestration/updateVesselTrips/tripFields/getNextScheduledTripFromExistingTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_getRolledOverScheduledTrip from "../domain/vesselOrchestration/updateVesselTrips/tripFields/getRolledOverScheduledTrip.js";
@@ -376,8 +374,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/logTripPipelineFailure": typeof domain_vesselOrchestration_updateVesselTrips_logTripPipelineFailure;
   "domain/vesselOrchestration/updateVesselTrips/storageRowsEqual": typeof domain_vesselOrchestration_updateVesselTrips_storageRowsEqual;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/attachNextScheduledTripFields": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_attachNextScheduledTripFields;
-  "domain/vesselOrchestration/updateVesselTrips/tripFields/buildResolvedCurrentTripFields": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_buildResolvedCurrentTripFields;
-  "domain/vesselOrchestration/updateVesselTrips/tripFields/findScheduledTripMatch": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_findScheduledTripMatch;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/getFallbackTripFields": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_getFallbackTripFields;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/getNextScheduledTripFromExistingTrip": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_getNextScheduledTripFromExistingTrip;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/getRolledOverScheduledTrip": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_getRolledOverScheduledTrip;

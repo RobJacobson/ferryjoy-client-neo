@@ -9,6 +9,45 @@ import {
 } from "./testHelpers";
 
 describe("resolveCurrentTripFields", () => {
+  it("prefers next scheduled segment over rollover when both are available", () => {
+    const nextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--CLI-MUK",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const rolloverSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--13:30--CLI-MUK",
+      DepartingTime: ms("2026-03-13T13:30:00-07:00"),
+    });
+
+    const resolved = resolveCurrentTripFields({
+      location: makeLocation({
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+        DepartingTerminalAbbrev: "CLI",
+      }),
+      existingTrip: makeTrip({
+        NextScheduleKey: nextSegment.Key,
+        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      }),
+      scheduleTables: makeScheduledTables({
+        segments: [nextSegment, rolloverSegment],
+        scheduledDeparturesByVesselAbbrev: {
+          CHE: [
+            {
+              Key: `${rolloverSegment.Key}--dep-dock`,
+              ScheduledDeparture: rolloverSegment.DepartingTime,
+              TerminalAbbrev: "CLI",
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(resolved.ScheduleKey).toBe(nextSegment.Key);
+    expect(resolved.tripFieldInferenceMethod).toBe("next_scheduled_trip");
+  });
+
   it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", () => {
     const resolved = resolveCurrentTripFields({
       location: makeLocation({

@@ -1,16 +1,19 @@
 import type { ScheduledSegmentTables } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildResolvedCurrentTripFields } from "./buildResolvedCurrentTripFields";
-import { findScheduledTripMatch } from "./findScheduledTripMatch";
 import { getFallbackTripFields } from "./getFallbackTripFields";
+import { getNextScheduledTripFromExistingTrip } from "./getNextScheduledTripFromExistingTrip";
+import { getRolledOverScheduledTrip } from "./getRolledOverScheduledTrip";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
-import type { ResolvedCurrentTripFields } from "./types";
+import type { ResolvedCurrentTripFields, ScheduledTripMatch } from "./types";
 
 /**
  * Resolves schedule-facing fields for the current trip row from WSF, schedule
  * evidence, or safe fallback reuse.
+ *
+ * Schedule match order: next leg from `existingTrip.NextScheduleKey` when it
+ * validates, otherwise same-terminal schedule rollover from the prior departure.
  *
  * @param location - Raw vessel location for this ping
  * @param existingTrip - Prior active trip for carry-forward context
@@ -30,13 +33,20 @@ export const resolveCurrentTripFields = ({
     return getTripFieldsFromWsf(location);
   }
 
-  const match = findScheduledTripMatch({
-    location,
-    existingTrip,
-    scheduleTables,
-  });
-  if (match) {
-    return buildResolvedCurrentTripFields(match);
+  const scheduleMatch =
+    getNextScheduledTripFromExistingTrip({
+      location,
+      existingTrip,
+      scheduleTables,
+    }) ??
+    getRolledOverScheduledTrip({
+      location,
+      existingTrip,
+      scheduleTables,
+    });
+
+  if (scheduleMatch) {
+    return resolvedFieldsFromScheduleMatch(scheduleMatch);
   }
 
   return getFallbackTripFields({
@@ -44,3 +54,20 @@ export const resolveCurrentTripFields = ({
     existingTrip,
   });
 };
+
+/**
+ * Maps a schedule segment match to stored current-trip field shape.
+ *
+ * @param match - Matched segment plus inference method metadata
+ * @returns Resolved current-trip fields (no next-leg columns)
+ */
+const resolvedFieldsFromScheduleMatch = (
+  match: ScheduledTripMatch
+): ResolvedCurrentTripFields => ({
+  ArrivingTerminalAbbrev: match.segment.ArrivingTerminalAbbrev,
+  ScheduledDeparture: match.segment.DepartingTime,
+  ScheduleKey: match.segment.Key,
+  SailingDay: match.segment.SailingDay,
+  tripFieldDataSource: "inferred",
+  tripFieldInferenceMethod: match.tripFieldInferenceMethod,
+});
