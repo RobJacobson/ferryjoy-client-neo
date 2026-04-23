@@ -17,6 +17,22 @@ The orchestrator hot path was updated toward the cleanup target:
 - persistence still runs through one orchestrator-owned mutation
 - `vesselLocationsUpdates` and `vesselOrchestratorScheduleSnapshots` were removed from code and schema
 
+The latest cleanup pass also tightened the local code shape:
+
+- the prediction stage now returns the flat persistence-native
+  `predictionRows` / `predictedTripComputations` payload directly
+- stale per-vessel prediction/timeline wrapper DTOs were removed
+- `actions.ts` now passes precomputed `changedLocations` into the final bundle
+  instead of re-filtering full location updates
+- a small remaining `Pick<...>` usage in the touched orchestrator path was
+  replaced with an explicit local type
+- the extra `runTripStage` wrapper was removed so the changed-vessel trip path
+  is more direct in `actions.ts`
+- prediction inputs now derive directly from changed `VesselTripUpdate` rows
+  instead of re-filtering full `tripRows`
+- a few remaining utility/indexed-access aliases in the touched path were
+  replaced with explicit local types
+
 I also fixed one follow-up issue during review:
 
 - [`convex/functions/vesselOrchestrator/queries.ts`](../../convex/functions/vesselOrchestrator/queries.ts)
@@ -27,8 +43,16 @@ I also fixed one follow-up issue during review:
 
 - `bun run convex:typecheck`
 - `bun test convex/functions/vesselOrchestrator/tests/updateVesselLocations.test.ts`
+- `bun test convex/functions/vesselOrchestrator/tests/persistenceBundle.test.ts convex/functions/vesselOrchestrator/tests/tripStagePolicy.test.ts convex/functions/vesselOrchestrator/tests/predictionStagePolicy.test.ts`
 
-Both passed after the query-shape fix above.
+All passed after the follow-up cleanup.
+
+The latest focused verification also passed:
+
+- `bun test convex/functions/vesselOrchestrator/tests/predictionStagePolicy.test.ts convex/functions/vesselOrchestrator/tests/persistenceBundle.test.ts convex/functions/vesselOrchestrator/tests/tripStagePolicy.test.ts`
+- `bun run check:fix`
+- `bun run type-check`
+- `bun run convex:typecheck`
 
 ## What The Next Agent Should Focus On
 
@@ -49,11 +73,13 @@ Most likely areas:
 
 - further simplification of `actions.ts`
 - trimming leftover transitional DTOs and compatibility helpers
-- removing unnecessary utility typing such as `Pick<...>` aliases when a small
-  explicit local type would be clearer
+- removing any remaining unnecessary utility typing or indexed-access aliasing
+  when a small explicit local type would be clearer
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups
+- reviewing the changed-vessel prediction/timeline handoff for any remaining
+  flatten-then-filter or filter-then-rebuild patterns
 
 ### 2a. Specific style preference: avoid `Pick` unless it is clearly needed
 
@@ -63,6 +89,7 @@ without buying much.
 Preferred direction:
 
 - replace small `Pick<...>` helper aliases with explicit local object types
+- replace small indexed-access type aliases too if they obscure the local shape
 - keep action-layer and persistence-layer shapes obvious at the point of use
 - choose the simpler type spelling when both options are equivalent
 
@@ -92,4 +119,5 @@ to stay aligned with a shared contract, but it should not be the default.
 Read the cleanup PRD and implementation overview first, then review the current
 orchestrator code. Focus on simplifying the current hot path further without
 reintroducing broad reads or per-vessel Convex fan-out. Prefer explicit local
-types over `Pick<...>` when the latter adds needless complexity.
+types over `Pick<...>` or other utility typing when they add needless
+complexity.

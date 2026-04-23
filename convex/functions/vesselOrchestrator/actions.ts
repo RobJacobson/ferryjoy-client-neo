@@ -7,6 +7,7 @@
  */
 
 import { internal } from "_generated/api";
+import type { Id } from "_generated/dataModel";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
@@ -20,6 +21,7 @@ import type { ModelType } from "domain/ml/shared/types";
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
 import type {
   CompletedTripBoundaryFact,
+  PredictedTripComputation,
   ScheduleContinuityAccess,
   ScheduleSnapshot,
 } from "domain/vesselOrchestration/shared";
@@ -44,15 +46,15 @@ import type {
   VesselLocationUpdates,
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
+import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { OrchestratorPingPersistence } from "./schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
-type ChangedLocationWrite =
-  OrchestratorPingPersistence["changedLocations"][number];
-type PredictionRows = OrchestratorPingPersistence["predictionRows"];
-type PredictedTripComputations =
-  OrchestratorPingPersistence["predictedTripComputations"];
+type ChangedLocationWrite = {
+  vesselLocation: ConvexVesselLocation;
+  existingLocationId?: Id<"vesselLocations">;
+};
 
 type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
@@ -68,14 +70,13 @@ type TripStageResult = {
 };
 
 type PredictionStageInputs = {
-  changedTripUpdates: ReadonlyArray<VesselTripUpdate>;
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
 };
 
 type PredictionStageResult = {
-  predictionRows: PredictionRows;
-  predictedTripComputations: PredictedTripComputations;
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
 type LoadVesselLocationUpdatesArgs = {
@@ -138,17 +139,16 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     changedLocationUpdates
   );
 
-  const tripStage = await runTripStage(
-    ctx,
+  const tripStage = await computeTripStageForLocations(
     changedLocationUpdates,
-    snapshot.activeTrips
+    snapshot.activeTrips,
+    createScheduleContinuityAccess(ctx)
   );
-  const predictionStage = await runPredictionStage(
-    ctx,
+  const predictionInputs = buildPredictionStageInputs(
     tripStage.tripUpdates,
-    tripStage.tripRows,
     tripStage.completedHandoffs
   );
+  const predictionStage = await runPredictionStage(ctx, predictionInputs);
 
   await ctx.runMutation(
     internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
@@ -196,7 +196,9 @@ const loadVesselLocationUpdates = async ({
   storedLocations,
   terminalsIdentity,
   vesselsIdentity,
-}: LoadVesselLocationUpdatesArgs): Promise<ReadonlyArray<VesselLocationUpdates>> => {
+}: LoadVesselLocationUpdatesArgs): Promise<
+  ReadonlyArray<VesselLocationUpdates>
+> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
   const { vesselLocations } = await computeVesselLocationRows({
     pingStartedAt,
@@ -265,27 +267,6 @@ export const updateVesselLocations = async (
   }
 
   return locationUpdates.map((update) => update.vesselLocation);
-};
-
-/**
- * Computes trip updates only for changed vessel locations.
- *
- * @param ctx - Action context for targeted schedule queries
- * @param changedLocationUpdates - Changed live locations for this ping
- * @param existingActiveTrips - Active-trip snapshot from ping start
- * @returns Trip rows and completed handoffs for downstream prediction/timeline work
- */
-const runTripStage = async (
-  ctx: ActionCtx,
-  changedLocationUpdates: ReadonlyArray<VesselLocationUpdates>,
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>
-): Promise<TripStageResult> => {
-  const scheduleAccess = createScheduleContinuityAccess(ctx);
-  return computeTripStageForLocations(
-    changedLocationUpdates,
-    existingActiveTrips,
-    scheduleAccess
-  );
 };
 
 /**
@@ -375,23 +356,17 @@ export const updateVesselTrips = async (
  * Runs prediction work only for vessels whose durable trip facts changed.
  *
  * @param ctx - Action context for prediction model preload
- * @param tripUpdates - Per-vessel trip updates for changed locations
- * @param trips - Authoritative trip rows after the trip stage
- * @param completedHandoffs - Completed rollover handoffs from trip persistence planning
- * @returns Per-vessel prediction rows and timeline ML handoffs
+ * @param predictionInputs - Changed-trip active rows plus completed handoffs
+ * @returns Flat prediction rows and timeline ML handoffs for persistence
  */
 export const runPredictionStage = async (
   ctx: ActionCtx,
-  tripUpdates: ReadonlyArray<VesselTripUpdate>,
-  trips: RunUpdateVesselTripsOutput,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
+  predictionInputs: PredictionStageInputs
 ): Promise<PredictionStageResult> => {
-  const predictionInputs = buildPredictionStageInputs(
-    tripUpdates,
-    trips,
-    completedHandoffs
-  );
-  if (predictionInputs.changedTripUpdates.length === 0) {
+  if (
+    predictionInputs.activeTrips.length === 0 &&
+    predictionInputs.completedHandoffs.length === 0
+  ) {
     return {
       predictionRows: [],
       predictedTripComputations: [],
@@ -639,13 +614,11 @@ const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdate): boolean =>
  * Filters the trip stage down to the subset that needs prediction work.
  *
  * @param tripUpdates - Per-vessel trip updates
- * @param trips - Authoritative trip rows after the trip stage
  * @param completedHandoffs - Completed rollover handoffs from persistence planning
- * @returns Narrow prediction-stage inputs for changed vessels only
+ * @returns Narrow prediction-stage inputs derived directly from changed trip updates
  */
 const buildPredictionStageInputs = (
   tripUpdates: ReadonlyArray<VesselTripUpdate>,
-  trips: RunUpdateVesselTripsOutput,
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
 ): PredictionStageInputs => {
   const changedTripUpdates = tripUpdates.filter(shouldContinueAfterTripUpdate);
@@ -654,9 +627,10 @@ const buildPredictionStageInputs = (
   );
 
   return {
-    changedTripUpdates,
-    activeTrips: trips.activeTrips.filter((trip) =>
-      changedVesselAbbrevs.has(trip.VesselAbbrev)
+    activeTrips: changedTripUpdates.flatMap((update) =>
+      update.activeTripCandidate === undefined
+        ? []
+        : [update.activeTripCandidate]
     ),
     completedHandoffs: completedHandoffs.filter((handoff) =>
       changedVesselAbbrevs.has(handoff.tripToComplete.VesselAbbrev)

@@ -180,18 +180,9 @@ describe("prediction stage off-ramp policy", () => {
 
     const predictionInputs = buildPredictionStageInputs(
       [unchangedChe, changedTac, changedSam],
-      {
-        activeTrips: [unchangedCheTrip, changedTacTrip, changedSamTrip],
-        completedTrips: [changedSamCompletedTrip],
-      },
       [makeCompletedHandoff("SAM")]
     );
 
-    expect(
-      predictionInputs.changedTripUpdates.map(
-        (update) => update.vesselLocation.VesselAbbrev
-      )
-    ).toEqual(["TAC", "SAM"]);
     expect(
       predictionInputs.activeTrips.map((trip) => trip.VesselAbbrev)
     ).toEqual(["TAC", "SAM"]);
@@ -205,14 +196,9 @@ describe("prediction stage off-ramp policy", () => {
   it("returns empty prediction inputs when every vessel is unchanged", () => {
     const predictionInputs = buildPredictionStageInputs(
       [makeTripUpdate("CHE"), makeTripUpdate("TAC")],
-      {
-        activeTrips: [makeTrip("CHE"), makeTrip("TAC")],
-        completedTrips: [],
-      },
       []
     );
 
-    expect(predictionInputs.changedTripUpdates).toEqual([]);
     expect(predictionInputs.activeTrips).toEqual([]);
     expect(predictionInputs.completedHandoffs).toEqual([]);
   });

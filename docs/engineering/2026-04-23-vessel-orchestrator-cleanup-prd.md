@@ -38,6 +38,32 @@ The desired end state is:
 5. predictions and timeline only for vessels with real trip changes
 6. one persistence mutation when writes are actually needed
 
+## Current Status
+
+As of the latest cleanup pass, the core hot-path goals are largely in place:
+
+- `getOrchestratorModelData` includes current `vesselLocations`
+- location dedupe compares directly against stored `vesselLocations`
+- `actions.ts` uses a visible changed-vessel loop
+- schedule continuity uses cached targeted `eventsScheduled` lookups
+- predictions only run for materially changed trips
+- persistence stays in one orchestrator-owned mutation
+- `vesselLocationsUpdates` and `vesselOrchestratorScheduleSnapshots` are gone
+
+Recent cleanup also removed a layer of prediction-stage DTO indirection:
+
+- the prediction stage now returns the flat `predictionRows` and
+  `predictedTripComputations` shapes that persistence actually consumes
+- stale per-vessel prediction/timeline wrapper DTOs were removed
+- small `Pick<...>` helper types in the touched orchestrator path were replaced
+  with clearer explicit local types
+- the extra `runTripStage` wrapper was removed from `actions.ts`
+- prediction inputs now derive directly from changed `VesselTripUpdate` rows
+  instead of re-filtering full `tripRows`
+
+What remains is mostly polish and further simplification, not another large
+hot-path redesign.
+
 ## Scope Note
 
 This PRD is intentionally focused on the current code and the desired end
@@ -76,6 +102,8 @@ loop.
 - Keep one orchestrator-owned persistence mutation.
 - Keep `updateVesselPredictions` as a separate concern.
 - Keep timeline projection downstream of persisted trip facts.
+- Prefer explicit local types over utility typing when the latter adds
+  indirection without clear benefit.
 
 ## Non-Goals
 
@@ -226,6 +254,8 @@ The target cost profile should roughly be:
 - preserve the cleaner trip compute boundary from the refactor
 - remove the unconditional dependency on `getScheduleSnapshotForPing`
 - prefer narrow helper inputs and outputs
+- prefer explicit local types over `Pick<...>` or similar utility typing when
+  a small spelled-out type is clearer
 
 ## C. `updateVesselPredictions`
 
@@ -373,6 +403,12 @@ At minimum, the implementing agent should run focused tests for:
 If schema changes land, they should also run:
 
 - `bun run convex:codegen`
+- `bun run convex:typecheck`
+
+Recent focused verification that already passed on this cleanup path:
+
+- `bun test convex/functions/vesselOrchestrator/tests/updateVesselLocations.test.ts`
+- `bun test convex/functions/vesselOrchestrator/tests/persistenceBundle.test.ts convex/functions/vesselOrchestrator/tests/tripStagePolicy.test.ts convex/functions/vesselOrchestrator/tests/predictionStagePolicy.test.ts`
 - `bun run convex:typecheck`
 
 ## Observability Requirements
