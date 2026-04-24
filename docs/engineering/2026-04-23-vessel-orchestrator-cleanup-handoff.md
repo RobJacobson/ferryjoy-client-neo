@@ -71,6 +71,9 @@ The latest cleanup pass also tightened the local code shape:
 - shared persistence-bundle assembly now lives in
   `convex/functions/vesselOrchestrator/persistenceBundle.ts`, with `testing.ts`
   re-exporting that runtime helper for focused tests
+- the focused persistence-bundle test now imports directly from
+  `convex/functions/vesselOrchestrator/persistenceBundle.ts`, and `testing.ts`
+  no longer acts as a pass-through for that runtime helper
 
 I also fixed one follow-up issue during review:
 
@@ -147,6 +150,8 @@ Most likely areas:
 - keeping the canonical persistence-bundle assembler in
   `persistenceBundle.ts` instead of duplicating it across runtime and test
   files
+- keeping tests importing runtime helpers directly when a test-compat layer
+  adds no value
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups
@@ -185,6 +190,7 @@ to stay aligned with a shared contract, but it should not be the default.
 - The docs-only planning artifacts added this stage are:
   - [2026-04-23-vessel-orchestrator-cleanup-prd.md](./2026-04-23-vessel-orchestrator-cleanup-prd.md)
   - [2026-04-23-vessel-orchestrator-cleanup-implementation-overview.md](./2026-04-23-vessel-orchestrator-cleanup-implementation-overview.md)
+  - [2026-04-23-vessel-orchestrator-cleanup-polish-note.md](./2026-04-23-vessel-orchestrator-cleanup-polish-note.md)
 - Follow the project style and Convex rules in:
   - [.cursor/rules/code-style.mdc](../../.cursor/rules/code-style.mdc)
   - [docs/convex_rules.mdc](../convex_rules.mdc)

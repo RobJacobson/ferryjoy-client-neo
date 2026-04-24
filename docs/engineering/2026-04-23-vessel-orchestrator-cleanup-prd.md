@@ -91,6 +91,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - shared persistence-bundle assembly now lives in
   `convex/functions/vesselOrchestrator/persistenceBundle.ts`, with tests
   reusing the same helper instead of keeping a local duplicate
+- the focused persistence-bundle test now imports directly from
+  `persistenceBundle.ts`, and `testing.ts` no longer serves as a pass-through
+  for that runtime helper
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

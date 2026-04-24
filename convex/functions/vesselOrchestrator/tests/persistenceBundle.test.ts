@@ -5,7 +5,7 @@ import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { buildOrchestratorPersistenceBundle } from "../testing";
+import { buildOrchestratorPersistenceBundle } from "../persistenceBundle";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

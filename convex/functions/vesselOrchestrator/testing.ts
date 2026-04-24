@@ -23,6 +23,7 @@ import {
   buildChangedLocationWrites,
   loadVesselLocationUpdates,
 } from "./locationUpdates";
+import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 
 /**
  * Backward-compatible helper for focused location tests.
@@ -55,17 +56,14 @@ export const updateVesselLocations = async (
   if (changedLocations.length > 0) {
     await ctx.runMutation(
       internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-      {
+      buildOrchestratorPersistenceBundle({
         pingStartedAt,
         changedLocations: [...changedLocations],
         existingActiveTrips: [],
-        tripRows: {
-          activeTrips: [],
-          completedTrips: [],
-        },
+        tripRows: { activeTrips: [], completedTrips: [] },
         predictionRows: [],
         predictedTripComputations: [],
-      }
+      })
     );
   }
 
@@ -101,5 +99,4 @@ export const computeTripBatchForPing = async (
     ),
   });
 
-export { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 
