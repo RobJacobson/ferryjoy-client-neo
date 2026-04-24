@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
@@ -103,5 +104,77 @@ describe("trip stage schedule-inference gating", () => {
     expect(tripBatch.updates).toHaveLength(1);
     expect(tripBatch.updates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
     expect(tripBatch.rows.activeTrips).toHaveLength(2);
+  });
+
+  it("logs and skips a vessel whose trip computation throws", async () => {
+    const tripUpdateMod = await import(
+      "domain/vesselOrchestration/updateVesselTrips"
+    );
+    const computeTripSpy = spyOn(tripUpdateMod, "computeVesselTripUpdate");
+    const consoleErrorSpy = spyOn(console, "error");
+    const healthyActiveTrip = makeTrip("TAC", {
+      TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+    });
+    const scheduleAccess: ScheduleContinuityAccess = {
+      getScheduledDeparturesForVesselAndSailingDay: async () => [],
+      getScheduledSegmentByKey: async () => null,
+    };
+
+    computeTripSpy.mockImplementation(
+      async (
+        input: Parameters<typeof tripUpdateMod.computeVesselTripUpdate>[0]
+      ) => {
+        if (input.vesselLocation.VesselAbbrev === "CHE") {
+          throw new Error("poisoned trip row");
+        }
+
+        return {
+          vesselLocation: input.vesselLocation,
+          existingActiveTrip: input.existingActiveTrip,
+          activeTripCandidate: healthyActiveTrip,
+          completedTrip: undefined,
+          replacementTrip: undefined,
+          tripStorageChanged: true,
+          tripLifecycleChanged: false,
+        };
+      }
+    );
+    consoleErrorSpy.mockImplementation(() => {});
+
+    try {
+      const { computeTripStageForLocations } = await import("../actions");
+      const failedTrip = makeTrip("CHE");
+      const tripStage = await computeTripStageForLocations(
+        [
+          makeLocationUpdate("CHE", true),
+          makeLocationUpdate("TAC", true, {
+            TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+          }),
+        ],
+        [failedTrip, makeTrip("TAC")],
+        scheduleAccess
+      );
+
+      expect(tripStage.tripRows.completedTrips).toHaveLength(0);
+      expect(tripStage.tripRows.activeTrips).toContainEqual(failedTrip);
+      expect(tripStage.tripRows.activeTrips).toContainEqual(healthyActiveTrip);
+      expect(tripStage.predictionInputs.activeTrips).toEqual([
+        healthyActiveTrip,
+      ]);
+      expect(tripStage.predictionInputs.completedHandoffs).toHaveLength(0);
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy.mock.calls[0]?.[0]).toBe(
+        "[VESSEL_ORCHESTRATOR_CRITICAL_PER_VESSEL_FAILURE]"
+      );
+      expect(consoleErrorSpy.mock.calls[0]?.[1]).toMatchObject({
+        vesselAbbrev: "CHE",
+        message: "poisoned trip row",
+        existingTripKey: failedTrip.TripKey,
+        existingScheduleKey: failedTrip.ScheduleKey,
+      });
+    } finally {
+      computeTripSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

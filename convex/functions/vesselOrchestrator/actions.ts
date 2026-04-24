@@ -56,6 +56,9 @@ type TripStageResult = {
   };
 };
 
+const CRITICAL_PER_VESSEL_FAILURE_PREFIX =
+  "[VESSEL_ORCHESTRATOR_CRITICAL_PER_VESSEL_FAILURE]";
+
 /**
  * Internal action: load identity and active trips, fetch live locations, and
  * persist one orchestrator ping when required.
@@ -154,7 +157,7 @@ const loadOrchestratorSnapshot = async (
  * @param scheduleAccess - Narrow schedule continuity access
  * @returns Trip rows plus prediction-stage inputs for downstream work
  */
-const computeTripStageForLocations = async (
+export const computeTripStageForLocations = async (
   changedLocationUpdates: ReadonlyArray<VesselLocationUpdates>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleAccess: ScheduleContinuityAccess
@@ -167,11 +170,23 @@ const computeTripStageForLocations = async (
 
   for (const locationUpdate of changedLocationUpdates) {
     const vesselAbbrev = locationUpdate.vesselLocation.VesselAbbrev;
-    const tripUpdate = await computeVesselTripUpdate({
-      vesselLocation: locationUpdate.vesselLocation,
-      existingActiveTrip: activeTripsByVessel.get(vesselAbbrev),
-      scheduleAccess,
-    });
+    const existingActiveTrip = activeTripsByVessel.get(vesselAbbrev);
+    let tripUpdate: VesselTripUpdate;
+
+    try {
+      tripUpdate = await computeVesselTripUpdate({
+        vesselLocation: locationUpdate.vesselLocation,
+        existingActiveTrip,
+        scheduleAccess,
+      });
+    } catch (error) {
+      logCriticalPerVesselTripStageFailure({
+        locationUpdate,
+        existingActiveTrip,
+        error,
+      });
+      continue;
+    }
 
     tripUpdates.push(tripUpdate);
 
@@ -207,3 +222,32 @@ const computeTripStageForLocations = async (
   };
 };
 
+/**
+ * Logs a critical per-vessel trip-stage failure without stopping the fleet ping.
+ *
+ * @param args - Vessel location, active-trip context, and thrown failure
+ */
+const logCriticalPerVesselTripStageFailure = ({
+  locationUpdate,
+  existingActiveTrip,
+  error,
+}: {
+  locationUpdate: VesselLocationUpdates;
+  existingActiveTrip?: ConvexVesselTrip;
+  error: unknown;
+}): void => {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const { vesselLocation } = locationUpdate;
+
+  console.error(CRITICAL_PER_VESSEL_FAILURE_PREFIX, {
+    vesselAbbrev: vesselLocation.VesselAbbrev,
+    locationTimeStamp: vesselLocation.TimeStamp,
+    routeAbbrev: vesselLocation.RouteAbbrev,
+    departingTerminalAbbrev: vesselLocation.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: vesselLocation.ArrivingTerminalAbbrev,
+    existingTripKey: existingActiveTrip?.TripKey,
+    existingScheduleKey: existingActiveTrip?.ScheduleKey,
+    message: err.message,
+    stack: err.stack,
+  });
+};

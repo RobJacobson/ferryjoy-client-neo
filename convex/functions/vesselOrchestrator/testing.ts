@@ -98,5 +98,3 @@ export const computeTripBatchForPing = async (
       sailingDay
     ),
   });
-
-

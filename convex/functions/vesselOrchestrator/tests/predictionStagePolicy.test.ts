@@ -140,9 +140,9 @@ describe("prediction stage off-ramp policy", () => {
     );
 
     expect(unchangedInput.activeTrips).toEqual([]);
-    expect(storageChangedInput.activeTrips.map((trip) => trip.VesselAbbrev)).toEqual([
-      "TAC",
-    ]);
+    expect(
+      storageChangedInput.activeTrips.map((trip) => trip.VesselAbbrev)
+    ).toEqual(["TAC"]);
     expect(
       lifecycleChangedInput.activeTrips.map((trip) => trip.VesselAbbrev)
     ).toEqual(["SAM"]);
