@@ -6,10 +6,12 @@
  * hot-path action file without introducing another persistence boundary.
  */
 
+import type { Id } from "_generated/dataModel";
 import { fetchRawWsfVesselLocations } from "adapters";
 import type { Infer } from "convex/values";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   storedVesselLocationSchema,
   VesselLocationUpdates,
@@ -17,6 +19,10 @@ import type {
 import type { VesselIdentity } from "functions/vessels/schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
+export type ChangedLocationWrite = {
+  vesselLocation: ConvexVesselLocation;
+  existingLocationId?: Id<"vesselLocations">;
+};
 
 type LoadVesselLocationUpdatesArgs = {
   pingStartedAt: number;
@@ -62,3 +68,17 @@ export const loadVesselLocationUpdates = async ({
     };
   });
 };
+
+/**
+ * Extracts changed location writes for the orchestrator persistence mutation.
+ *
+ * @param locationUpdates - Changed location updates for the ping
+ * @returns Changed rows plus optional existing document ids
+ */
+export const buildChangedLocationWrites = (
+  locationUpdates: ReadonlyArray<VesselLocationUpdates>
+): ReadonlyArray<ChangedLocationWrite> =>
+  locationUpdates.map((update) => ({
+    vesselLocation: update.vesselLocation,
+    existingLocationId: update.existingLocationId,
+  }));

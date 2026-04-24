@@ -18,6 +18,7 @@ This PRD is specifically aimed at:
 - reducing total Convex function invocations per ping
 - simplifying `actions.ts`
 - making the code easier to reason about with KISS and DRY principles
+- keeping production logging focused on real warnings and errors
 
 ## Executive Summary
 
@@ -73,6 +74,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
   building the persistence write set
 - `eventsScheduled` continuity queries now strip Convex metadata before
   returning, so their runtime return shape matches `eventsScheduledSchema`
+- changed-location persistence writes now come from a shared helper in
+  `convex/functions/vesselOrchestrator/locationUpdates.ts`, so test helpers do
+  not need to import `actions.ts` just to reuse that mapping
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.
@@ -117,6 +121,8 @@ loop.
 - Keep timeline projection downstream of persisted trip facts.
 - Prefer explicit local types over utility typing when the latter adds
   indirection without clear benefit.
+- Prefer removing routine `INFO` logs over adding logging toggles or suppressed
+  code paths.
 
 ## Non-Goals
 

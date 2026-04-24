@@ -21,7 +21,6 @@ import type {
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type {
   storedVesselLocationSchema,
@@ -29,7 +28,12 @@ import type {
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { loadVesselLocationUpdates } from "./locationUpdates";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import {
+  buildChangedLocationWrites,
+  type ChangedLocationWrite,
+  loadVesselLocationUpdates,
+} from "./locationUpdates";
 import {
   buildPredictionStageInputs,
   type PredictionStageResult,
@@ -39,10 +43,6 @@ import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
 import type { OrchestratorPingPersistence } from "./schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
-type ChangedLocationWrite = {
-  vesselLocation: ConvexVesselLocation;
-  existingLocationId?: Id<"vesselLocations">;
-};
 
 type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
@@ -106,9 +106,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   if (changedLocationUpdates.length === 0) {
     return;
   }
-  const changedLocations = changedLocationWritesFromUpdates(
-    changedLocationUpdates
-  );
+  const changedLocations = buildChangedLocationWrites(changedLocationUpdates);
 
   const tripStage = await computeTripStageForLocations(
     changedLocationUpdates,
@@ -289,19 +287,5 @@ const buildOrchestratorPersistenceBundle = ({
   predictionRows: [...predictionStage.predictionRows],
   predictedTripComputations: [...predictionStage.predictedTripComputations],
 });
-
-/**
- * Extracts changed location writes for the persistence mutation.
- *
- * @param locationUpdates - Changed location updates for the ping
- * @returns Changed rows plus optional existing document ids
- */
-const changedLocationWritesFromUpdates = (
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>
-): ReadonlyArray<ChangedLocationWrite> =>
-  locationUpdates.map((update) => ({
-    vesselLocation: update.vesselLocation,
-    existingLocationId: update.existingLocationId,
-  }));
 
 export { buildOrchestratorPersistenceBundle, logTripStageLocationSkipSummary };

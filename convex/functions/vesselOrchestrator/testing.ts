@@ -19,7 +19,10 @@ import type {
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { loadVesselLocationUpdates } from "./locationUpdates";
+import {
+  buildChangedLocationWrites,
+  loadVesselLocationUpdates,
+} from "./locationUpdates";
 
 /**
  * Backward-compatible helper for focused location tests.
@@ -45,19 +48,16 @@ export const updateVesselLocations = async (
     terminalsIdentity,
     vesselsIdentity,
   });
-  const changedLocations = locationUpdates
-    .filter((update) => update.locationChanged)
-    .map((update) => ({
-      vesselLocation: update.vesselLocation,
-      existingLocationId: update.existingLocationId,
-    }));
+  const changedLocations = buildChangedLocationWrites(
+    locationUpdates.filter((update) => update.locationChanged)
+  );
 
   if (changedLocations.length > 0) {
     await ctx.runMutation(
       internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
       {
         pingStartedAt,
-        changedLocations,
+        changedLocations: [...changedLocations],
         existingActiveTrips: [],
         tripRows: {
           activeTrips: [],
