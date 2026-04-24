@@ -7,7 +7,7 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   buildPredictionStageInputs,
   shouldContinueAfterTripUpdate,
-} from "../actions";
+} from "../predictionStage";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

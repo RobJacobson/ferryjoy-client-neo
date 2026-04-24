@@ -12,23 +12,9 @@ import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
 import type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledDockEvent,
-} from "domain/events/scheduled";
-import { formatTerminalPairKey } from "domain/ml/shared/config";
-import type { ModelType } from "domain/ml/shared/types";
-import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
-import type {
   CompletedTripBoundaryFact,
-  PredictedTripComputation,
   ScheduleContinuityAccess,
 } from "domain/vesselOrchestration/shared";
-import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import {
-  predictionModelTypesForTrip,
-  runVesselPredictionPing,
-  type VesselPredictionContext,
-} from "domain/vesselOrchestration/updateVesselPredictions";
 import type {
   RunUpdateVesselTripsOutput,
   VesselTripUpdate,
@@ -42,9 +28,14 @@ import type {
   VesselLocationUpdates,
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { loadVesselLocationUpdates } from "./locationUpdates";
+import {
+  buildPredictionStageInputs,
+  type PredictionStageResult,
+  runPredictionStage,
+} from "./predictionStage";
+import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
 import type { OrchestratorPingPersistence } from "./schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
@@ -64,16 +55,6 @@ type TripStageResult = {
   tripUpdates: ReadonlyArray<VesselTripUpdate>;
   tripRows: RunUpdateVesselTripsOutput;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
-};
-
-type PredictionStageInputs = {
-  activeTrips: ReadonlyArray<ConvexVesselTrip>;
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
-};
-
-type PredictionStageResult = {
-  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
 type BuildOrchestratorPersistenceBundleArgs = {
@@ -125,7 +106,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   if (changedLocationUpdates.length === 0) {
     return;
   }
-  const changedLocations = changedLocationUpdatesFromUpdates(
+  const changedLocations = changedLocationWritesFromUpdates(
     changedLocationUpdates
   );
 
@@ -259,228 +240,6 @@ export const updateVesselTrips = async (
   ).tripRows;
 
 /**
- * Runs prediction work only for vessels whose durable trip facts changed.
- *
- * @param ctx - Action context for prediction model preload
- * @param predictionInputs - Changed-trip active rows plus completed handoffs
- * @returns Flat prediction rows and timeline ML handoffs for persistence
- */
-export const runPredictionStage = async (
-  ctx: ActionCtx,
-  predictionInputs: PredictionStageInputs
-): Promise<PredictionStageResult> => {
-  if (
-    predictionInputs.activeTrips.length === 0 &&
-    predictionInputs.completedHandoffs.length === 0
-  ) {
-    return {
-      predictionRows: [],
-      predictedTripComputations: [],
-    };
-  }
-
-  const predictionContext = await loadPredictionContext(
-    ctx,
-    predictionInputs.activeTrips,
-    predictionInputs.completedHandoffs
-  );
-  const ping = await runVesselPredictionPing({
-    activeTrips: predictionInputs.activeTrips,
-    completedHandoffs: predictionInputs.completedHandoffs,
-    predictionContext,
-  });
-
-  return {
-    predictionRows: [...ping.predictionRows],
-    predictedTripComputations: [...ping.predictedTripComputations],
-  };
-};
-
-/**
- * Builds terminal-pair model-load requests for this prediction pass.
- *
- * @param activeTrips - Active trips from this ping
- * @param completedHandoffs - Completed rollover facts from the trip stage
- * @returns Distinct terminal-pair requests with model types merged per pair
- */
-const buildPredictionContextRequests = (
-  activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
-): Array<{ pairKey: string; modelTypes: ModelType[] }> => {
-  const requestMap = new Map<string, Set<ModelType>>();
-  const tripsToPredict = [
-    ...completedHandoffs.map((handoff) => handoff.scheduleTrip),
-    ...activeTrips,
-  ];
-
-  for (const trip of tripsToPredict) {
-    const modelTypesForTrip = predictionModelTypesForTrip(trip);
-    if (modelTypesForTrip.length === 0) {
-      continue;
-    }
-
-    const departing = trip.DepartingTerminalAbbrev;
-    const arriving = trip.ArrivingTerminalAbbrev;
-    if (departing === undefined || arriving === undefined) {
-      continue;
-    }
-
-    const pairKey = formatTerminalPairKey(departing, arriving);
-    const modelTypes = requestMap.get(pairKey) ?? new Set<ModelType>();
-    for (const modelType of modelTypesForTrip) {
-      modelTypes.add(modelType);
-    }
-    requestMap.set(pairKey, modelTypes);
-  }
-
-  return [...requestMap.entries()].map(([pairKey, modelTypes]) => ({
-    pairKey,
-    modelTypes: [...modelTypes],
-  }));
-};
-
-/**
- * Loads production ML model parameters needed for the current prediction pass.
- *
- * @param ctx - Convex action context for prediction model query
- * @param activeTrips - Active trips to evaluate this ping
- * @param completedHandoffs - Completed rollover handoffs from the trip stage
- * @returns Terminal-pair keyed production model payloads (or empty context)
- */
-const loadPredictionContext = async (
-  ctx: ActionCtx,
-  activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
-): Promise<VesselPredictionContext> => {
-  const requests = buildPredictionContextRequests(
-    activeTrips,
-    completedHandoffs
-  );
-  if (requests.length === 0) {
-    return {};
-  }
-
-  const productionModelsByPair = await ctx.runQuery(
-    internal.functions.predictions.queries.getProductionModelParametersForPing,
-    { requests }
-  );
-  return { productionModelsByPair };
-};
-
-/**
- * Creates memoized targeted schedule access for the current ping.
- *
- * @param ctx - Action context for `eventsScheduled` queries
- * @returns Cached schedule continuity access
- */
-const createScheduleContinuityAccess = (
-  ctx: ActionCtx
-): ScheduleContinuityAccess => {
-  const segmentCache = new Map<
-    string,
-    Promise<ConvexInferredScheduledSegment | null>
-  >();
-  const departureCache = new Map<
-    string,
-    Promise<ReadonlyArray<CompactScheduledDepartureEvent>>
-  >();
-
-  const getScheduledDeparturesForVesselAndSailingDay = async (
-    vesselAbbrev: string,
-    sailingDay: string
-  ): Promise<ReadonlyArray<CompactScheduledDepartureEvent>> => {
-    const cacheKey = `${vesselAbbrev}:${sailingDay}`;
-    const cached = departureCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    const promise = ctx
-      .runQuery(
-        internal.functions.events.eventsScheduled.queries
-          .getScheduledDockEventsForSailingDay,
-        {
-          vesselAbbrev,
-          sailingDay,
-        }
-      )
-      .then(compactDeparturesFromScheduledRows);
-    departureCache.set(cacheKey, promise);
-    return promise;
-  };
-
-  return {
-    getScheduledDeparturesForVesselAndSailingDay,
-    getScheduledSegmentByKey: async (
-      scheduleKey: string
-    ): Promise<ConvexInferredScheduledSegment | null> => {
-      const cached = segmentCache.get(scheduleKey);
-      if (cached) {
-        return cached;
-      }
-
-      const promise = ctx
-        .runQuery(
-          internal.functions.events.eventsScheduled.queries
-            .getScheduledDepartureEventBySegmentKey,
-          { segmentKey: scheduleKey }
-        )
-        .then(async (departureRow) => {
-          if (!departureRow) {
-            return null;
-          }
-
-          const departures = await getScheduledDeparturesForVesselAndSailingDay(
-            departureRow.VesselAbbrev,
-            departureRow.SailingDay
-          );
-          const departureIndex = departures.findIndex(
-            (departure) => departure.Key === departureRow.Key
-          );
-          const nextDeparture =
-            departureIndex >= 0 ? departures[departureIndex + 1] : undefined;
-
-          return {
-            Key: scheduleKey,
-            SailingDay: departureRow.SailingDay,
-            DepartingTerminalAbbrev: departureRow.TerminalAbbrev,
-            ArrivingTerminalAbbrev: departureRow.NextTerminalAbbrev,
-            DepartingTime: departureRow.ScheduledDeparture,
-            NextKey: nextDeparture
-              ? getSegmentKeyFromBoundaryKey(nextDeparture.Key)
-              : undefined,
-            NextDepartingTime: nextDeparture?.ScheduledDeparture,
-          };
-        });
-      segmentCache.set(scheduleKey, promise);
-      return promise;
-    },
-  };
-};
-
-/**
- * Narrows scheduled dock rows to ordered departure summaries.
- *
- * @param rows - Scheduled dock rows for one vessel and sailing day
- * @returns Sorted departure-only rows used for continuity lookups
- */
-const compactDeparturesFromScheduledRows = (
-  rows: ReadonlyArray<ConvexScheduledDockEvent>
-): ReadonlyArray<CompactScheduledDepartureEvent> =>
-  rows
-    .filter((row) => row.EventType === "dep-dock")
-    .sort(
-      (left, right) =>
-        left.ScheduledDeparture - right.ScheduledDeparture ||
-        left.TerminalAbbrev.localeCompare(right.TerminalAbbrev)
-    )
-    .map((row) => ({
-      Key: row.Key,
-      ScheduledDeparture: row.ScheduledDeparture,
-      TerminalAbbrev: row.TerminalAbbrev,
-    }));
-
-/**
  * Logs an aggregated skip summary only when every location is unchanged.
  *
  * @param locationUpdates - All vessel location updates for the ping
@@ -505,43 +264,6 @@ const logTripStageLocationSkipSummary = (
     changedCount,
     totalLocations: locationUpdates.length,
   });
-};
-
-/**
- * Returns whether downstream prediction/timeline work should continue.
- *
- * @param tripUpdate - Per-vessel trip update
- * @returns True when durable trip facts changed
- */
-const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdate): boolean =>
-  tripUpdate.tripStorageChanged || tripUpdate.tripLifecycleChanged;
-
-/**
- * Filters the trip stage down to the subset that needs prediction work.
- *
- * @param tripUpdates - Per-vessel trip updates
- * @param completedHandoffs - Completed rollover handoffs from persistence planning
- * @returns Narrow prediction-stage inputs derived directly from changed trip updates
- */
-const buildPredictionStageInputs = (
-  tripUpdates: ReadonlyArray<VesselTripUpdate>,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
-): PredictionStageInputs => {
-  const changedTripUpdates = tripUpdates.filter(shouldContinueAfterTripUpdate);
-  const changedVesselAbbrevs = new Set(
-    changedTripUpdates.map((update) => update.vesselLocation.VesselAbbrev)
-  );
-
-  return {
-    activeTrips: changedTripUpdates.flatMap((update) =>
-      update.activeTripCandidate === undefined
-        ? []
-        : [update.activeTripCandidate]
-    ),
-    completedHandoffs: completedHandoffs.filter((handoff) =>
-      changedVesselAbbrevs.has(handoff.tripToComplete.VesselAbbrev)
-    ),
-  };
 };
 
 /**
@@ -571,23 +293,16 @@ const buildOrchestratorPersistenceBundle = ({
 /**
  * Extracts changed location writes for the persistence mutation.
  *
- * @param locationUpdates - Full location update set for the ping
+ * @param locationUpdates - Changed location updates for the ping
  * @returns Changed rows plus optional existing document ids
  */
-const changedLocationUpdatesFromUpdates = (
+const changedLocationWritesFromUpdates = (
   locationUpdates: ReadonlyArray<VesselLocationUpdates>
 ): ReadonlyArray<ChangedLocationWrite> =>
   locationUpdates
-    .filter((update) => update.locationChanged)
     .map((update) => ({
       vesselLocation: update.vesselLocation,
       existingLocationId: update.existingLocationId,
     }));
 
-export type { PredictionStageInputs };
-export {
-  buildOrchestratorPersistenceBundle,
-  buildPredictionStageInputs,
-  logTripStageLocationSkipSummary,
-  shouldContinueAfterTripUpdate,
-};
+export { buildOrchestratorPersistenceBundle, logTripStageLocationSkipSummary };

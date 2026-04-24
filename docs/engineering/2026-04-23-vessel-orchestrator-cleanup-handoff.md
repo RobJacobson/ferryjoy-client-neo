@@ -38,6 +38,14 @@ The latest cleanup pass also tightened the local code shape:
   `convex/functions/vesselOrchestrator/locationUpdates.ts`
 - the snapshot-only `computeTripBatchForPing` compatibility helper moved out of
   `actions.ts` into `convex/functions/vesselOrchestrator/testing.ts`
+- prediction-stage orchestration moved out of `actions.ts` into
+  `convex/functions/vesselOrchestrator/predictionStage.ts`
+- targeted schedule lookup/caching moved out of `actions.ts` into
+  `convex/functions/vesselOrchestrator/scheduleContinuityAccess.ts`
+- `actions.ts` now reads more like orchestration again, with helper modules
+  carrying prediction and continuity details
+- the changed-location persistence handoff no longer re-filters rows that are
+  already known to be changed
 
 I also fixed one follow-up issue during review:
 
@@ -59,6 +67,40 @@ The latest focused verification also passed:
 - `bun run check:fix`
 - `bun run type-check`
 - `bun run convex:typecheck`
+
+The latest extraction pass also passed:
+
+- `bun test convex/functions/vesselOrchestrator/tests/predictionStagePolicy.test.ts convex/functions/vesselOrchestrator/tests/persistenceBundle.test.ts convex/functions/vesselOrchestrator/tests/tripStagePolicy.test.ts convex/functions/vesselOrchestrator/tests/updateVesselLocations.test.ts`
+- `bun run check:fix`
+- `bun run type-check`
+- `bun run convex:typecheck`
+
+## Small Follow-Up Bug To Bundle With The Next Pass
+
+There is one known narrow runtime bug in the targeted schedule continuity path:
+
+- [`convex/functions/events/eventsScheduled/queries.ts`](../../convex/functions/events/eventsScheduled/queries.ts)
+  `getScheduledDepartureEventBySegmentKey` currently returns a raw Convex
+  document from `db.query(...).unique()`
+- that raw row includes `_id` and `_creationTime`
+- the declared return validator only allows the plain `eventsScheduledSchema`
+  fields, so Convex throws `ReturnsValidationError`
+- this bubbles up as orchestrator trip-stage errors like:
+  `Failed updating active trip for KAL` / `CHM` / `CAT` and
+  `Failed finalizing completed trip for PUY`
+
+This does **not** look like a bad WSF-data problem. It looks like the same
+kind of query-boundary shape mismatch we already fixed in other orchestrator
+queries.
+
+Preferred fix:
+
+- map the query result through the existing metadata-strip helper
+  (`stripConvexMetadata`, or the local equivalent already used elsewhere)
+- keep the query returning the plain schema-shaped object that its validator
+  declares
+- bundle that small fix with the next orchestrator cleanup pass instead of
+  treating it as a separate redesign
 
 ## What The Next Agent Should Focus On
 
@@ -85,6 +127,11 @@ Most likely areas:
   when a small explicit local type would be clearer
 - keeping snapshot-only compatibility helpers out of production hot-path files
   when they can live in `testing.ts`
+- keeping extracted runtime helpers like `predictionStage.ts` and
+  `scheduleContinuityAccess.ts` small, obvious, and free of leftover
+  `actions.ts`-shaped plumbing
+- fixing the `eventsScheduled` query metadata/validator mismatch in the
+  targeted continuity path
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups

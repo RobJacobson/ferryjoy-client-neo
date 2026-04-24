@@ -63,6 +63,14 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - shared location normalize/dedupe work now lives in
   `convex/functions/vesselOrchestrator/locationUpdates.ts` instead of the main
   hot-path action file
+- prediction-stage orchestration now lives in
+  `convex/functions/vesselOrchestrator/predictionStage.ts` instead of
+  `actions.ts`
+- targeted schedule continuity query/caching now lives in
+  `convex/functions/vesselOrchestrator/scheduleContinuityAccess.ts` instead of
+  `actions.ts`
+- `actions.ts` no longer re-filters already-changed location updates before
+  building the persistence write set
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

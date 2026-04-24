@@ -18,7 +18,8 @@ it loads the read model, runs one WSF fetch, uses targeted cached
 persists everything in one **`persistOrchestratorPing`** mutation (location
 bulk upsert, **`persistVesselTripWriteSet`**, prediction upserts,
 **`runUpdateVesselTimelineFromAssembly`**). Prediction model blobs are
-preloaded in **`actions.ts`** via **`getProductionModelParametersForPing`**.
+preloaded in **`predictionStage.ts`** via
+**`getProductionModelParametersForPing`**.
 Raw vessel locations are fetched through
 `convex/adapters/fetch/fetchWsfVesselLocations.ts`, then normalized by
 `domain/vesselOrchestration/updateVesselLocations` into `ConvexVesselLocation`
@@ -130,8 +131,9 @@ Responsibilities:
   terminal-or-marine-location fields derived from the backend `terminalsIdentity`
   table
 - after locations: create cached targeted `eventsScheduled` access for the
-  ping, use that continuity seam during the per-vessel trip loop, preload ML
-  models only if a materially changed trip needs predictions, then run
+  ping through `scheduleContinuityAccess.ts`, use that continuity seam during
+  the per-vessel trip loop, preload ML models only if a materially changed
+  trip needs predictions through `predictionStage.ts`, then run
   `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
 
 Domain pipeline (same ping semantics as before):
@@ -348,10 +350,17 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location
-  diffing, targeted cached schedule continuity access, then
-  `updateVesselTrips` / `updateVesselPredictions`, then
-  **`persistOrchestratorPing`** (trips + predictions + timeline).
+- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, changed-vessel
+  orchestration flow, then **`persistOrchestratorPing`** (trips + predictions
+  + timeline).
+- `locationUpdates.ts` — shared location normalization and dedupe helpers for
+  the orchestrator ping.
+- `scheduleContinuityAccess.ts` — targeted cached `eventsScheduled` access for
+  continuity lookups during the trip stage.
+- `predictionStage.ts` — changed-trip prediction gating plus ML model preload
+  and prediction execution.
+- `testing.ts` — focused snapshot-era compatibility helpers kept out of the
+  runtime hot-path file.
 - `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed handoffs, active upserts, and leave-dock follow-ups.
 - `mutations.ts` — **`persistOrchestratorPing`**: locations (from action
   payload), **`persistVesselTripWriteSet`**, prediction upserts,
