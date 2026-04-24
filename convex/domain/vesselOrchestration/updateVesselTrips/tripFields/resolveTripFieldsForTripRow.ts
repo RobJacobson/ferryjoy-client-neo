@@ -31,11 +31,6 @@ type TripFieldInferenceLogContext = {
   rawWsfTripFields: TripFieldSnapshot;
 };
 
-type TripFieldInferenceLogger = (
-  message: string,
-  context: TripFieldInferenceLogContext
-) => void;
-
 type ResolveTripFieldsForTripRowInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
@@ -76,11 +71,8 @@ export const resolveTripFieldsForTripRow = async ({
     resolvedCurrentTripFields,
   };
 
-  // Emit inference diagnostics by default, but allow callers to intercept.
   if (onTripFieldsResolved !== undefined) {
     onTripFieldsResolved(inferenceInput);
-  } else {
-    logTripFieldInference(inferenceInput);
   }
 
   return attachNextScheduledTripFields({
@@ -202,7 +194,7 @@ const getTripFieldInferenceLogContext = ({
  * @param context - Structured inference-log context
  * @returns Single log line describing the inferred-field transition
  */
-const buildTripFieldInferenceMessage = (
+export const buildTripFieldInferenceMessage = (
   context: TripFieldInferenceLogContext
 ): string => {
   switch (context.reason) {
@@ -221,19 +213,20 @@ const buildTripFieldInferenceMessage = (
  * Emits structured trip-field inference logs when resolution changed meaningfully.
  *
  * @param args - Location, prior trip, and resolved trip fields
- * @param logger - Optional logger implementation for tests/callers
- * @returns No return value; logs when context indicates a meaningful event
+ * @returns Structured context plus message when a meaningful event occurred
  */
-const logTripFieldInference = (
-  args: TripFieldInferenceInput,
-  logger: TripFieldInferenceLogger = console.info
-): void => {
+export const getTripFieldInferenceLog = (
+  args: TripFieldInferenceInput
+): { message: string; context: TripFieldInferenceLogContext } | undefined => {
   const context = getTripFieldInferenceLogContext(args);
   if (context === undefined) {
-    return;
+    return undefined;
   }
 
-  logger(buildTripFieldInferenceMessage(context), context);
+  return {
+    message: buildTripFieldInferenceMessage(context),
+    context,
+  };
 };
 
 /**

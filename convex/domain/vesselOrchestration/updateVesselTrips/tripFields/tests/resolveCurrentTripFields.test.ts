@@ -1,5 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
-import { resolveTripFieldsForTripRow } from "../resolveTripFieldsForTripRow";
+import {
+  getTripFieldInferenceLog,
+  resolveTripFieldsForTripRow,
+} from "../resolveTripFieldsForTripRow";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -225,5 +228,39 @@ describe("resolveTripFieldsForTripRow", () => {
       onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
         .tripFieldDataSource
     ).toBe("inferred");
+  });
+
+  it("builds inference diagnostics only when a caller explicitly requests them", async () => {
+    const inferenceInput = {
+      location: makeLocation({
+        ArrivingTerminalAbbrev: "SHI",
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      existingTrip: makeTrip({
+        ArrivingTerminalAbbrev: "MUK",
+        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      }),
+      resolvedCurrentTripFields: {
+        ArrivingTerminalAbbrev: "MUK",
+        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+        SailingDay: "2026-03-13",
+        tripFieldDataSource: "inferred" as const,
+        tripFieldInferenceMethod: "next_scheduled_trip" as const,
+      },
+    };
+
+    expect(getTripFieldInferenceLog(inferenceInput)).toMatchObject({
+      message:
+        "[TripFields] CHE kept provisional trip fields despite partial WSF conflict",
+      context: {
+        vesselAbbrev: "CHE",
+        reason: "partial_wsf_conflict_with_inference",
+        tripFieldDataSource: "inferred",
+        tripFieldInferenceMethod: "next_scheduled_trip",
+      },
+    });
   });
 });

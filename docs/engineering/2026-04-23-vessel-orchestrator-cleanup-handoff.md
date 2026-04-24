@@ -49,6 +49,11 @@ The latest cleanup pass also tightened the local code shape:
 - the shared changed-location write mapping now lives in
   `convex/functions/vesselOrchestrator/locationUpdates.ts`, so test helpers do
   not import `actions.ts` just to reuse that persistence handoff logic
+- the unchanged-trip-stage summary `INFO` log was removed from `actions.ts`
+- default trip-field inference `INFO` logging was removed from
+  `resolveTripFieldsForTripRow.ts`
+- trip-field inference diagnostics are now opt-in through
+  `getTripFieldInferenceLog(...)` instead of emitting on every hot-path update
 
 I also fixed one follow-up issue during review:
 
@@ -121,8 +126,8 @@ Most likely areas:
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups
 - reviewing the changed-vessel prediction/timeline handoff for any remaining
   flatten-then-filter or filter-then-rebuild patterns
-- removing routine `INFO` logging on the orchestrator hot path rather than
-  adding suppressed-by-default logging infrastructure
+- keeping production logging quiet by default and resisting any reintroduction
+  of routine `INFO` logs on the hot path
 
 ### 2a. Specific style preference: avoid `Pick` unless it is clearly needed
 
@@ -164,5 +169,5 @@ Read the cleanup PRD and implementation overview first, then review the current
 orchestrator code. Focus on simplifying the current hot path further without
 reintroducing broad reads or per-vessel Convex fan-out. Prefer explicit local
 types over `Pick<...>` or other utility typing when they add needless
-complexity. Remove routine `INFO` logs instead of adding toggles for them; keep
-only real `ERROR`s and narrowly justified `WARN`s.
+complexity. Keep production logging quiet by default; keep only real `ERROR`s
+and narrowly justified `WARN`s.

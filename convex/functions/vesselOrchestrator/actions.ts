@@ -7,7 +7,6 @@
  */
 
 import { internal } from "_generated/api";
-import type { Id } from "_generated/dataModel";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
@@ -21,6 +20,7 @@ import type {
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type {
   storedVesselLocationSchema,
@@ -28,7 +28,6 @@ import type {
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   buildChangedLocationWrites,
   type ChangedLocationWrite,
@@ -98,8 +97,6 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });
-
-  logTripStageLocationSkipSummary(locationUpdates);
   const changedLocationUpdates = locationUpdates.filter(
     (update) => update.locationChanged
   );
@@ -238,33 +235,6 @@ export const updateVesselTrips = async (
   ).tripRows;
 
 /**
- * Logs an aggregated skip summary only when every location is unchanged.
- *
- * @param locationUpdates - All vessel location updates for the ping
- */
-const logTripStageLocationSkipSummary = (
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>
-): void => {
-  const skippedCount = locationUpdates.filter(
-    (update) => !update.locationChanged
-  ).length;
-  if (skippedCount === 0) {
-    return;
-  }
-
-  const changedCount = locationUpdates.length - skippedCount;
-  if (changedCount > 0) {
-    return;
-  }
-
-  console.info("[VesselOrchestrator] Trip stage skipped unchanged locations", {
-    skippedCount,
-    changedCount,
-    totalLocations: locationUpdates.length,
-  });
-};
-
-/**
  * Builds the final persistence payload for one orchestrator ping.
  *
  * @param args - Stage outputs to merge into the single mutation payload
@@ -288,4 +258,4 @@ const buildOrchestratorPersistenceBundle = ({
   predictedTripComputations: [...predictionStage.predictedTripComputations],
 });
 
-export { buildOrchestratorPersistenceBundle, logTripStageLocationSkipSummary };
+export { buildOrchestratorPersistenceBundle };

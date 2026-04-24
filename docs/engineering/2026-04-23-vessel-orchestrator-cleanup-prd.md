@@ -77,6 +77,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - changed-location persistence writes now come from a shared helper in
   `convex/functions/vesselOrchestrator/locationUpdates.ts`, so test helpers do
   not need to import `actions.ts` just to reuse that mapping
+- the unchanged-trip-stage summary `INFO` log was removed from `actions.ts`
+- default trip-field inference `INFO` logging was removed from the hot path,
+  with opt-in diagnostics exposed through `getTripFieldInferenceLog(...)`
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.
