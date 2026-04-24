@@ -191,6 +191,7 @@ import type * as functions_vesselOrchestrator_actions from "../functions/vesselO
 import type * as functions_vesselOrchestrator_locationUpdates from "../functions/vesselOrchestrator/locationUpdates.js";
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
+import type * as functions_vesselOrchestrator_persistenceBundle from "../functions/vesselOrchestrator/persistenceBundle.js";
 import type * as functions_vesselOrchestrator_predictionStage from "../functions/vesselOrchestrator/predictionStage.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_scheduleContinuityAccess from "../functions/vesselOrchestrator/scheduleContinuityAccess.js";
@@ -434,6 +435,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/locationUpdates": typeof functions_vesselOrchestrator_locationUpdates;
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
+  "functions/vesselOrchestrator/persistenceBundle": typeof functions_vesselOrchestrator_persistenceBundle;
   "functions/vesselOrchestrator/predictionStage": typeof functions_vesselOrchestrator_predictionStage;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/scheduleContinuityAccess": typeof functions_vesselOrchestrator_scheduleContinuityAccess;

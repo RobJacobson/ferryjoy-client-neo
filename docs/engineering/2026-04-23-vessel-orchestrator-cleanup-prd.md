@@ -88,6 +88,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - persistence-bundle helper args are now flatter in runtime and tests, using
   direct `tripRows`, `predictionRows`, and `predictedTripComputations` instead
   of nested stage wrapper args
+- shared persistence-bundle assembly now lives in
+  `convex/functions/vesselOrchestrator/persistenceBundle.ts`, with tests
+  reusing the same helper instead of keeping a local duplicate
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

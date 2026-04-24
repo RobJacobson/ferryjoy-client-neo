@@ -68,6 +68,9 @@ The latest cleanup pass also tightened the local code shape:
   and tests: direct `tripRows`, `predictionRows`, and
   `predictedTripComputations` instead of nested `tripStage` /
   `predictionStage` wrapper args
+- shared persistence-bundle assembly now lives in
+  `convex/functions/vesselOrchestrator/persistenceBundle.ts`, with `testing.ts`
+  re-exporting that runtime helper for focused tests
 
 I also fixed one follow-up issue during review:
 
@@ -141,6 +144,9 @@ Most likely areas:
   step only needs `tripRows` plus `predictionInputs`
 - keeping persistence bundle helper args flat when nested stage wrappers add no
   value
+- keeping the canonical persistence-bundle assembler in
+  `persistenceBundle.ts` instead of duplicating it across runtime and test
+  files
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups

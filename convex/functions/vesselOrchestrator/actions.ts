@@ -10,7 +10,6 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
-import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type {
   RunUpdateVesselTripsOutput,
@@ -24,20 +23,18 @@ import type {
   VesselLocationUpdates,
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   buildChangedLocationWrites,
-  type ChangedLocationWrite,
   loadVesselLocationUpdates,
 } from "./locationUpdates";
+import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 import {
   buildPredictionStageInputs,
   type PredictionStageInputs,
   runPredictionStage,
 } from "./predictionStage";
 import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
-import type { OrchestratorPingPersistence } from "./schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
 
@@ -51,15 +48,6 @@ type OrchestratorSnapshot = {
 type TripStageResult = {
   tripRows: RunUpdateVesselTripsOutput;
   predictionInputs: PredictionStageInputs;
-};
-
-type BuildOrchestratorPersistenceBundleArgs = {
-  pingStartedAt: number;
-  changedLocations: ReadonlyArray<ChangedLocationWrite>;
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
-  tripRows: RunUpdateVesselTripsOutput;
-  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
 /**
@@ -210,27 +198,3 @@ const computeTripStageForLocations = async (
   };
 };
 
-/**
- * Builds the final persistence payload for one orchestrator ping.
- *
- * @param args - Stage outputs to merge into the single mutation payload
- * @returns Compact persistence bundle for `persistOrchestratorPing`
- */
-const buildOrchestratorPersistenceBundle = ({
-  pingStartedAt,
-  changedLocations,
-  existingActiveTrips,
-  tripRows,
-  predictionRows,
-  predictedTripComputations,
-}: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => ({
-  pingStartedAt,
-  changedLocations: [...changedLocations],
-  existingActiveTrips: [...existingActiveTrips],
-  tripRows: {
-    activeTrips: [...tripRows.activeTrips],
-    completedTrips: [...tripRows.completedTrips],
-  },
-  predictionRows: [...predictionRows],
-  predictedTripComputations: [...predictedTripComputations],
-});
