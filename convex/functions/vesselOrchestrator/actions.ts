@@ -299,10 +299,9 @@ const buildOrchestratorPersistenceBundle = ({
 const changedLocationWritesFromUpdates = (
   locationUpdates: ReadonlyArray<VesselLocationUpdates>
 ): ReadonlyArray<ChangedLocationWrite> =>
-  locationUpdates
-    .map((update) => ({
-      vesselLocation: update.vesselLocation,
-      existingLocationId: update.existingLocationId,
-    }));
+  locationUpdates.map((update) => ({
+    vesselLocation: update.vesselLocation,
+    existingLocationId: update.existingLocationId,
+  }));
 
 export { buildOrchestratorPersistenceBundle, logTripStageLocationSkipSummary };

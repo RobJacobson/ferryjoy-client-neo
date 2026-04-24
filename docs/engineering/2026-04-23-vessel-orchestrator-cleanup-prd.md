@@ -71,6 +71,8 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
   `actions.ts`
 - `actions.ts` no longer re-filters already-changed location updates before
   building the persistence write set
+- `eventsScheduled` continuity queries now strip Convex metadata before
+  returning, so their runtime return shape matches `eventsScheduledSchema`
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.
