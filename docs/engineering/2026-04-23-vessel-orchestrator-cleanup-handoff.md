@@ -87,6 +87,10 @@ The latest cleanup pass also tightened the local code shape:
 - `actions.ts` now names `scheduleAccess` once before the trip stage call,
   which keeps the orchestration flow slightly easier to scan without changing
   behavior
+- the last remaining `ReturnType<typeof buildPredictionStageInputs>` seam in
+  `actions.ts` was replaced with an explicit local object type for
+  `predictionInputs`, keeping that orchestration boundary readable without
+  exporting a helper-only type from `predictionStage.ts`
 
 I also fixed one follow-up issue during review:
 
@@ -202,7 +206,7 @@ to stay aligned with a shared contract, but it should not be the default.
 - no `vesselLocationsUpdates` table
 - predictions and timeline remain downstream of real trip changes
 - production logging should default to serious warnings/errors only
-- there should be at most one additional polish-only round after this handoff
+- unless a concrete bug appears, no further cleanup rounds should be necessary
 
 ## Notes
 
@@ -217,9 +221,8 @@ to stay aligned with a shared contract, but it should not be the default.
 ## Short Prompt For The Next Agent
 
 Read the cleanup PRD and implementation overview first, then review the current
-orchestrator code. Focus on simplifying the current hot path further without
-reintroducing broad reads or per-vessel Convex fan-out. Prefer explicit local
-types over `Pick<...>` or other utility typing when they add needless
-complexity. Keep production logging quiet by default; keep only real `ERROR`s
-and narrowly justified `WARN`s. Treat the next pass as the final polish-only
-round unless it uncovers a concrete bug.
+orchestrator code only if a concrete bug or regression appears. The hot-path
+cleanup goals are effectively complete. Prefer explicit local types over
+`Pick<...>` or other utility typing when they add needless complexity, and keep
+production logging quiet by default with only real `ERROR`s and narrowly
+justified `WARN`s.

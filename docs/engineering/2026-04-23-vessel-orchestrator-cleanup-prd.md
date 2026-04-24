@@ -99,9 +99,13 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
   modules
 - prediction-stage gating helpers are being kept internal where possible, with
   focused tests validating the public/runtime-intended seam instead
+- the last remaining `ReturnType<typeof buildPredictionStageInputs>` seam in
+  `actions.ts` has been replaced with an explicit local object type so the
+  orchestration boundary stays readable without exporting helper-only types
 
 What remains is mostly polish and further simplification, not another large
-hot-path redesign.
+hot-path redesign. At this point, any further pass should be driven by a
+concrete bug or regression rather than by general cleanup momentum.
 
 ## Scope Note
 

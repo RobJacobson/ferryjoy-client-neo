@@ -10,7 +10,10 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
-import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
+import type {
+  CompletedTripBoundaryFact,
+  ScheduleContinuityAccess,
+} from "domain/vesselOrchestration/shared";
 import type {
   RunUpdateVesselTripsOutput,
   VesselTripUpdate,
@@ -46,7 +49,10 @@ type OrchestratorSnapshot = {
 
 type TripStageResult = {
   tripRows: RunUpdateVesselTripsOutput;
-  predictionInputs: ReturnType<typeof buildPredictionStageInputs>;
+  predictionInputs: {
+    activeTrips: ReadonlyArray<ConvexVesselTrip>;
+    completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+  };
 };
 
 /**
