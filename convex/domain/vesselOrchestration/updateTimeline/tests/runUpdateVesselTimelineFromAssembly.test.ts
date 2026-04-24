@@ -53,7 +53,7 @@ describe("runUpdateVesselTimelineFromAssembly", () => {
     });
     const input: RunUpdateVesselTimelineFromAssemblyInput = {
       pingStartedAt: ms("2026-03-13T06:40:10-07:00"),
-      projectionAssembly: {
+      tripHandoffForTimeline: {
         completedFacts: [],
         currentBranch: {
           successfulVessels: new Set<string>(),
@@ -75,7 +75,7 @@ describe("runUpdateVesselTimelineFromAssembly", () => {
           pendingPredictedMessages: [],
         },
       },
-      predictedTripComputations: [],
+      mlTimelineOverlays: [],
     };
 
     const out = runUpdateVesselTimelineFromAssembly(input);

@@ -1,5 +1,9 @@
 /**
- * Shared schedule-backed lookup types for compact schedule snapshot wiring.
+ * Shared schedule-backed lookup types for {@link ScheduleContinuityAccess}.
+ *
+ * Production wiring uses targeted `eventsScheduled` queries; tests may use an
+ * in-memory fixture (`shared/scheduleSnapshot/`), not a persisted “orchestrator
+ * schedule snapshot” table.
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";

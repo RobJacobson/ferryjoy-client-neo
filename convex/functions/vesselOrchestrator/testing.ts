@@ -53,7 +53,7 @@ export const updateVesselLocations = async (
         existingActiveTrips: [],
         tripRows: { activeTrips: [], completedTrips: [] },
         predictionRows: [],
-        predictedTripComputations: [],
+        mlTimelineOverlays: [],
       })
     );
   }

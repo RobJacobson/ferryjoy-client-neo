@@ -12,7 +12,7 @@ import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type {
-  CompletedTripBoundaryFact,
+  CompletedArrivalHandoff,
   ScheduleContinuityAccess,
 } from "domain/vesselOrchestration/shared";
 import type {
@@ -52,7 +52,7 @@ type TripStageResult = {
   tripRows: RunUpdateVesselTripsOutput;
   predictionInputs: {
     activeTrips: ReadonlyArray<ConvexVesselTrip>;
-    completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+    completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>;
   };
 };
 
@@ -121,7 +121,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       existingActiveTrips: snapshot.activeTrips,
       tripRows: tripStage.tripRows,
       predictionRows: predictionStage.predictionRows,
-      predictedTripComputations: predictionStage.predictedTripComputations,
+      mlTimelineOverlays: predictionStage.mlTimelineOverlays,
     })
   );
 };

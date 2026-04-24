@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
+import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/shared";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -87,8 +87,8 @@ const makeTripUpdate = (
 
 const makeCompletedHandoff = (
   vesselAbbrev: string,
-  overrides: Partial<CompletedTripBoundaryFact> = {}
-): CompletedTripBoundaryFact => ({
+  overrides: Partial<CompletedArrivalHandoff> = {}
+): CompletedArrivalHandoff => ({
   existingTrip: makeTrip(vesselAbbrev),
   tripToComplete: makeTrip(vesselAbbrev, {
     TripEnd: ms("2026-03-13T06:40:00-07:00"),

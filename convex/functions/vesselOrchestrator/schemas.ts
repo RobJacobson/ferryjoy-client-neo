@@ -31,7 +31,7 @@ export const tripRowsForPingSchema = v.object({
   completedTrips: v.array(vesselTripStoredSchema),
 });
 
-export const predictedTripComputationSchema = v.union(
+export const mlTimelineOverlaySchema = v.union(
   v.object({
     vesselAbbrev: v.string(),
     branch: v.literal("completed"),
@@ -59,7 +59,7 @@ export const orchestratorPingPersistenceSchema = v.object({
   existingActiveTrips: v.array(vesselTripStoredSchema),
   tripRows: tripRowsForPingSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),
-  predictedTripComputations: v.array(predictedTripComputationSchema),
+  mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
 });
 
 export type OrchestratorPingPersistence = Infer<

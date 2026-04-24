@@ -53,11 +53,11 @@ export const persistOrchestratorPing = internalMutation({
     const { actualEvents, predictedEvents } =
       runUpdateVesselTimelineFromAssembly({
         pingStartedAt: args.pingStartedAt,
-        projectionAssembly: {
+        tripHandoffForTimeline: {
           completedFacts: tripPersistResult.completedFacts,
           currentBranch: tripPersistResult.currentBranch,
         },
-        predictedTripComputations: args.predictedTripComputations,
+        mlTimelineOverlays: args.mlTimelineOverlays,
       });
 
     if (actualEvents.length > 0) {

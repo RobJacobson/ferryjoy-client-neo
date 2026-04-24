@@ -100,7 +100,7 @@ import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnap
 import type * as domain_vesselOrchestration_shared_tripLifecycle from "../domain/vesselOrchestration/shared/tripLifecycle.js";
 import type * as domain_vesselOrchestration_shared_tripStorage from "../domain/vesselOrchestration/shared/tripStorage.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
-import type * as domain_vesselOrchestration_updateTimeline_buildTimelinePingProjectionInput from "../domain/vesselOrchestration/updateTimeline/buildTimelinePingProjectionInput.js";
+import type * as domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff from "../domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff.js";
 import type * as domain_vesselOrchestration_updateTimeline_contracts from "../domain/vesselOrchestration/updateTimeline/contracts.js";
 import type * as domain_vesselOrchestration_updateTimeline_index from "../domain/vesselOrchestration/updateTimeline/index.js";
 import type * as domain_vesselOrchestration_updateTimeline_orchestratorTimelineProjection from "../domain/vesselOrchestration/updateTimeline/orchestratorTimelineProjection.js";
@@ -340,7 +340,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/tripLifecycle": typeof domain_vesselOrchestration_shared_tripLifecycle;
   "domain/vesselOrchestration/shared/tripStorage": typeof domain_vesselOrchestration_shared_tripStorage;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
-  "domain/vesselOrchestration/updateTimeline/buildTimelinePingProjectionInput": typeof domain_vesselOrchestration_updateTimeline_buildTimelinePingProjectionInput;
+  "domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff": typeof domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff;
   "domain/vesselOrchestration/updateTimeline/contracts": typeof domain_vesselOrchestration_updateTimeline_contracts;
   "domain/vesselOrchestration/updateTimeline/index": typeof domain_vesselOrchestration_updateTimeline_index;
   "domain/vesselOrchestration/updateTimeline/orchestratorTimelineProjection": typeof domain_vesselOrchestration_updateTimeline_orchestratorTimelineProjection;

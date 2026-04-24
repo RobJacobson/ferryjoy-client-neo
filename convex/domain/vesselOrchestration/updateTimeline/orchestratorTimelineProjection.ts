@@ -2,15 +2,15 @@
  * Same-ping timeline projection from Stage C/D handoffs.
  */
 
-import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
+import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import {
-  buildTimelinePingProjectionInput,
-  type TimelineProjectionAssembly,
-} from "./buildTimelinePingProjectionInput";
+  buildDockWritesFromTripHandoff,
+  type TripHandoffForTimeline,
+} from "./buildDockWritesFromTripHandoff";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
@@ -18,8 +18,8 @@ import type {
 
 /**
  * Schedule identity for matching completed-handoff facts to prediction-stage
- * `PredictedTripComputation` rows. Must stay aligned with
- * {@link predictedTripComputationMatchKey} (same `ScheduleKey` then `TripKey`
+ * `MlTimelineOverlay` rows. Must stay aligned with
+ * {@link mlTimelineOverlayMatchKey} (same `ScheduleKey` then `TripKey`
  * fallbacks on completed row, then replacement active row).
  */
 const scheduleIdentityForMlMergeKey = (
@@ -39,25 +39,23 @@ const timelineMlMergeKeyFromCompletedHandoffParts = (
 ): string =>
   `${vesselAbbrev}::${scheduleIdentityForMlMergeKey(completedTrip, activeTrip)}`;
 
-const predictedTripComputationMatchKey = (
-  computation: PredictedTripComputation
-): string =>
+const mlTimelineOverlayMatchKey = (overlay: MlTimelineOverlay): string =>
   timelineMlMergeKeyFromCompletedHandoffParts(
-    computation.vesselAbbrev,
-    computation.completedTrip,
-    computation.activeTrip
+    overlay.vesselAbbrev,
+    overlay.completedTrip,
+    overlay.activeTrip
   );
 
-const finalProposedByVesselFromPredictedComputations = (
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>
+const finalProposedByVesselFromMlOverlays = (
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
 ): Map<string, ConvexVesselTripWithML> => {
   const map = new Map<string, ConvexVesselTripWithML>();
-  for (const computation of predictedTripComputations) {
+  for (const overlay of mlTimelineOverlays) {
     if (
-      computation.branch === "current" &&
-      computation.finalPredictedTrip !== undefined
+      overlay.branch === "current" &&
+      overlay.finalPredictedTrip !== undefined
     ) {
-      map.set(computation.vesselAbbrev, computation.finalPredictedTrip);
+      map.set(overlay.vesselAbbrev, overlay.finalPredictedTrip);
     }
   }
   return map;
@@ -67,40 +65,38 @@ const finalProposedByVesselFromPredictedComputations = (
  * Matching uses vessel + completed-trip schedule identity, not object identity
  * between pings.
  *
- * @param assembly - Projection assembly from trip persistence output
- * @param predictedTripComputations - ML handoff from predictions stage
- * @returns Assembly with `newTrip` / `finalProposed` fields merged from predictions
+ * @param handoff - Trip persistence output before timeline dock writes
+ * @param mlTimelineOverlays - ML overlay from predictions stage
+ * @returns Handoff with `newTrip` / `finalProposed` fields merged from overlays
  */
-export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
-  assembly: TimelineProjectionAssembly,
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>
-): TimelineProjectionAssembly => {
+export const mergeMlOverlayIntoTripHandoffForTimeline = (
+  handoff: TripHandoffForTimeline,
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
+): TripHandoffForTimeline => {
   const mlFactsByKey = new Map(
-    predictedTripComputations
+    mlTimelineOverlays
       .filter(
         (
-          computation
-        ): computation is PredictedTripComputation & {
+          overlay
+        ): overlay is MlTimelineOverlay & {
           branch: "completed";
           finalPredictedTrip: ConvexVesselTripWithML;
         } =>
-          computation.branch === "completed" &&
-          computation.finalPredictedTrip !== undefined
+          overlay.branch === "completed" &&
+          overlay.finalPredictedTrip !== undefined
       )
       .map(
-        (computation) =>
+        (overlay) =>
           [
-            predictedTripComputationMatchKey(computation),
-            computation.finalPredictedTrip,
+            mlTimelineOverlayMatchKey(overlay),
+            overlay.finalPredictedTrip,
           ] as const
       )
   );
-  const mlByVessel = finalProposedByVesselFromPredictedComputations(
-    predictedTripComputations
-  );
+  const mlByVessel = finalProposedByVesselFromMlOverlays(mlTimelineOverlays);
 
   return {
-    completedFacts: assembly.completedFacts.map((fact) => {
+    completedFacts: handoff.completedFacts.map((fact) => {
       const newTrip = mlFactsByKey.get(
         timelineMlMergeKeyFromCompletedHandoffParts(
           fact.tripToComplete.VesselAbbrev,
@@ -114,15 +110,15 @@ export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
       };
     }),
     currentBranch: {
-      successfulVessels: assembly.currentBranch.successfulVessels,
-      pendingActualMessages: assembly.currentBranch.pendingActualMessages.map(
+      successfulVessels: handoff.currentBranch.successfulVessels,
+      pendingActualMessages: handoff.currentBranch.pendingActualMessages.map(
         (m) => ({
           ...m,
           finalProposed: mlByVessel.get(m.vesselAbbrev),
         })
       ),
       pendingPredictedMessages:
-        assembly.currentBranch.pendingPredictedMessages.map((m) => ({
+        handoff.currentBranch.pendingPredictedMessages.map((m) => ({
           ...m,
           finalProposed: mlByVessel.get(m.vesselAbbrev),
         })),
@@ -132,16 +128,16 @@ export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
 
 /**
  * Timeline entrypoint for orchestrator callers that already have
- * completed/current projection assembly rows.
+ * completed/current trip handoff rows.
  */
 export const runUpdateVesselTimelineFromAssembly = (
   input: RunUpdateVesselTimelineFromAssemblyInput
 ): RunUpdateVesselTimelineOutput => {
-  const merged = mergePredictedComputationsIntoTimelineProjectionAssembly(
-    input.projectionAssembly,
-    input.predictedTripComputations
+  const merged = mergeMlOverlayIntoTripHandoffForTimeline(
+    input.tripHandoffForTimeline,
+    input.mlTimelineOverlays
   );
-  const tl = buildTimelinePingProjectionInput({
+  const tl = buildDockWritesFromTripHandoff({
     completedFacts: merged.completedFacts,
     currentBranch: merged.currentBranch,
     pingStartedAt: input.pingStartedAt,

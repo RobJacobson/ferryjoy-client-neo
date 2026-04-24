@@ -9,12 +9,12 @@
  */
 
 import type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripLifecycleBranchResult,
-  CurrentTripPredictedEventMessage,
+  ActiveTripWriteOutcome,
+  ActualDockWriteIntent,
+  CompletedArrivalHandoff,
+  PredictedDockWriteIntent,
   TripLifecycleEventFlags,
-  VesselTripPersistResult,
+  TripPersistOutcome,
 } from "domain/vesselOrchestration/shared";
 import {
   areTripStorageRowsEqual,
@@ -53,12 +53,9 @@ export type VesselTripTableMutations = {
 };
 
 export type VesselTripPersistencePlan = {
-  attemptedCompletedFacts: CompletedTripBoundaryFact[];
+  attemptedCompletedFacts: CompletedArrivalHandoff[];
   activeTripUpserts: ConvexVesselTrip[];
-  currentBranchMessages: Omit<
-    CurrentTripLifecycleBranchResult,
-    "successfulVessels"
-  >;
+  currentBranchMessages: Omit<ActiveTripWriteOutcome, "successfulVessels">;
   leaveDockIntents: Array<{
     vesselAbbrev: string;
     actualDepartMs: number;
@@ -90,7 +87,7 @@ export const buildVesselTripPersistencePlan = (
         return [];
       }
 
-      const completionFact: CompletedTripBoundaryFact = {
+      const completionFact: CompletedArrivalHandoff = {
         existingTrip,
         tripToComplete: completedTrip,
         events: completionTripEvents(existingTrip, completedTrip),
@@ -132,7 +129,7 @@ export const buildVesselTripPersistencePlan = (
         scheduleTrip: nextTrip,
         vesselAbbrev: nextTrip.VesselAbbrev,
         requiresSuccessfulUpsert: true,
-      } satisfies CurrentTripActualEventMessage,
+      } satisfies ActualDockWriteIntent,
     ];
   });
 
@@ -141,7 +138,7 @@ export const buildVesselTripPersistencePlan = (
     scheduleTrip: nextTrip,
     vesselAbbrev: nextTrip.VesselAbbrev,
     requiresSuccessfulUpsert: true,
-  })) satisfies CurrentTripPredictedEventMessage[];
+  })) satisfies PredictedDockWriteIntent[];
 
   const leaveDockIntents = pendingActualMessages
     .filter((message) => message.events.didJustLeaveDock)
@@ -174,7 +171,7 @@ export const persistVesselTripWriteSet = async (
   tripRows: RunUpdateVesselTripsOutput,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   mutations: VesselTripTableMutations
-): Promise<VesselTripPersistResult> => {
+): Promise<TripPersistOutcome> => {
   const plan = buildVesselTripPersistencePlan(tripRows, existingActiveTrips);
   const {
     attemptedCompletedFacts,

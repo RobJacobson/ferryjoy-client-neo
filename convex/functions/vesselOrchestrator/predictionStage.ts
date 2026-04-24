@@ -10,8 +10,8 @@ import type { ActionCtx } from "_generated/server";
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
 import type {
-  CompletedTripBoundaryFact,
-  PredictedTripComputation,
+  CompletedArrivalHandoff,
+  MlTimelineOverlay,
 } from "domain/vesselOrchestration/shared";
 import {
   predictionModelTypesForTrip,
@@ -24,12 +24,12 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 type PredictionStageInputs = {
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+  completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>;
 };
 
 type PredictionStageResult = {
   predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
 /**
@@ -49,7 +49,7 @@ export const runPredictionStage = async (
   ) {
     return {
       predictionRows: [],
-      predictedTripComputations: [],
+      mlTimelineOverlays: [],
     };
   }
 
@@ -66,7 +66,7 @@ export const runPredictionStage = async (
 
   return {
     predictionRows: [...ping.predictionRows],
-    predictedTripComputations: [...ping.predictedTripComputations],
+    mlTimelineOverlays: [...ping.mlTimelineOverlays],
   };
 };
 
@@ -88,7 +88,7 @@ const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdate): boolean =>
  */
 export const buildPredictionStageInputs = (
   tripUpdates: ReadonlyArray<VesselTripUpdate>,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
+  completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>
 ): PredictionStageInputs => {
   const activeTrips: Array<ConvexVesselTrip> = [];
   const changedVesselAbbrevs = new Set<string>();
@@ -121,7 +121,7 @@ export const buildPredictionStageInputs = (
  */
 const buildPredictionContextRequests = (
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
+  completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>
 ): Array<{ pairKey: string; modelTypes: Array<ModelType> }> => {
   const requestMap = new Map<string, Set<ModelType>>();
   const tripsToPredict = [
@@ -166,7 +166,7 @@ const buildPredictionContextRequests = (
 const loadPredictionContext = async (
   ctx: ActionCtx,
   activeTrips: ReadonlyArray<ConvexVesselTrip>,
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>
+  completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>
 ): Promise<VesselPredictionContext> => {
   const requests = buildPredictionContextRequests(
     activeTrips,

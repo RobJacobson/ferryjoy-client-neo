@@ -1,5 +1,7 @@
 # Vessel Orchestrator Before/After Engineering Memo
 
+> **Historical:** This memo captures an intermediate refactor snapshot (branch `cleanup-trip-fields`, 2026-04-23). For the **current** shipped orchestrator shape (including targeted `eventsScheduled` continuity via `ScheduleContinuityAccess`, not per-ping `vesselOrchestratorScheduleSnapshots`), prefer [2026-04-24 vessel orchestrator latest comparison memo](2026-04-24-vessel-orchestrator-latest-comparison-memo.md).
+
 **Date:** 2026-04-23  
 **Audience:** Engineers working in `convex/functions/vesselOrchestrator`, `convex/domain/vesselOrchestration`, `convex/functions/vesselTrips`, `convex/functions/vesselLocationsUpdates`, `convex/functions/events`, and adjacent modules.  
 **Baseline compared:**
@@ -9,60 +11,49 @@
 
 ## 1. Executive Summary
 
-This refactor improved **architectural separation** more than it improved
-**runtime simplicity**.
+This refactor improved **architectural separation** more than it improved **runtime simplicity**.
 
 The new system is better at naming and isolating concerns:
 
-- `updateVesselLocations` is now a real concern instead of an incidental side
-  branch.
+- `updateVesselLocations` is now a real concern instead of an incidental side branch.
 - `updateVesselTrips` now has a genuinely pure compute surface.
 - `updateVesselPredictions` is no longer hidden inside trip construction.
-- `updateVesselTimeline` now projects from persisted trip facts plus ML
-  handoffs instead of being implicitly coupled to the trip write path.
+- `updateVesselTimeline` now projects from persisted trip facts plus ML handoffs instead of being implicitly coupled to the trip write path.
 
 However, those architectural wins came with real costs:
 
 - the top-level orchestrator is materially more complex than before
 - there are more handoff DTOs, more glue modules, and more stage transitions
 - the hot path now performs more unconditional database reads per tick
-- the current schedule snapshot strategy is too coarse for a 5-second cadence
-  cost model
+- the current schedule snapshot strategy is too coarse for a 5-second cadence cost model
 
 My overall assessment is:
 
 - **Correctness and boundary clarity:** improved
 - **Per-concern readability inside the domain:** mixed, but generally improved
 - **Whole-system comprehensibility:** worse
-- **Hot-path read/write efficiency:** likely worse in production, especially at
-  5-second cadence
+- **Hot-path read/write efficiency:** likely worse in production, especially at 5-second cadence
 
-The strongest positive change is the separation of predictions and timeline
-projection from trip construction.
+The strongest positive change is the separation of predictions and timeline projection from trip construction.
 
-The strongest negative change is the introduction of **always-on, coarse-grained
-hot-path reads**:
+The strongest negative change is the introduction of **always-on, coarse-grained hot-path reads**:
 
 - full `vesselLocationsUpdates` table read each tick
 - full daily `vesselOrchestratorScheduleSnapshots` row read each tick
 - a second `vesselLocationsUpdates` table read inside persistence
 
-In other words, the new system trades away some of the earlier system’s
-cheap-and-targeted reads for a more regular but more expensive baseline cost.
+In other words, the new system trades away some of the earlier system’s cheap-and-targeted reads for a more regular but more expensive baseline cost.
 
 That trade is unfavorable for your actual workload:
 
 - orchestrator cadence is 5 seconds in the intended steady state
 - most vessel locations change often, but most **trip state** does not
-- predictions and timeline updates should only matter for a small subset of
-  pings
+- predictions and timeline updates should only matter for a small subset of pings
 - schedule continuity questions arise only for a minority of vessel updates
 
 The most important design conclusion is:
 
-> The best next step is probably not a full rollback. The better path is a
-> hybrid: keep the cleaner domain separation, but shrink the hot-path reads and
-> move back toward narrower, more conditional schedule and dedupe data access.
+> The best next step is probably not a full rollback. The better path is a hybrid: keep the cleaner domain separation, but shrink the hot-path reads and move back toward narrower, more conditional schedule and dedupe data access.
 
 ## 2. Comparison At A Glance
 
@@ -160,8 +151,7 @@ Normal expected branches:
 
 - unchanged locations are still normalized, but only changed ones persist
 - unchanged vessels can skip most trip compute via `shouldProcessLocation`
-- prediction stage continues only for vessels whose trip row changed or rolled
-  over
+- prediction stage continues only for vessels whose trip row changed or rolled over
 - timeline projection merges:
   - completed-boundary facts
   - current-branch messages
@@ -196,19 +186,13 @@ Before, the orchestrator was easy to describe in one sentence:
 
 > fetch once, store locations, run trips, apply timeline writes.
 
-After, the orchestrator is easier to explain in terms of architecture, but
-harder to explain in terms of operational behavior:
+After, the orchestrator is easier to explain in terms of architecture, but harder to explain in terms of operational behavior:
 
-> fetch once, normalize locations, annotate change state, compute trip bundle,
-> derive persistence plan, preload ML model context, compute prediction rows and
-> predicted computations, build persistence DTO, run a persistence mutation that
-> also computes timeline projection from persisted trip facts and ML handoffs.
+> fetch once, normalize locations, annotate change state, compute trip bundle, derive persistence plan, preload ML model context, compute prediction rows and predicted computations, build persistence DTO, run a persistence mutation that also computes timeline projection from persisted trip facts and ML handoffs.
 
 That is a real increase in conceptual overhead.
 
-The good news is that the new flow makes correctness boundaries far more
-explicit. The bad news is that the hot-path runtime now pays for this structure
-even when most vessels did nothing interesting.
+The good news is that the new flow makes correctness boundaries far more explicit. The bad news is that the hot-path runtime now pays for this structure even when most vessels did nothing interesting.
 
 My judgment:
 
@@ -261,10 +245,8 @@ Primary flow:
 
 Expected non-error branches:
 
-- unchanged vessel location rows are normalized but filtered out before
-  persistence
-- changed rows are persisted to both `vesselLocations` and
-  `vesselLocationsUpdates`
+- unchanged vessel location rows are normalized but filtered out before persistence
+- changed rows are persisted to both `vesselLocations` and `vesselLocationsUpdates`
 - cache-miss behavior exists for missing signature rows
 
 ### 4.3 High-Level Function Comparison
@@ -287,8 +269,7 @@ Expected non-error branches:
 
 ### 4.5 Commentary
 
-This is one of the few places where the new system clearly improved one thing
-while clearly making another thing worse.
+This is one of the few places where the new system clearly improved one thing while clearly making another thing worse.
 
 It improved:
 
@@ -305,20 +286,16 @@ It worsened:
 
 The main tradeoff is:
 
-> Before, you over-wrote locations every tick. After, you under-write locations
-> intelligently, but you pay an extra read model and extra coordination logic to
-> do it.
+> Before, you over-wrote locations every tick. After, you under-write locations intelligently, but you pay an extra read model and extra coordination logic to do it.
 
-I do think the **idea** behind deduping location writes is good. The problem is
-the current implementation is more elaborate than it needs to be.
+I do think the **idea** behind deduping location writes is good. The problem is the current implementation is more elaborate than it needs to be.
 
 The most suspicious part is that the code now reads the summary table twice:
 
 - once in the action to decide what changed
 - once again in persistence to find and maintain row ids
 
-That means the summary table reduced writes, but did not fully achieve the
-“cheap dedupe” goal.
+That means the summary table reduced writes, but did not fully achieve the “cheap dedupe” goal.
 
 My judgment:
 
@@ -429,8 +406,7 @@ Expected non-error branches:
 
 ### 5.5 Commentary
 
-This is the hardest section to judge, because there are really two different
-questions:
+This is the hardest section to judge, because there are really two different questions:
 
 1. Is the **trip domain logic** cleaner now?
 2. Is the **end-to-end trip pipeline** simpler now?
@@ -442,13 +418,11 @@ My answers are:
 
 The new trip compute stage is conceptually better. It has a real contract:
 
-> given location rows, existing active trips, and schedule evidence, return the
-> authoritative active and completed trip rows for this ping.
+> given location rows, existing active trips, and schedule evidence, return the authoritative active and completed trip rows for this ping.
 
 That is a much cleaner boundary than the old one.
 
-The schedule-field resolution order is also more understandable than the older
-blend of schedule adapters and trip builder heuristics:
+The schedule-field resolution order is also more understandable than the older blend of schedule adapters and trip builder heuristics:
 
 1. trust WSF if present
 2. otherwise reuse explicit next-leg continuity
@@ -465,11 +439,9 @@ Where the system got heavier is everything around that boundary:
 - trip lifecycle message handoffs
 - later ML merge expectations
 
-So the refactor improved the **center** of trip computation and worsened the
-**edges** around it.
+So the refactor improved the **center** of trip computation and worsened the **edges** around it.
 
-If I were preserving only one major part of this refactor, it would be the new
-trip compute boundary.
+If I were preserving only one major part of this refactor, it would be the new trip compute boundary.
 
 ## 6. `updateVesselPredictions` Pipeline
 
@@ -539,32 +511,27 @@ Normal expected branches:
 | Input | current trip being built, `ctx`, fallback flag | active trips, completed handoffs, preloaded model context |
 | DB reads | model loads during trip building | one preloading query for required model pairs |
 | DB writes | indirect through trip/timeline pipeline | direct write of `vesselTripPredictions` proposals in persistence mutation |
-| Output | ML-enriched trip row used immediately by trip and timeline logic | prediction rows plus `PredictedTripComputation[]` for timeline merge |
+| Output | ML-enriched trip row used immediately by trip and timeline logic | prediction rows plus `MlTimelineOverlay[]` for timeline merge |
 | Trigger | any trip build that hit ML conditions | only changed trips and completed handoffs continue into the stage |
 
 ### 6.5 Commentary
 
 This is the cleanest win in the whole refactor.
 
-The old design made prediction feel like “something the trip builder happens to
-do while it is already busy doing ten other things.” The new design makes
-prediction an actual pipeline stage with its own inputs and outputs.
+The old design made prediction feel like “something the trip builder happens to do while it is already busy doing ten other things.” The new design makes prediction an actual pipeline stage with its own inputs and outputs.
 
 That has several advantages:
 
 - trip computation can stay storage-shaped
 - ML logic is easier to test in isolation
 - model preloading can be shared across the changed subset
-- timeline projection can consume explicit ML handoff objects instead of
-  relying on implicit trip-builder behavior
+- timeline projection can consume explicit ML handoff objects instead of relying on implicit trip-builder behavior
 
-The cost is mostly in glue types and orchestration code, not in domain
-confusion.
+The cost is mostly in glue types and orchestration code, not in domain confusion.
 
 So on this concern, I think the new design is plainly better.
 
-If you simplify the overall system later, I would not re-embed predictions into
-trip construction. I would keep the separation and simplify around it.
+If you simplify the overall system later, I would not re-embed predictions into trip construction. I would keep the separation and simplify around it.
 
 ## 7. `updateVesselTimeline` Pipeline
 
@@ -597,12 +564,12 @@ Primary flow:
 - `persistVesselTripWriteSet`
   - returns successful completed facts and current-branch messages
 - `runPredictionStage`
-  - returns `PredictedTripComputation[]`
+  - returns `MlTimelineOverlay[]`
 - `updateTimeline/orchestratorTimelineProjection.ts`
-  - `mergePredictedComputationsIntoTimelineProjectionAssembly`
+  - `mergeMlOverlayIntoTripHandoffForTimeline`
     - merge ML-enriched replacement rows onto completed facts
     - merge ML-enriched current rows onto current messages
-  - `buildTimelinePingProjectionInput`
+  - `buildDockWritesFromTripHandoff`
     - `buildPingEventWritesFromCompletedFacts`
     - `buildPingEventWritesFromCurrentMessages`
   - `runUpdateVesselTimelineFromAssembly`
@@ -625,7 +592,7 @@ Expected non-error branches:
 | --- | --- | --- | --- |
 | `timelineEventAssembler` | Assemble timeline effects directly from trip lifecycle outputs | `runUpdateVesselTimelineFromAssembly` | Assemble from persisted trip facts plus prediction handoffs |
 | `applyTickEventWrites` | Persist actual/predicted timeline writes | `persistOrchestratorPing` | Persistence owns timeline writes together with other hot-path writes |
-| current/final proposed trip | Implicitly carried both lifecycle and ML state | projection assembly + `PredictedTripComputation` | Explicit lifecycle and ML merge boundary |
+| current/final proposed trip | Implicitly carried both lifecycle and ML state | `tripHandoffForTimeline` + `MlTimelineOverlay` | Explicit lifecycle and ML merge boundary |
 
 ### 7.4 Data Flow And Side Effects
 
@@ -639,13 +606,11 @@ Expected non-error branches:
 
 ### 7.5 Commentary
 
-This is the other major conceptual improvement, but it is also the other major
-source of extra machinery.
+This is the other major conceptual improvement, but it is also the other major source of extra machinery.
 
 The new timeline path is better because it enforces a stronger rule:
 
-> timeline projection should reflect persisted trip facts and same-ping ML
-> overlay, not an implicit halfway state from the trip builder.
+> timeline projection should reflect persisted trip facts and same-ping ML overlay, not an implicit halfway state from the trip builder.
 
 That is a solid design principle.
 
@@ -656,11 +621,9 @@ The cost is that timeline now depends on:
 - explicit merge logic
 - more handshake DTOs
 
-So the new path is better if your main goal is correctness and consistency
-between trip storage and timeline overlays.
+So the new path is better if your main goal is correctness and consistency between trip storage and timeline overlays.
 
-It is worse if your main goal is keeping the orchestration path small and easy
-to follow.
+It is worse if your main goal is keeping the orchestration path small and easy to follow.
 
 My judgment:
 
@@ -671,8 +634,7 @@ My judgment:
 
 ### 8.1 High-Level Assessment
 
-I agree with the intuition that the new system has become more complex. The
-important question is whether that complexity is productive or wasteful.
+I agree with the intuition that the new system has become more complex. The important question is whether that complexity is productive or wasteful.
 
 My answer is:
 
@@ -692,16 +654,15 @@ The new flow introduces many more named things:
 
 - `VesselLocationUpdates`
 - `VesselTripUpdate`
-- `CompletedTripBoundaryFact`
-- `PredictedTripComputation`
-- `CurrentTripActualEventMessage`
-- `CurrentTripPredictedEventMessage`
+- `CompletedArrivalHandoff`
+- `MlTimelineOverlay`
+- `ActualDockWriteIntent`
+- `PredictedDockWriteIntent`
 - `VesselTripPersistencePlan`
 - `OrchestratorPingPersistence`
-- projection assembly types
+- `TripHandoffForTimeline` / `TripPersistOutcome` handoff types
 
-Those names are individually reasonable. The problem is the system now needs
-many of them to describe what used to be one tighter trip-processing loop.
+Those names are individually reasonable. The problem is the system now needs many of them to describe what used to be one tighter trip-processing loop.
 
 ### 8.3 Where Complexity Decreased
 
@@ -726,17 +687,13 @@ Approximate relevant LOC totals inspected during this review:
 
 The best way to summarize this is:
 
-> The system did not merely redistribute code. It accumulated more runtime
-> orchestration structure.
+> The system did not merely redistribute code. It accumulated more runtime orchestration structure.
 
 ### 8.5 Final Complexity Judgment
 
-I would not call the new design simply “wrong.” But I would call it
-**over-architected for the hot-path cost model you actually have**.
+I would not call the new design simply “wrong.” But I would call it **over-architected for the hot-path cost model you actually have**.
 
-The refactor solved some real design problems, but it introduced a level of
-abstraction and read-model machinery that does not match the operational reality
-that only a small subset of vessels materially change trip state on each tick.
+The refactor solved some real design problems, but it introduced a level of abstraction and read-model machinery that does not match the operational reality that only a small subset of vessels materially change trip state on each tick.
 
 ## 9. Data Usage, Read/Write Frequency, And Cost Implications
 
@@ -750,9 +707,7 @@ At a 5-second cadence:
 
 At that frequency, even one unnecessary medium-sized read becomes expensive.
 
-The main architectural mistake in the current code is not that it reads “too
-many tables.” It is that it performs **large unconditional reads every tick**
-for data that only matters on a minority of ticks.
+The main architectural mistake in the current code is not that it reads “too many tables.” It is that it performs **large unconditional reads every tick** for data that only matters on a minority of ticks.
 
 ## 9.2 Per-Tick Database Access: Before vs After
 
@@ -771,8 +726,7 @@ for data that only matters on a minority of ticks.
 The old system paid for:
 
 - writing the current vessel locations every tick
-- conditional targeted schedule queries for the subset of vessels that actually
-  needed schedule help
+- conditional targeted schedule queries for the subset of vessels that actually needed schedule help
 
 That meant:
 
@@ -793,21 +747,18 @@ The new system now pays a baseline cost on almost every tick:
 
 Only after that does it reach the more selective stages.
 
-That means the new code improved **downstream work selection**, but worsened the
-**baseline tax**.
+That means the new code improved **downstream work selection**, but worsened the **baseline tax**.
 
 ## 9.5 Schedule Snapshot Cost
 
 This is the biggest issue.
 
-The current schedule snapshot row is compact compared with raw
-`eventsScheduled`, but it is still shaped like:
+The current schedule snapshot row is compact compared with raw `eventsScheduled`, but it is still shaped like:
 
 - all direct segment lookups by `ScheduleKey`
 - all ordered same-day departures by vessel
 
-That means every tick loads a row containing the full day’s useful schedule
-continuity context, even when:
+That means every tick loads a row containing the full day’s useful schedule continuity context, even when:
 
 - only a few vessels are active in a schedule-sensitive state
 - most vessels are merely reporting routine location updates
@@ -815,9 +766,7 @@ continuity context, even when:
 
 This is the wrong granularity for a 5-second hot path.
 
-It may still be cheaper than the prior “read grouped raw `eventsScheduled` rows
-every tick” implementation, but it is not cheap enough to justify reading it
-unconditionally.
+It may still be cheaper than the prior “read grouped raw `eventsScheduled` rows every tick” implementation, but it is not cheap enough to justify reading it unconditionally.
 
 ## 9.6 Old Atomic/Targeted Reads vs New Snapshot Read
 
@@ -826,8 +775,7 @@ The old schedule path used targeted queries such as:
 - `getScheduledDepartureSegmentBySegmentKey`
 - `getNextDepartureSegmentAfterDeparture`
 
-These were worse in the theoretical worst case, because many vessels could
-trigger many small queries.
+These were worse in the theoretical worst case, because many vessels could trigger many small queries.
 
 But your actual workload is not the theoretical worst case.
 
@@ -837,11 +785,9 @@ Your actual workload is:
 - few material trip changes
 - fewer still that need schedule continuity help
 
-Under that workload, the old targeted model is probably **cheaper on average**
-than loading the whole same-day schedule snapshot every tick.
+Under that workload, the old targeted model is probably **cheaper on average** than loading the whole same-day schedule snapshot every tick.
 
-That does not mean the old trip architecture should return. It means the old
-**data-access granularity** was closer to the truth of the workload.
+That does not mean the old trip architecture should return. It means the old **data-access granularity** was closer to the truth of the workload.
 
 ## 9.7 `vesselLocationsUpdates`: Necessary Or Helpful?
 
@@ -860,20 +806,16 @@ What is problematic:
 
 - it is read in full every tick
 - it is read again in full inside persistence
-- it stores both timestamp and `VesselLocationId`, which mixes dedupe metadata
-  with storage wiring
+- it stores both timestamp and `VesselLocationId`, which mixes dedupe metadata with storage wiring
 - it adds another table, schema, tests, and mutation complexity to a hot path
 
-My view is that the table is **not obviously unnecessary**, but its current form
-is more complex than necessary.
+My view is that the table is **not obviously unnecessary**, but its current form is more complex than necessary.
 
 A simpler alternative would likely be better:
 
 - either store the last timestamp directly on the canonical vessel-location row
-- or keep a very small key/value-style dedupe table with only
-  `VesselAbbrev -> TimeStamp`
-- or preload the existing location ids together with the main snapshot so you do
-  not read the signature table twice
+- or keep a very small key/value-style dedupe table with only `VesselAbbrev -> TimeStamp`
+- or preload the existing location ids together with the main snapshot so you do not read the signature table twice
 
 So I would not defend the current table design as-is.
 
@@ -893,22 +835,19 @@ What it does well:
 What is problematic:
 
 - the whole daily snapshot is loaded every tick
-- the size of that payload scales with the day’s full schedule, not with the
-  number of schedule-sensitive vessel updates on that tick
+- the size of that payload scales with the day’s full schedule, not with the number of schedule-sensitive vessel updates on that tick
 - it optimizes code shape more than runtime cost
 
 So I think this table is only partially successful.
 
-The best version of this idea would not be “one full day row per ping.” It
-would be something like:
+The best version of this idea would not be “one full day row per ping.” It would be something like:
 
 - per-vessel same-day schedule slices
 - per-segment direct lookup rows
 - per-terminal/per-vessel continuity rows
 - or lazy targeted snapshot loading only for changed vessels that need it
 
-In other words, the summary table concept is okay, but the current snapshot is
-still too broad.
+In other words, the summary table concept is okay, but the current snapshot is still too broad.
 
 ## 10. Recommendations: A Best-Of-Both-Worlds Middle Path
 
@@ -948,14 +887,12 @@ The most promising middle-ground design looks like this:
 2. one WSF fetch
 3. one location normalization pass
 4. one trip compute pass for changed vessels only
-5. lazy schedule reads only for vessels whose trip field resolution actually
-   needs schedule help
+5. lazy schedule reads only for vessels whose trip field resolution actually needs schedule help
 6. prediction stage only for changed/rolled-over trips
 7. timeline stage only for trips that persisted or need overlay refresh
 8. one persistence mutation
 
-That preserves most of the clean architecture while moving back toward a leaner
-read/write model.
+That preserves most of the clean architecture while moving back toward a leaner read/write model.
 
 ## 10.4 Concrete Changes I Would Prioritize
 
@@ -963,8 +900,7 @@ read/write model.
 
 Best candidate options:
 
-- resurrect targeted schedule queries but only behind the new trip-field
-  resolver
+- resurrect targeted schedule queries but only behind the new trip-field resolver
 - split the schedule snapshot into smaller keyed tables
 - load per-vessel continuity slices only for vessels entering the trip stage
 
@@ -976,16 +912,13 @@ Possible options:
 
 - collapse `vesselLocationsUpdates` into a minimal timestamp table
 - preload location ids in `getOrchestratorModelData`
-- stop storing `VesselLocationId` if it is only there to make the second read
-  possible
+- stop storing `VesselLocationId` if it is only there to make the second read possible
 
 ### Priority 3: Tighten Stage 2 gating even more
 
-The current code already moves in this direction, but the design principle
-should become stricter:
+The current code already moves in this direction, but the design principle should become stricter:
 
-> predictions and timeline should run only when trip rows materially changed or
-> a completed/replacement handoff occurred
+> predictions and timeline should run only when trip rows materially changed or a completed/replacement handoff occurred
 
 That is the right operational model for the system.
 
@@ -995,8 +928,8 @@ The current DTO count is too high. I would look for opportunities to collapse:
 
 - trip persistence plan
 - current-branch messages
-- predicted trip computations
-- projection assembly
+- ML timeline overlays (`MlTimelineOverlay[]`)
+- `tripHandoffForTimeline` assembly
 
 into fewer, more durable shapes.
 
@@ -1010,17 +943,13 @@ It solved real design problems:
 - tightly coupled trip and timeline behavior
 - blurry domain boundaries
 
-But it also created a system whose runtime shape no longer matches the real
-economics of the hot path.
+But it also created a system whose runtime shape no longer matches the real economics of the hot path.
 
 The key insight is:
 
-> your expensive path is not “all orchestrator logic equally.” The real hot path
-> is location ingest and trip compute. Prediction and timeline are secondary and
-> should remain downstream of actual trip change.
+> your expensive path is not “all orchestrator logic equally.” The real hot path is location ingest and trip compute. Prediction and timeline are secondary and should remain downstream of actual trip change.
 
-That means the right target is not the current “always preload broad context”
-approach. It is:
+That means the right target is not the current “always preload broad context” approach. It is:
 
 - lean baseline reads
 - selective schedule access

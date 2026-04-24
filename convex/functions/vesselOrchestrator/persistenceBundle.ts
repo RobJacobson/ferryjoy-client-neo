@@ -5,7 +5,7 @@
  * `persistOrchestratorPing`, so this helper keeps that shape in one place.
  */
 
-import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
+import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -18,7 +18,7 @@ type BuildOrchestratorPersistenceBundleArgs = {
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   tripRows: RunUpdateVesselTripsOutput;
   predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
 /**
@@ -33,7 +33,7 @@ export const buildOrchestratorPersistenceBundle = ({
   existingActiveTrips,
   tripRows,
   predictionRows,
-  predictedTripComputations,
+  mlTimelineOverlays,
 }: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => ({
   pingStartedAt,
   changedLocations: [...changedLocations],
@@ -43,5 +43,5 @@ export const buildOrchestratorPersistenceBundle = ({
     completedTrips: [...tripRows.completedTrips],
   },
   predictionRows: [...predictionRows],
-  predictedTripComputations: [...predictedTripComputations],
+  mlTimelineOverlays: [...mlTimelineOverlays],
 });

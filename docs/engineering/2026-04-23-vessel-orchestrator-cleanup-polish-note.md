@@ -24,7 +24,7 @@ This note summarizes the two latest polish passes on the current
 - Removed duplicate inline persistence-payload assembly in `testing.ts`.
 - Kept the persistence-bundle contract flat:
   `pingStartedAt`, `changedLocations`, `existingActiveTrips`, `tripRows`,
-  `predictionRows`, and `predictedTripComputations`.
+  `predictionRows`, and `mlTimelineOverlays`.
 
 ### Pass 2
 

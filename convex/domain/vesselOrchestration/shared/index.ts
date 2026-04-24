@@ -6,16 +6,14 @@ export { stripTripPredictionsForStorage } from "./orchestratorPersist";
 export {
   mergePingEventWrites,
   type PingEventWrites,
-  type TimelinePingProjectionInput,
 } from "./pingHandshake/projectionWire";
 export type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripLifecycleBranchResult,
-  CurrentTripPredictedEventMessage,
-  PredictedTripComputation,
-  TripPingLifecycleOutcome,
-  VesselTripPersistResult,
+  ActiveTripWriteOutcome,
+  ActualDockWriteIntent,
+  CompletedArrivalHandoff,
+  MlTimelineOverlay,
+  PredictedDockWriteIntent,
+  TripPersistOutcome,
 } from "./pingHandshake/types";
 export type { ScheduleContinuityAccess } from "./scheduleContinuity";
 export { createScheduleContinuityAccessFromSnapshot } from "./scheduleSnapshot/createScheduleContinuityAccessFromSnapshot";
