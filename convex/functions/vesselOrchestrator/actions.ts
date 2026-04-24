@@ -10,10 +10,7 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
-import type {
-  CompletedTripBoundaryFact,
-  ScheduleContinuityAccess,
-} from "domain/vesselOrchestration/shared";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type {
   RunUpdateVesselTripsOutput,
   VesselTripUpdate,
@@ -34,6 +31,7 @@ import {
 } from "./locationUpdates";
 import {
   buildPredictionStageInputs,
+  type PredictionStageInputs,
   type PredictionStageResult,
   runPredictionStage,
 } from "./predictionStage";
@@ -50,9 +48,8 @@ type OrchestratorSnapshot = {
 };
 
 type TripStageResult = {
-  tripUpdates: ReadonlyArray<VesselTripUpdate>;
   tripRows: RunUpdateVesselTripsOutput;
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+  predictionInputs: PredictionStageInputs;
 };
 
 type BuildOrchestratorPersistenceBundleArgs = {
@@ -109,11 +106,10 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     snapshot.activeTrips,
     createScheduleContinuityAccess(ctx)
   );
-  const predictionInputs = buildPredictionStageInputs(
-    tripStage.tripUpdates,
-    tripStage.completedHandoffs
+  const predictionStage = await runPredictionStage(
+    ctx,
+    tripStage.predictionInputs
   );
-  const predictionStage = await runPredictionStage(ctx, predictionInputs);
 
   await ctx.runMutation(
     internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
@@ -156,7 +152,7 @@ const loadOrchestratorSnapshot = async (
  * @param changedLocationUpdates - Changed live locations for this ping
  * @param existingActiveTrips - Active-trip snapshot from ping start
  * @param scheduleAccess - Narrow schedule continuity access
- * @returns Trip rows and completed handoffs for downstream work
+ * @returns Trip rows plus prediction-stage inputs for downstream work
  */
 const computeTripStageForLocations = async (
   changedLocationUpdates: ReadonlyArray<VesselLocationUpdates>,
@@ -203,9 +199,11 @@ const computeTripStageForLocations = async (
   );
 
   return {
-    tripUpdates,
     tripRows,
-    completedHandoffs: attemptedCompletedFacts,
+    predictionInputs: buildPredictionStageInputs(
+      tripUpdates,
+      attemptedCompletedFacts
+    ),
   };
 };
 

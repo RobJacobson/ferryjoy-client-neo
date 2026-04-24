@@ -1,13 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type {
-  CompletedTripBoundaryFact,
-  PredictedTripComputation,
-} from "domain/vesselOrchestration/shared";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  VesselLocationUpdates,
-  VesselTripUpdate,
-} from "functions/vesselOrchestrator/schemas";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -78,44 +72,6 @@ const makeLocation = (
   ...overrides,
 });
 
-const makeTripUpdate = (
-  vesselAbbrev: string,
-  overrides: Partial<VesselTripUpdate> = {}
-): VesselTripUpdate => ({
-  vesselLocation: makeLocation(vesselAbbrev),
-  existingActiveTrip: makeTrip(vesselAbbrev),
-  activeTripCandidate: makeTrip(vesselAbbrev),
-  completedTrip: undefined,
-  replacementTrip: undefined,
-  tripStorageChanged: false,
-  tripLifecycleChanged: false,
-  ...overrides,
-});
-
-const makeCompletedHandoff = (
-  vesselAbbrev: string,
-  overrides: Partial<CompletedTripBoundaryFact> = {}
-): CompletedTripBoundaryFact => ({
-  existingTrip: makeTrip(vesselAbbrev),
-  tripToComplete: makeTrip(vesselAbbrev, {
-    TripEnd: ms("2026-03-13T06:45:00-07:00"),
-  }),
-  events: {
-    isFirstTrip: false,
-    isTripStartReady: true,
-    isCompletedTrip: true,
-    didJustArriveAtDock: true,
-    didJustLeaveDock: false,
-    scheduleKeyChanged: false,
-  },
-  scheduleTrip: makeTrip(vesselAbbrev, {
-    TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T06:46:00-07:00")),
-    DepartingTerminalAbbrev: "ORI",
-    ArrivingTerminalAbbrev: "LOP",
-  }),
-  ...overrides,
-});
-
 const makePredictionRow = (
   vesselAbbrev: string,
   overrides: Partial<VesselTripPredictionProposal> = {}
@@ -171,20 +127,10 @@ describe("buildOrchestratorPersistenceBundle", () => {
       ],
       existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
       tripStage: {
-        tripUpdates: [
-          makeTripUpdate("CHE", {
-            activeTripCandidate: cheTrip,
-            completedTrip: cheCompleted,
-            tripStorageChanged: true,
-            tripLifecycleChanged: true,
-          }),
-          makeTripUpdate("TAC"),
-        ],
         tripRows: {
           activeTrips: [cheTrip, makeTrip("TAC")],
           completedTrips: [cheCompleted],
         },
-        completedHandoffs: [makeCompletedHandoff("CHE")],
       },
       predictionStage: {
         predictionRows: [makePredictionRow("CHE")],

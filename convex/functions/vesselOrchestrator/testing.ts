@@ -10,7 +10,6 @@ import type { Id } from "_generated/dataModel";
 import type { ActionCtx } from "_generated/server";
 import { createScheduleContinuityAccessFromSnapshot } from "domain/vesselOrchestration/shared";
 import type {
-  CompletedTripBoundaryFact,
   PredictedTripComputation,
 } from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
@@ -39,9 +38,7 @@ type BuildOrchestratorPersistenceBundleArgs = {
   }>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   tripStage: {
-    tripUpdates: ReadonlyArray<VesselTripUpdate>;
     tripRows: RunUpdateVesselTripsOutput;
-    completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
   };
   predictionStage: {
     predictionRows: ReadonlyArray<VesselTripPredictionProposal>;

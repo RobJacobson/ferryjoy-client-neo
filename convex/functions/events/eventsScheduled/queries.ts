@@ -10,12 +10,6 @@ import { stripConvexMeta } from "shared/stripConvexMeta";
 import type { ConvexScheduledDockEvent } from "./schemas";
 import { eventsScheduledSchema } from "./schemas";
 
-type ScheduledEventsQueryContext = {
-  db: {
-    query: QueryCtx["db"]["query"];
-  };
-};
-
 /**
  * Loads all scheduled dock events for one vessel and sailing day.
  *
@@ -25,7 +19,7 @@ type ScheduledEventsQueryContext = {
  * @returns Same-day scheduled dock events for that vessel
  */
 export const loadScheduledDockEventsForVesselSailingDay = async (
-  ctx: ScheduledEventsQueryContext,
+  ctx: { db: QueryCtx["db"] },
   args: { vesselAbbrev: string; sailingDay: string }
 ): Promise<ConvexScheduledDockEvent[]> =>
   (

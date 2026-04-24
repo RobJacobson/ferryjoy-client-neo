@@ -59,6 +59,11 @@ The latest cleanup pass also tightened the local code shape:
 - persistence-bundle test assembly now lives in
   `convex/functions/vesselOrchestrator/testing.ts`, so `actions.ts` no longer
   exports test-only helpers
+- `computeTripStageForLocations(...)` now returns `tripRows` plus
+  `predictionInputs`, so the prediction-stage handoff is carried directly from
+  the trip stage instead of being rebuilt one step later in `actions.ts`
+- the focused persistence-bundle test helper and test data were narrowed to
+  that leaner stage shape
 
 I also fixed one follow-up issue during review:
 
@@ -128,6 +133,8 @@ Most likely areas:
 - keeping extracted runtime helpers like `predictionStage.ts` and
   `scheduleContinuityAccess.ts` small, obvious, and free of leftover
   `actions.ts`-shaped plumbing
+- keeping stage return shapes honest and lean, especially where a downstream
+  step only needs `tripRows` plus `predictionInputs`
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups

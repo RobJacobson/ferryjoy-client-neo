@@ -83,6 +83,8 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - test-only compatibility helpers and persistence-bundle assembly now live in
   `convex/functions/vesselOrchestrator/testing.ts` instead of being exported
   from `actions.ts`
+- the trip stage now carries `predictionInputs` directly, so `actions.ts` does
+  not need to rebuild that handoff after the trip stage returns
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.
