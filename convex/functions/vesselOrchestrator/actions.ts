@@ -10,6 +10,7 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
+import { v } from "convex/values";
 import type {
   CompletedTripBoundaryFact,
   ScheduleContinuityAccess,
@@ -63,7 +64,8 @@ type TripStageResult = {
  */
 export const updateVesselOrchestrator = internalAction({
   args: {},
-  handler: async (ctx): Promise<void> => {
+  returns: v.null(),
+  handler: async (ctx): Promise<null> => {
     try {
       await runOrchestratorPing(ctx);
     } catch (error) {
@@ -71,6 +73,7 @@ export const updateVesselOrchestrator = internalAction({
       console.error("[updateVesselOrchestrator]", err);
       throw err;
     }
+    return null;
   },
 });
 
