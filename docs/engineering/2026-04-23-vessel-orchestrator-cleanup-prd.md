@@ -97,6 +97,8 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - helper-only arg types are being kept internal where possible, and unused
   exported stage-result types have been removed from the touched orchestrator
   modules
+- prediction-stage gating helpers are being kept internal where possible, with
+  focused tests validating the public/runtime-intended seam instead
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

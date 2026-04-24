@@ -79,6 +79,11 @@ The latest cleanup pass also tightened the local code shape:
   exported as helper-only type surface
 - the unused exported `PredictionStageResult` type was removed from
   `convex/functions/vesselOrchestrator/predictionStage.ts`
+- `shouldContinueAfterTripUpdate` is now module-private inside
+  `convex/functions/vesselOrchestrator/predictionStage.ts`
+- the focused prediction-stage policy test now validates gating through
+  `buildPredictionStageInputs(...)` instead of importing a runtime-internal
+  helper
 - `actions.ts` now names `scheduleAccess` once before the trip stage call,
   which keeps the orchestration flow slightly easier to scan without changing
   behavior
@@ -163,6 +168,8 @@ Most likely areas:
 - keeping helper-only arg types internal unless they are truly part of a
   shared contract
 - keeping runtime stage modules exporting only the types they intend to own
+- keeping tests focused on public/runtime-intended module seams instead of
+  reaching into helper-private functions
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups
@@ -195,6 +202,7 @@ to stay aligned with a shared contract, but it should not be the default.
 - no `vesselLocationsUpdates` table
 - predictions and timeline remain downstream of real trip changes
 - production logging should default to serious warnings/errors only
+- there should be at most one additional polish-only round after this handoff
 
 ## Notes
 
@@ -213,4 +221,5 @@ orchestrator code. Focus on simplifying the current hot path further without
 reintroducing broad reads or per-vessel Convex fan-out. Prefer explicit local
 types over `Pick<...>` or other utility typing when they add needless
 complexity. Keep production logging quiet by default; keep only real `ERROR`s
-and narrowly justified `WARN`s.
+and narrowly justified `WARN`s. Treat the next pass as the final polish-only
+round unless it uncovers a concrete bug.

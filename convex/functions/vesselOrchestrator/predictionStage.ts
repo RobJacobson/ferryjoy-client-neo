@@ -76,7 +76,7 @@ export const runPredictionStage = async (
  * @param tripUpdate - Per-vessel trip update
  * @returns True when durable trip facts changed
  */
-export const shouldContinueAfterTripUpdate = (
+const shouldContinueAfterTripUpdate = (
   tripUpdate: VesselTripUpdate
 ): boolean => tripUpdate.tripStorageChanged || tripUpdate.tripLifecycleChanged;
 
