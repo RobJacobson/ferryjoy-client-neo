@@ -54,6 +54,11 @@ The latest cleanup pass also tightened the local code shape:
   `resolveTripFieldsForTripRow.ts`
 - trip-field inference diagnostics are now opt-in through
   `getTripFieldInferenceLog(...)` instead of emitting on every hot-path update
+- the old exported `updateVesselTrips` compatibility helper was removed from
+  `actions.ts`
+- persistence-bundle test assembly now lives in
+  `convex/functions/vesselOrchestrator/testing.ts`, so `actions.ts` no longer
+  exports test-only helpers
 
 I also fixed one follow-up issue during review:
 
@@ -118,6 +123,8 @@ Most likely areas:
   when a small explicit local type would be clearer
 - keeping snapshot-only compatibility helpers out of production hot-path files
   when they can live in `testing.ts`
+- keeping persistence-bundle and compatibility helpers in `testing.ts` instead
+  of re-exporting them from `actions.ts`
 - keeping extracted runtime helpers like `predictionStage.ts` and
   `scheduleContinuityAccess.ts` small, obvious, and free of leftover
   `actions.ts`-shaped plumbing

@@ -80,6 +80,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - the unchanged-trip-stage summary `INFO` log was removed from `actions.ts`
 - default trip-field inference `INFO` logging was removed from the hot path,
   with opt-in diagnostics exposed through `getTripFieldInferenceLog(...)`
+- test-only compatibility helpers and persistence-bundle assembly now live in
+  `convex/functions/vesselOrchestrator/testing.ts` instead of being exported
+  from `actions.ts`
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

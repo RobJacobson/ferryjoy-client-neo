@@ -6,23 +6,48 @@
  */
 
 import { internal } from "_generated/api";
+import type { Id } from "_generated/dataModel";
 import type { ActionCtx } from "_generated/server";
 import { createScheduleContinuityAccessFromSnapshot } from "domain/vesselOrchestration/shared";
+import type {
+  CompletedTripBoundaryFact,
+  PredictedTripComputation,
+} from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripsBatch } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
+  OrchestratorPingPersistence,
   VesselLocationUpdates,
   VesselTripUpdate,
 } from "functions/vesselOrchestrator/schemas";
+import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   buildChangedLocationWrites,
   loadVesselLocationUpdates,
 } from "./locationUpdates";
+
+type BuildOrchestratorPersistenceBundleArgs = {
+  pingStartedAt: number;
+  changedLocations: ReadonlyArray<{
+    vesselLocation: ConvexVesselLocation;
+    existingLocationId?: Id<"vesselLocations">;
+  }>;
+  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
+  tripStage: {
+    tripUpdates: ReadonlyArray<VesselTripUpdate>;
+    tripRows: RunUpdateVesselTripsOutput;
+    completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+  };
+  predictionStage: {
+    predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+    predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
+  };
+};
 
 /**
  * Backward-compatible helper for focused location tests.
@@ -100,3 +125,29 @@ export const computeTripBatchForPing = async (
       sailingDay
     ),
   });
+
+/**
+ * Test helper that mirrors the runtime persistence payload assembly.
+ *
+ * @param args - Stage outputs to merge into one persistence payload
+ * @returns Compact persistence bundle for `persistOrchestratorPing`
+ */
+export const buildOrchestratorPersistenceBundle = ({
+  pingStartedAt,
+  changedLocations,
+  existingActiveTrips,
+  tripStage,
+  predictionStage,
+}: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => {
+  return {
+    pingStartedAt,
+    changedLocations: [...changedLocations],
+    existingActiveTrips: [...existingActiveTrips],
+    tripRows: {
+      activeTrips: [...tripStage.tripRows.activeTrips],
+      completedTrips: [...tripStage.tripRows.completedTrips],
+    },
+    predictionRows: [...predictionStage.predictionRows],
+    predictedTripComputations: [...predictionStage.predictedTripComputations],
+  };
+};

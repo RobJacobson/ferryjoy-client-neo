@@ -20,7 +20,6 @@ import type {
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type {
   storedVesselLocationSchema,
@@ -211,30 +210,6 @@ const computeTripStageForLocations = async (
 };
 
 /**
- * Computes the authoritative trip rows for this ping.
- *
- * @param vesselLocations - Live locations from the orchestrator
- * @param existingActiveTrips - Preloaded active trip rows from the orchestrator snapshot
- * @param scheduleAccess - Narrow schedule continuity access
- * @returns The resulting completed and active trip rows for this ping
- */
-export const updateVesselTrips = async (
-  vesselLocations: ReadonlyArray<ConvexVesselLocation>,
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
-  scheduleAccess: ScheduleContinuityAccess
-): Promise<RunUpdateVesselTripsOutput> =>
-  (
-    await computeTripStageForLocations(
-      vesselLocations.map((vesselLocation) => ({
-        vesselLocation,
-        locationChanged: true,
-      })),
-      existingActiveTrips,
-      scheduleAccess
-    )
-  ).tripRows;
-
-/**
  * Builds the final persistence payload for one orchestrator ping.
  *
  * @param args - Stage outputs to merge into the single mutation payload
@@ -257,5 +232,3 @@ const buildOrchestratorPersistenceBundle = ({
   predictionRows: [...predictionStage.predictionRows],
   predictedTripComputations: [...predictionStage.predictedTripComputations],
 });
-
-export { buildOrchestratorPersistenceBundle };
