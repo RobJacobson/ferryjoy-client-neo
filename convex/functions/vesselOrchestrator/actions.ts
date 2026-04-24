@@ -10,6 +10,7 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import type { Infer } from "convex/values";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type {
   RunUpdateVesselTripsOutput,
@@ -23,6 +24,7 @@ import type {
   VesselLocationUpdates,
 } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
+import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   buildChangedLocationWrites,
@@ -32,7 +34,6 @@ import {
 import {
   buildPredictionStageInputs,
   type PredictionStageInputs,
-  type PredictionStageResult,
   runPredictionStage,
 } from "./predictionStage";
 import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
@@ -56,8 +57,9 @@ type BuildOrchestratorPersistenceBundleArgs = {
   pingStartedAt: number;
   changedLocations: ReadonlyArray<ChangedLocationWrite>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
-  tripStage: TripStageResult;
-  predictionStage: PredictionStageResult;
+  tripRows: RunUpdateVesselTripsOutput;
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
 /**
@@ -117,8 +119,9 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       pingStartedAt,
       changedLocations,
       existingActiveTrips: snapshot.activeTrips,
-      tripStage,
-      predictionStage,
+      tripRows: tripStage.tripRows,
+      predictionRows: predictionStage.predictionRows,
+      predictedTripComputations: predictionStage.predictedTripComputations,
     })
   );
 };
@@ -217,16 +220,17 @@ const buildOrchestratorPersistenceBundle = ({
   pingStartedAt,
   changedLocations,
   existingActiveTrips,
-  tripStage,
-  predictionStage,
+  tripRows,
+  predictionRows,
+  predictedTripComputations,
 }: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => ({
   pingStartedAt,
   changedLocations: [...changedLocations],
   existingActiveTrips: [...existingActiveTrips],
   tripRows: {
-    activeTrips: [...tripStage.tripRows.activeTrips],
-    completedTrips: [...tripStage.tripRows.completedTrips],
+    activeTrips: [...tripRows.activeTrips],
+    completedTrips: [...tripRows.completedTrips],
   },
-  predictionRows: [...predictionStage.predictionRows],
-  predictedTripComputations: [...predictionStage.predictedTripComputations],
+  predictionRows: [...predictionRows],
+  predictedTripComputations: [...predictedTripComputations],
 });

@@ -126,16 +126,12 @@ describe("buildOrchestratorPersistenceBundle", () => {
         },
       ],
       existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
-      tripStage: {
-        tripRows: {
-          activeTrips: [cheTrip, makeTrip("TAC")],
-          completedTrips: [cheCompleted],
-        },
+      tripRows: {
+        activeTrips: [cheTrip, makeTrip("TAC")],
+        completedTrips: [cheCompleted],
       },
-      predictionStage: {
-        predictionRows: [makePredictionRow("CHE")],
-        predictedTripComputations: [makePredictedTripComputation("CHE")],
-      },
+      predictionRows: [makePredictionRow("CHE")],
+      predictedTripComputations: [makePredictedTripComputation("CHE")],
     });
 
     expect(

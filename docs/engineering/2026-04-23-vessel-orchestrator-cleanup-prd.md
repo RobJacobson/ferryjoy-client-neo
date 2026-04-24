@@ -85,6 +85,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
   from `actions.ts`
 - the trip stage now carries `predictionInputs` directly, so `actions.ts` does
   not need to rebuild that handoff after the trip stage returns
+- persistence-bundle helper args are now flatter in runtime and tests, using
+  direct `tripRows`, `predictionRows`, and `predictedTripComputations` instead
+  of nested stage wrapper args
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

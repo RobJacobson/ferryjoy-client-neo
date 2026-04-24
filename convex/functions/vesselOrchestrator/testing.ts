@@ -37,13 +37,9 @@ type BuildOrchestratorPersistenceBundleArgs = {
     existingLocationId?: Id<"vesselLocations">;
   }>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
-  tripStage: {
-    tripRows: RunUpdateVesselTripsOutput;
-  };
-  predictionStage: {
-    predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-    predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
-  };
+  tripRows: RunUpdateVesselTripsOutput;
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
 };
 
 /**
@@ -133,18 +129,19 @@ export const buildOrchestratorPersistenceBundle = ({
   pingStartedAt,
   changedLocations,
   existingActiveTrips,
-  tripStage,
-  predictionStage,
+  tripRows,
+  predictionRows,
+  predictedTripComputations,
 }: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => {
   return {
     pingStartedAt,
     changedLocations: [...changedLocations],
     existingActiveTrips: [...existingActiveTrips],
     tripRows: {
-      activeTrips: [...tripStage.tripRows.activeTrips],
-      completedTrips: [...tripStage.tripRows.completedTrips],
+      activeTrips: [...tripRows.activeTrips],
+      completedTrips: [...tripRows.completedTrips],
     },
-    predictionRows: [...predictionStage.predictionRows],
-    predictedTripComputations: [...predictionStage.predictedTripComputations],
+    predictionRows: [...predictionRows],
+    predictedTripComputations: [...predictedTripComputations],
   };
 };

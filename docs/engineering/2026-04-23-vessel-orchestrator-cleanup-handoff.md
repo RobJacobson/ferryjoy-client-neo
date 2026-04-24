@@ -64,6 +64,10 @@ The latest cleanup pass also tightened the local code shape:
   the trip stage instead of being rebuilt one step later in `actions.ts`
 - the focused persistence-bundle test helper and test data were narrowed to
   that leaner stage shape
+- the persistence-bundle helper contract itself is now flatter in both runtime
+  and tests: direct `tripRows`, `predictionRows`, and
+  `predictedTripComputations` instead of nested `tripStage` /
+  `predictionStage` wrapper args
 
 I also fixed one follow-up issue during review:
 
@@ -135,6 +139,8 @@ Most likely areas:
   `actions.ts`-shaped plumbing
 - keeping stage return shapes honest and lean, especially where a downstream
   step only needs `tripRows` plus `predictionInputs`
+- keeping persistence bundle helper args flat when nested stage wrappers add no
+  value
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups
