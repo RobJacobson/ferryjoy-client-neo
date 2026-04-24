@@ -26,7 +26,7 @@ const completionEvents = (
 });
 
 describe("buildTripRowsForPing completion shaping", () => {
-  it("preserves a valid ArriveDest when it occurs after departure", () => {
+  it("preserves a valid ArriveDest when it occurs after departure", async () => {
     const existingTrip = makeTrip({
       StartTime: ms("2026-03-13T04:33:00-07:00"),
       TripStart: ms("2026-03-13T04:33:00-07:00"),
@@ -35,7 +35,7 @@ describe("buildTripRowsForPing completion shaping", () => {
       AtDock: false,
     });
 
-    const { completedVesselTrip } = buildTripRowsForPing(
+    const { completedVesselTrip } = await buildTripRowsForPing(
       {
         vesselLocation: makeLocation({
           AtDock: true,
@@ -59,14 +59,14 @@ describe("buildTripRowsForPing completion shaping", () => {
     expect(completedVesselTrip?.AtSeaDuration).toBe(60.3);
   });
 
-  it("keeps ArrivedNextActual undefined when a close is synthetic", () => {
+  it("keeps ArrivedNextActual undefined when a close is synthetic", async () => {
     const existingTrip = makeTrip({
       TripStart: ms("2026-03-13T04:33:00-07:00"),
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       AtDock: false,
     });
 
-    const { completedVesselTrip } = buildTripRowsForPing(
+    const { completedVesselTrip } = await buildTripRowsForPing(
       {
         vesselLocation: makeLocation({
           AtDock: true,
@@ -85,7 +85,7 @@ describe("buildTripRowsForPing completion shaping", () => {
     expect(completedVesselTrip?.EndTime).toBe(ms("2026-03-13T06:29:56-07:00"));
   });
 
-  it("falls back to TripEnd when ArriveDest predates LeftDock", () => {
+  it("falls back to TripEnd when ArriveDest predates LeftDock", async () => {
     const existingTrip = makeTrip({
       TripStart: ms("2026-03-12T20:32:59-07:00"),
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
@@ -93,7 +93,7 @@ describe("buildTripRowsForPing completion shaping", () => {
       AtDock: false,
     });
 
-    const { completedVesselTrip } = buildTripRowsForPing(
+    const { completedVesselTrip } = await buildTripRowsForPing(
       {
         vesselLocation: makeLocation({
           AtDock: true,
@@ -115,14 +115,14 @@ describe("buildTripRowsForPing completion shaping", () => {
     expect(completedVesselTrip?.TotalDuration).toBe(597);
   });
 
-  it("backfills the physical arrival terminal from the completion ping when the trip destination is unknown", () => {
+  it("backfills the physical arrival terminal from the completion ping when the trip destination is unknown", async () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: undefined,
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       AtDock: false,
     });
 
-    const { completedVesselTrip } = buildTripRowsForPing(
+    const { completedVesselTrip } = await buildTripRowsForPing(
       {
         vesselLocation: makeLocation({
           DepartingTerminalAbbrev: "ORI",

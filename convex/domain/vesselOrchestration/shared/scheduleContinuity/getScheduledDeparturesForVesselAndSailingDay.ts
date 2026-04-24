@@ -4,7 +4,7 @@
  */
 
 import type { CompactScheduledDepartureEvent } from "../scheduleSnapshot/scheduleSnapshotTypes";
-import type { ScheduledSegmentTables } from "./types";
+import type { ScheduleContinuityAccess } from "./types";
 
 /**
  * Returns scheduled departures for one vessel when `sailingDay` matches the
@@ -12,10 +12,11 @@ import type { ScheduledSegmentTables } from "./types";
  * snapshot days.
  */
 export const getScheduledDeparturesForVesselAndSailingDay = (
-  tables: ScheduledSegmentTables,
+  scheduleAccess: ScheduleContinuityAccess,
   vesselAbbrev: string,
   sailingDay: string
-): CompactScheduledDepartureEvent[] =>
-  sailingDay !== tables.sailingDay
-    ? []
-    : [...(tables.scheduledDeparturesByVesselAbbrev[vesselAbbrev] ?? [])];
+): Promise<ReadonlyArray<CompactScheduledDepartureEvent>> =>
+  scheduleAccess.getScheduledDeparturesForVesselAndSailingDay(
+    vesselAbbrev,
+    sailingDay
+  );

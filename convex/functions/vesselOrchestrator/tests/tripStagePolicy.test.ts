@@ -1,13 +1,10 @@
-import { describe, expect, it, mock, spyOn } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/pipelineTypes";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import {
-  computeTripBatchForPing,
-  logTripStageLocationSkipSummary,
-} from "../actions";
+import { computeTripBatchForPing } from "../testing";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -90,8 +87,8 @@ const makeLocationUpdate = (
 });
 
 describe("trip stage schedule-inference gating", () => {
-  it("skips trip recomputation for unchanged locations", () => {
-    const tripBatch = computeTripBatchForPing(
+  it("skips trip recomputation for unchanged locations", async () => {
+    const tripBatch = await computeTripBatchForPing(
       [
         makeLocationUpdate("CHE", false),
         makeLocationUpdate("TAC", true, {
@@ -106,43 +103,5 @@ describe("trip stage schedule-inference gating", () => {
     expect(tripBatch.updates).toHaveLength(1);
     expect(tripBatch.updates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
     expect(tripBatch.rows.activeTrips).toHaveLength(2);
-  });
-
-  it("logs one aggregated skip summary when every location is unchanged", () => {
-    const infoSpy = spyOn(console, "info").mockImplementation(mock(() => {}));
-
-    try {
-      logTripStageLocationSkipSummary([
-        makeLocationUpdate("CHE", false),
-        makeLocationUpdate("TAC", false),
-      ]);
-
-      expect(infoSpy).toHaveBeenCalledTimes(1);
-      expect(infoSpy.mock.calls[0]?.[0]).toContain(
-        "Trip stage skipped unchanged locations"
-      );
-      expect(infoSpy.mock.calls[0]?.[1]).toMatchObject({
-        skippedCount: 2,
-        changedCount: 0,
-        totalLocations: 2,
-      });
-    } finally {
-      infoSpy.mockRestore();
-    }
-  });
-
-  it("does not log the skip summary when any location changed", () => {
-    const infoSpy = spyOn(console, "info").mockImplementation(mock(() => {}));
-
-    try {
-      logTripStageLocationSkipSummary([
-        makeLocationUpdate("CHE", false),
-        makeLocationUpdate("TAC", true),
-      ]);
-
-      expect(infoSpy).not.toHaveBeenCalled();
-    } finally {
-      infoSpy.mockRestore();
-    }
   });
 });

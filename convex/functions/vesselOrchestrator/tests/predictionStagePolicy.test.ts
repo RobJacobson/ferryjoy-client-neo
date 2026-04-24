@@ -4,10 +4,7 @@ import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTr
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import {
-  buildPredictionStageInputs,
-  shouldContinueAfterTripUpdate,
-} from "../actions";
+import { buildPredictionStageInputs } from "../predictionStage";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -114,30 +111,41 @@ const makeCompletedHandoff = (
 
 describe("prediction stage off-ramp policy", () => {
   it("continues only when trip storage or lifecycle changed", () => {
-    expect(
-      shouldContinueAfterTripUpdate(
+    const unchangedInput = buildPredictionStageInputs(
+      [
         makeTripUpdate("CHE", {
           tripStorageChanged: false,
           tripLifecycleChanged: false,
-        })
-      )
-    ).toBe(false);
-    expect(
-      shouldContinueAfterTripUpdate(
+        }),
+      ],
+      []
+    );
+    const storageChangedInput = buildPredictionStageInputs(
+      [
         makeTripUpdate("TAC", {
           tripStorageChanged: true,
           tripLifecycleChanged: false,
-        })
-      )
-    ).toBe(true);
-    expect(
-      shouldContinueAfterTripUpdate(
+        }),
+      ],
+      []
+    );
+    const lifecycleChangedInput = buildPredictionStageInputs(
+      [
         makeTripUpdate("SAM", {
           tripStorageChanged: false,
           tripLifecycleChanged: true,
-        })
-      )
-    ).toBe(true);
+        }),
+      ],
+      []
+    );
+
+    expect(unchangedInput.activeTrips).toEqual([]);
+    expect(storageChangedInput.activeTrips.map((trip) => trip.VesselAbbrev)).toEqual([
+      "TAC",
+    ]);
+    expect(
+      lifecycleChangedInput.activeTrips.map((trip) => trip.VesselAbbrev)
+    ).toEqual(["SAM"]);
   });
 
   it("filters prediction inputs down to the changed-vessel subset", () => {
@@ -164,25 +172,25 @@ describe("prediction stage off-ramp policy", () => {
         ArrivingTerminalAbbrev: "LOP",
       }),
     });
+    const unchangedCheTrip = unchangedChe.activeTripCandidate;
+    const changedTacTrip = changedTac.activeTripCandidate;
+    const changedSamTrip = changedSam.activeTripCandidate;
+    const changedSamCompletedTrip = changedSam.completedTrip;
+
+    if (
+      unchangedCheTrip === undefined ||
+      changedTacTrip === undefined ||
+      changedSamTrip === undefined ||
+      changedSamCompletedTrip === undefined
+    ) {
+      throw new Error("Test setup requires concrete trip rows.");
+    }
 
     const predictionInputs = buildPredictionStageInputs(
       [unchangedChe, changedTac, changedSam],
-      {
-        activeTrips: [
-          unchangedChe.activeTripCandidate!,
-          changedTac.activeTripCandidate!,
-          changedSam.activeTripCandidate!,
-        ],
-        completedTrips: [changedSam.completedTrip!],
-      },
       [makeCompletedHandoff("SAM")]
     );
 
-    expect(
-      predictionInputs.changedTripUpdates.map(
-        (update) => update.vesselLocation.VesselAbbrev
-      )
-    ).toEqual(["TAC", "SAM"]);
     expect(
       predictionInputs.activeTrips.map((trip) => trip.VesselAbbrev)
     ).toEqual(["TAC", "SAM"]);
@@ -196,14 +204,9 @@ describe("prediction stage off-ramp policy", () => {
   it("returns empty prediction inputs when every vessel is unchanged", () => {
     const predictionInputs = buildPredictionStageInputs(
       [makeTripUpdate("CHE"), makeTripUpdate("TAC")],
-      {
-        activeTrips: [makeTrip("CHE"), makeTrip("TAC")],
-        completedTrips: [],
-      },
       []
     );
 
-    expect(predictionInputs.changedTripUpdates).toEqual([]);
     expect(predictionInputs.activeTrips).toEqual([]);
     expect(predictionInputs.completedHandoffs).toEqual([]);
   });

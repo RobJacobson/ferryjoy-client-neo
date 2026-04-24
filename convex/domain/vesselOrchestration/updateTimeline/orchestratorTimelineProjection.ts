@@ -20,6 +20,11 @@ import type {
   TimelineTripComputation,
 } from "./contracts";
 
+type CompletedHandoffMatchFact = {
+  tripToComplete: ConvexVesselTrip;
+  scheduleTrip?: ConvexVesselTrip;
+};
+
 /**
  * Schedule identity for matching completed-handoff facts to prediction-stage
  * `PredictedTripComputation` rows. Must stay aligned with
@@ -44,7 +49,7 @@ const timelineMlMergeKeyFromCompletedHandoffParts = (
   `${vesselAbbrev}::${scheduleIdentityForMlMergeKey(completedTrip, activeTrip)}`;
 
 const completedTripBoundaryMatchKeyFromFact = (
-  fact: Pick<CompletedTripBoundaryFact, "tripToComplete" | "scheduleTrip">
+  fact: CompletedHandoffMatchFact
 ): string =>
   timelineMlMergeKeyFromCompletedHandoffParts(
     fact.tripToComplete.VesselAbbrev,

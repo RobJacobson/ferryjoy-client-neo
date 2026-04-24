@@ -100,7 +100,7 @@ describe("computeVesselTripUpdate", () => {
     const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
 
     detectSpy.mockImplementation(() => defaultEvents);
-    buildTripSpy.mockImplementation(() => ({
+    buildTripSpy.mockImplementation(async () => ({
       activeVesselTrip: existingTrip,
     }));
 
@@ -108,10 +108,10 @@ describe("computeVesselTripUpdate", () => {
       const { computeVesselTripUpdate } = await import(
         "../computeVesselTripUpdate"
       );
-      const result = computeVesselTripUpdate({
+      const result = await computeVesselTripUpdate({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
-        scheduleTables,
+        scheduleAccess: scheduleTables,
       });
 
       expect(result.activeTripCandidate).toEqual(existingTrip);
@@ -136,7 +136,7 @@ describe("computeVesselTripUpdate", () => {
     const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
 
     detectSpy.mockImplementation(() => defaultEvents);
-    buildTripSpy.mockImplementation(() => ({
+    buildTripSpy.mockImplementation(async () => ({
       activeVesselTrip: updatedTrip,
     }));
 
@@ -144,10 +144,10 @@ describe("computeVesselTripUpdate", () => {
       const { computeVesselTripUpdate } = await import(
         "../computeVesselTripUpdate"
       );
-      const result = computeVesselTripUpdate({
+      const result = await computeVesselTripUpdate({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
-        scheduleTables,
+        scheduleAccess: scheduleTables,
       });
 
       expect(result.activeTripCandidate).toEqual(updatedTrip);
@@ -184,7 +184,7 @@ describe("computeVesselTripUpdate", () => {
     const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
 
     detectSpy.mockImplementation(() => completedEvents);
-    buildTripSpy.mockImplementation(() => ({
+    buildTripSpy.mockImplementation(async () => ({
       activeVesselTrip: replacementTrip,
       completedVesselTrip: completedTrip,
     }));
@@ -193,10 +193,10 @@ describe("computeVesselTripUpdate", () => {
       const { computeVesselTripUpdate } = await import(
         "../computeVesselTripUpdate"
       );
-      const result = computeVesselTripUpdate({
+      const result = await computeVesselTripUpdate({
         vesselLocation: makeLocation({ AtDock: true, LeftDock: undefined }),
         existingActiveTrip: existingTrip,
-        scheduleTables,
+        scheduleAccess: scheduleTables,
       });
 
       expect(result.activeTripCandidate).toEqual(replacementTrip);
@@ -226,10 +226,10 @@ describe("computeVesselTripUpdate", () => {
       const { computeVesselTripUpdate } = await import(
         "../computeVesselTripUpdate"
       );
-      const result = computeVesselTripUpdate({
+      const result = await computeVesselTripUpdate({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
-        scheduleTables,
+        scheduleAccess: scheduleTables,
       });
 
       expect(result.activeTripCandidate).toEqual(existingTrip);

@@ -6,7 +6,7 @@
  */
 
 import type {
-  ScheduledSegmentTables,
+  ScheduleContinuityAccess,
   TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
 import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
@@ -36,6 +36,11 @@ type CompletedTripUpdate = TripBuildInput & {
   existingActiveTrip: ConvexVesselTrip;
 };
 
+type TripBuildLifecycleEvidence = {
+  didJustLeaveDock: boolean;
+  leftDockTime: number | undefined;
+};
+
 type TripBuildContext = {
   currLocation: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
@@ -46,7 +51,7 @@ type TripBuildContext = {
     ScheduleKey?: string;
     SailingDay?: string;
   };
-  events: Pick<TripBuildEvents, "didJustLeaveDock" | "leftDockTime">;
+  events: TripBuildLifecycleEvidence;
 };
 
 type ResolvedTripIdentity = {
@@ -61,13 +66,13 @@ type ResolvedTripIdentity = {
  * Builds completed/active trip rows for one vessel ping.
  *
  * @param update - Trip build input for the vessel ping
- * @param scheduleTables - Prepared schedule lookup tables
+ * @param scheduleAccess - Narrow schedule continuity access
  * @returns Completed and/or active trip rows derived from lifecycle state
  */
-export const buildTripRowsForPing = (
+export const buildTripRowsForPing = async (
   update: TripBuildInput,
-  scheduleTables: ScheduledSegmentTables
-): TripRowOutcome => {
+  scheduleAccess: ScheduleContinuityAccess
+): Promise<TripRowOutcome> => {
   // Finalize and immediately seed the next active trip when arrival completes.
   if (
     update.events.isCompletedTrip &&
@@ -75,7 +80,7 @@ export const buildTripRowsForPing = (
   ) {
     return tripRowsWhenCompleting(
       update as CompletedTripUpdate,
-      scheduleTables
+      scheduleAccess
     );
   }
 
@@ -84,7 +89,7 @@ export const buildTripRowsForPing = (
     return {};
   }
 
-  return tripRowsWhenContinuing(update, scheduleTables);
+  return tripRowsWhenContinuing(update, scheduleAccess);
 };
 
 /**
@@ -318,20 +323,20 @@ const buildCompletedTrip = (
  * @param existingTrip - Current active trip row, if present
  * @param tripStart - Whether this row represents a newly started trip
  * @param events - Lifecycle events for this ping
- * @param scheduleTables - Prepared schedule lookup tables
+ * @param scheduleAccess - Narrow schedule continuity access
  * @returns Active trip row with resolved current/next schedule fields
  */
-const buildActiveTripForUpdate = (
+const buildActiveTripForUpdate = async (
   vesselLocation: ConvexVesselLocation,
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripBuildEvents,
-  scheduleTables: ScheduledSegmentTables
-): ConvexVesselTrip =>
+  scheduleAccess: ScheduleContinuityAccess
+): Promise<ConvexVesselTrip> =>
   resolveTripFieldsForTripRow({
     location: vesselLocation,
     existingTrip,
-    scheduleTables,
+    scheduleAccess,
     buildTrip: (resolvedCurrentTripFields) => {
       const baseTrip = buildBaseTrip({
         currLocation: vesselLocation,
@@ -373,13 +378,13 @@ const buildActiveTripForUpdate = (
  * Builds rows for the completion path and seeds a replacement active row.
  *
  * @param update - Trip build input narrowed to completion with existing active trip
- * @param scheduleTables - Prepared schedule lookup tables
+ * @param scheduleAccess - Narrow schedule continuity access
  * @returns Completed row plus replacement active row when successful
  */
-const tripRowsWhenCompleting = (
+const tripRowsWhenCompleting = async (
   update: CompletedTripUpdate,
-  scheduleTables: ScheduledSegmentTables
-): TripRowOutcome => {
+  scheduleAccess: ScheduleContinuityAccess
+): Promise<TripRowOutcome> => {
   try {
     // Snapshot completed row before constructing the next active leg.
     const completedVesselTrip = buildCompletedTrip(
@@ -387,12 +392,12 @@ const tripRowsWhenCompleting = (
       update.vesselLocation,
       update.events.didJustArriveAtDock
     );
-    const activeVesselTrip = buildActiveTripForUpdate(
+    const activeVesselTrip = await buildActiveTripForUpdate(
       update.vesselLocation,
       completedVesselTrip,
       true,
       update.events,
-      scheduleTables
+      scheduleAccess
     );
 
     return { completedVesselTrip, activeVesselTrip };
@@ -411,21 +416,21 @@ const tripRowsWhenCompleting = (
  * Builds rows for the continuation path without finalizing a trip.
  *
  * @param update - Trip build input for continuation
- * @param scheduleTables - Prepared schedule lookup tables
+ * @param scheduleAccess - Narrow schedule continuity access
  * @returns Active row update or safe fallback on failure
  */
-const tripRowsWhenContinuing = (
+const tripRowsWhenContinuing = async (
   update: TripBuildInput,
-  scheduleTables: ScheduledSegmentTables
-): TripRowOutcome => {
+  scheduleAccess: ScheduleContinuityAccess
+): Promise<TripRowOutcome> => {
   try {
     return {
-      activeVesselTrip: buildActiveTripForUpdate(
+      activeVesselTrip: await buildActiveTripForUpdate(
         update.vesselLocation,
         update.existingActiveTrip,
         false,
         update.events,
-        scheduleTables
+        scheduleAccess
       ),
     };
   } catch (error) {

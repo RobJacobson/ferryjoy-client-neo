@@ -11,17 +11,17 @@
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
-import { orchestratorScheduleSnapshotSchema } from "functions/vesselOrchestrator/schemas";
+import { storedVesselLocationSchema } from "functions/vesselOrchestrator/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
-import { getSailingDay } from "shared/time";
 
 /** Return validator for {@link getOrchestratorModelData}. */
 const orchestratorModelDataSchema = v.object({
   vesselsIdentity: v.array(vesselIdentitySchema),
   terminalsIdentity: v.array(terminalIdentitySchema),
   activeTrips: v.array(vesselTripStoredSchema),
+  storedLocations: v.array(storedVesselLocationSchema),
 });
 
 /**
@@ -38,49 +38,21 @@ export const getOrchestratorModelData = internalQuery({
   args: {},
   returns: orchestratorModelDataSchema,
   handler: async (ctx) => {
-    // Run three queries for vessel identities, terminal identities, and active trips
-    const [vessels, terminals, trips] = await Promise.all([
+    const [vessels, terminals, trips, storedLocations] = await Promise.all([
       ctx.db.query("vesselsIdentity").collect(),
       ctx.db.query("terminalsIdentity").collect(),
       ctx.db.query("activeVesselTrips").collect(),
+      ctx.db.query("vesselLocations").collect(),
     ]);
 
-    // Return the results as an object with the correct shapes
     return {
       vesselsIdentity: vessels.map(stripConvexMeta),
       terminalsIdentity: terminals.map(stripConvexMeta),
       activeTrips: trips.map(stripConvexMeta),
+      storedLocations: storedLocations.map((row) => {
+        const { _creationTime: _ignoredCreationTime, ...rest } = row;
+        return rest;
+      }),
     };
-  },
-});
-
-/** Return validator for {@link getScheduleSnapshotForPing}. */
-const scheduleSnapshotReturnSchema = orchestratorScheduleSnapshotSchema;
-
-/**
- * Bulk `eventsScheduled` read for one vessel orchestrator ping.
- *
- * Loads the pre-materialized schedule snapshot for the ping’s sailing day.
- */
-export const getScheduleSnapshotForPing = internalQuery({
-  args: {
-    pingStartedAt: v.number(),
-  },
-  returns: scheduleSnapshotReturnSchema,
-  handler: async (ctx, args) => {
-    const sailingDay = getSailingDay(new Date(args.pingStartedAt));
-    const snapshot = await ctx.db
-      .query("vesselOrchestratorScheduleSnapshots")
-      .withIndex("by_sailing_day", (q) => q.eq("SailingDay", sailingDay))
-      .unique();
-
-    return snapshot
-      ? stripConvexMeta(snapshot)
-      : {
-          SailingDay: sailingDay,
-          UpdatedAt: 0,
-          scheduledDepartureBySegmentKey: {},
-          scheduledDeparturesByVesselAbbrev: {},
-        };
   },
 });

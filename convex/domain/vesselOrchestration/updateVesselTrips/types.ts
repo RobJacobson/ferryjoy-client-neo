@@ -2,20 +2,18 @@
  * Shared contracts for the pure `updateVesselTrips` pipeline.
  */
 
-import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
- * Arguments for the trip batch runner: one feed batch plus schedule
- * snapshot for segment lookups.
+ * Arguments for the trip batch runner: one feed batch plus narrow schedule
+ * continuity access for targeted lookups.
  */
 export type RunUpdateVesselTripsInput = {
   vesselLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
-  scheduleSnapshot: ScheduleSnapshot;
-  /** Sailing day for this ping (matches {@link getScheduleSnapshotForPing}). */
-  sailingDay: string;
+  scheduleAccess: ScheduleContinuityAccess;
 };
 
 /**

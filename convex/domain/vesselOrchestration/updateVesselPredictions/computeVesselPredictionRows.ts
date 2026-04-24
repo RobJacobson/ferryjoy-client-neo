@@ -5,7 +5,11 @@
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
+import type {
+  CompletedTripBoundaryFact,
+  PredictedTripComputation,
+} from "domain/vesselOrchestration/shared";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyVesselPredictions } from "./applyVesselPredictions";
 import type {
   RunUpdateVesselPredictionsInput,
@@ -47,7 +51,7 @@ const predictionModelAccessFromContext = (
 };
 
 const buildPredictedCurrentTrip = async (
-  trip: RunUpdateVesselPredictionsInput["activeTrips"][number],
+  trip: ConvexVesselTrip,
   modelAccess: VesselTripPredictionModelAccess
 ): Promise<PredictedTripComputation> => {
   const finalPredictedTrip = await applyVesselPredictions(modelAccess, trip);
@@ -61,7 +65,7 @@ const buildPredictedCurrentTrip = async (
 };
 
 const buildPredictedCompletedHandoff = async (
-  handoff: RunUpdateVesselPredictionsInput["completedHandoffs"][number],
+  handoff: CompletedTripBoundaryFact,
   modelAccess: VesselTripPredictionModelAccess
 ): Promise<PredictedTripComputation> => {
   const finalPredictedTrip = await applyVesselPredictions(

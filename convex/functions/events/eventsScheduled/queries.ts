@@ -6,6 +6,7 @@ import type { QueryCtx } from "_generated/server";
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { buildBoundaryKey } from "shared/keys";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 import type { ConvexScheduledDockEvent } from "./schemas";
 import { eventsScheduledSchema } from "./schemas";
 
@@ -18,15 +19,19 @@ import { eventsScheduledSchema } from "./schemas";
  * @returns Same-day scheduled dock events for that vessel
  */
 export const loadScheduledDockEventsForVesselSailingDay = async (
-  ctx: Pick<QueryCtx, "db">,
+  ctx: { db: QueryCtx["db"] },
   args: { vesselAbbrev: string; sailingDay: string }
 ): Promise<ConvexScheduledDockEvent[]> =>
-  ctx.db
-    .query("eventsScheduled")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
-    )
-    .collect();
+  (
+    await ctx.db
+      .query("eventsScheduled")
+      .withIndex("by_vessel_and_sailing_day", (q) =>
+        q
+          .eq("VesselAbbrev", args.vesselAbbrev)
+          .eq("SailingDay", args.sailingDay)
+      )
+      .collect()
+  ).map(stripConvexMeta);
 
 /**
  * Loads all scheduled dock events for one vessel and sailing day.
@@ -56,11 +61,14 @@ export const getScheduledDepartureEventBySegmentKey = internalQuery({
     segmentKey: v.string(),
   },
   returns: v.union(eventsScheduledSchema, v.null()),
-  handler: async (ctx, args) =>
-    ctx.db
+  handler: async (ctx, args) => {
+    const departureEvent = await ctx.db
       .query("eventsScheduled")
       .withIndex("by_key", (q) =>
         q.eq("Key", buildBoundaryKey(args.segmentKey, "dep-dock"))
       )
-      .unique(),
+      .unique();
+
+    return departureEvent ? stripConvexMeta(departureEvent) : null;
+  },
 });

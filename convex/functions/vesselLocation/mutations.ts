@@ -2,10 +2,18 @@
  * Mutation handlers for vessel location snapshots and backend vessel mirrors.
  */
 
+import type { Id } from "_generated/dataModel";
+import type { MutationCtx } from "_generated/server";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
 import { vesselIdentitySchema } from "../vessels/schemas";
+import type { ConvexVesselLocation } from "./schemas";
 import { vesselLocationValidationSchema } from "./schemas";
+
+type ChangedVesselLocationWrite = {
+  vesselLocation: ConvexVesselLocation;
+  existingLocationId?: Id<"vesselLocations">;
+};
 
 /**
  * Bulk upsert vessel locations into the database
@@ -48,6 +56,27 @@ export const bulkUpsert = mutation({
     return null;
   },
 });
+
+/**
+ * Applies changed vessel-location rows without rereading the location table.
+ *
+ * @param ctx - Convex mutation context
+ * @param changedLocations - Changed rows plus optional existing document ids
+ * @returns `null` when all changed rows are persisted
+ */
+export const bulkUpsertChangedLocationsInDb = async (
+  ctx: MutationCtx,
+  changedLocations: ReadonlyArray<ChangedVesselLocationWrite>
+): Promise<void> => {
+  for (const { vesselLocation, existingLocationId } of changedLocations) {
+    if (existingLocationId) {
+      await ctx.db.replace(existingLocationId, vesselLocation);
+      continue;
+    }
+
+    await ctx.db.insert("vesselLocations", vesselLocation);
+  }
+};
 
 /**
  * Upsert the backend vessel snapshot with the latest upstream data.

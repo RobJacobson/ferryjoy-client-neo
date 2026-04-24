@@ -9,8 +9,6 @@ import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { terminalTopologySchema } from "functions/terminalsTopology/schemas";
 import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { historicVesselLocationValidationSchema } from "functions/vesselLocationsHistoric/schemas";
-import { vesselLocationUpdateValidationSchema } from "functions/vesselLocationsUpdates/schemas";
-import { orchestratorScheduleSnapshotSchema } from "functions/vesselOrchestrator/schemas";
 import { vesselPingValidationSchema } from "functions/vesselPings/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripPredictionStoredSchema } from "functions/vesselTripPredictions/schemas";
@@ -81,17 +79,11 @@ export default defineSchema({
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_schedule_key", ["ScheduleKey"]),
 
-  vesselLocationsUpdates: defineTable(vesselLocationUpdateValidationSchema),
-
   vesselLocationsHistoric: defineTable(historicVesselLocationValidationSchema)
     .index("by_sailing_day", ["SailingDay"])
     .index("by_timestamp", ["TimeStamp"])
     .index("by_vessel_abbrev_and_timestamp", ["VesselAbbrev", "TimeStamp"])
     .index("by_vessel_abbrev_and_sailing_day", ["VesselAbbrev", "SailingDay"]),
-
-  vesselOrchestratorScheduleSnapshots: defineTable(
-    orchestratorScheduleSnapshotSchema
-  ).index("by_sailing_day", ["SailingDay"]),
 
   eventsScheduled: defineTable(eventsScheduledSchema)
     .index("by_key", ["Key"])

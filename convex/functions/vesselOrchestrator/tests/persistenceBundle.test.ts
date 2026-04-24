@@ -1,18 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type {
-  CompletedTripBoundaryFact,
-  PredictedTripComputation,
-} from "domain/vesselOrchestration/shared";
+import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  VesselLocationUpdates,
-  VesselPredictionUpdates,
-  VesselTripUpdate,
-} from "functions/vesselOrchestrator/schemas";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { buildOrchestratorPersistenceBundle } from "../actions";
+import { buildOrchestratorPersistenceBundle } from "../persistenceBundle";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -79,44 +72,6 @@ const makeLocation = (
   ...overrides,
 });
 
-const makeTripUpdate = (
-  vesselAbbrev: string,
-  overrides: Partial<VesselTripUpdate> = {}
-): VesselTripUpdate => ({
-  vesselLocation: makeLocation(vesselAbbrev),
-  existingActiveTrip: makeTrip(vesselAbbrev),
-  activeTripCandidate: makeTrip(vesselAbbrev),
-  completedTrip: undefined,
-  replacementTrip: undefined,
-  tripStorageChanged: false,
-  tripLifecycleChanged: false,
-  ...overrides,
-});
-
-const makeCompletedHandoff = (
-  vesselAbbrev: string,
-  overrides: Partial<CompletedTripBoundaryFact> = {}
-): CompletedTripBoundaryFact => ({
-  existingTrip: makeTrip(vesselAbbrev),
-  tripToComplete: makeTrip(vesselAbbrev, {
-    TripEnd: ms("2026-03-13T06:45:00-07:00"),
-  }),
-  events: {
-    isFirstTrip: false,
-    isTripStartReady: true,
-    isCompletedTrip: true,
-    didJustArriveAtDock: true,
-    didJustLeaveDock: false,
-    scheduleKeyChanged: false,
-  },
-  scheduleTrip: makeTrip(vesselAbbrev, {
-    TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T06:46:00-07:00")),
-    DepartingTerminalAbbrev: "ORI",
-    ArrivingTerminalAbbrev: "LOP",
-  }),
-  ...overrides,
-});
-
 const makePredictionRow = (
   vesselAbbrev: string,
   overrides: Partial<VesselTripPredictionProposal> = {}
@@ -156,51 +111,32 @@ describe("buildOrchestratorPersistenceBundle", () => {
       }),
       locationChanged: true,
     };
-    const unchangedLocationUpdate: VesselLocationUpdates = {
-      vesselLocation: makeLocation("TAC"),
-      locationChanged: false,
-    };
     const cheTrip = makeTrip("CHE", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
     const cheCompleted = makeTrip("CHE", {
       TripEnd: ms("2026-03-13T06:40:00-07:00"),
     });
-    const predictionUpdates: VesselPredictionUpdates[] = [
-      {
-        vesselAbbrev: "CHE",
-        predictionRows: [makePredictionRow("CHE")],
-        predictedTripComputations: [makePredictedTripComputation("CHE")],
-        completedHandoffs: [makeCompletedHandoff("CHE")],
-      },
-    ];
-
     const bundle = buildOrchestratorPersistenceBundle({
       pingStartedAt: ms("2026-03-13T06:35:00-07:00"),
-      locationUpdates: [changedLocationUpdate, unchangedLocationUpdate],
-      existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
-      tripStage: {
-        tripUpdates: [
-          makeTripUpdate("CHE", {
-            activeTripCandidate: cheTrip,
-            completedTrip: cheCompleted,
-            tripStorageChanged: true,
-            tripLifecycleChanged: true,
-          }),
-          makeTripUpdate("TAC"),
-        ],
-        tripRows: {
-          activeTrips: [cheTrip, makeTrip("TAC")],
-          completedTrips: [cheCompleted],
+      changedLocations: [
+        {
+          vesselLocation: changedLocationUpdate.vesselLocation,
+          existingLocationId: changedLocationUpdate.existingLocationId,
         },
-        completedHandoffs: [makeCompletedHandoff("CHE")],
+      ],
+      existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
+      tripRows: {
+        activeTrips: [cheTrip, makeTrip("TAC")],
+        completedTrips: [cheCompleted],
       },
-      predictionUpdates,
+      predictionRows: [makePredictionRow("CHE")],
+      predictedTripComputations: [makePredictedTripComputation("CHE")],
     });
 
-    expect(bundle.changedLocations.map((row) => row.VesselAbbrev)).toEqual([
-      "CHE",
-    ]);
+    expect(
+      bundle.changedLocations.map((row) => row.vesselLocation.VesselAbbrev)
+    ).toEqual(["CHE"]);
     expect(
       bundle.tripRows.completedTrips.map((row) => row.VesselAbbrev)
     ).toEqual(["CHE"]);
