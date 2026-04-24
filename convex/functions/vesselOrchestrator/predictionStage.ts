@@ -183,5 +183,3 @@ const loadPredictionContext = async (
   );
   return { productionModelsByPair };
 };
-
-export type { PredictionStageResult };

@@ -94,6 +94,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - the focused persistence-bundle test now imports directly from
   `persistenceBundle.ts`, and `testing.ts` no longer serves as a pass-through
   for that runtime helper
+- helper-only arg types are being kept internal where possible, and unused
+  exported stage-result types have been removed from the touched orchestrator
+  modules
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.

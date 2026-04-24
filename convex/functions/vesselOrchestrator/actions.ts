@@ -90,11 +90,12 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     return;
   }
   const changedLocations = buildChangedLocationWrites(changedLocationUpdates);
+  const scheduleAccess = createScheduleContinuityAccess(ctx);
 
   const tripStage = await computeTripStageForLocations(
     changedLocationUpdates,
     snapshot.activeTrips,
-    createScheduleContinuityAccess(ctx)
+    scheduleAccess
   );
   const predictionStage = await runPredictionStage(
     ctx,

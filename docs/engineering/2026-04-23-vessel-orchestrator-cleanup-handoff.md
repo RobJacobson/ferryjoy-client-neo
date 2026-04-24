@@ -74,6 +74,14 @@ The latest cleanup pass also tightened the local code shape:
 - the focused persistence-bundle test now imports directly from
   `convex/functions/vesselOrchestrator/persistenceBundle.ts`, and `testing.ts`
   no longer acts as a pass-through for that runtime helper
+- `BuildOrchestratorPersistenceBundleArgs` is now internal to
+  `convex/functions/vesselOrchestrator/persistenceBundle.ts` instead of being
+  exported as helper-only type surface
+- the unused exported `PredictionStageResult` type was removed from
+  `convex/functions/vesselOrchestrator/predictionStage.ts`
+- `actions.ts` now names `scheduleAccess` once before the trip stage call,
+  which keeps the orchestration flow slightly easier to scan without changing
+  behavior
 
 I also fixed one follow-up issue during review:
 
@@ -152,6 +160,9 @@ Most likely areas:
   files
 - keeping tests importing runtime helpers directly when a test-compat layer
   adds no value
+- keeping helper-only arg types internal unless they are truly part of a
+  shared contract
+- keeping runtime stage modules exporting only the types they intend to own
 - tightening or clarifying the schedule continuity access seam
 - removing snapshot-era comments/docs that no longer describe reality
 - expanding focused tests around the changed-vessel loop and targeted schedule lookups

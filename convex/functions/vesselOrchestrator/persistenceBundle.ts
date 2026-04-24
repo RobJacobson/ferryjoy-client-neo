@@ -12,7 +12,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { ChangedLocationWrite } from "./locationUpdates";
 import type { OrchestratorPingPersistence } from "./schemas";
 
-export type BuildOrchestratorPersistenceBundleArgs = {
+type BuildOrchestratorPersistenceBundleArgs = {
   pingStartedAt: number;
   changedLocations: ReadonlyArray<ChangedLocationWrite>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
