@@ -188,6 +188,7 @@ import type * as functions_vesselLocationsHistoric_mutations from "../functions/
 import type * as functions_vesselLocationsHistoric_queries from "../functions/vesselLocationsHistoric/queries.js";
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
+import type * as functions_vesselOrchestrator_locationUpdates from "../functions/vesselOrchestrator/locationUpdates.js";
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
@@ -428,6 +429,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/queries": typeof functions_vesselLocationsHistoric_queries;
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
+  "functions/vesselOrchestrator/locationUpdates": typeof functions_vesselOrchestrator_locationUpdates;
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;

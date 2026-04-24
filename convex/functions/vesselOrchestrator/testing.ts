@@ -1,20 +1,76 @@
 /**
  * Focused vessel-orchestrator test helpers.
  *
- * This keeps snapshot-only compatibility helpers out of the production
- * orchestrator action so the hot-path file stays centered on real runtime
- * concerns.
+ * This keeps compatibility helpers out of the production orchestrator action
+ * so the hot-path file stays centered on real runtime concerns.
  */
 
+import { internal } from "_generated/api";
+import type { ActionCtx } from "_generated/server";
 import { createScheduleContinuityAccessFromSnapshot } from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripsBatch } from "domain/vesselOrchestration/updateVesselTrips";
+import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type {
   VesselLocationUpdates,
   VesselTripUpdate,
 } from "functions/vesselOrchestrator/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { loadVesselLocationUpdates } from "./locationUpdates";
+
+/**
+ * Backward-compatible helper for focused location tests.
+ *
+ * @param ctx - Action context for snapshot and persistence calls
+ * @param pingStartedAt - Orchestrator-owned ping anchor
+ * @param vesselsIdentity - Backend vessel rows for feed resolution
+ * @param terminalsIdentity - Backend terminal rows for normalization
+ * @returns Normalized current vessel-location rows
+ */
+export const updateVesselLocations = async (
+  ctx: ActionCtx,
+  pingStartedAt: number,
+  vesselsIdentity: ReadonlyArray<VesselIdentity>,
+  terminalsIdentity: ReadonlyArray<TerminalIdentity>
+): Promise<ReadonlyArray<ConvexVesselLocation>> => {
+  const snapshot = await ctx.runQuery(
+    internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
+  );
+  const locationUpdates = await loadVesselLocationUpdates({
+    pingStartedAt,
+    storedLocations: snapshot.storedLocations,
+    terminalsIdentity,
+    vesselsIdentity,
+  });
+  const changedLocations = locationUpdates
+    .filter((update) => update.locationChanged)
+    .map((update) => ({
+      vesselLocation: update.vesselLocation,
+      existingLocationId: update.existingLocationId,
+    }));
+
+  if (changedLocations.length > 0) {
+    await ctx.runMutation(
+      internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
+      {
+        pingStartedAt,
+        changedLocations,
+        existingActiveTrips: [],
+        tripRows: {
+          activeTrips: [],
+          completedTrips: [],
+        },
+        predictionRows: [],
+        predictedTripComputations: [],
+      }
+    );
+  }
+
+  return locationUpdates.map((update) => update.vesselLocation);
+};
 
 /**
  * Backward-compatible helper for focused tests that still provide a snapshot.

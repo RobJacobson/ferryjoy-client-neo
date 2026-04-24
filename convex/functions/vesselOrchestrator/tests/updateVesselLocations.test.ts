@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as adapters from "adapters";
-import { updateVesselLocations } from "functions/vesselOrchestrator/actions";
+import { updateVesselLocations } from "functions/vesselOrchestrator/testing";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 afterEach(() => {
@@ -114,7 +114,7 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
     expect(mutationCalls).toHaveLength(0);
   });
 
-  it("writes when a vessel is new to the updates table", async () => {
+  it("writes when a vessel is new to the stored location snapshot", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);

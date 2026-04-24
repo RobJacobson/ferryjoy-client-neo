@@ -10,7 +10,6 @@ import { internal } from "_generated/api";
 import type { Id } from "_generated/dataModel";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
-import { fetchRawWsfVesselLocations } from "adapters";
 import type { Infer } from "convex/values";
 import type {
   ConvexInferredScheduledSegment,
@@ -25,7 +24,6 @@ import type {
   ScheduleContinuityAccess,
 } from "domain/vesselOrchestration/shared";
 import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import {
   predictionModelTypesForTrip,
   runVesselPredictionPing,
@@ -46,6 +44,7 @@ import type {
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { loadVesselLocationUpdates } from "./locationUpdates";
 import type { OrchestratorPingPersistence } from "./schemas";
 
 type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
@@ -75,13 +74,6 @@ type PredictionStageInputs = {
 type PredictionStageResult = {
   predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
   predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
-};
-
-type LoadVesselLocationUpdatesArgs = {
-  pingStartedAt: number;
-  storedLocations: ReadonlyArray<StoredVesselLocation>;
-  terminalsIdentity: ReadonlyArray<TerminalIdentity>;
-  vesselsIdentity: ReadonlyArray<VesselIdentity>;
 };
 
 type BuildOrchestratorPersistenceBundleArgs = {
@@ -181,90 +173,6 @@ const loadOrchestratorSnapshot = async (
     );
   }
   return snapshot;
-};
-
-/**
- * Fetches live vessel locations from WSF and compares them to stored rows.
- *
- * @param args - Ping timestamp, identity tables, and stored location rows
- * @returns Full location rows annotated with change state and existing ids
- */
-const loadVesselLocationUpdates = async ({
-  pingStartedAt,
-  storedLocations,
-  terminalsIdentity,
-  vesselsIdentity,
-}: LoadVesselLocationUpdatesArgs): Promise<
-  ReadonlyArray<VesselLocationUpdates>
-> => {
-  const rawFeedLocations = await fetchRawWsfVesselLocations();
-  const { vesselLocations } = await computeVesselLocationRows({
-    pingStartedAt,
-    rawFeedLocations,
-    vesselsIdentity,
-    terminalsIdentity,
-  });
-  const storedLocationsByVessel = new Map(
-    storedLocations.map((row) => [row.VesselAbbrev, row] as const)
-  );
-
-  return vesselLocations.map((vesselLocation) => {
-    const existingLocation = storedLocationsByVessel.get(
-      vesselLocation.VesselAbbrev
-    );
-
-    return {
-      vesselLocation,
-      existingLocationId: existingLocation?._id,
-      locationChanged: existingLocation?.TimeStamp !== vesselLocation.TimeStamp,
-    };
-  });
-};
-
-/**
- * Backward-compatible wrapper used by focused location tests.
- *
- * @param ctx - Action context for snapshot and persistence calls
- * @param pingStartedAt - Orchestrator-owned ping anchor
- * @param vesselsIdentity - Backend vessel rows for feed resolution
- * @param terminalsIdentity - Backend terminal rows for normalization
- * @returns Normalized current vessel-location rows
- */
-export const updateVesselLocations = async (
-  ctx: ActionCtx,
-  pingStartedAt: number,
-  vesselsIdentity: ReadonlyArray<VesselIdentity>,
-  terminalsIdentity: ReadonlyArray<TerminalIdentity>
-): Promise<ReadonlyArray<ConvexVesselLocation>> => {
-  const storedLocations = await ctx.runQuery(
-    internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
-  );
-  const locationUpdates = await loadVesselLocationUpdates({
-    pingStartedAt,
-    storedLocations: storedLocations.storedLocations,
-    terminalsIdentity,
-    vesselsIdentity,
-  });
-  const changedLocations = changedLocationUpdatesFromUpdates(locationUpdates);
-
-  if (changedLocations.length > 0) {
-    await ctx.runMutation(
-      internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-      {
-        pingStartedAt,
-        changedLocations: [...changedLocations],
-        existingActiveTrips: [],
-        tripRows: {
-          activeTrips: [],
-          completedTrips: [],
-        },
-        predictionRows: [],
-        predictedTripComputations: [],
-      }
-    );
-  }
-
-  return locationUpdates.map((update) => update.vesselLocation);
 };
 
 /**

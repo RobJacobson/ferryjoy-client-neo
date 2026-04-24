@@ -60,6 +60,9 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - the extra `runTripStage` wrapper was removed from `actions.ts`
 - prediction inputs now derive directly from changed `VesselTripUpdate` rows
   instead of re-filtering full `tripRows`
+- shared location normalize/dedupe work now lives in
+  `convex/functions/vesselOrchestrator/locationUpdates.ts` instead of the main
+  hot-path action file
 
 What remains is mostly polish and further simplification, not another large
 hot-path redesign.
@@ -363,6 +366,7 @@ Primary files likely to change:
 - `convex/functions/vesselOrchestrator/actions.ts`
 - `convex/functions/vesselOrchestrator/queries.ts`
 - `convex/functions/vesselOrchestrator/mutations.ts`
+- `convex/functions/vesselOrchestrator/locationUpdates.ts`
 - `convex/functions/vesselOrchestrator/schemas.ts`
 - `convex/functions/vesselOrchestrator/testing.ts`
 - `convex/functions/events/eventsScheduled/queries.ts`

@@ -34,6 +34,8 @@ The latest cleanup pass also tightened the local code shape:
   replaced with explicit local types
 - `pipelineTypes.ts` was removed and `VesselLocationUpdates` now lives directly
   in `schemas.ts`
+- shared location normalize/dedupe work moved out of `actions.ts` into
+  `convex/functions/vesselOrchestrator/locationUpdates.ts`
 - the snapshot-only `computeTripBatchForPing` compatibility helper moved out of
   `actions.ts` into `convex/functions/vesselOrchestrator/testing.ts`
 
@@ -76,6 +78,8 @@ Pay particular attention to:
 Most likely areas:
 
 - further simplification of `actions.ts`
+- keeping shared non-orchestration helpers like location normalize/dedupe logic
+  out of the runtime hot-path file when they can live in adjacent helper modules
 - trimming leftover transitional DTOs and compatibility helpers
 - removing any remaining unnecessary utility typing or indexed-access aliasing
   when a small explicit local type would be clearer
