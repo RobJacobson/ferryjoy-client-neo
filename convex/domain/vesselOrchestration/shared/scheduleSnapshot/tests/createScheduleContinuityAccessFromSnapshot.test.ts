@@ -1,14 +1,14 @@
 /**
- * Snapshot-backed {@link ScheduledSegmentTables} shape and sailing-day narrowing.
+ * Snapshot-backed schedule continuity access and sailing-day narrowing.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled";
 import { getScheduledDeparturesForVesselAndSailingDay } from "../../scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay";
-import { createScheduledSegmentTablesFromSnapshot } from "../createScheduledSegmentTablesFromSnapshot";
+import { createScheduleContinuityAccessFromSnapshot } from "../createScheduleContinuityAccessFromSnapshot";
 import type { ScheduleSnapshot } from "../scheduleSnapshotTypes";
 
-describe("createScheduledSegmentTablesFromSnapshot", () => {
+describe("createScheduleContinuityAccessFromSnapshot", () => {
   it("returns only the materialized sailing day for departures and segment lookups", async () => {
     const segmentA: ConvexInferredScheduledSegment = {
       Key: "segA",
@@ -42,7 +42,7 @@ describe("createScheduledSegmentTablesFromSnapshot", () => {
       },
     };
 
-    const mar13 = createScheduledSegmentTablesFromSnapshot(
+    const mar13 = createScheduleContinuityAccessFromSnapshot(
       snapshot,
       "2026-03-13"
     );
@@ -86,7 +86,7 @@ describe("createScheduledSegmentTablesFromSnapshot", () => {
         ],
       },
     };
-    const mar14 = createScheduledSegmentTablesFromSnapshot(
+    const mar14 = createScheduleContinuityAccessFromSnapshot(
       mar14Snapshot,
       "2026-03-14"
     );

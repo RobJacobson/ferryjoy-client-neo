@@ -75,10 +75,9 @@ export const getActiveTrips = query({
 /**
  * Fetch active vessel trips with joined `scheduledTrips` rows for display.
  *
- * Tick-time enrichment uses `eventsScheduled` via `appendFinalSchedule` (see
- * `domain/vesselOrchestration/updateVesselTrips` — `buildTripRuntimeAdapters`)
- * (same wiring as `updateVesselOrchestrator` schedule lookup) for next-leg
- * lifecycle fields. This query joins the persisted schedule catalog for UI only.
+ * Tick-time enrichment uses targeted `eventsScheduled` continuity lookups from
+ * the orchestrator for next-leg lifecycle fields. This query joins the
+ * persisted schedule catalog for UI only.
  *
  * Resolves ScheduledTrip lazily by `ScheduleKey` when schedule alignment exists.
  *

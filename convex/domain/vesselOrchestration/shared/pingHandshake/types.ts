@@ -42,8 +42,7 @@ export type CompletedTripBoundaryFact = {
 /**
  * Per-vessel message to build sparse `eventsActual` patches on the current path.
  */
-export type CurrentTripActualEventMessage = {
-  events: TripLifecycleEventFlags;
+type CurrentTripEventMessageBase = {
   /** Schedule-enriched trip row from the trip stage (pre-ML overlay). */
   scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
@@ -54,18 +53,15 @@ export type CurrentTripActualEventMessage = {
   finalProposed?: ConvexVesselTripWithML;
 };
 
+export type CurrentTripActualEventMessage = CurrentTripEventMessageBase & {
+  events: TripLifecycleEventFlags;
+};
+
 /**
  * Per-vessel message to build `eventsPredicted` effects on the current path.
  */
-export type CurrentTripPredictedEventMessage = {
+export type CurrentTripPredictedEventMessage = CurrentTripEventMessageBase & {
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleTrip: ConvexVesselTrip;
-  vesselAbbrev: string;
-  requiresSuccessfulUpsert: boolean;
-  /**
-   * Set in **updateVesselPredictions** before timeline assembly when ML applies.
-   */
-  finalProposed?: ConvexVesselTripWithML;
 };
 
 /**
@@ -77,53 +73,6 @@ export type CurrentTripLifecycleBranchResult = {
   pendingActualMessages: CurrentTripActualEventMessage[];
   pendingPredictedMessages: CurrentTripPredictedEventMessage[];
 };
-
-/** Leave-dock effect bundled with the ping compute for depart-next actualization. */
-export type PendingLeaveDockEffect = {
-  vesselAbbrev: string;
-  trip: ConvexVesselTrip;
-};
-
-/** Current-branch payload grouped for persistence and timeline assembly. */
-export type ActiveTripsBranch = {
-  activeUpserts: ConvexVesselTrip[];
-  pendingActualMessages: CurrentTripActualEventMessage[];
-  pendingPredictedMessages: CurrentTripPredictedEventMessage[];
-  pendingLeaveDockEffects: PendingLeaveDockEffect[];
-};
-
-/**
- * Trip + lifecycle messages for one ping, before trip-table mutations.
- * Feeds storage row builders and timeline projection inputs.
- */
-export type VesselTripsComputeBundle = {
-  completedHandoffs: CompletedTripBoundaryFact[];
-  current: ActiveTripsBranch;
-};
-
-/**
- * One vessel’s row for timeline projection (Stage C), derived from the compute bundle.
- */
-export type TripComputation =
-  | {
-      branch: "completed";
-      vesselAbbrev: string;
-      events: TripLifecycleEventFlags;
-      existingTrip: ConvexVesselTrip;
-      completedTrip: ConvexVesselTrip;
-      /** Replacement active row used for persist gates (same as `scheduleTrip` today). */
-      activeTrip: ConvexVesselTrip;
-      /** Schedule-enriched row from the trip stage (pre-ML). */
-      scheduleTrip: ConvexVesselTrip;
-    }
-  | {
-      branch: "current";
-      vesselAbbrev: string;
-      events?: TripLifecycleEventFlags;
-      existingTrip?: ConvexVesselTrip;
-      activeTrip: ConvexVesselTrip;
-      scheduleTrip: ConvexVesselTrip;
-    };
 
 /**
  * ML overlay for one vessel’s prediction ping, used to merge `finalProposed` /

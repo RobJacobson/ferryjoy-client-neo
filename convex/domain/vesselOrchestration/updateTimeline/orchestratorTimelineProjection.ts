@@ -1,10 +1,8 @@
 /**
- * Same-ping timeline projection from Stage C/D handoffs plus orchestrator persist
- * gates on {@link TimelineTripComputation}.
+ * Same-ping timeline projection from Stage C/D handoffs.
  */
 
 import type { PredictedTripComputation } from "domain/vesselOrchestration/shared";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -15,15 +13,8 @@ import {
 } from "./buildTimelinePingProjectionInput";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
-  RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
-  TimelineTripComputation,
 } from "./contracts";
-
-type CompletedHandoffMatchFact = {
-  tripToComplete: ConvexVesselTrip;
-  scheduleTrip?: ConvexVesselTrip;
-};
 
 /**
  * Schedule identity for matching completed-handoff facts to prediction-stage
@@ -48,79 +39,6 @@ const timelineMlMergeKeyFromCompletedHandoffParts = (
 ): string =>
   `${vesselAbbrev}::${scheduleIdentityForMlMergeKey(completedTrip, activeTrip)}`;
 
-const completedTripBoundaryMatchKeyFromFact = (
-  fact: CompletedHandoffMatchFact
-): string =>
-  timelineMlMergeKeyFromCompletedHandoffParts(
-    fact.tripToComplete.VesselAbbrev,
-    fact.tripToComplete,
-    fact.scheduleTrip
-  );
-
-const isCompletedTripBranchComputation = (
-  computation: TimelineTripComputation
-): computation is TimelineTripComputation & {
-  branch: "completed";
-} => computation.branch === "completed";
-
-const isCurrentTripBranchComputation = (
-  computation: TimelineTripComputation
-): computation is TimelineTripComputation & {
-  branch: "current";
-} => computation.branch === "current";
-
-const completedFactFromComputationOrThrow = (
-  computation: TimelineTripComputation & { branch: "completed" }
-): CompletedTripBoundaryFact => {
-  if (
-    computation.existingTrip === undefined ||
-    computation.completedTrip === undefined ||
-    computation.events === undefined
-  ) {
-    throw new Error(
-      `[VesselTrips] completed trip computation for ${computation.vesselAbbrev} is missing required timeline fields`
-    );
-  }
-
-  return {
-    existingTrip: computation.existingTrip,
-    tripToComplete: computation.completedTrip,
-    events: computation.events,
-    scheduleTrip: computation.scheduleTrip,
-  };
-};
-
-const currentActualMessageFromComputation = (
-  computation: TimelineTripComputation & { branch: "current" }
-) => {
-  if (computation.events === undefined) {
-    return null;
-  }
-
-  return {
-    events: computation.events,
-    scheduleTrip: computation.scheduleTrip,
-    vesselAbbrev: computation.vesselAbbrev,
-  };
-};
-
-const currentPredictedMessageFromComputation = (
-  computation: TimelineTripComputation & { branch: "current" }
-) => {
-  if (
-    computation.events === undefined &&
-    computation.existingTrip === undefined
-  ) {
-    return null;
-  }
-
-  return {
-    existingTrip: computation.existingTrip,
-    scheduleTrip: computation.scheduleTrip,
-    vesselAbbrev: computation.vesselAbbrev,
-  };
-};
-
 const predictedTripComputationMatchKey = (
   computation: PredictedTripComputation
 ): string =>
@@ -131,7 +49,7 @@ const predictedTripComputationMatchKey = (
   );
 
 const finalProposedByVesselFromPredictedComputations = (
-  predictedTripComputations: RunUpdateVesselTimelineInput["predictedTripComputations"]
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>
 ): Map<string, ConvexVesselTripWithML> => {
   const map = new Map<string, ConvexVesselTripWithML>();
   for (const computation of predictedTripComputations) {
@@ -146,77 +64,16 @@ const finalProposedByVesselFromPredictedComputations = (
 };
 
 /**
- * Builds projection assembly from orchestrator handoff rows (no ML overlay).
- *
- * @param tripComputations - {@link RunUpdateVesselTimelineInput.tripComputations}
- * @returns Facts and current-branch messages for timeline ping assembly
- */
-export const buildTimelineProjectionAssemblyFromTripComputations = (
-  tripComputations: ReadonlyArray<TimelineTripComputation>
-): TimelineProjectionAssembly => {
-  const completedFacts: CompletedTripBoundaryFact[] = [];
-
-  for (const computation of tripComputations) {
-    if (isCompletedTripBranchComputation(computation)) {
-      completedFacts.push(completedFactFromComputationOrThrow(computation));
-    }
-  }
-
-  const currentComputations = tripComputations.filter(
-    (c): c is TimelineTripComputation & { branch: "current" } =>
-      isCurrentTripBranchComputation(c)
-  );
-
-  const pendingActualMessages = currentComputations.flatMap((computation) => {
-    const actualMessage = currentActualMessageFromComputation(computation);
-    if (actualMessage === null) {
-      return [];
-    }
-    const requiresSuccessfulUpsert =
-      computation.timelinePersist?.requiresSuccessfulUpsert ?? false;
-    return [{ ...actualMessage, requiresSuccessfulUpsert }];
-  });
-
-  const pendingPredictedMessages = currentComputations.flatMap(
-    (computation) => {
-      const predictedMessage =
-        currentPredictedMessageFromComputation(computation);
-      if (predictedMessage === null) {
-        return [];
-      }
-      const requiresSuccessfulUpsert =
-        computation.timelinePersist?.requiresSuccessfulUpsert ?? false;
-      return [{ ...predictedMessage, requiresSuccessfulUpsert }];
-    }
-  );
-
-  const successfulVessels = new Set(
-    currentComputations
-      .filter((c) => c.timelinePersist?.upsertGatePassed === true)
-      .map((c) => c.vesselAbbrev)
-  );
-
-  return {
-    completedFacts,
-    currentBranch: {
-      successfulVessels,
-      pendingActualMessages,
-      pendingPredictedMessages,
-    },
-  };
-};
-
-/**
  * Matching uses vessel + completed-trip schedule identity, not object identity
  * between pings.
  *
- * @param assembly - Projection assembly from {@link buildTimelineProjectionAssemblyFromTripComputations}
+ * @param assembly - Projection assembly from trip persistence output
  * @param predictedTripComputations - ML handoff from predictions stage
  * @returns Assembly with `newTrip` / `finalProposed` fields merged from predictions
  */
 export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
   assembly: TimelineProjectionAssembly,
-  predictedTripComputations: RunUpdateVesselTimelineInput["predictedTripComputations"]
+  predictedTripComputations: ReadonlyArray<PredictedTripComputation>
 ): TimelineProjectionAssembly => {
   const mlFactsByKey = new Map(
     predictedTripComputations
@@ -245,7 +102,11 @@ export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
   return {
     completedFacts: assembly.completedFacts.map((fact) => {
       const newTrip = mlFactsByKey.get(
-        completedTripBoundaryMatchKeyFromFact(fact)
+        timelineMlMergeKeyFromCompletedHandoffParts(
+          fact.tripToComplete.VesselAbbrev,
+          fact.tripToComplete,
+          fact.scheduleTrip
+        )
       );
       return {
         ...fact,
@@ -271,8 +132,7 @@ export const mergePredictedComputationsIntoTimelineProjectionAssembly = (
 
 /**
  * Timeline entrypoint for orchestrator callers that already have
- * completed/current projection assembly rows (built from trip computations or
- * persisted handoffs).
+ * completed/current projection assembly rows.
  */
 export const runUpdateVesselTimelineFromAssembly = (
   input: RunUpdateVesselTimelineFromAssemblyInput

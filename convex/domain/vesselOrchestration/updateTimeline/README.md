@@ -2,7 +2,7 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, merge, assembler, and `buildTimelinePingProjectionInput`.
 
-**`VesselTripsComputeBundle`** and **`TimelineTripComputation`** rows are produced upstream (trip persistence / orchestrator handoff). Domain helpers such as **`buildTimelineProjectionAssemblyFromTripComputations`** (in `orchestratorTimelineProjection.ts`) turn **`TimelineTripComputation`** lists into **`TimelineProjectionAssembly`** when callers do not already have assembly facts. The shipped orchestrator path calls **`runUpdateVesselTimelineFromAssembly`** from **`persistOrchestratorPing`** (`functions/vesselOrchestrator/mutations.ts`) with projection assembly built after trip writes.
+**`VesselTripPersistResult`** and prediction-stage ML rows are produced upstream (trip persistence / orchestrator handoff). The shipped orchestrator path calls **`runUpdateVesselTimelineFromAssembly`** from **`persistOrchestratorPing`** (`functions/vesselOrchestrator/mutations.ts`) with projection assembly built after trip writes.
 
 **Apply** (Convex mutations) for timeline projection runs inside **`persistOrchestratorPing`**: domain **`runUpdateVesselTimelineFromAssembly`** takes **`RunUpdateVesselTimelineFromAssemblyInput`**, merges ML from **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**, runs **`buildTimelinePingProjectionInput`**, and returns **`actualEvents`** / **`predictedEvents`** for `eventsActual` / `eventsPredicted` mutations.
 
@@ -15,7 +15,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, 
 
 | File | Role |
 | --- | --- |
-| `orchestratorTimelineProjection.ts` | `runUpdateVesselTimelineFromAssembly`, ML merge, `buildTimelineProjectionAssemblyFromTripComputations` |
+| `orchestratorTimelineProjection.ts` | `runUpdateVesselTimelineFromAssembly`, ML merge |
 | `../shared/pingHandshake/projectionWire.ts` | `PingEventWrites`, `TimelinePingProjectionInput`, `mergePingEventWrites` (canonical; timeline imports here) |
 | `timelineEventAssembler.ts` | Lifecycle facts/messages → ping writes |
 | `actualDockWritesFromTrip.ts` | Dep/arv actual dock writes from trip rows |

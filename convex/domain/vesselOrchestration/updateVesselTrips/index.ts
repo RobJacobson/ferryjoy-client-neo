@@ -2,10 +2,7 @@
  * Public entry for **updateVesselTrips**.
  */
 
-export {
-  computeVesselTripsBatch,
-  computeVesselTripsRows,
-} from "./computeVesselTripsBatch";
+export { computeVesselTripsRows } from "./computeVesselTripsRows";
 export { computeVesselTripUpdate } from "./computeVesselTripUpdate";
 export type {
   RunUpdateVesselTripsInput,

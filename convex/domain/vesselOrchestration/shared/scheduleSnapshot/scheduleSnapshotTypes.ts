@@ -1,8 +1,7 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled";
 
 /**
- * Serializable schedule read model for one orchestrator ping (prefetched in one
- * internal query, consumed by {@link createScheduledSegmentTablesFromSnapshot}).
+ * Serializable schedule read model for tests and non-hot-path callers.
  */
 export type CompactScheduledDepartureEvent = {
   Key: string;

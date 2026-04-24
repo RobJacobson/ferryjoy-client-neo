@@ -10,7 +10,7 @@ Each orchestrator ping runs in this order:
 ```text
 updateVesselOrchestrator
   -> fetch and normalize vessel locations
-  -> load schedule snapshot for the ping
+  -> load schedule continuity access for the ping
   -> compute trip rows through updateVesselTrips
   -> persist trip write set / handoff facts
   -> run prediction stage from trip rows
@@ -28,8 +28,8 @@ Owns authoritative lifecycle trip rows for one ping.
 
 Public surface:
 
-- `computeVesselTripsBatch`
 - `computeVesselTripsRows`
+- `computeVesselTripUpdate`
 - `RunUpdateVesselTripsOutput`
 - `VesselTripUpdate`
 

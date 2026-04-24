@@ -33,12 +33,13 @@ named these sequential steps in **`actions.ts`** without changing mutation order
 1. **Locations** — computed in `actions.ts` from the WSF batch;
    **`bulkUpsertChangedLocationsInDb`** runs inside
    **`persistOrchestratorPing`** when any vessel’s timestamp advanced.
-2. **`updateVesselTrips`** — `computeVesselTripsRows` → function-layer `persistVesselTripWriteSet`
-   (trip truth is the domain output `{ activeTrips, completedTrips }`; persistence consumes the internal bundle privately).
+2. **`updateVesselTrips`** — the changed-vessel loop calls `computeVesselTripUpdate`,
+   then function-layer `persistVesselTripWriteSet` applies active/completed rows
+   after per-vessel failure isolation.
 3. **`runAndPersistVesselPredictionPing`** — `runVesselPredictionPing`
    (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`persistOrchestratorPing`** — `runUpdateVesselTimelineFromAssembly` (projection assembly from
-   trip persist + `buildTimelineTripComputationsForRun` after persist), then projection mutations
+   trip persist output + prediction ML overlay after persist), then projection mutations
    for `eventsActual` / `eventsPredicted`.
 
 The handler in `actions.ts` chains these steps; each step either calls domain
@@ -50,8 +51,7 @@ Primary path: **`runUpdateVesselTimelineFromAssembly`** consumes **`RunUpdateVes
 (projection assembly + **`predictedTripComputations`**). ML merges in memory from
 **`predictedTripComputations`** via **`mergePredictedComputationsIntoTimelineProjectionAssembly`**
 on **`TimelineProjectionAssembly`**; timeline does not assemble from `vesselTripPredictions`
-DB reads. Types **`RunUpdateVesselTimelineInput`** / **`TimelineTripComputation`** remain for
-callers that build assembly from trip-computation rows. Older O5 handoff:
+DB reads. Older O5 handoff:
 [handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
 
 ## System Overview
@@ -140,8 +140,8 @@ Domain pipeline (same ping semantics as before):
 
 - passenger-terminal allow-list and trip-eligible location filtering
 - lifecycle mutations always precede timeline projection for the ping
-- pass the same ping’s active-trip list into `computeVesselTripsRows` so the trip
-  branch does not run a separate `getActiveTrips` query
+- pass the same ping’s active-trip list into the changed-vessel trip loop so the
+  trip branch does not run a separate `getActiveTrips` query
 
 Transformation pipeline:
 
@@ -359,8 +359,8 @@ The timeline overlay path is designed to stay lightweight:
   continuity lookups during the trip stage.
 - `predictionStage.ts` — changed-trip prediction gating plus ML model preload
   and prediction execution.
-- `testing.ts` — focused snapshot-era compatibility helpers kept out of the
-  runtime hot-path file.
+- `testing.ts` — focused orchestrator test helpers kept out of the runtime
+  hot-path file.
 - `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed handoffs, active upserts, and leave-dock follow-ups.
 - `mutations.ts` — **`persistOrchestratorPing`**: locations (from action
   payload), **`persistVesselTripWriteSet`**, prediction upserts,

@@ -1,46 +1,27 @@
 /**
- * Batch trip update computation across vessel location rows.
+ * Batch trip row computation across vessel location rows.
  */
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { computeVesselTripUpdate } from "./computeVesselTripUpdate";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
-  VesselTripUpdate,
 } from "./types";
 
-type TripLocationFilter = (location: ConvexVesselLocation) => boolean;
-
-type ComputeVesselTripsBatchInput = RunUpdateVesselTripsInput & {
-  shouldProcessLocation?: TripLocationFilter;
-};
-
-type ComputeVesselTripsBatchResult = {
-  updates: ReadonlyArray<VesselTripUpdate>;
-  rows: RunUpdateVesselTripsOutput;
-};
-
 /**
- * Computes trip updates for a batch of vessel locations.
+ * Computes persisted trip rows for one ping input.
  *
- * @param input - Batch input containing locations, active trips, and schedule data
- * @returns Per-vessel updates and merged active/completed trip rows
+ * @param input - Input containing locations, active trips, and schedule data
+ * @returns Active and completed trip rows ready for persistence
  */
-export const computeVesselTripsBatch = async (
-  input: ComputeVesselTripsBatchInput
-): Promise<ComputeVesselTripsBatchResult> => {
+export const computeVesselTripsRows = async (
+  input: RunUpdateVesselTripsInput
+): Promise<RunUpdateVesselTripsOutput> => {
   const existingActiveTripsByVessel = activeTripsByVesselAbbrev(
     input.existingActiveTrips
   );
-  // Optionally narrow processing for targeted replays/tests.
-  const vesselLocations =
-    input.shouldProcessLocation === undefined
-      ? input.vesselLocations
-      : input.vesselLocations.filter(input.shouldProcessLocation);
-  // Compute each vessel in isolation using the same schedule evidence.
   const updates = await Promise.all(
-    vesselLocations.map((vesselLocation) =>
+    input.vesselLocations.map((vesselLocation) =>
       computeVesselTripUpdate({
         vesselLocation,
         existingActiveTrip: existingActiveTripsByVessel.get(
@@ -58,27 +39,13 @@ export const computeVesselTripsBatch = async (
     .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
 
   return {
-    updates,
-    rows: {
-      completedTrips,
-      activeTrips: mergeActiveTripRows(
-        input.existingActiveTrips,
-        activeTripCandidates
-      ),
-    },
+    completedTrips,
+    activeTrips: mergeActiveTripRows(
+      input.existingActiveTrips,
+      activeTripCandidates
+    ),
   };
 };
-
-/**
- * Computes only persisted trip rows for a batch input.
- *
- * @param input - Batch input containing locations, active trips, and schedule data
- * @returns Active and completed trip rows ready for persistence
- */
-export const computeVesselTripsRows = async (
-  input: RunUpdateVesselTripsInput
-): Promise<RunUpdateVesselTripsOutput> =>
-  (await computeVesselTripsBatch(input)).rows;
 
 /**
  * Indexes active trips by vessel abbreviation for O(1) lookup.

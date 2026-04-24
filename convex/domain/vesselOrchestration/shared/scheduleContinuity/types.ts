@@ -30,9 +30,3 @@ export type ScheduleContinuityAccess = {
     sailingDay: string
   ) => Promise<ReadonlyArray<CompactScheduledDepartureEvent>>;
 };
-
-/**
- * Backward-compatible alias while trip tests migrate off the old snapshot-table
- * naming.
- */
-export type ScheduledSegmentTables = ScheduleContinuityAccess;

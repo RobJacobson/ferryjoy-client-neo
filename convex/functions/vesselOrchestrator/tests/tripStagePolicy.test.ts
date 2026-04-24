@@ -1,19 +1,12 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
-import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { computeTripBatchForPing } from "../testing";
+import { computeTripStageForLocations } from "../actions";
 
 const ms = (iso: string) => new Date(iso).getTime();
-
-const emptyScheduleSnapshot: ScheduleSnapshot = {
-  SailingDay: "2026-03-13",
-  scheduledDepartureBySegmentKey: {},
-  scheduledDeparturesByVesselAbbrev: {},
-};
 
 const makeTrip = (
   vesselAbbrev: string,
@@ -89,21 +82,25 @@ const makeLocationUpdate = (
 
 describe("trip stage schedule-inference gating", () => {
   it("skips trip recomputation for unchanged locations", async () => {
-    const tripBatch = await computeTripBatchForPing(
-      [
-        makeLocationUpdate("CHE", false),
-        makeLocationUpdate("TAC", true, {
-          TimeStamp: ms("2026-03-13T06:35:00-07:00"),
-        }),
-      ],
+    const scheduleAccess: ScheduleContinuityAccess = {
+      getScheduledDeparturesForVesselAndSailingDay: async () => [],
+      getScheduledSegmentByKey: async () => null,
+    };
+    const locationUpdates = [
+      makeLocationUpdate("CHE", false),
+      makeLocationUpdate("TAC", true, {
+        TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+      }),
+    ];
+    const tripStage = await computeTripStageForLocations(
+      locationUpdates.filter((update) => update.locationChanged),
       [makeTrip("CHE"), makeTrip("TAC")],
-      emptyScheduleSnapshot,
-      "2026-03-13"
+      scheduleAccess
     );
 
-    expect(tripBatch.updates).toHaveLength(1);
-    expect(tripBatch.updates[0]?.vesselLocation.VesselAbbrev).toBe("TAC");
-    expect(tripBatch.rows.activeTrips).toHaveLength(2);
+    expect(tripStage.predictionInputs.activeTrips).toHaveLength(1);
+    expect(tripStage.predictionInputs.activeTrips[0]?.VesselAbbrev).toBe("TAC");
+    expect(tripStage.tripRows.activeTrips).toHaveLength(2);
   });
 
   it("logs and skips a vessel whose trip computation throws", async () => {
@@ -142,7 +139,6 @@ describe("trip stage schedule-inference gating", () => {
     consoleErrorSpy.mockImplementation(() => {});
 
     try {
-      const { computeTripStageForLocations } = await import("../actions");
       const failedTrip = makeTrip("CHE");
       const tripStage = await computeTripStageForLocations(
         [

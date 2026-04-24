@@ -32,9 +32,6 @@ export type {
   ActualDockEventRow,
   PredictedDockEventRow,
   RunUpdateVesselTimelineFromAssemblyInput,
-  RunUpdateVesselTimelineInput,
   RunUpdateVesselTimelineOutput,
-  TimelineTripComputation,
-  TimelineTripComputationPersist,
 } from "./contracts";
 export { runUpdateVesselTimelineFromAssembly } from "./orchestratorTimelineProjection";

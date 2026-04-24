@@ -453,28 +453,22 @@ and `updateVesselTimeline`. Schedule snapshot + `ProcessVesselTripsDeps` are wir
 [`functions/vesselTrips/mutations`](../../functions/vesselTrips/mutations.ts).
 Those bundled rows omit joined predictions (Stage 4); timeline projection still
 compares built trips to existing state using Stage 2 lifecycle vs projection
-predicates. Per-tick trip lifecycle logic lives in `computeVesselTripsBundle` in
-`convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
-(default runtime wiring: `defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and
-`createVesselTripPredictionModelAccess` composed in `actions.ts`, not a separate `runProcessVesselTripsTick` entry).
+predicates. Per-tick trip lifecycle logic lives in
+`convex/domain/vesselOrchestration/updateVesselTrips/` and is driven by the
+changed-vessel loop in `functions/vesselOrchestrator/actions.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
-On each orchestrator tick, trip build attaches schedule-backed fields using **segment
-keys** and the normalized `eventsScheduled` read model (not the old lazy
-`scheduledTrips`-row snapshot helper):
+On each orchestrator tick, trip build attaches schedule-backed fields using
+**segment keys** and targeted `eventsScheduled` continuity lookups:
 
-- `buildTrip` (`convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip.ts`) calls
-  `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
-  `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-  - Schedule adapters: `createScheduleTripAdapters` in
-    `convex/domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps.ts`
-    (snapshot lookup from `createScheduledSegmentLookupFromSnapshot` in the orchestrator;
-    trip ML uses `createVesselTripPredictionModelAccess` there as well)
-  - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
+- `resolveTripFieldsForTripRow` resolves authoritative WSF fields first, then
+  uses the orchestrator's `ScheduleContinuityAccess` for next-leg and rollover
+  inference so `ScheduleKey`, `NextScheduleKey`, and
+  `NextScheduledDeparture` stay aligned with the backbone.
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or
   `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
-  (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
+  in `buildTripRowsForPing` so identities do not mix.
 - **Display / API**: Public vessel-trip queries may still **enrich** a full
   `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g.
   `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`);
