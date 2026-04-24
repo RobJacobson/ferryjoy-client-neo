@@ -31,7 +31,6 @@ import {
 import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 import {
   buildPredictionStageInputs,
-  type PredictionStageInputs,
   runPredictionStage,
 } from "./predictionStage";
 import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
@@ -47,7 +46,7 @@ type OrchestratorSnapshot = {
 
 type TripStageResult = {
   tripRows: RunUpdateVesselTripsOutput;
-  predictionInputs: PredictionStageInputs;
+  predictionInputs: ReturnType<typeof buildPredictionStageInputs>;
 };
 
 /**

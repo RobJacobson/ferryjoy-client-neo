@@ -22,7 +22,7 @@ import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTr
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-export type PredictionStageInputs = {
+type PredictionStageInputs = {
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
   completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
 };
