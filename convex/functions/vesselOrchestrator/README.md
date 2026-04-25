@@ -280,6 +280,7 @@ Canonical vessel and terminal table refreshes from WSF basics are implemented in
 ## Related Documentation
 
 - `convex/domain/vesselOrchestration/architecture.md` — orchestrator ping, four concerns, glossary, and canonical `Timestamp semantics (current code)` contract
+- `convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md` — single-ping stage inputs/outputs and runtime invariants for the orchestrator hot path
 - `convex/functions/vesselTrips/README.md`
 - `convex/functions/scheduledTrips/README.md`
 - `docs/IDENTITY_AND_TOPOLOGY_ARCHITECTURE.md`

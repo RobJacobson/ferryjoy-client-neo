@@ -820,6 +820,12 @@ In short:
 
 This backlog converts the recommendations above into implementation-ready work.
 
+**Implementation update (2026-04-25):**
+
+- **P0 complete:** instrumentation toggles and per-ping summary metrics were added for schedule continuity and location dedupe; prediction gate regression coverage added; top-level orchestrator naming cleanup shipped.
+- **P1 partially complete:** trip persistence/timeline handoff DTO duplication reduced via shared canonical handoff typing; diagnostics were split from deterministic trip-field resolution (`tripFieldDiagnostics.ts`); colocated single-ping contract doc added as `Vessel Orchestrator pipeline` (`convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md`).
+- **Remaining P1 focus:** continue subtractive DTO cleanup and remove stale snapshot-era wording where it still appears in docs/comments.
+
 Effort scale:
 
 - **S**: up to 0.5 day
@@ -851,24 +857,30 @@ Risk scale:
   - **Why:** lowers reading burden and reduces handoff ambiguity.
   - **Effort / Risk:** **M / Low**.
 
+**Status:** Completed on `update-vessel-orchestrator`.
+
 ### P1 (Do After P0 Metrics Land)
 
 1. Consolidate trip persistence and timeline handoff contracts.
   - **Scope:** collapse overlapping DTOs into one canonical persisted-trip outcome object plus `MlTimelineOverlay`.
   - **Why:** removes translation noise and reduces DRY violations in timeline assembly.
   - **Effort / Risk:** **L / Medium**.
+  - **Status:** In progress (shared canonical handoff type added and duplicate timeline type replaced; further subtractive cleanup remains).
 2. Split diagnostics from deterministic trip-field resolution.
   - **Scope:** extract log/diagnostic formatting from `resolveTripFieldsForTripRow` while preserving current resolution behavior.
   - **Why:** keeps core logic linear and easier to test.
   - **Effort / Risk:** **M / Medium**.
+  - **Status:** Completed (`tripFieldDiagnostics.ts` introduced; resolver file now deterministic-only).
 3. Remove stale snapshot-era production language/docs.
   - **Scope:** align architecture docs, module comments, and memos with current targeted schedule strategy.
   - **Why:** avoids future refactors reintroducing retired hot-path patterns.
   - **Effort / Risk:** **S / Low**.
+  - **Status:** Not started (still recommended).
 4. Add a colocated “single-ping contract” doc.
   - **Scope:** one concise engineering note near orchestrator code describing stage I/O and invariants.
   - **Why:** makes code intent durable and reviewable without reverse engineering the whole pipeline.
   - **Effort / Risk:** **S / Low**.
+  - **Status:** Completed (`convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md`).
 
 ### P2 (Only If P0/P1 Metrics Justify It)
 
@@ -883,7 +895,7 @@ Risk scale:
 
 ### Suggested Success Criteria Per Priority
 
-- **P0 done when:** per-ping metrics exist for schedule and location dedupe, prediction gate has regression coverage, and top-level stage names read unambiguously.
-- **P1 done when:** timeline/persistence DTO count is materially reduced and docs/comments no longer imply snapshot-era production behavior.
+- **P0 done when:** per-ping metrics exist for schedule and location dedupe, prediction gate has regression coverage, and top-level stage names read unambiguously. **(Met)**
+- **P1 done when:** timeline/persistence DTO count is materially reduced and docs/comments no longer imply snapshot-era production behavior. **(Partially met; snapshot-era wording cleanup remains)**
 - **P2 done when:** measured ping latency or read-volume improvements are demonstrated without increasing write inconsistency risk.
 
