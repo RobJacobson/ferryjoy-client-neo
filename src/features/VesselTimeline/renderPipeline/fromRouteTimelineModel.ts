@@ -3,6 +3,7 @@
  */
 
 import type { RouteTimelineSnapshot } from "convex/functions/routeTimeline";
+import type { TimelineActiveIndicator } from "@/components/timeline";
 import type { TimelineVisualTheme } from "@/components/timeline/theme";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
 import type {
@@ -13,9 +14,13 @@ import type {
 } from "@/components/timeline/types";
 import {
   deriveRouteTimelineAxisGeometry,
+  getDisplayTime,
+  type RouteTimelineAxisSpan,
   selectDockVisitVisualSpans,
   selectVesselDockVisits,
 } from "@/features/RouteTimelineModel";
+import { clamp } from "@/shared/utils";
+import type { VesselLocation } from "@/types";
 import {
   DEFAULT_VESSEL_TIMELINE_LAYOUT,
   START_OF_DAY_DOCK_VISUAL_CAP_MINUTES,
@@ -29,6 +34,8 @@ type RouteModelAdapterArgs = {
   snapshot: RouteTimelineSnapshot | null;
   vesselAbbrev: string;
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
+  vesselLocation?: VesselLocation | null;
+  now?: Date;
   layout?: VesselTimelineLayoutConfig;
   theme?: TimelineVisualTheme;
 };
@@ -36,18 +43,19 @@ type RouteModelAdapterArgs = {
 type AdapterRenderRow = {
   row: TimelineRenderRow;
   startY: number;
+  spanEdge: "normal" | "start-of-day" | "terminal-tail";
   startTerminalAbbrev?: string;
 };
 
 /**
- * Build a static `VesselTimelineRenderState` from the route timeline model.
- *
- * This stage intentionally leaves active indicator behavior for a later pass.
+ * Build a `VesselTimelineRenderState` from the route timeline model.
  *
  * @param args - Route-model adapter args
  * @param args.snapshot - Cached route timeline snapshot
  * @param args.vesselAbbrev - Vessel scope for row selection
  * @param args.getTerminalNameByAbbrev - Terminal-name lookup for display copy
+ * @param args.vesselLocation - Optional vessel location for active indicator
+ * @param args.now - Optional active-indicator time source
  * @param args.layout - Optional feature layout override
  * @param args.theme - Optional shared timeline theme override
  * @returns Static render scaffold compatible with the existing timeline renderer
@@ -56,6 +64,8 @@ export const fromRouteTimelineModel = ({
   snapshot,
   vesselAbbrev,
   getTerminalNameByAbbrev,
+  vesselLocation = null,
+  now = new Date(),
   layout = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   theme = BASE_TIMELINE_VISUAL_THEME,
 }: RouteModelAdapterArgs): VesselTimelineRenderState => {
@@ -76,6 +86,10 @@ export const fromRouteTimelineModel = ({
     minSpanHeightPx: layout.minRowHeightPx,
     startOfDayDockVisualCapMinutes: START_OF_DAY_DOCK_VISUAL_CAP_MINUTES,
   });
+  const activeSpan = resolveActiveAxisSpan(axisGeometry.spans);
+  const activeRowIndex = activeSpan
+    ? axisGeometry.spans.findIndex((span) => span.id === activeSpan.id)
+    : -1;
 
   const adaptedRows = axisGeometry.spans.map((span, rowIndex) =>
     toAdapterRow({
@@ -85,6 +99,7 @@ export const fromRouteTimelineModel = ({
       startBoundary: span.startBoundary,
       endBoundary: span.endBoundary,
       displayHeightPx: span.heightPx,
+      markerAppearance: rowIndex <= activeRowIndex ? "past" : "future",
       rowIndex,
       startY: span.startY,
       getTerminalNameByAbbrev,
@@ -107,10 +122,13 @@ export const fromRouteTimelineModel = ({
     rowLayouts,
     terminalCards: computeTerminalCards(adaptedRows, layout),
     contentHeightPx: axisGeometry.contentHeightPx,
-    activeRowIndex: -1,
+    activeRowIndex,
     layout,
     theme,
-    activeIndicator: null,
+    activeIndicator:
+      activeRowIndex >= 0 && adaptedRows[activeRowIndex]
+        ? getActiveIndicator(adaptedRows[activeRowIndex], vesselLocation, now)
+        : null,
   };
 };
 
@@ -160,6 +178,7 @@ const toAdapterRow = (args: {
     EventActualTime?: Date;
   };
   displayHeightPx: number;
+  markerAppearance: "past" | "future";
   rowIndex: number;
   startY: number;
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
@@ -182,11 +201,12 @@ const toAdapterRow = (args: {
 
   return {
     startY: args.startY,
+    spanEdge: args.spanEdge,
     startTerminalAbbrev: startEvent.currTerminalAbbrev,
     row: {
       id: `route-model:${args.spanId}`,
       kind,
-      markerAppearance: "future",
+      markerAppearance: args.markerAppearance,
       segmentIndex: args.rowIndex,
       displayHeightPx: args.displayHeightPx,
       startLabel: getStartEventLabel(startEvent),
@@ -395,3 +415,312 @@ const getCardRole = (
 
   return current.row.kind === "at-dock" && terminalAbbrev ? "single" : null;
 };
+
+const INDICATOR_ANIMATION_SPEED_THRESHOLD = 0.1;
+
+/**
+ * Resolve active ownership from route-model boundaries and span adjacency.
+ *
+ * @param spans - Axis spans in display order
+ * @returns Active axis span, or `null` when no ownership can be proven
+ */
+const resolveActiveAxisSpan = (
+  spans: Array<RouteTimelineAxisSpan>
+): RouteTimelineAxisSpan | null => {
+  const latestOccurredBoundary = getLatestOccurredBoundary(spans);
+  if (latestOccurredBoundary?.EventType === "dep-dock") {
+    return (
+      spans.find(
+        (span) =>
+          span.kind === "crossing" &&
+          span.startBoundary?.Key === latestOccurredBoundary.Key
+      ) ?? null
+    );
+  }
+
+  if (latestOccurredBoundary?.EventType === "arv-dock") {
+    return (
+      spans.find(
+        (span) =>
+          span.kind === "at-dock" &&
+          span.startBoundary?.Key === latestOccurredBoundary.Key
+      ) ?? null
+    );
+  }
+
+  return spans.find((span) => span.kind === "at-dock") ?? null;
+};
+
+/**
+ * Find the latest occurred boundary in span order.
+ *
+ * @param spans - Axis spans in display order
+ * @returns Latest occurred boundary, or `undefined`
+ */
+const getLatestOccurredBoundary = (spans: Array<RouteTimelineAxisSpan>) => {
+  const boundaries = spans.flatMap((span) => [
+    span.startBoundary,
+    span.endBoundary,
+  ]);
+
+  return [...boundaries]
+    .reverse()
+    .find(
+      (boundary) =>
+        boundary?.EventOccurred === true ||
+        boundary?.EventActualTime !== undefined
+    );
+};
+
+/**
+ * Build the active indicator payload for the selected adapted row.
+ *
+ * @param adaptedRow - Selected adapted row and source span metadata
+ * @param vesselLocation - Optional vessel location snapshot
+ * @param now - Current wall-clock instant
+ * @returns Active indicator payload
+ */
+const getActiveIndicator = (
+  adaptedRow: AdapterRenderRow,
+  vesselLocation: VesselLocation | null,
+  now: Date
+): TimelineActiveIndicator => ({
+  rowId: adaptedRow.row.id,
+  positionPercent: getIndicatorPositionPercent(adaptedRow, vesselLocation, now),
+  label: getMinutesUntil(adaptedRow, now),
+  title: vesselLocation?.VesselName,
+  subtitle: getIndicatorSubtitle(adaptedRow, vesselLocation),
+  animate: shouldAnimateIndicator(adaptedRow, vesselLocation),
+  speedKnots: vesselLocation?.Speed ?? 0,
+});
+
+/**
+ * Resolve indicator position within the active row.
+ *
+ * @param adaptedRow - Selected adapted row and source span metadata
+ * @param vesselLocation - Optional vessel location snapshot
+ * @param now - Current wall-clock instant
+ * @returns Clamped row-local position
+ */
+const getIndicatorPositionPercent = (
+  adaptedRow: AdapterRenderRow,
+  vesselLocation: VesselLocation | null,
+  now: Date
+) => {
+  if (adaptedRow.row.kind === "at-dock") {
+    if (adaptedRow.spanEdge === "terminal-tail") {
+      return 0;
+    }
+    if (adaptedRow.spanEdge === "start-of-day") {
+      return easeInSine(getTimeProgress(adaptedRow.row, now));
+    }
+
+    const startTime = getDisplayTimeFromRenderEvent(adaptedRow.row.startEvent);
+    if (!startTime || startTime.getTime() > now.getTime()) {
+      return 0.5;
+    }
+
+    return getTimeProgress(adaptedRow.row, now);
+  }
+
+  if (
+    vesselLocation?.DepartingDistance !== undefined &&
+    vesselLocation?.ArrivingDistance !== undefined
+  ) {
+    return getDistanceProgress(
+      vesselLocation.DepartingDistance,
+      vesselLocation.ArrivingDistance
+    );
+  }
+
+  return getTimeProgress(adaptedRow.row, now);
+};
+
+/**
+ * Calculate in-transit progress from live distance telemetry.
+ *
+ * @param departingDistance - Distance from the vessel to the departing terminal
+ * @param arrivingDistance - Distance from the vessel to the arriving terminal
+ * @returns Clamped distance ratio
+ */
+const getDistanceProgress = (
+  departingDistance: number,
+  arrivingDistance: number
+) =>
+  clamp(
+    departingDistance /
+      Math.max(1e-9, departingDistance + Math.max(0, arrivingDistance)),
+    0,
+    1
+  );
+
+/**
+ * Calculate display-time progress for one render row.
+ *
+ * @param row - Render row containing start/end event times
+ * @param now - Current wall-clock instant
+ * @returns Clamped elapsed progress
+ */
+const getTimeProgress = (row: TimelineRenderRow, now: Date) =>
+  getClampedProgress(
+    getDisplayTimeFromRenderEvent(row.startEvent),
+    getDisplayTimeFromRenderEvent(row.endEvent),
+    now
+  );
+
+/**
+ * Resolve display precedence instant from a renderer event.
+ *
+ * @param event - Renderer-facing event boundary
+ * @returns Display-precedence instant, when available
+ */
+const getDisplayTimeFromRenderEvent = (
+  event: TimelineRenderEvent | undefined
+): Date | undefined =>
+  getDisplayTime(
+    event
+      ? {
+          Key: "",
+          SegmentKey: "",
+          TerminalAbbrev: event.currTerminalAbbrev ?? "",
+          EventType: event.eventType === "depart" ? "dep-dock" : "arv-dock",
+          EventScheduledTime: event.timePoint.scheduled,
+          EventPredictedTime: event.timePoint.estimated,
+          EventOccurred: event.timePoint.actual ? true : undefined,
+          EventActualTime: event.timePoint.actual,
+        }
+      : undefined
+  );
+
+/**
+ * Calculate clamped elapsed progress between two instants.
+ *
+ * @param startTime - Interval start time
+ * @param endTime - Interval end time
+ * @param now - Current wall-clock instant
+ * @returns Clamped elapsed progress
+ */
+const getClampedProgress = (
+  startTime: Date | undefined,
+  endTime: Date | undefined,
+  now: Date
+) => {
+  if (!startTime || !endTime) {
+    return 0;
+  }
+
+  const totalMs = endTime.getTime() - startTime.getTime();
+  if (totalMs <= 0) {
+    return 0;
+  }
+
+  return clamp((now.getTime() - startTime.getTime()) / totalMs, 0, 1);
+};
+
+/**
+ * Apply easing for compressed start-of-day dock visuals.
+ *
+ * @param progress - Clamped interval progress
+ * @returns Eased progress
+ */
+const easeInSine = (progress: number) =>
+  1 - Math.cos((Math.PI / 2) * clamp(progress, 0, 1));
+
+/**
+ * Build the indicator countdown label.
+ *
+ * @param adaptedRow - Selected adapted row and source span metadata
+ * @param now - Current wall-clock instant
+ * @returns Minutes-until label, or `"--"`
+ */
+const getMinutesUntil = (adaptedRow: AdapterRenderRow, now: Date) => {
+  if (adaptedRow.spanEdge === "terminal-tail") {
+    return "--";
+  }
+
+  const targetTime = getDisplayTimeFromRenderEvent(adaptedRow.row.endEvent);
+  if (!targetTime) {
+    return "--";
+  }
+
+  const remainingMinutes = Math.max(
+    0,
+    Math.ceil((targetTime.getTime() - now.getTime()) / 60_000)
+  );
+  return `${remainingMinutes}m`;
+};
+
+/**
+ * Build indicator subtitle copy from row kind and vessel telemetry.
+ *
+ * @param adaptedRow - Selected adapted row and source span metadata
+ * @param vesselLocation - Optional vessel location snapshot
+ * @returns Indicator subtitle copy, or `undefined`
+ */
+const getIndicatorSubtitle = (
+  adaptedRow: AdapterRenderRow,
+  vesselLocation: VesselLocation | null
+) =>
+  adaptedRow.row.kind === "at-dock"
+    ? getDockSubtitle(adaptedRow.row, vesselLocation)
+    : getSeaSubtitle(vesselLocation);
+
+/**
+ * Build dock-state subtitle copy.
+ *
+ * @param row - Active dock row
+ * @param vesselLocation - Optional vessel location snapshot
+ * @returns Dock subtitle copy, or `undefined`
+ */
+const getDockSubtitle = (
+  row: TimelineRenderRow,
+  vesselLocation: VesselLocation | null
+) => {
+  const terminalAbbrev =
+    vesselLocation?.DepartingTerminalAbbrev ??
+    row.endEvent?.currTerminalAbbrev ??
+    row.startEvent.currTerminalAbbrev;
+
+  return terminalAbbrev ? `At dock ${terminalAbbrev}` : undefined;
+};
+
+/**
+ * Build at-sea subtitle copy.
+ *
+ * @param vesselLocation - Optional vessel location snapshot
+ * @returns At-sea subtitle copy, or `undefined`
+ */
+const getSeaSubtitle = (vesselLocation: VesselLocation | null) => {
+  if (!vesselLocation) {
+    return undefined;
+  }
+
+  const speed = vesselLocation.Speed ?? 0;
+  if (vesselLocation.ArrivingDistance === undefined) {
+    return `${speed.toFixed(0)} kn`;
+  }
+
+  const terminalPart = vesselLocation.ArrivingTerminalAbbrev
+    ? ` to ${vesselLocation.ArrivingTerminalAbbrev}`
+    : "";
+
+  return `${speed.toFixed(0)} kn · ${vesselLocation.ArrivingDistance.toFixed(
+    1
+  )} mi${terminalPart}`;
+};
+
+/**
+ * Determine whether the active indicator should animate.
+ *
+ * @param adaptedRow - Selected adapted row and source span metadata
+ * @param vesselLocation - Optional vessel location snapshot
+ * @returns Whether indicator animation should run
+ */
+const shouldAnimateIndicator = (
+  adaptedRow: AdapterRenderRow,
+  vesselLocation: VesselLocation | null
+) =>
+  adaptedRow.row.kind === "at-sea" &&
+  vesselLocation?.InService !== false &&
+  vesselLocation?.AtDock !== true &&
+  (vesselLocation?.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
