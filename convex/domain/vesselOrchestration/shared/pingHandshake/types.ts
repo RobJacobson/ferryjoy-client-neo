@@ -100,8 +100,3 @@ export type PersistedTripTimelineHandoff = {
   completedFacts: CompletedArrivalHandoff[];
   currentBranch: ActiveTripWriteOutcome;
 };
-
-/**
- * Legacy alias for transition; prefer {@link PersistedTripTimelineHandoff}.
- */
-export type TripPersistOutcome = PersistedTripTimelineHandoff;

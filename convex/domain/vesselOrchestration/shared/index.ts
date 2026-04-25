@@ -14,7 +14,6 @@ export type {
   MlTimelineOverlay,
   PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
-  TripPersistOutcome,
 } from "./pingHandshake/types";
 export type { ScheduleContinuityAccess } from "./scheduleContinuity";
 export { createScheduleContinuityAccessFromSnapshot } from "./scheduleSnapshot/createScheduleContinuityAccessFromSnapshot";

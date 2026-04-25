@@ -2,7 +2,7 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, merge, assembler, and **`buildDockWritesFromTripHandoff`**.
 
-**`TripPersistOutcome`** and prediction-stage **`MlTimelineOverlay`** rows are produced upstream (trip persistence / orchestrator handoff). The shipped orchestrator path calls **`runUpdateVesselTimelineFromAssembly`** from **`persistOrchestratorPing`** (`functions/vesselOrchestrator/mutations.ts`) with **`tripHandoffForTimeline`** built after trip writes.
+**`PersistedTripTimelineHandoff`** and prediction-stage **`MlTimelineOverlay`** rows are produced upstream (trip persistence / orchestrator handoff). The shipped orchestrator path calls **`runUpdateVesselTimelineFromAssembly`** from **`persistOrchestratorPing`** (`functions/vesselOrchestrator/mutations.ts`) with that handoff directly after trip writes.
 
 **Apply** (Convex mutations) for timeline projection runs inside **`persistOrchestratorPing`**: domain **`runUpdateVesselTimelineFromAssembly`** takes **`RunUpdateVesselTimelineFromAssemblyInput`**, merges ML from **`mlTimelineOverlays`** via **`mergeMlOverlayIntoTripHandoffForTimeline`**, runs **`buildDockWritesFromTripHandoff`**, and returns **`actualEvents`** / **`predictedEvents`** for `eventsActual` / `eventsPredicted` mutations.
 
@@ -22,8 +22,7 @@ Orchestrator ping output crosses several DTOs. Canonical definitions live in [`.
 | `PredictedDockWriteIntent` | Persistence plan for predicted dock effects on current path | Timeline current branch (`pendingPredictedMessages`) | Carries `existingTrip` + `scheduleTrip` for projection. |
 | `ActiveTripWriteOutcome` | After `persistVesselTripWriteSet` (with `successfulVessels` from batch upsert) | `runUpdateVesselTimelineFromAssembly` input assembly | Joins actual + predicted pending messages with success set. |
 | `MlTimelineOverlay` | Same pass as prediction row build (`updateVesselPredictions`) | `mergeMlOverlayIntoTripHandoffForTimeline` | ML overlay for timeline; not read back from `vesselTripPredictions` during projection. |
-| `TripPersistOutcome` | `persistVesselTripWriteSet` return value | Wrapped into `TripHandoffForTimeline` | Holds `completedFacts` + `currentBranch` (field names unchanged for now). |
-| `TripHandoffForTimeline` | Built from trip persist output before ML merge | `mergeMlOverlayIntoTripHandoffForTimeline` → `buildDockWritesFromTripHandoff` | Defined in `buildDockWritesFromTripHandoff.ts`. |
+| `PersistedTripTimelineHandoff` | `persistVesselTripWriteSet` return value | `mergeMlOverlayIntoTripHandoffForTimeline` → `buildDockWritesFromTripHandoff` | Holds `completedFacts` + `currentBranch` as the single shared handoff shape. |
 
 Further renames or public type aliases are optional: this table is the intended consolidation layer unless a future change agrees on a single rename pass across all imports.
 

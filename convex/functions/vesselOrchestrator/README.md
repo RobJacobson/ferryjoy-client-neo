@@ -23,7 +23,7 @@ The handler in `actions.ts` chains these steps; each step either calls domain he
 
 ### O5 — Timeline consumer contract (cleanup)
 
-Primary path: **`runUpdateVesselTimelineFromAssembly`** consumes **`RunUpdateVesselTimelineFromAssemblyInput`** (`tripHandoffForTimeline` + **`mlTimelineOverlays`**). ML merges in memory via **`mergeMlOverlayIntoTripHandoffForTimeline`** on **`TripHandoffForTimeline`**; timeline does not assemble from `vesselTripPredictions` DB reads. Older O5 handoff: [handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
+Primary path: **`runUpdateVesselTimelineFromAssembly`** consumes **`RunUpdateVesselTimelineFromAssemblyInput`** (`tripHandoffForTimeline` + **`mlTimelineOverlays`**). ML merges in memory via **`mergeMlOverlayIntoTripHandoffForTimeline`** on the shared **`PersistedTripTimelineHandoff`** shape; timeline does not assemble from `vesselTripPredictions` DB reads. Older O5 handoff: [handoff](../../../docs/handoffs/vessel-orchestrator-o5-timeline-and-cleanup-handoff-2026-04-18.md).
 
 ## System Overview
 

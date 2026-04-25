@@ -3,14 +3,12 @@
  */
 
 import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
+import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import {
-  buildDockWritesFromTripHandoff,
-  type TripHandoffForTimeline,
-} from "./buildDockWritesFromTripHandoff";
+import { buildDockWritesFromTripHandoff } from "./buildDockWritesFromTripHandoff";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
@@ -70,9 +68,9 @@ const finalProposedByVesselFromMlOverlays = (
  * @returns Handoff with `newTrip` / `finalProposed` fields merged from overlays
  */
 export const mergeMlOverlayIntoTripHandoffForTimeline = (
-  handoff: TripHandoffForTimeline,
+  handoff: PersistedTripTimelineHandoff,
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
-): TripHandoffForTimeline => {
+): PersistedTripTimelineHandoff => {
   const mlFactsByKey = new Map(
     mlTimelineOverlays
       .filter(

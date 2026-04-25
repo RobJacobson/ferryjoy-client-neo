@@ -11,9 +11,9 @@
 import type {
   ActualDockWriteIntent,
   CompletedArrivalHandoff,
+  PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
   TripLifecycleEventFlags,
-  TripPersistOutcome,
 } from "domain/vesselOrchestration/shared";
 import {
   areTripStorageRowsEqual,
@@ -177,7 +177,7 @@ export const persistVesselTripWriteSet = async (
   tripRows: RunUpdateVesselTripsOutput,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   mutations: VesselTripTableMutations
-): Promise<TripPersistOutcome> => {
+): Promise<PersistedTripTimelineHandoff> => {
   const persistencePlan = buildVesselTripPersistencePlan(
     tripRows,
     existingActiveTrips

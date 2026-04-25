@@ -25,16 +25,9 @@ import {
 } from "./timelineEventAssembler";
 
 /**
- * Trip persistence output plus current-branch state for one ping, after ML
- * overlay from prediction handoffs (same shapes as {@link BuildDockWritesFromTripHandoffArgs} minus ping
- * time).
- */
-export type TripHandoffForTimeline = PersistedTripTimelineHandoff;
-
-/**
  * Arguments for {@link buildDockWritesFromTripHandoff}.
  */
-export type BuildDockWritesFromTripHandoffArgs = TripHandoffForTimeline & {
+export type BuildDockWritesFromTripHandoffArgs = PersistedTripTimelineHandoff & {
   pingStartedAt: number;
 };
 
