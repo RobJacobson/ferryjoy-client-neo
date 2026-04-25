@@ -58,7 +58,7 @@ const makeSpan = (params: {
 });
 
 describe("RouteTimelineModel axis geometry", () => {
-  it("computes content height as the sum of span heights", () => {
+  it("computes content height as the sum of span heights for continuous spans", () => {
     const spanA = makeSpan({
       id: "dock-a",
       kind: "at-dock",
@@ -94,6 +94,53 @@ describe("RouteTimelineModel axis geometry", () => {
       0
     );
     expect(Math.abs(geometry.contentHeightPx - sumHeights)).toBeLessThan(1e-8);
+  });
+
+  it("adds compressed visual gap before non-contiguous spans", () => {
+    const spanA = makeSpan({
+      id: "arrival-only",
+      kind: "at-dock",
+      startBoundary: makeBoundary({
+        key: "arr-a",
+        terminalAbbrev: "FAU",
+        scheduled: "2026-04-25T10:40:00.000Z",
+      }),
+      endBoundary: makeBoundary({
+        key: "arr-a",
+        terminalAbbrev: "FAU",
+        scheduled: "2026-04-25T10:40:00.000Z",
+      }),
+    });
+    const spanB = makeSpan({
+      id: "departure-only",
+      kind: "at-dock",
+      startBoundary: makeBoundary({
+        key: "dep-b",
+        terminalAbbrev: "VAI",
+        scheduled: "2026-04-25T11:45:00.000Z",
+      }),
+      endBoundary: makeBoundary({
+        key: "dep-b",
+        terminalAbbrev: "VAI",
+        scheduled: "2026-04-25T11:45:00.000Z",
+      }),
+    });
+
+    const geometry = deriveRouteTimelineAxisGeometry([spanA, spanB]);
+    const first = geometry.spans[0];
+    const second = geometry.spans[1];
+    const expectedGapHeight =
+      DEFAULT_ROUTE_TIMELINE_AXIS_GEOMETRY_CONFIG.rowHeightScalePx *
+      65 ** DEFAULT_ROUTE_TIMELINE_AXIS_GEOMETRY_CONFIG.rowHeightExponent;
+
+    expect(second?.precedingGapDurationMinutes).toBe(65);
+    expect(
+      Math.abs((second?.precedingGapHeightPx ?? 0) - expectedGapHeight)
+    ).toBeLessThan(1e-8);
+    expect(second?.startY).toBe(
+      (first?.endY ?? 0) + (second?.precedingGapHeightPx ?? 0)
+    );
+    expect(geometry.contentHeightPx).toBe(second?.endY);
   });
 
   it("applies minimum height for zero/invalid durations", () => {

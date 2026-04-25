@@ -19,6 +19,8 @@ export type RouteTimelineAxisSpan = RouteTimelineVisualSpan & {
   layoutDurationMinutes: number;
   displayDurationMinutes: number;
   visualDurationMinutes: number;
+  precedingGapDurationMinutes: number;
+  precedingGapHeightPx: number;
   startY: number;
   endY: number;
   y: number;
@@ -51,11 +53,22 @@ export const deriveRouteTimelineAxisGeometry = (
   config: RouteTimelineAxisGeometryConfig = DEFAULT_ROUTE_TIMELINE_AXIS_GEOMETRY_CONFIG
 ): RouteTimelineAxisGeometry => {
   let runningY = 0;
+  let previousLayoutEndTime: Date | undefined;
 
   const axisSpans = spans.map((span) => {
+    const layoutStartTime = getLayoutTime(span.startBoundary);
+    const layoutEndTime = getLayoutTime(span.endBoundary);
+    const precedingGapDurationMinutes = getDurationMinutes(
+      previousLayoutEndTime,
+      layoutStartTime
+    );
+    const precedingGapHeightPx =
+      precedingGapDurationMinutes > 0
+        ? getSpanHeightPx(precedingGapDurationMinutes, config)
+        : 0;
     const layoutDurationMinutes = getDurationMinutes(
-      getLayoutTime(span.startBoundary),
-      getLayoutTime(span.endBoundary)
+      layoutStartTime,
+      layoutEndTime
     );
     const displayDurationMinutes = getDurationMinutes(
       getDisplayTime(span.startBoundary),
@@ -63,15 +76,19 @@ export const deriveRouteTimelineAxisGeometry = (
     );
     const visualDurationMinutes = getVisualDurationMinutes(span, config);
     const heightPx = getSpanHeightPx(visualDurationMinutes, config);
+    runningY += precedingGapHeightPx;
     const startY = runningY;
     const endY = startY + heightPx;
     runningY = endY;
+    previousLayoutEndTime = layoutEndTime ?? layoutStartTime;
 
     return {
       ...span,
       layoutDurationMinutes,
       displayDurationMinutes,
       visualDurationMinutes,
+      precedingGapDurationMinutes,
+      precedingGapHeightPx,
       startY,
       endY,
       y: startY,

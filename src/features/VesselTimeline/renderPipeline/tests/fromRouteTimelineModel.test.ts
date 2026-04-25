@@ -344,6 +344,62 @@ describe("fromRouteTimelineModel", () => {
     });
   });
 
+  it("preserves route-model visual gaps in row layouts", () => {
+    const visits = [
+      makeVisit({
+        key: "visit-arrival-only",
+        terminalAbbrev: "FAU",
+        arrival: makeBoundary({
+          key: "wen-fau-arr",
+          segmentKey: "seg-a",
+          terminalAbbrev: "FAU",
+          eventType: "arv-dock",
+          scheduled: "2026-04-25T10:40:00.000Z",
+        }),
+      }),
+      makeVisit({
+        key: "visit-departure-only",
+        terminalAbbrev: "VAI",
+        departure: makeBoundary({
+          key: "wen-vai-dep",
+          segmentKey: "seg-b",
+          terminalAbbrev: "VAI",
+          eventType: "dep-dock",
+          scheduled: "2026-04-25T11:45:00.000Z",
+        }),
+      }),
+    ];
+    const snapshot = makeSnapshot([makeVessel(visits)]);
+    const spans = selectDockVisitVisualSpans(visits);
+    const axis = deriveRouteTimelineAxisGeometry(spans, {
+      rowHeightBasePx: DEFAULT_VESSEL_TIMELINE_LAYOUT.rowHeightBasePx,
+      rowHeightScalePx: DEFAULT_VESSEL_TIMELINE_LAYOUT.rowHeightScalePx,
+      rowHeightExponent: DEFAULT_VESSEL_TIMELINE_LAYOUT.rowHeightExponent,
+      minSpanHeightPx: DEFAULT_VESSEL_TIMELINE_LAYOUT.minRowHeightPx,
+      startOfDayDockVisualCapMinutes: START_OF_DAY_DOCK_VISUAL_CAP_MINUTES,
+    });
+
+    const renderState = fromRouteTimelineModel({
+      snapshot,
+      vesselAbbrev: "WEN",
+      getTerminalNameByAbbrev,
+      now: FIXED_NOW,
+    });
+    const firstRow = renderState.rows[0];
+    const secondRow = renderState.rows[1];
+
+    expect(firstRow).toBeDefined();
+    expect(secondRow).toBeDefined();
+    expect(axis.spans[1]?.precedingGapDurationMinutes).toBe(65);
+    expect(renderState.rowLayouts[secondRow?.id ?? ""]?.y).toBe(
+      axis.spans[1]?.startY
+    );
+    expect(renderState.rowLayouts[secondRow?.id ?? ""]?.y).toBeGreaterThan(
+      (renderState.rowLayouts[firstRow?.id ?? ""]?.y ?? 0) +
+        (firstRow?.displayHeightPx ?? 0)
+    );
+  });
+
   it("preserves scheduled, predicted, and actual event fields", () => {
     const visitA = makeVisit({
       key: "visit-a",
