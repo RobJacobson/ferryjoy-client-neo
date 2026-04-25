@@ -13,11 +13,10 @@
 ## Purpose
 
 Run iOS simulator QA for the route-model-backed `VesselTimeline` now that it is
-the default path behind the temporary feature-local constant.
+the only supported path.
 
-This stage is mostly observation, comparison, and small targeted fixes. The goal
-is to prove whether the new route-model path is visually and behaviorally ready
-to replace the old vessel-timeline pipeline.
+This stage is mostly observation and small targeted fixes. The goal is to
+validate route-model behavior and catch regressions.
 
 ## Required Reading
 
@@ -25,20 +24,13 @@ Before testing or editing, read:
 
 - [docs/convex_rules.mdc](../convex_rules.mdc)
 - [.cursor/rules/code-style.mdc](../../.cursor/rules/code-style.mdc)
-- [src/features/VesselTimeline/pipelineMode.ts](../../src/features/VesselTimeline/pipelineMode.ts)
 - [src/features/VesselTimeline/VesselTimeline.tsx](../../src/features/VesselTimeline/VesselTimeline.tsx)
 - [src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts](../../src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts)
 - [src/app/vessel-timeline-placeholder.tsx](../../src/app/vessel-timeline-placeholder.tsx)
 
 ## Current State
 
-The temporary default is:
-
-```ts
-USE_ROUTE_TIMELINE_MODEL_PIPELINE = true;
-```
-
-That means the iOS simulator should exercise:
+The iOS simulator should exercise:
 
 ```text
 ConvexRouteTimelineProvider
@@ -47,10 +39,7 @@ ConvexRouteTimelineProvider
   -> VesselTimelineContent
 ```
 
-The legacy path is still available for comparison by temporarily flipping the
-constant to `false` in `src/features/VesselTimeline/pipelineMode.ts`.
-
-Do not leave the constant flipped to `false` at the end of this stage.
+The legacy path has been deleted and is no longer available for comparison.
 
 ## QA Setup
 
@@ -60,12 +49,9 @@ which avoids waiting for the timeline component to rediscover route scope.
 
 If a visual mismatch is found:
 
-1. Reproduce it with `USE_ROUTE_TIMELINE_MODEL_PIPELINE = true`.
-2. Flip the constant to `false`.
-3. Reproduce with the same vessel, sailing day, and design variant.
-4. Decide whether the mismatch is a route-model bug, adapter bug, data issue, or
+1. Reproduce with the same vessel, sailing day, and design variant.
+2. Decide whether the mismatch is a route-model bug, adapter bug, data issue, or
    acceptable intentional difference.
-5. Flip the constant back to `true` before finishing.
 
 ## Vessels And States To Cover
 
@@ -84,7 +70,7 @@ current route does not expose a particular edge case.
 
 ## Visual Checklist
 
-Compare route-model and legacy output for:
+Validate route-model output for:
 
 - Row count and order.
 - Dock rows versus crossing rows.
@@ -117,9 +103,8 @@ Prefer small, well-scoped fixes:
   `fromRouteTimelineModel` active-span and indicator helpers.
 - If data is absent or duplicated, inspect the backend route timeline snapshot
   query and builder.
-- If the legacy path differs because it was relying on an old workaround, prefer
-  making the route-model behavior explicit and tested instead of copying the old
-  transformation shape.
+- Prefer making route-model behavior explicit and tested instead of introducing
+  fallback transforms.
 
 Add or update focused tests for every code fix. Avoid broad UI snapshot tests for
 this stage unless they already exist locally.
@@ -128,8 +113,8 @@ this stage unless they already exist locally.
 
 Do not:
 
-- Delete the legacy pipeline yet.
-- Delete the temporary constant yet.
+- Re-introduce the legacy pipeline.
+- Add a temporary pipeline constant.
 - Build the single-trip timeline UI.
 - Add remote or environment feature flags.
 - Move live vessel locations into route timeline snapshots.
@@ -141,9 +126,8 @@ Do not:
 - The iOS simulator renders the route-model `VesselTimeline` by default.
 - The tested vessels cover the major operational states listed above, or notes
   explain why a state was unavailable.
-- Any route-model versus legacy mismatches are documented.
+- Any route-model mismatches are documented.
 - Any clear bugs found during QA are fixed with focused tests.
-- The constant remains `true`.
 - `bun run type-check` passes.
 - `bun run check:fix` passes.
 
@@ -170,16 +154,14 @@ Please run iOS simulator QA for the route-model-backed `VesselTimeline`. Read
 `docs/engineering/2026-04-25-vessel-timeline-route-model-simulator-qa-handoff.md`,
 `docs/engineering/2026-04-25-vessel-timeline-route-model-wiring-handoff.md`,
 `docs/engineering/2026-04-25-vessel-timeline-route-model-active-indicator-handoff.md`,
-`docs/convex_rules.mdc`, and `.cursor/rules/code-style.mdc` first. The temporary
-constant in `src/features/VesselTimeline/pipelineMode.ts` should remain `true`
-by default. Use the vessel timeline placeholder screen in the iOS simulator,
-compare the route-model path against the legacy path by briefly flipping the
-constant to `false`, then flip it back to `true`. Check row order, labels, times,
+`docs/convex_rules.mdc`, and `.cursor/rules/code-style.mdc` first. Use the
+vessel timeline placeholder screen in the iOS simulator and check row order,
+labels, times,
 row heights, terminal cards, active row, active indicator position/copy/animation,
 loading, and retry behavior across before-departure, crossing, at-dock, end-of-day,
 missing-data, departure-only, and arrival-only cases. Fix small confirmed bugs
-with focused tests, but do not delete the legacy pipeline, remove the constant,
-add remote flags, build single-trip UI, or change backend schemas unless a real
+with focused tests, but do not add legacy fallback paths, add remote flags, build
+single-trip UI, or change backend schemas unless a real
 snapshot data bug is found. Finish with notes on mismatches found and run the
 focused RouteTimelineModel/VesselTimeline tests plus `bun run type-check` and
 `bun run check:fix` after any code changes.

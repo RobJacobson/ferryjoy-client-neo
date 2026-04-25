@@ -16,10 +16,9 @@
 Wire the new route-timeline read model into the production `VesselTimeline`
 experience for iOS simulator testing.
 
-This is not a remote feature-flag rollout. Use a temporary in-code constant for
-local testing. The constant should default to the new route-model pipeline. Once
-the route-model path is visually and behaviorally confirmed, the old pipeline and
-the temporary constant should be deleted.
+This document captures the wiring stage that introduced a temporary comparison
+switch. That switch and legacy path have now been removed in favor of a
+single route-model pipeline.
 
 ## Required Reading
 
@@ -30,22 +29,11 @@ Before editing, read:
 - [src/features/VesselTimeline/VesselTimeline.tsx](../../src/features/VesselTimeline/VesselTimeline.tsx)
 - [src/features/VesselTimeline/hooks/useVesselTimelinePresentationState.ts](../../src/features/VesselTimeline/hooks/useVesselTimelinePresentationState.ts)
 - [src/data/contexts/convex/ConvexRouteTimelineContext.tsx](../../src/data/contexts/convex/ConvexRouteTimelineContext.tsx)
-- [src/data/contexts/convex/ConvexVesselTimelineContext.tsx](../../src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
 - [src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts](../../src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts)
 
 ## Current State
 
-The production `VesselTimeline` still uses the old vessel-timeline backend
-contract:
-
-```text
-ConvexVesselTimelineProvider
-  -> useConvexVesselTimeline()
-  -> getVesselTimelineRenderState(...)
-  -> VesselTimelineContent
-```
-
-The new path now exists but is not wired into the screen:
+The active production `VesselTimeline` route-model contract is:
 
 ```text
 ConvexRouteTimelineProvider
@@ -59,36 +47,19 @@ row state, and the active indicator.
 
 ## Implementation Policy
 
-Add a temporary constant, defaulting to the new route-model pipeline:
-
-```ts
-const USE_ROUTE_TIMELINE_MODEL_PIPELINE = true;
-```
-
-Keep it local to the `VesselTimeline` feature. This is a testing switch, not a
-product flag. Do not add remote config, environment variables, or persistent user
-settings.
-
-The old pipeline should remain available behind the constant for quick simulator
-comparison during this stage. Do not delete the old Convex vessel timeline query,
-old render pipeline, or old context in this stage.
+The route-model path is now the only supported production path. Do not
+re-introduce legacy fallback branches or temporary pipeline constants.
 
 ## Implementation Outline
 
-1. Update `VesselTimeline` data hosting so the route-model path can be selected
-   by the constant.
-2. When the constant is `true`, load route timeline data with
-   `ConvexRouteTimelineProvider`.
-3. Preserve the current vessel-scoped behavior by passing the current
+1. Load route timeline data with `ConvexRouteTimelineProvider`.
+2. Preserve the current vessel-scoped behavior by passing the current
    `vesselAbbrev` and `sailingDay`.
-4. Feed the selected snapshot, vessel abbrev, current time, terminal-name lookup,
+3. Feed the selected snapshot, vessel abbrev, current time, terminal-name lookup,
    and live `VesselLocation` into `fromRouteTimelineModel(...)`.
-5. Keep live vessel location data separate from the route timeline snapshot.
+4. Keep live vessel location data separate from the route timeline snapshot.
    Route timeline data provides scaffolding; `VesselLocation` drives the live
    indicator.
-6. When the constant is `false`, keep the current
-   `ConvexVesselTimelineProvider` and `getVesselTimelineRenderState(...)` path
-   working.
 
 ## Open Integration Detail
 
@@ -123,8 +94,8 @@ does not complicate the user-visible state.
 Do not:
 
 - Add a remote feature-flag system.
-- Add an Expo env flag for this temporary switch.
-- Delete the old pipeline yet.
+- Add an Expo env flag for pipeline selection.
+- Re-introduce the old pipeline.
 - Build the single-trip timeline UI.
 - Change backend schemas.
 - Change route timeline query semantics.
@@ -134,17 +105,14 @@ Do not:
 
 ## Tests To Add Or Update
 
-Add focused coverage around the switch point:
+Add focused coverage around route-model wiring:
 
-- Constant-on path builds render state with `fromRouteTimelineModel(...)`.
-- Constant-off path still uses the old render pipeline.
+- Route-model path builds render state with `fromRouteTimelineModel(...)`.
 - Route-model loading state renders a status view.
 - Route-model error state renders retry/error UI consistent with the old path.
 - Missing vessel data still renders the existing empty/status behavior.
 
-If the constant is module-private and awkward to test directly, extract the
-selection logic into a small pure helper that accepts an explicit pipeline mode.
-Keep that helper feature-local and temporary.
+Keep tests focused on observable route-model behavior, not internal wiring flags.
 
 ## Simulator QA Checklist
 
@@ -168,14 +136,13 @@ Check:
 
 ## Acceptance Criteria
 
-- `VesselTimeline` uses the route-model pipeline by default through a temporary
-  in-code constant.
-- The old pipeline remains available by flipping the constant.
+- `VesselTimeline` uses the route-model pipeline as the only supported path.
 - Route timeline data comes from `ConvexRouteTimelineContext`.
 - Live vessel location remains separate and feeds only live indicator behavior.
 - No new backend queries or schemas are introduced.
 - The app type-checks and formatting passes.
-- Focused unit tests cover the pipeline selection behavior.
+- Focused unit tests cover route-scope loading and route-model presentation
+  behavior.
 - The new default path is ready for iOS simulator QA.
 
 ## Verification Commands
@@ -186,7 +153,8 @@ Run:
 bun test src/features/RouteTimelineModel/tests/selectors.test.ts
 bun test src/features/RouteTimelineModel/tests/visualSpans.test.ts src/features/RouteTimelineModel/tests/axisGeometry.test.ts
 bun test src/features/VesselTimeline/renderPipeline/tests/fromRouteTimelineModel.test.ts
-bun test src/features/VesselTimeline/renderPipeline/tests/getVesselTimelineRenderState.test.ts
+bun test src/features/VesselTimeline/tests/pipelineMode.test.ts
+bun test src/features/VesselTimeline/hooks/tests/useVesselTimelinePresentationState.test.ts
 bun run type-check
 bun run check:fix
 ```
@@ -196,19 +164,16 @@ verification run.
 
 ## Copy-Paste Message
 
-Please implement the next `VesselTimeline` route-model integration stage. Read
+Please implement the `VesselTimeline` route-model integration stage. Read
 `docs/engineering/2026-04-25-vessel-timeline-route-model-wiring-handoff.md`,
 `docs/engineering/2026-04-25-vessel-timeline-route-model-active-indicator-handoff.md`,
 `docs/engineering/2026-04-25-vessel-timeline-route-model-adapter-handoff.md`,
 `docs/engineering/2026-04-25-route-timeline-frontend-context-handoff.md`,
-`docs/convex_rules.mdc`, and `.cursor/rules/code-style.mdc` first. Add a
-temporary in-code constant, defaulting to the new route-model pipeline, so iOS
-simulator testing uses `ConvexRouteTimelineProvider` plus
-`fromRouteTimelineModel(...)` by default while preserving the old
-`ConvexVesselTimelineProvider` path behind the constant for comparison. Keep
-live `VesselLocation` separate from the route snapshot and pass it only into the
-adapter for active indicator behavior. Do not add remote flags, env flags, new
-backend schemas, one-off Convex reads, or single-trip UI. Add focused tests for
-the pipeline selection/wiring behavior and verify with the RouteTimelineModel
-tests, adapter tests, old render-pipeline tests, `bun run type-check`, and
+`docs/convex_rules.mdc`, and `.cursor/rules/code-style.mdc` first. Keep
+`VesselTimeline` on the route-model-only path (`ConvexRouteTimelineProvider` +
+`fromRouteTimelineModel(...)`) and keep live `VesselLocation` separate from the
+route snapshot. Do not add remote flags, env flags, or legacy fallback branches.
+Do not add backend schemas, one-off Convex reads, or single-trip UI. Add focused
+tests for route-scope loading and route-model wiring behavior and verify with the
+RouteTimelineModel tests, adapter tests, `bun run type-check`, and
 `bun run check:fix`.

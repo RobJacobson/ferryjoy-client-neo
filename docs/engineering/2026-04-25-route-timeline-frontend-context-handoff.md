@@ -35,7 +35,6 @@ Review backend contracts:
 
 Review existing frontend context patterns:
 
-- [src/data/contexts/convex/ConvexVesselTimelineContext.tsx](../../src/data/contexts/convex/ConvexVesselTimelineContext.tsx)
 - [src/data/contexts/convex/ConvexUnifiedTripsContext.tsx](../../src/data/contexts/convex/ConvexUnifiedTripsContext.tsx)
 - [src/data/contexts/index.ts](../../src/data/contexts/index.ts)
 
@@ -131,7 +130,7 @@ Follow existing context patterns:
   loading and error states.
 
 If an error boundary is useful, mirror the pattern in
-`ConvexVesselTimelineContext` or `ConvexUnifiedTripsContext`. Do not introduce a
+`ConvexUnifiedTripsContext` or `ConvexRouteTimelineContext`. Do not introduce a
 new error-handling style unless necessary.
 
 ## Relationship To Route Selection
@@ -147,7 +146,7 @@ now, make the provider composable and easy for route/timeline screens to adopt.
 Do not:
 
 - refactor `VesselTimeline`
-- replace `ConvexVesselTimelineContext`
+- replace any legacy timeline context usage in this feature
 - add timeline selectors beyond small convenience accessors
 - build single-trip vertical or horizontal timeline UI
 - change backend route timeline schemas or queries unless a real bug is found

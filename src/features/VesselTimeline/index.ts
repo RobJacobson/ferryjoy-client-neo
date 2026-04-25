@@ -2,10 +2,9 @@
  * Public exports for the VesselTimeline feature.
  */
 
-export * from "./config";
 export * from "./designSystem";
-export * from "./hooks";
-export * from "./types";
-export * from "./utils";
+export {
+  getCurrentSailingDay,
+  getRefreshedSailingDay,
+} from "./utils/refreshSailingDay";
 export * from "./VesselTimeline";
-export * from "./VesselTimelineScreen";

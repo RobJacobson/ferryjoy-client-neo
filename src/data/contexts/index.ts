@@ -8,7 +8,6 @@ export * from "./convex/ConvexRouteTimelineContext";
 export * from "./convex/ConvexUnifiedTripsContext";
 export * from "./convex/ConvexVesselLocationsContext";
 export * from "./convex/ConvexVesselPingsContext";
-export * from "./convex/ConvexVesselTimelineContext";
 export * from "./convex/ConvexVesselTripsContext";
 export * from "./identity";
 

@@ -5,7 +5,6 @@
  * the presentation-only `src/components/timeline` renderer.
  */
 
-import type { VesselTimelineEventType } from "convex/functions/vesselTimeline/schemas";
 import type {
   RowLayoutBounds,
   TerminalCardGeometry,
@@ -28,9 +27,9 @@ export type VesselTimelineLayoutConfig = {
 };
 
 /**
- * Static render state consumed by the timeline UI.
+ * Final render state consumed by the timeline UI.
  */
-export type VesselTimelineStaticRenderState = {
+export type VesselTimelineRenderState = {
   rows: TimelineRenderRow[];
   rowLayouts: Record<string, RowLayoutBounds>;
   terminalCards: TerminalCardGeometry[];
@@ -38,39 +37,5 @@ export type VesselTimelineStaticRenderState = {
   activeRowIndex: number;
   layout: VesselTimelineLayoutConfig;
   theme: TimelineVisualTheme;
-};
-
-/**
- * Final render state consumed by the timeline UI.
- */
-export type VesselTimelineRenderState = VesselTimelineStaticRenderState & {
   activeIndicator: TimelineActiveIndicator | null;
-};
-
-export type VesselTimelineRowPlaceholderReason = "start-of-day";
-
-export type VesselTimelineRowKind = "at-dock" | "at-sea";
-
-export type VesselTimelineRowEdge = "normal" | "terminal-tail";
-
-export type VesselTimelineRowEvent = {
-  Key: string;
-  ScheduledDeparture: Date;
-  TerminalAbbrev: string;
-  EventType: VesselTimelineEventType;
-  IsArrivalPlaceholder?: boolean;
-  EventScheduledTime?: Date;
-  EventPredictedTime?: Date;
-  EventActualTime?: Date;
-};
-
-export type VesselTimelineRow = {
-  rowId: string;
-  segmentKey: string;
-  kind: VesselTimelineRowKind;
-  rowEdge: VesselTimelineRowEdge;
-  placeholderReason?: VesselTimelineRowPlaceholderReason;
-  startEvent: VesselTimelineRowEvent;
-  endEvent: VesselTimelineRowEvent;
-  durationMinutes: number;
 };

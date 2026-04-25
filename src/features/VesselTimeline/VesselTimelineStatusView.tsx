@@ -5,7 +5,7 @@
 import type { ReactNode } from "react";
 import { Text, View } from "@/components/ui";
 
-export type VesselTimelineStatusViewProps = {
+type VesselTimelineStatusViewProps = {
   message: string;
   detail?: string;
   action?: ReactNode;
