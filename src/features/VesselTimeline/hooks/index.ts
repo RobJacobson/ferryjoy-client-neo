@@ -4,5 +4,4 @@
 
 export {
   useRouteModelVesselTimelinePresentationState,
-  useVesselTimelinePresentationState,
 } from "./useVesselTimelinePresentationState";

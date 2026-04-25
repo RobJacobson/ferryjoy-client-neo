@@ -3,14 +3,9 @@
  */
 
 import type { RouteTimelineSnapshot } from "convex/functions/routeTimeline";
-import type { VesselTimelineEvent } from "convex/functions/vesselTimeline/schemas";
-import { resolveActiveTimelineInterval } from "shared/activeTimelineInterval";
 import type { TimelineVisualTheme } from "@/components/timeline";
 import type { VesselLocation } from "@/types";
-import {
-  fromRouteTimelineModel,
-  getVesselTimelineRenderState,
-} from "../renderPipeline";
+import { fromRouteTimelineModel } from "../renderPipeline";
 import type { VesselTimelineRenderState } from "../types";
 
 export type UseVesselTimelinePresentationStateResult = {
@@ -19,19 +14,6 @@ export type UseVesselTimelinePresentationStateResult = {
   emptyMessage: string | null;
   retry: () => void;
   renderState: VesselTimelineRenderState | null;
-};
-
-type LegacyPresentationData = {
-  vesselAbbrev: string;
-  sailingDay: string;
-  events: Array<VesselTimelineEvent>;
-  isLoading: boolean;
-  errorMessage: string | null;
-  retry: () => void;
-  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
-  currentVesselLocation: VesselLocation | null;
-  now: Date;
-  theme: TimelineVisualTheme;
 };
 
 type RouteModelPresentationData = {
@@ -45,70 +27,6 @@ type RouteModelPresentationData = {
   currentVesselLocation: VesselLocation | null;
   now: Date;
   theme: TimelineVisualTheme;
-};
-
-/**
- * Build legacy event-backed VesselTimeline presentation state.
- *
- * @param args - Legacy pipeline inputs
- * @returns Loading, error, empty, or ready presentation state
- */
-export const buildLegacyTimelinePresentationState = ({
-  vesselAbbrev,
-  sailingDay,
-  events,
-  isLoading,
-  errorMessage,
-  retry,
-  getTerminalNameByAbbrev,
-  currentVesselLocation,
-  now,
-  theme,
-}: LegacyPresentationData): UseVesselTimelinePresentationStateResult => {
-  if (isLoading) {
-    return {
-      isLoading: true,
-      error: null,
-      emptyMessage: null,
-      retry,
-      renderState: null,
-    };
-  }
-
-  if (errorMessage) {
-    return {
-      isLoading: false,
-      error: errorMessage,
-      emptyMessage: null,
-      retry,
-      renderState: null,
-    };
-  }
-
-  if (events.length === 0) {
-    return {
-      isLoading: false,
-      error: null,
-      emptyMessage: `No vessel timeline events were found for ${vesselAbbrev} on ${sailingDay}.`,
-      retry,
-      renderState: null,
-    };
-  }
-
-  return {
-    isLoading: false,
-    error: null,
-    emptyMessage: null,
-    retry,
-    renderState: getVesselTimelineRenderState({
-      events,
-      activeInterval: resolveActiveTimelineInterval(events),
-      vesselLocation: currentVesselLocation,
-      now,
-      getTerminalNameByAbbrev,
-      theme,
-    }),
-  };
 };
 
 /**

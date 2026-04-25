@@ -46,14 +46,10 @@ Before editing, read:
 - [2026-04-25-route-timeline-read-model-prd.md](./2026-04-25-route-timeline-read-model-prd.md)
 - [2026-04-25-route-timeline-geometry-handoff.md](./2026-04-25-route-timeline-geometry-handoff.md)
 
-Review current production `VesselTimeline` render pipeline:
+Review current `VesselTimeline` render pipeline interfaces:
 
 - [src/features/VesselTimeline/types.ts](../../src/features/VesselTimeline/types.ts)
-- [src/features/VesselTimeline/renderPipeline/getVesselTimelineRenderState.ts](../../src/features/VesselTimeline/renderPipeline/getVesselTimelineRenderState.ts)
-- [src/features/VesselTimeline/renderPipeline/toDerivedRows.ts](../../src/features/VesselTimeline/renderPipeline/toDerivedRows.ts)
-- [src/features/VesselTimeline/renderPipeline/toRenderRows.ts](../../src/features/VesselTimeline/renderPipeline/toRenderRows.ts)
-- [src/features/VesselTimeline/renderPipeline/toActiveIndicator.ts](../../src/features/VesselTimeline/renderPipeline/toActiveIndicator.ts)
-- [src/features/VesselTimeline/renderPipeline/isCompressedStartDockRow.ts](../../src/features/VesselTimeline/renderPipeline/isCompressedStartDockRow.ts)
+- [src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts](../../src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts)
 - [src/features/VesselTimeline/VesselTimelineContent.tsx](../../src/features/VesselTimeline/VesselTimelineContent.tsx)
 
 Review new route timeline model:

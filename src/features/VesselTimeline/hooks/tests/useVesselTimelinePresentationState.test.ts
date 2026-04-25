@@ -4,56 +4,11 @@
 
 import { describe, expect, it } from "bun:test";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
-import {
-  buildLegacyTimelinePresentationState,
-  buildRouteModelTimelinePresentationState,
-} from "../presentationStateBuilders";
+import { buildRouteModelTimelinePresentationState } from "../presentationStateBuilders";
 
 const FIXED_NOW = new Date("2026-04-25T08:20:00.000Z");
 
 const getTerminalNameByAbbrev = () => null;
-
-describe("buildLegacyTimelinePresentationState", () => {
-  it("returns loading state while event data is pending", () => {
-    const state = buildLegacyTimelinePresentationState({
-      vesselAbbrev: "WEN",
-      sailingDay: "2026-04-25",
-      events: [],
-      isLoading: true,
-      errorMessage: null,
-      retry: () => {},
-      getTerminalNameByAbbrev,
-      currentVesselLocation: null,
-      now: FIXED_NOW,
-      theme: BASE_TIMELINE_VISUAL_THEME,
-    });
-
-    expect(state.isLoading).toBeTrue();
-    expect(state.error).toBeNull();
-    expect(state.emptyMessage).toBeNull();
-    expect(state.renderState).toBeNull();
-  });
-
-  it("returns error state when legacy query fails", () => {
-    const state = buildLegacyTimelinePresentationState({
-      vesselAbbrev: "WEN",
-      sailingDay: "2026-04-25",
-      events: [],
-      isLoading: false,
-      errorMessage: "Legacy timeline failed",
-      retry: () => {},
-      getTerminalNameByAbbrev,
-      currentVesselLocation: null,
-      now: FIXED_NOW,
-      theme: BASE_TIMELINE_VISUAL_THEME,
-    });
-
-    expect(state.isLoading).toBeFalse();
-    expect(state.error).toBe("Legacy timeline failed");
-    expect(state.emptyMessage).toBeNull();
-    expect(state.renderState).toBeNull();
-  });
-});
 
 describe("buildRouteModelTimelinePresentationState", () => {
   it("returns loading state while route snapshot is pending", () => {

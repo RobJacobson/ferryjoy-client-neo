@@ -13,17 +13,10 @@ import {
 import { Button, Text } from "@/components/ui";
 import {
   ConvexRouteTimelineProvider,
-  ConvexVesselTimelineProvider,
   useConvexVesselLocations,
 } from "@/data/contexts";
-import {
-  useRouteModelVesselTimelinePresentationState,
-  useVesselTimelinePresentationState,
-} from "./hooks";
-import {
-  resolveVesselTimelinePipelineMode,
-  shouldWaitForVesselTimelineRouteScope,
-} from "./pipelineMode";
+import { useRouteModelVesselTimelinePresentationState } from "./hooks";
+import { shouldWaitForVesselTimelineRouteScope } from "./pipelineMode";
 import { getVesselTimelineDataHostKey } from "./utils";
 import { VesselTimelineContent } from "./VesselTimelineContent";
 import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
@@ -65,7 +58,7 @@ export const VesselTimeline = ({
 };
 
 /**
- * Hosts data providers for the selected VesselTimeline pipeline.
+ * Hosts route timeline data providers for VesselTimeline presentation.
  *
  * @param props - Data-host props
  * @param props.vesselAbbrev - Vessel abbreviation to display
@@ -95,9 +88,6 @@ const VesselTimelineDataHost = ({
     routeAbbrev: resolvedRouteAbbrev,
     isRouteScopeLoading: isVesselLocationsLoading,
   });
-  const pipelineMode = resolveVesselTimelinePipelineMode({
-    routeAbbrev: resolvedRouteAbbrev,
-  });
   const retry = () => {
     setRetryNonce((current) => current + 1);
   };
@@ -111,54 +101,26 @@ const VesselTimelineDataHost = ({
     return <VesselTimelineStatusView message="Loading vessel timeline..." />;
   }
 
-  if (pipelineMode === "route-model" && resolvedRouteAbbrev) {
+  if (!resolvedRouteAbbrev) {
     return (
-      <ConvexRouteTimelineProvider
-        key={providerKey}
-        routeAbbrev={resolvedRouteAbbrev}
-        sailingDay={sailingDay}
-        vesselAbbrev={vesselAbbrev}
-        onRetry={retry}
-      >
-        <RouteModelVesselTimelinePresentation now={now} theme={resolvedTheme} />
-      </ConvexRouteTimelineProvider>
+      <VesselTimelineStatusView
+        message="No vessel timeline found"
+        detail={`No route was found for ${vesselAbbrev} on ${sailingDay}.`}
+      />
     );
   }
 
   return (
-    <ConvexVesselTimelineProvider
+    <ConvexRouteTimelineProvider
       key={providerKey}
-      vesselAbbrev={vesselAbbrev}
+      routeAbbrev={resolvedRouteAbbrev}
       sailingDay={sailingDay}
+      vesselAbbrev={vesselAbbrev}
       onRetry={retry}
     >
-      <LegacyVesselTimelinePresentation now={now} theme={resolvedTheme} />
-    </ConvexVesselTimelineProvider>
+      <RouteModelVesselTimelinePresentation now={now} theme={resolvedTheme} />
+    </ConvexRouteTimelineProvider>
   );
-};
-
-/**
- * Renders the user-visible VesselTimeline states from the hook-based
- * presentation state.
- *
- * @param props - Presentation props
- * @param props.now - Optional wall-clock override for deterministic rendering
- * @param props.theme - Resolved visual theme for timeline rendering
- * @returns Loading, error, empty, or ready timeline UI
- */
-const LegacyVesselTimelinePresentation = ({
-  now,
-  theme,
-}: {
-  now?: Date;
-  theme: ReturnType<typeof createTimelineVisualTheme>;
-}) => {
-  const state = useVesselTimelinePresentationState({
-    now,
-    theme,
-  });
-
-  return <VesselTimelinePresentationBody {...state} />;
 };
 
 /**
@@ -207,7 +169,7 @@ const VesselTimelinePresentationBody = ({
   emptyMessage: string | null;
   retry: () => void;
   renderState: ReturnType<
-    typeof useVesselTimelinePresentationState
+    typeof useRouteModelVesselTimelinePresentationState
   >["renderState"];
 }) => {
   if (isLoading) {
