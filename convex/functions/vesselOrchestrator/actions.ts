@@ -25,6 +25,11 @@ import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
+  ENABLE_ORCHESTRATOR_SANITY_METRICS,
+  ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS,
+  ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT,
+} from "./constants";
+import {
   feedLocationsFromUpdates,
   loadVesselLocationUpdates,
 } from "./locationUpdates";
@@ -33,7 +38,10 @@ import {
   buildPredictionStageInputs,
   runPredictionStage,
 } from "./predictionStage";
-import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
+import {
+  createScheduleContinuityAccess,
+  type ScheduleContinuityMetricsSummary,
+} from "./scheduleContinuityAccess";
 
 type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
@@ -88,14 +96,18 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   });
   const scheduleAccess = createScheduleContinuityAccess(ctx);
 
-  const tripStage = await computeTripStageForLocations(
+  const tripStageResult = await computeTripStageForLocations(
     locationUpdates,
     snapshot.activeTrips,
     scheduleAccess
   );
-  const predictionStage = await runPredictionStage(
+  const predictionStageResult = await runPredictionStage(
     ctx,
-    tripStage.predictionInputs
+    tripStageResult.predictionInputs
+  );
+  logScheduleContinuitySanitySummary(
+    pingStartedAt,
+    scheduleAccess.getMetricsSummary()
   );
 
   await ctx.runMutation(
@@ -104,9 +116,9 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       pingStartedAt,
       feedLocations: feedLocationsFromUpdates(locationUpdates),
       existingActiveTrips: snapshot.activeTrips,
-      tripRows: tripStage.tripRows,
-      predictionRows: predictionStage.predictionRows,
-      mlTimelineOverlays: predictionStage.mlTimelineOverlays,
+      tripRows: tripStageResult.tripRows,
+      predictionRows: predictionStageResult.predictionRows,
+      mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
     })
   );
 };
@@ -147,15 +159,15 @@ export const computeTripStageForLocations = async (
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleAccess: ScheduleContinuityAccess
 ): Promise<TripStageResult> => {
-  const activeTripsByVessel = new Map(
+  const activeTripsByVesselAbbrev = new Map(
     existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
-  const completedTrips: Array<ConvexVesselTrip> = [];
+  const completedTripRows: Array<ConvexVesselTrip> = [];
   const tripUpdates: Array<VesselTripUpdate> = [];
 
   for (const locationUpdate of locationUpdates) {
     const vesselAbbrev = locationUpdate.vesselLocation.VesselAbbrev;
-    const existingActiveTrip = activeTripsByVessel.get(vesselAbbrev);
+    const existingActiveTrip = activeTripsByVesselAbbrev.get(vesselAbbrev);
     let tripUpdate: VesselTripUpdate;
 
     try {
@@ -176,22 +188,25 @@ export const computeTripStageForLocations = async (
     tripUpdates.push(tripUpdate);
 
     if (tripUpdate.completedTrip) {
-      completedTrips.push(tripUpdate.completedTrip);
+      completedTripRows.push(tripUpdate.completedTrip);
     }
 
     if (tripUpdate.activeTripCandidate) {
-      activeTripsByVessel.set(vesselAbbrev, tripUpdate.activeTripCandidate);
+      activeTripsByVesselAbbrev.set(
+        vesselAbbrev,
+        tripUpdate.activeTripCandidate
+      );
       continue;
     }
 
     if (tripUpdate.existingActiveTrip) {
-      activeTripsByVessel.delete(vesselAbbrev);
+      activeTripsByVesselAbbrev.delete(vesselAbbrev);
     }
   }
 
   const tripRows = {
-    activeTrips: [...activeTripsByVessel.values()],
-    completedTrips,
+    activeTrips: [...activeTripsByVesselAbbrev.values()],
+    completedTrips: completedTripRows,
   };
   const { attemptedCompletedFacts } = buildVesselTripPersistencePlan(
     tripRows,
@@ -205,6 +220,24 @@ export const computeTripStageForLocations = async (
       attemptedCompletedFacts
     ),
   };
+};
+
+const logScheduleContinuitySanitySummary = (
+  pingStartedAt: number,
+  summary: ScheduleContinuityMetricsSummary | null
+): void => {
+  if (
+    !ENABLE_ORCHESTRATOR_SANITY_METRICS ||
+    !ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS ||
+    summary === null
+  ) {
+    return;
+  }
+
+  console.info(ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT, {
+    pingStartedAt,
+    ...summary,
+  });
 };
 
 /**

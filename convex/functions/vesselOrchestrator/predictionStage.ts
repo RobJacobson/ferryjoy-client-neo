@@ -58,15 +58,15 @@ export const runPredictionStage = async (
     predictionInputs.activeTrips,
     predictionInputs.completedHandoffs
   );
-  const ping = await runVesselPredictionPing({
+  const predictionPingResult = await runVesselPredictionPing({
     activeTrips: predictionInputs.activeTrips,
     completedHandoffs: predictionInputs.completedHandoffs,
     predictionContext,
   });
 
   return {
-    predictionRows: [...ping.predictionRows],
-    mlTimelineOverlays: [...ping.mlTimelineOverlays],
+    predictionRows: [...predictionPingResult.predictionRows],
+    mlTimelineOverlays: [...predictionPingResult.mlTimelineOverlays],
   };
 };
 
@@ -124,26 +124,26 @@ const buildPredictionContextRequests = (
   completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>
 ): Array<{ pairKey: string; modelTypes: Array<ModelType> }> => {
   const requestMap = new Map<string, Set<ModelType>>();
-  const tripsToPredict = [
+  const candidateTripsForPrediction = [
     ...completedHandoffs.map((handoff) => handoff.scheduleTrip),
     ...activeTrips,
   ];
 
-  for (const trip of tripsToPredict) {
-    const modelTypesForTrip = predictionModelTypesForTrip(trip);
-    if (modelTypesForTrip.length === 0) {
+  for (const candidateTrip of candidateTripsForPrediction) {
+    const candidateModelTypes = predictionModelTypesForTrip(candidateTrip);
+    if (candidateModelTypes.length === 0) {
       continue;
     }
 
-    const departing = trip.DepartingTerminalAbbrev;
-    const arriving = trip.ArrivingTerminalAbbrev;
+    const departing = candidateTrip.DepartingTerminalAbbrev;
+    const arriving = candidateTrip.ArrivingTerminalAbbrev;
     if (departing === undefined || arriving === undefined) {
       continue;
     }
 
     const pairKey = formatTerminalPairKey(departing, arriving);
     const modelTypes = requestMap.get(pairKey) ?? new Set<ModelType>();
-    for (const modelType of modelTypesForTrip) {
+    for (const modelType of candidateModelTypes) {
       modelTypes.add(modelType);
     }
     requestMap.set(pairKey, modelTypes);

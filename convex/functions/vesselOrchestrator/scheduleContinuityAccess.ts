@@ -14,6 +14,25 @@ import type {
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
+import { ENABLE_ORCHESTRATOR_SANITY_METRICS } from "./constants";
+
+type ScheduleContinuityMetrics = {
+  segmentRequests: number;
+  segmentCacheHits: number;
+  departuresRequests: number;
+  departuresCacheHits: number;
+};
+
+export type ScheduleContinuityMetricsSummary = {
+  segmentRequests: number;
+  segmentCacheHits: number;
+  departuresRequests: number;
+  departuresCacheHits: number;
+};
+
+export type ScheduleContinuityAccessWithMetrics = ScheduleContinuityAccess & {
+  getMetricsSummary: () => ScheduleContinuityMetricsSummary | null;
+};
 
 /**
  * Creates memoized targeted schedule access for the current ping.
@@ -23,7 +42,7 @@ import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/
  */
 export const createScheduleContinuityAccess = (
   ctx: ActionCtx
-): ScheduleContinuityAccess => {
+): ScheduleContinuityAccessWithMetrics => {
   const segmentCache = new Map<
     string,
     Promise<ConvexInferredScheduledSegment | null>
@@ -32,14 +51,26 @@ export const createScheduleContinuityAccess = (
     string,
     Promise<ReadonlyArray<CompactScheduledDepartureEvent>>
   >();
+  const metrics: ScheduleContinuityMetrics = {
+    segmentRequests: 0,
+    segmentCacheHits: 0,
+    departuresRequests: 0,
+    departuresCacheHits: 0,
+  };
 
   const getScheduledDeparturesForVesselAndSailingDay = async (
     vesselAbbrev: string,
     sailingDay: string
   ): Promise<ReadonlyArray<CompactScheduledDepartureEvent>> => {
+    if (ENABLE_ORCHESTRATOR_SANITY_METRICS) {
+      metrics.departuresRequests += 1;
+    }
     const cacheKey = `${vesselAbbrev}:${sailingDay}`;
     const cached = departureCache.get(cacheKey);
     if (cached) {
+      if (ENABLE_ORCHESTRATOR_SANITY_METRICS) {
+        metrics.departuresCacheHits += 1;
+      }
       return cached;
     }
 
@@ -58,12 +89,27 @@ export const createScheduleContinuityAccess = (
   };
 
   return {
+    getMetricsSummary: () =>
+      ENABLE_ORCHESTRATOR_SANITY_METRICS
+        ? {
+            segmentRequests: metrics.segmentRequests,
+            segmentCacheHits: metrics.segmentCacheHits,
+            departuresRequests: metrics.departuresRequests,
+            departuresCacheHits: metrics.departuresCacheHits,
+          }
+        : null,
     getScheduledDeparturesForVesselAndSailingDay,
     getScheduledSegmentByKey: async (
       scheduleKey: string
     ): Promise<ConvexInferredScheduledSegment | null> => {
+      if (ENABLE_ORCHESTRATOR_SANITY_METRICS) {
+        metrics.segmentRequests += 1;
+      }
       const cached = segmentCache.get(scheduleKey);
       if (cached) {
+        if (ENABLE_ORCHESTRATOR_SANITY_METRICS) {
+          metrics.segmentCacheHits += 1;
+        }
         return cached;
       }
 

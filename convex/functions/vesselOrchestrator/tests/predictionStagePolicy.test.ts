@@ -1,10 +1,14 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
+import type { ActionCtx } from "_generated/server";
 import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/shared";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { buildPredictionStageInputs } from "../predictionStage";
+import {
+  buildPredictionStageInputs,
+  runPredictionStage,
+} from "../predictionStage";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -209,5 +213,19 @@ describe("prediction stage off-ramp policy", () => {
 
     expect(predictionInputs.activeTrips).toEqual([]);
     expect(predictionInputs.completedHandoffs).toEqual([]);
+  });
+
+  it("skips prediction model context query when prediction inputs are empty", async () => {
+    const runQuery = mock(async () => ({}));
+    const ctx = { runQuery } as unknown as ActionCtx;
+
+    const result = await runPredictionStage(ctx, {
+      activeTrips: [],
+      completedHandoffs: [],
+    });
+
+    expect(result.predictionRows).toEqual([]);
+    expect(result.mlTimelineOverlays).toEqual([]);
+    expect(runQuery).toHaveBeenCalledTimes(0);
   });
 });

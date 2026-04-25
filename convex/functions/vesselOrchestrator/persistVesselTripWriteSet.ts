@@ -73,14 +73,18 @@ export const buildVesselTripPersistencePlan = (
     tripRows.completedTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
   );
 
-  const attemptedCompletedFacts = [...completedTripsByVessel.entries()].flatMap(
+  const completionCandidates = [...completedTripsByVessel.entries()];
+  const attemptedCompletedFacts = completionCandidates.flatMap(
     ([vesselAbbrev, completedTrip]) => {
-      const existingTrip = existingByVessel.get(vesselAbbrev);
-      const replacementTrip = replacementActiveTripForCompletedVessel(
+      const existingTripForVessel = existingByVessel.get(vesselAbbrev);
+      const replacementActiveTrip = replacementActiveTripForCompletedVessel(
         tripRows.activeTrips,
         completedTrip
       );
-      if (existingTrip === undefined || replacementTrip === undefined) {
+      if (
+        existingTripForVessel === undefined ||
+        replacementActiveTrip === undefined
+      ) {
         console.error(
           `[VesselTrips] Skip completion for ${vesselAbbrev}: missing existing or replacement trip`
         );
@@ -88,10 +92,10 @@ export const buildVesselTripPersistencePlan = (
       }
 
       const completionFact: CompletedArrivalHandoff = {
-        existingTrip,
+        existingTrip: existingTripForVessel,
         tripToComplete: completedTrip,
-        events: completionTripEvents(existingTrip, completedTrip),
-        scheduleTrip: replacementTrip,
+        events: completionTripEvents(existingTripForVessel, completedTrip),
+        scheduleTrip: replacementActiveTrip,
       };
       return [completionFact];
     }
@@ -172,13 +176,16 @@ export const persistVesselTripWriteSet = async (
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   mutations: VesselTripTableMutations
 ): Promise<TripPersistOutcome> => {
-  const plan = buildVesselTripPersistencePlan(tripRows, existingActiveTrips);
+  const persistencePlan = buildVesselTripPersistencePlan(
+    tripRows,
+    existingActiveTrips
+  );
   const {
     attemptedCompletedFacts,
     activeTripUpserts,
     currentBranchMessages: { pendingActualMessages, pendingPredictedMessages },
     leaveDockIntents,
-  } = plan;
+  } = persistencePlan;
 
   const completedSettled = await Promise.allSettled(
     attemptedCompletedFacts.map((fact) =>
