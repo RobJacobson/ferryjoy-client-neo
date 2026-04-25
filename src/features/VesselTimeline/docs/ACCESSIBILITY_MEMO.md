@@ -23,7 +23,7 @@ reader users if exposed directly.
 
 Relevant code:
 
-- [TimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/TimelineContent.tsx)
+- [VesselTimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/VesselTimelineContent.tsx)
 - [TimelineRowContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowContent.tsx)
 - [TimelineRowLabel.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowLabel.tsx)
 - [TimelineRowTimes.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/components/timeline/timelineRow/TimelineRowTimes.tsx)
@@ -116,7 +116,7 @@ Likely additions:
 - `AccessibleVesselTimelineList`
 
 A likely shape in or around
-[TimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/TimelineContent.tsx):
+[VesselTimelineContent.tsx](/Users/rob/code/ferryjoy/ferryjoy-client-neo/src/features/VesselTimeline/VesselTimelineContent.tsx):
 
 - keep the current visual timeline renderer
 - add a summary component for the current vessel state

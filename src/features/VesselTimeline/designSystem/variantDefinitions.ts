@@ -23,7 +23,7 @@ import type {
 /**
  * Baseline design variant used as the merge root for derived presets.
  */
-export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant =
+const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant =
   {
     id: "sea-glass",
     label: "Sea Glass",
@@ -49,7 +49,7 @@ export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant
  *   theme overrides
  * @returns Complete variant with merged `timelineTheme`
  */
-export const defineVesselTimelineVariant = ({
+const defineVesselTimelineVariant = ({
   id,
   label,
   description,
@@ -71,9 +71,9 @@ export const defineVesselTimelineVariant = ({
 });
 
 /**
- * All registered variant definitions consumed by `variantRegistry`.
+ * All design variants in registration order (for pickers and fallbacks).
  */
-export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineDesignVariant[] =
+export const VESSEL_TIMELINE_DESIGN_VARIANTS: readonly VesselTimelineDesignVariant[] =
   [
     defineVesselTimelineVariant({
       id: "sea-glass",
@@ -189,3 +189,16 @@ export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineDesignV
  * Id of the default design variant when the app does not select another.
  */
 export const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID = "sea-glass";
+
+/**
+ * Resolves a variant by id with default and first-entry fallbacks.
+ *
+ * @param variantId - Optional id from settings or navigation
+ * @returns Matching variant, else default id, else the first definition
+ */
+export const getVesselTimelineDesignVariant = (variantId?: string) =>
+  VESSEL_TIMELINE_DESIGN_VARIANTS.find((variant) => variant.id === variantId) ??
+  VESSEL_TIMELINE_DESIGN_VARIANTS.find(
+    (variant) => variant.id === DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT_ID
+  ) ??
+  VESSEL_TIMELINE_DESIGN_VARIANTS[0];

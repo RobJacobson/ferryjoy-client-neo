@@ -9,7 +9,6 @@ import { useTerminalsData } from "@/data/contexts/identity/TerminalsDataContext"
 import { useNowMs } from "@/shared/hooks";
 import {
   buildRouteModelTimelinePresentationState,
-  type UseVesselTimelinePresentationStateResult,
 } from "./presentationStateBuilders";
 
 /**
@@ -27,7 +26,7 @@ export const useRouteModelVesselTimelinePresentationState = ({
 }: {
   now?: Date;
   theme: TimelineVisualTheme;
-}): UseVesselTimelinePresentationStateResult => {
+}): ReturnType<typeof buildRouteModelTimelinePresentationState> => {
   const nowMs = useNowMs(1000);
   const terminalsData = useTerminalsData();
   const { vesselLocations } = useConvexVesselLocations();

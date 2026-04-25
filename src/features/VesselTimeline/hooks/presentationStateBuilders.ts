@@ -8,7 +8,7 @@ import type { VesselLocation } from "@/types";
 import { fromRouteTimelineModel } from "../renderPipeline/fromRouteTimelineModel";
 import type { VesselTimelineRenderState } from "../types";
 
-export type UseVesselTimelinePresentationStateResult = {
+type UseVesselTimelinePresentationStateResult = {
   isLoading: boolean;
   error: string | null;
   emptyMessage: string | null;
