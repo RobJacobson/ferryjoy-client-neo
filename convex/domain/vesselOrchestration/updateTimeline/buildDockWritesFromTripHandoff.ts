@@ -18,10 +18,7 @@ import {
   mergePingEventWrites,
   type PingEventWrites,
 } from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
-import type {
-  ActiveTripWriteOutcome,
-  CompletedArrivalHandoff,
-} from "domain/vesselOrchestration/shared/pingHandshake/types";
+import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import {
   buildPingEventWritesFromCompletedFacts,
   buildPingEventWritesFromCurrentMessages,
@@ -32,10 +29,7 @@ import {
  * overlay from prediction handoffs (same shapes as {@link BuildDockWritesFromTripHandoffArgs} minus ping
  * time).
  */
-export type TripHandoffForTimeline = {
-  completedFacts: CompletedArrivalHandoff[];
-  currentBranch: ActiveTripWriteOutcome;
-};
+export type TripHandoffForTimeline = PersistedTripTimelineHandoff;
 
 /**
  * Arguments for {@link buildDockWritesFromTripHandoff}.

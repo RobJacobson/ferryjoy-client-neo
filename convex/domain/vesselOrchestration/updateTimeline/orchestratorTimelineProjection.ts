@@ -138,8 +138,7 @@ export const runUpdateVesselTimelineFromAssembly = (
     input.mlTimelineOverlays
   );
   const tl = buildDockWritesFromTripHandoff({
-    completedFacts: merged.completedFacts,
-    currentBranch: merged.currentBranch,
+    ...merged,
     pingStartedAt: input.pingStartedAt,
   });
   return {

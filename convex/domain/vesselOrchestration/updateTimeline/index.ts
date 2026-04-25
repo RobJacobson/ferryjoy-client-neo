@@ -17,6 +17,7 @@ export type {
   ActualDockWriteIntent,
   CompletedArrivalHandoff,
   MlTimelineOverlay,
+  PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
   TripPersistOutcome,
 } from "domain/vesselOrchestration/shared/pingHandshake/types";

@@ -94,11 +94,14 @@ export type MlTimelineOverlay = {
 };
 
 /**
- * Outcome of applying trip table writes for one orchestrator ping: completed
- * arrivals plus active-trip branch state (before optional ML overlay for
- * timeline / `vesselTripPredictions`).
+ * Canonical trip-persistence handoff for timeline projection.
  */
-export type TripPersistOutcome = {
+export type PersistedTripTimelineHandoff = {
   completedFacts: CompletedArrivalHandoff[];
   currentBranch: ActiveTripWriteOutcome;
 };
+
+/**
+ * Legacy alias for transition; prefer {@link PersistedTripTimelineHandoff}.
+ */
+export type TripPersistOutcome = PersistedTripTimelineHandoff;

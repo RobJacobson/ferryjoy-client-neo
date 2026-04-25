@@ -9,7 +9,6 @@
  */
 
 import type {
-  ActiveTripWriteOutcome,
   ActualDockWriteIntent,
   CompletedArrivalHandoff,
   PredictedDockWriteIntent,
@@ -55,7 +54,10 @@ export type VesselTripTableMutations = {
 export type VesselTripPersistencePlan = {
   attemptedCompletedFacts: CompletedArrivalHandoff[];
   activeTripUpserts: ConvexVesselTrip[];
-  currentBranchMessages: Omit<ActiveTripWriteOutcome, "successfulVessels">;
+  currentBranchMessages: {
+    pendingActualMessages: ActualDockWriteIntent[];
+    pendingPredictedMessages: PredictedDockWriteIntent[];
+  };
   leaveDockIntents: Array<{
     vesselAbbrev: string;
     actualDepartMs: number;
