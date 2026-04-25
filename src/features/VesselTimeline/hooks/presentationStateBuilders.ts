@@ -5,7 +5,7 @@
 import type { RouteTimelineSnapshot } from "convex/functions/routeTimeline";
 import type { TimelineVisualTheme } from "@/components/timeline";
 import type { VesselLocation } from "@/types";
-import { fromRouteTimelineModel } from "../renderPipeline";
+import { fromRouteTimelineModel } from "../renderPipeline/fromRouteTimelineModel";
 import type { VesselTimelineRenderState } from "../types";
 
 export type UseVesselTimelinePresentationStateResult = {

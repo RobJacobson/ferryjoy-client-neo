@@ -4,5 +4,9 @@
 
 export * from "./config";
 export * from "./designSystem";
-export * from "./utils";
+export { getVesselTimelineDataHostKey } from "./utils/hostKey";
+export {
+  getCurrentSailingDay,
+  getRefreshedSailingDay,
+} from "./utils/refreshSailingDay";
 export * from "./VesselTimeline";

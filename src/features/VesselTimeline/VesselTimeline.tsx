@@ -15,9 +15,9 @@ import {
   ConvexRouteTimelineProvider,
   useConvexVesselLocations,
 } from "@/data/contexts";
-import { useRouteModelVesselTimelinePresentationState } from "./hooks";
+import { useRouteModelVesselTimelinePresentationState } from "./hooks/useVesselTimelinePresentationState";
 import { shouldWaitForVesselTimelineRouteScope } from "./pipelineMode";
-import { getVesselTimelineDataHostKey } from "./utils";
+import { getVesselTimelineDataHostKey } from "./utils/hostKey";
 import { VesselTimelineContent } from "./VesselTimelineContent";
 import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
 
