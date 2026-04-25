@@ -224,7 +224,7 @@ Trip compute runs in the action’s per-vessel loop (`computeVesselTripUpdate`);
 Trip-field and continuity code must depend only on **`ScheduleContinuityAccess`**:
 
 - **Production:** `scheduleContinuityAccess.ts` — memoized targeted `eventsScheduled` internal queries.
-- **Tests:** in-memory implementations live under `domain/vesselOrchestration/shared/scheduleSnapshot/` (fixture data, not a production DB snapshot table).
+- **Tests:** in-memory implementations live under `domain/vesselOrchestration/shared/scheduleSnapshot/` (fixture data only; not a production schedule read path).
 
 Do not introduce a second public “schedule provider” abstraction above this interface; extend these methods if new evidence shapes are needed.
 

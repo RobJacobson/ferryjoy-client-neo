@@ -11,7 +11,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Single-ping stages
 
-1. **Load baseline snapshot**
+1. **Load baseline read model**
    - Function: `loadOrchestratorSnapshot`
    - Reads: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips`
    - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
@@ -52,7 +52,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 ## Invariants
 
 - One WSF fetch per ping.
-- One baseline orchestrator snapshot query per ping.
+- One baseline orchestrator read-model query per ping.
 - One persistence mutation call per ping.
 - Trip compute runs against the full normalized batch.
 - Schedule continuity reads are targeted and memoized per ping.
