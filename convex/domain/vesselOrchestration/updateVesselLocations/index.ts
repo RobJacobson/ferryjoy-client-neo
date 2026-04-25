@@ -9,5 +9,4 @@ export { computeVesselLocationRows } from "./computeVesselLocationRows";
 export type {
   RunUpdateVesselLocationsInput,
   RunUpdateVesselLocationsOutput,
-  VesselLocationRow,
 } from "./contracts";

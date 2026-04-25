@@ -14,7 +14,6 @@ import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/
  * without forcing the fetch adapter split in Stage A.
  */
 export type RunUpdateVesselLocationsInput = {
-  pingStartedAt: number;
   rawFeedLocations: ReadonlyArray<WsfVesselLocation>;
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
   terminalsIdentity: ReadonlyArray<TerminalIdentity>;

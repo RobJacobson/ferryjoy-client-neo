@@ -87,7 +87,6 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   const snapshot = await loadOrchestratorSnapshot(ctx);
   const pingStartedAt = Date.now();
   const locationUpdates = await loadVesselLocationUpdates({
-    pingStartedAt,
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });

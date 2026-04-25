@@ -9,8 +9,8 @@ import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
 describe("computeVesselLocationRows ScheduleKey behavior", () => {
-  it("stamps the canonical key when arriving terminal and scheduled departure are present", async () => {
-    const location = await convertOne(
+  it("stamps the canonical key when arriving terminal and scheduled departure are present", () => {
+    const location = convertOne(
       makeRawLocation({
         ScheduledDeparture: new Date("2026-03-13T05:30:00-07:00"),
       }),
@@ -31,8 +31,8 @@ describe("computeVesselLocationRows ScheduleKey behavior", () => {
     expect(location.ScheduleKey).toBe("CHE--2026-03-13--05:30--ANA-ORI");
   });
 
-  it("omits key when arriving terminal is missing", async () => {
-    const location = await convertOne(
+  it("omits key when arriving terminal is missing", () => {
+    const location = convertOne(
       makeRawLocation({
         ArrivingTerminalID: undefined,
         ArrivingTerminalAbbrev: undefined,
@@ -45,8 +45,8 @@ describe("computeVesselLocationRows ScheduleKey behavior", () => {
     expect(location.ScheduleKey).toBeUndefined();
   });
 
-  it("omits key when scheduled departure is missing", async () => {
-    const location = await convertOne(
+  it("omits key when scheduled departure is missing", () => {
+    const location = convertOne(
       makeRawLocation({
         ScheduledDeparture: undefined,
       }),
@@ -67,8 +67,8 @@ describe("computeVesselLocationRows ScheduleKey behavior", () => {
     expect(location.ScheduleKey).toBeUndefined();
   });
 
-  it("falls back to raw marine-location values when the terminal abbrev is unknown", async () => {
-    const location = await convertOne(
+  it("falls back to raw marine-location values when the terminal abbrev is unknown", () => {
+    const location = convertOne(
       makeRawLocation({
         DepartingTerminalAbbrev: "ZZZ",
         DepartingTerminalName: "Mystery Yard",
@@ -106,12 +106,11 @@ describe("computeVesselLocationRows ScheduleKey behavior", () => {
  * @param terminalsIdentity - Terminal identity rows used during normalization
  * @returns The single normalized vessel-location row
  */
-const convertOne = async (
+const convertOne = (
   rawFeedLocation: WsfVesselLocation,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ) => {
-  const result = await computeVesselLocationRows({
-    pingStartedAt: Date.now(),
+  const result = computeVesselLocationRows({
     rawFeedLocations: [rawFeedLocation],
     vesselsIdentity: [
       {

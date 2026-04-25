@@ -16,19 +16,16 @@ import { loadVesselLocationUpdates } from "./locationUpdates";
  * Focused helper for location tests.
  *
  * @param ctx - Action context for snapshot and persistence calls
- * @param pingStartedAt - Orchestrator-owned ping anchor
  * @param vesselsIdentity - Backend vessel rows for feed resolution
  * @param terminalsIdentity - Backend terminal rows for normalization
  * @returns Normalized current vessel-location rows
  */
 export const updateVesselLocations = async (
   ctx: ActionCtx,
-  pingStartedAt: number,
   vesselsIdentity: ReadonlyArray<VesselIdentity>,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
   const locationUpdates = await loadVesselLocationUpdates({
-    pingStartedAt,
     terminalsIdentity,
     vesselsIdentity,
   });

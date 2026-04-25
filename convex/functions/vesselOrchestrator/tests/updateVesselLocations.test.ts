@@ -28,7 +28,6 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
 
     const result = await updateVesselLocations(
       ctx,
-      Date.now(),
       [{ VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" }],
       [
         {
@@ -78,7 +77,6 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
 
     const result = await updateVesselLocations(
       ctx,
-      Date.now(),
       [{ VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" }],
       [
         {

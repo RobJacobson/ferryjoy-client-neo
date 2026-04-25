@@ -35,7 +35,7 @@ Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture
 
 - **Live `vesselLocations`** — standalone `bulkUpsertVesselLocations` mutation (`locations` arg: full normalized fleet; `collect()` + compare by `VesselAbbrev` / `TimeStamp`; per-vessel write failures logged without aborting remaining rows).
 - **updateVesselTrips** — the per-vessel loop calls `computeVesselTripUpdate`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
-- **runAndPersistVesselPredictionPing** — `runVesselPredictionPing` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
+- **runPredictionStage** — `runVesselPredictionPing` from **`domain/vesselOrchestration/updateVesselPredictions`** computes prediction proposals + ML overlays after trips and before timeline persistence.
 - **updateTimeline** — `runUpdateVesselTimelineFromAssembly` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (inside **`persistOrchestratorPing`** in **`mutations.ts`**).
 
 ```text
@@ -74,7 +74,7 @@ Responsibilities:
 - do that external fetch through `convex/adapters/fetch/fetchWsfVesselLocations.ts`
 - load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips` in **one** internal query per ping (`getOrchestratorModelData` in `queries.ts` — no `vesselLocations` and no `eventsPredicted` join; public `getActiveTrips` still enriches for API subscribers); soft-fail when identity tables are empty (seed / hourly identity crons)
 - **fetch:** `fetchRawWsfVesselLocations` throws when WSF returns no rows
-- normalize raw WSF payloads through `computeVesselLocationRows`, which skips individual bad feed rows (`console.warn` per skip) and throws when every row fails conversion
+- normalize raw WSF payloads through `mapWsfVesselLocations` + `assertUsableVesselLocationBatch`, which skip individual bad feed rows (`console.warn` per skip) and throw when every row fails conversion
 - convert raw WSF payloads into `ConvexVesselLocation`, including resolved vessel identity, canonical optional `Key`, and terminal-or-marine-location fields derived from the backend `terminalsIdentity` table
 - after normalizing the WSF batch: write locations through `bulkUpsertVesselLocations`, create cached targeted `eventsScheduled` access for the ping through `scheduleContinuityAccess.ts`, use that continuity seam during the per-vessel trip loop, preload ML models only if a materially changed trip needs predictions through `predictionStage.ts`, then run `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline` via **`persistOrchestratorPing`**
 
