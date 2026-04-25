@@ -1,32 +1,23 @@
 /**
  * Focused vessel-orchestrator test helpers.
  *
- * This keeps compatibility helpers out of the production orchestrator action
+ * This keeps test helpers out of the production orchestrator action
  * so the hot-path file stays centered on real runtime concerns.
  */
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import { createScheduleContinuityAccessFromSnapshot } from "domain/vesselOrchestration/shared";
-import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
-import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import { computeVesselTripsBatch } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  VesselLocationUpdates,
-  VesselTripUpdate,
-} from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
-  buildChangedLocationWrites,
+  feedLocationsFromUpdates,
   loadVesselLocationUpdates,
 } from "./locationUpdates";
 import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 
 /**
- * Backward-compatible helper for focused location tests.
+ * Focused helper for location tests.
  *
  * @param ctx - Action context for snapshot and persistence calls
  * @param pingStartedAt - Orchestrator-owned ping anchor
@@ -40,63 +31,23 @@ export const updateVesselLocations = async (
   vesselsIdentity: ReadonlyArray<VesselIdentity>,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
-  const snapshot = await ctx.runQuery(
-    internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
-  );
   const locationUpdates = await loadVesselLocationUpdates({
     pingStartedAt,
-    storedLocations: snapshot.storedLocations,
     terminalsIdentity,
     vesselsIdentity,
   });
-  const changedLocations = buildChangedLocationWrites(
-    locationUpdates.filter((update) => update.locationChanged)
-  );
 
-  if (changedLocations.length > 0) {
-    await ctx.runMutation(
-      internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-      buildOrchestratorPersistenceBundle({
-        pingStartedAt,
-        changedLocations: [...changedLocations],
-        existingActiveTrips: [],
-        tripRows: { activeTrips: [], completedTrips: [] },
-        predictionRows: [],
-        predictedTripComputations: [],
-      })
-    );
-  }
+  await ctx.runMutation(
+    internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
+    buildOrchestratorPersistenceBundle({
+      pingStartedAt,
+      feedLocations: feedLocationsFromUpdates(locationUpdates),
+      existingActiveTrips: [],
+      tripRows: { activeTrips: [], completedTrips: [] },
+      predictionRows: [],
+      mlTimelineOverlays: [],
+    })
+  );
 
   return locationUpdates.map((update) => update.vesselLocation);
 };
-
-/**
- * Backward-compatible helper for focused tests that still provide a snapshot.
- *
- * @param locationUpdates - Location updates for the ping
- * @param existingActiveTrips - Active trips from storage
- * @param scheduleSnapshot - In-memory schedule snapshot for tests
- * @param sailingDay - Sailing day represented by the snapshot
- * @returns Trip updates and authoritative trip rows for the ping
- */
-export const computeTripBatchForPing = async (
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>,
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
-  scheduleSnapshot: ScheduleSnapshot,
-  sailingDay: string
-): Promise<{
-  updates: ReadonlyArray<VesselTripUpdate>;
-  rows: RunUpdateVesselTripsOutput;
-}> =>
-  computeVesselTripsBatch({
-    vesselLocations: locationUpdates
-      .filter((update) => update.locationChanged)
-      .map((update) => update.vesselLocation),
-    existingActiveTrips,
-    scheduleAccess: createScheduleContinuityAccessFromSnapshot(
-      scheduleSnapshot,
-      sailingDay
-    ),
-  });
-
-

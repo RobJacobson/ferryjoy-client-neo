@@ -4,7 +4,7 @@
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { CompletedTripBoundaryFact } from "domain/vesselOrchestration/shared";
+import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/shared";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -28,7 +28,7 @@ export type VesselTripPredictionRow = VesselTripPredictionProposal;
 
 export type RunUpdateVesselPredictionsInput = {
   activeTrips: ReadonlyArray<ConvexVesselTrip>;
-  completedHandoffs: ReadonlyArray<CompletedTripBoundaryFact>;
+  completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>;
   predictionContext: VesselPredictionContext;
 };
 

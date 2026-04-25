@@ -62,51 +62,23 @@ Models use the full temporal context (previous leg A→B) and are bucketed by 2-
 
 #### 1. `at-dock-depart-curr`
 
-**Purpose**: Predict departure delay from current terminal before vessel departs
-**Use Case**: Real-time departure predictions for passengers waiting at terminal
-**Features**: Full at-dock feature set including previous leg context and schedule pressure
-**Target**: Minutes from scheduled departure to actual departure
-**Business Value**: Enables "should I wait or find alternative transportation?" decisions
+**Purpose**: Predict departure delay from current terminal before vessel departs **Use Case**: Real-time departure predictions for passengers waiting at terminal **Features**: Full at-dock feature set including previous leg context and schedule pressure **Target**: Minutes from scheduled departure to actual departure **Business Value**: Enables "should I wait or find alternative transportation?" decisions
 
 #### 2. `at-dock-arrive-next`
 
-**Purpose**: Estimate arrival time at next terminal from current scheduled departure
-**Use Case**: Connection planning and "will I make my next ferry?" predictions
-**Features**: At-dock features with route-specific historical patterns
-**Target**: Minutes from current scheduled departure to next terminal arrival
-**Business Value**: Critical for multi-leg journey reliability
+**Purpose**: Estimate arrival time at next terminal from current scheduled departure **Use Case**: Connection planning and "will I make my next ferry?" predictions **Features**: At-dock features with route-specific historical patterns **Target**: Minutes from current scheduled departure to next terminal arrival **Business Value**: Critical for multi-leg journey reliability
 
 #### 3. `at-dock-depart-next`
 
-**Purpose**: Predict turnaround delay at next terminal in multi-leg journeys
-**Use Case**: Complex itinerary planning across multiple ferry segments
-**Features**: At-dock feature set for the current leg. Training requires a next leg
-(Next→After) to label targets; inference additionally needs the next leg’s scheduled
-departure anchor (`NextScheduledDeparture` on live trips; `NextDepartingTime` on
-`ConvexScheduledTrip` training rows)
-to anchor predictions.
-**Target**: Minutes from next terminal scheduled departure to actual departure
-**Business Value**: End-to-end journey time predictions
+**Purpose**: Predict turnaround delay at next terminal in multi-leg journeys **Use Case**: Complex itinerary planning across multiple ferry segments **Features**: At-dock feature set for the current leg. Training requires a next leg (Next→After) to label targets; inference additionally needs the next leg’s scheduled departure anchor (`NextScheduledDeparture` on live trips; `NextDepartingTime` on `ConvexScheduledTrip` training rows) to anchor predictions. **Target**: Minutes from next terminal scheduled departure to actual departure **Business Value**: End-to-end journey time predictions
 
 #### 4. `at-sea-arrive-next`
 
-**Purpose**: Refine arrival estimates after vessel has departed
-**Use Case**: Real-time ETA updates during transit
-**Features**: Enhanced at-sea feature set including actual departure time
-**Target**: Minutes from actual departure to next terminal arrival
-**Business Value**: Provides accurate real-time arrival information
+**Purpose**: Refine arrival estimates after vessel has departed **Use Case**: Real-time ETA updates during transit **Features**: Enhanced at-sea feature set including actual departure time **Target**: Minutes from actual departure to next terminal arrival **Business Value**: Provides accurate real-time arrival information
 
 #### 5. `at-sea-depart-next`
 
-**Purpose**: Update next terminal departure predictions using transit observations
-**Use Case**: Refined multi-leg predictions with real-time transit data
-**Features**: At-sea feature set for the current leg. Training requires a next leg
-(Next→After) to label targets; inference additionally needs the next leg’s scheduled
-departure anchor (`NextScheduledDeparture` on live trips; `NextDepartingTime` on
-`ConvexScheduledTrip` training rows)
-to anchor predictions.
-**Target**: Minutes from next terminal scheduled departure to actual departure
-**Business Value**: Improves connection reliability with live transit data
+**Purpose**: Update next terminal departure predictions using transit observations **Use Case**: Refined multi-leg predictions with real-time transit data **Features**: At-sea feature set for the current leg. Training requires a next leg (Next→After) to label targets; inference additionally needs the next leg’s scheduled departure anchor (`NextScheduledDeparture` on live trips; `NextDepartingTime` on `ConvexScheduledTrip` training rows) to anchor predictions. **Target**: Minutes from next terminal scheduled departure to actual departure **Business Value**: Improves connection reliability with live transit data
 
 ---
 
@@ -266,15 +238,11 @@ The training pipeline transforms raw WSF data into production-ready ML models th
 
 #### 1. Data Loading (`loadWsfTrainingData`)
 
-**Purpose**: Load historical training data with quality controls
-**Source**: WSF vessel trip records within the configured training window (currently 365 days, see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`)
-**Filtering**: Removes only truly unusable records (e.g. missing vessel/departure/timestamps)
-**Output**: Raw `VesselHistory[]` (not yet windowed) for window creation
+**Purpose**: Load historical training data with quality controls **Source**: WSF vessel trip records within the configured training window (currently 365 days, see `config.getDaysBack()` in `convex/domain/ml/shared/config.ts`) **Filtering**: Removes only truly unusable records (e.g. missing vessel/departure/timestamps) **Output**: Raw `VesselHistory[]` (not yet windowed) for window creation
 
 #### 1.5. WSF History Eligibility (no inference)
 
-WSF historical vessel records sometimes omit required fields like `Arriving` and `EstArrival`.
-We **do not infer** missing values for training or reporting.
+WSF historical vessel records sometimes omit required fields like `Arriving` and `EstArrival`. We **do not infer** missing values for training or reporting.
 
 Instead, we apply strict eligibility rules during window creation:
 
@@ -283,45 +251,23 @@ Instead, we apply strict eligibility rules during window creation:
 
 #### 2. Window Creation (`createTrainingWindows`)
 
-**Purpose**: Build temporal training contexts from sequential trips
-**Logic**: Process each vessel's trips chronologically, creating A→B→C sequences
-**Filtering**: Indirect trip filtering removes indirect trip segments (e.g., Orcas→Lopez, Orcas→Friday Harbor) and keeps only direct trips (e.g., Orcas→Shaw) by identifying overlapping scheduled departures and selecting the shortest trip segment
-**Validation**: Terminal continuity, duration bounds, timestamp validity, strict required-field presence
-**VesselHistory References**: Each window includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records used to create the window.
-**Output**: TrainingWindow[] with full temporal context and VesselHistory references
+**Purpose**: Build temporal training contexts from sequential trips **Logic**: Process each vessel's trips chronologically, creating A→B→C sequences **Filtering**: Indirect trip filtering removes indirect trip segments (e.g., Orcas→Lopez, Orcas→Friday Harbor) and keeps only direct trips (e.g., Orcas→Shaw) by identifying overlapping scheduled departures and selecting the shortest trip segment **Validation**: Terminal continuity, duration bounds, timestamp validity, strict required-field presence **VesselHistory References**: Each window includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records used to create the window. **Output**: TrainingWindow[] with full temporal context and VesselHistory references
 
 #### 3. Feature Extraction (`createFeatureRecords`)
 
-**Purpose**: Transform windows into ML-ready feature vectors
-**Engineering**: Apply 20+ feature engineering functions with temporal safety
-**Targets**: Calculate prediction targets for each model type
-**Safety**: Prevent data leakage between at-dock/at-sea contexts
-**VesselHistory Retention**: Each `FeatureRecord` includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records. These references are retained in memory throughout training, enabling debugging and logging of the underlying raw data. The original `VesselHistory[]` array remains in memory as long as `FeatureRecord[]` references exist.
-**Output**: FeatureRecord[] ready for model training, with VesselHistory references for debugging
+**Purpose**: Transform windows into ML-ready feature vectors **Engineering**: Apply 20+ feature engineering functions with temporal safety **Targets**: Calculate prediction targets for each model type **Safety**: Prevent data leakage between at-dock/at-sea contexts **VesselHistory Retention**: Each `FeatureRecord` includes `prevHistory`, `currHistory`, and `nextHistory` fields that reference the original `VesselHistory` records. These references are retained in memory throughout training, enabling debugging and logging of the underlying raw data. The original `VesselHistory[]` array remains in memory as long as `FeatureRecord[]` references exist. **Output**: FeatureRecord[] ready for model training, with VesselHistory references for debugging
 
 #### 4. Data Bucketing (`createTrainingBuckets`)
 
-**Purpose**: Group training examples by route for specialized models
-**Strategy**: Bucket by terminal pairs (B→C) for route-specific patterns
-**Sampling**: Limit examples per route to prevent overfitting
-**Recency**: Prioritize most recent examples for current patterns
-**Output**: TrainingBucket[] organized by route
+**Purpose**: Group training examples by route for specialized models **Strategy**: Bucket by terminal pairs (B→C) for route-specific patterns **Sampling**: Limit examples per route to prevent overfitting **Recency**: Prioritize most recent examples for current patterns **Output**: TrainingBucket[] organized by route
 
 #### 5. Model Training (`trainAllModels`)
 
-**Purpose**: Train linear regression models for all route+model combinations
-**Parallelization**: Train all models concurrently for efficiency
-**Stability**: Apply numerical safeguards against training failures
-**Evaluation**: Chronological train/test splits for realistic assessment
-**Output**: ModelParameters[] with trained coefficients and metrics
+**Purpose**: Train linear regression models for all route+model combinations **Parallelization**: Train all models concurrently for efficiency **Stability**: Apply numerical safeguards against training failures **Evaluation**: Chronological train/test splits for realistic assessment **Output**: ModelParameters[] with trained coefficients and metrics
 
 #### 6. Model Storage (`storeModels`)
 
-**Purpose**: Persist trained models to database for inference
-**Format**: Convex-compatible document structure
-**Indexing**: Optimized queries by route and model type
-**Versioning**: Timestamp tracking for model freshness
-**Output**: Models available for real-time predictions
+**Purpose**: Persist trained models to database for inference **Format**: Convex-compatible document structure **Indexing**: Optimized queries by route and model type **Versioning**: Timestamp tracking for model freshness **Output**: Models available for real-time predictions
 
 ### Quality Controls & Safety Measures
 
@@ -366,14 +312,11 @@ Instead, we apply strict eligibility rules during window creation:
 
 #### Model Selection Logic
 
-**Route Matching**: Select models by terminal pair (B→C)
-**Timing Context**: Choose at-dock vs at-sea models based on available information
-**Fallback Handling**: Graceful degradation when preferred models unavailable
+**Route Matching**: Select models by terminal pair (B→C) **Timing Context**: Choose at-dock vs at-sea models based on available information **Fallback Handling**: Graceful degradation when preferred models unavailable
 
 ### ScheduledTrips enrichment used by inference
 
-Real-time inference depends on **schedule-chain fields** computed during
-ScheduledTrips sync and then **snapshotted onto active VesselTrips**.
+Real-time inference depends on **schedule-chain fields** computed during ScheduledTrips sync and then **snapshotted onto active VesselTrips**.
 
 Current layering:
 
@@ -383,8 +326,7 @@ Current layering:
 
 #### Composite trip key format
 
-Both ScheduledTrips and VesselTrips use a shared composite schedule-segment key
-(see `convex/shared/keys.ts` `buildScheduleSegmentKey`) with format:
+Both ScheduledTrips and VesselTrips use a shared composite schedule-segment key (see `convex/shared/keys.ts` `buildScheduleSegmentKey`) with format:
 
 `[VesselAbbrev]--[PacificDate]--[PacificTime]--[DepartingTerminal]-[ArrivingTerminal]`
 
@@ -418,79 +360,31 @@ During sync, we compute (per ScheduledTrip):
 - `EstArriveCurr`: previous trip’s `EstArriveNext` (validated to not exceed `DepartingTime`)
   - Implementation: `convex/domain/scheduledTrips/calculateTripEstimates.ts` (`linkVesselSegments`)
 
-Sync applies the full transform pipeline after adapter ingress:
-`convex/adapters/pipelines/fetchWsfScheduledTrips.ts`
-downloads and maps the raw WSF data, then
-`convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs
-`classifyDirectSegments` followed by `calculateTripEstimates`.
-Classification resolves overlapping or ambiguous route options before linking
-and estimates run. The classification process marks trips as direct or indirect
-instead of filtering them out, allowing both types to be stored while
-maintaining clear distinction for filtering purposes.
+Sync applies the full transform pipeline after adapter ingress: `convex/adapters/pipelines/fetchWsfScheduledTrips.ts` downloads and maps the raw WSF data, then `convex/domain/scheduledTrips/runScheduleTransformPipeline.ts` runs `classifyDirectSegments` followed by `calculateTripEstimates`. Classification resolves overlapping or ambiguous route options before linking and estimates run. The classification process marks trips as direct or indirect instead of filtering them out, allowing both types to be stored while maintaining clear distinction for filtering purposes.
 
 ### How predictions are generated in VesselTrips
 
-Predictions are computed in the vessel orchestrator action
-`updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`),
-then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
-+ `PredictionSource`), not as the five optional prediction fields on
-`activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped
-before write; public `vesselTrips` queries **enrich** stored rows with joins
-from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal
-prediction objects. WSF ETA
-from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses
-`PredictionSource: "wsf_eta"` when projected.
+Predictions are computed in the vessel orchestrator action `updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`), then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
 
-The orchestrator fetches vessel locations once, loads vessels, terminals, and
-**storage-native** active trips in one internal query (`getOrchestratorModelData` in
-`convex/functions/vesselOrchestrator/queries.ts`), then runs
-[`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts): sequential
-`vesselLocation` bulk upsert, then `updateVesselTrips`, `updateVesselPredictions`,
-and `updateVesselTimeline`. Schedule snapshot + `ProcessVesselTripsDeps` are wired in
-[`actions.ts`](../../functions/vesselOrchestrator/actions.ts); trip and timeline writes run in
-[`persistOrchestratorPing`](../../functions/vesselOrchestrator/mutations.ts) via
-[`persistVesselTripWriteSet`](../../functions/vesselOrchestrator/persistVesselTripWriteSet.ts) and
-[`functions/vesselTrips/mutations`](../../functions/vesselTrips/mutations.ts).
-Those bundled rows omit joined predictions (Stage 4); timeline projection still
-compares built trips to existing state using Stage 2 lifecycle vs projection
-predicates. Per-tick trip lifecycle logic lives in `computeVesselTripsBundle` in
-`convex/domain/vesselOrchestration/updateVesselTrips/processTick/processVesselTrips.ts`
-(default runtime wiring: `defaultProcessVesselTripsDeps.ts` plus `createScheduledSegmentLookup` and
-`createVesselTripPredictionModelAccess` composed in `actions.ts`, not a separate `runProcessVesselTripsTick` entry).
+- `PredictionSource`), not as the five optional prediction fields on `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped before write; public `vesselTrips` queries **enrich** stored rows with joins from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses `PredictionSource: "wsf_eta"` when projected.
+
+The orchestrator fetches vessel locations once, loads **`vesselsIdentity`**, **`terminalsIdentity`**, and **storage-native** `activeVesselTrips` in one internal query ([`getOrchestratorModelData`](../../functions/vesselOrchestrator/queries.ts) — it does **not** load `vesselLocations`), then runs [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts): normalize the feed, run trip compute for the **full** normalized batch in the action (with **`ScheduleContinuityAccess`** from `scheduleContinuityAccess.ts` for targeted `eventsScheduled` continuity), then **`runPredictionStage`**, then one [`persistOrchestratorPing`](../../functions/vesselOrchestrator/mutations.ts) mutation that first applies **`feedLocations`** via **`performBulkUpsertVesselLocations`** (same logic as public [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts): `collect()` on `vesselLocations`, match by **`VesselAbbrev`**, skip unchanged `TimeStamp`), then trip writes via [`persistVesselTripWriteSet`](../../functions/vesselOrchestrator/persistVesselTripWriteSet.ts) and [`functions/vesselTrips/mutations`](../../functions/vesselTrips/mutations.ts), prediction upserts, and timeline assembly. Those bundled rows omit joined predictions (Stage 4); timeline projection still compares built trips to existing state using Stage 2 lifecycle vs projection predicates. Per-tick trip lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` and is driven by the per-vessel loop in `functions/vesselOrchestrator/actions.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
-On each orchestrator tick, trip build attaches schedule-backed fields using **segment
-keys** and the normalized `eventsScheduled` read model (not the old lazy
-`scheduledTrips`-row snapshot helper):
+On each orchestrator tick, trip build attaches schedule-backed fields using **segment keys** and targeted `eventsScheduled` continuity lookups:
 
-- `buildTrip` (`convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/buildTrip.ts`) calls
-  `appendFinalSchedule` when `tripStart` or `scheduleKeyChanged` so `ScheduleKey`,
-  `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-  - Schedule adapters: `createScheduleTripAdapters` in
-    `convex/domain/vesselOrchestration/updateVesselTrips/createTripPipelineDeps.ts`
-    (snapshot lookup from `createScheduledSegmentLookupFromSnapshot` in the orchestrator;
-    trip ML uses `createVesselTripPredictionModelAccess` there as well)
-  - Lookup: `internal.functions.events.eventsScheduled.queries.getScheduledDepartureEventBySegmentKey`
-- **Safety / clearing**: Physical trip change, loss of schedule attachment, or
-  `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state
-  (`clearDerivedStateOnScheduleKeyChange` in `buildTrip`) so identities do not mix.
-- **Display / API**: Public vessel-trip queries may still **enrich** a full
-  `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g.
-  `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`);
-  inference uses the schedule fields merged on the trip during build.
+- `resolveTripFieldsForTripRow` resolves authoritative WSF fields first, then uses the orchestrator's `ScheduleContinuityAccess` for next-leg and rollover inference so `ScheduleKey`, `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
+- **Safety / clearing**: Physical trip change, loss of schedule attachment, or `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state in `buildTripRowsForPing` so identities do not mix.
+- **Display / API**: Public vessel-trip queries may still **enrich** a full `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g. `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`); inference uses the schedule fields merged on the trip during build.
 
-Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g.
-`NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every
-tick write.
+Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g. `NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every tick write.
 
 - Schema: `convex/functions/vesselTrips/schemas.ts` (`ScheduleKey`, `NextScheduleKey`, optional joined `ScheduledTrip` for prediction-enriched queries)
 
 #### 2) Prediction generation (once per trip, per timing context)
 
-When required features are present, we compute in-memory patches (full `ConvexPrediction`
-blobs for ML) and project **`PredTime`** (plus optional `Actual` / `DeltaTotal` when
-actualizing) onto `eventsPredicted`. Joined trip fields mirror:
+When required features are present, we compute in-memory patches (full `ConvexPrediction` blobs for ML) and project **`PredTime`** (plus optional `Actual` / `DeltaTotal` when actualizing) onto `eventsPredicted`. Joined trip fields mirror:
 
 - **At dock**:
   - `AtDockDepartCurr` (predict departure from Curr)
@@ -502,67 +396,46 @@ actualizing) onto `eventsPredicted`. Joined trip fields mirror:
   - `AtSeaDepartNext` (refined Next-departure while underway)
     - Anchor: `NextScheduledDeparture` on the vessel trip
 
-Depart-next predictions are anchored on `NextScheduledDeparture` so the model’s output
-(minutes vs Next scheduled departure) can be stored as an absolute epoch-ms
-`PredTime` on the corresponding projected row.
+Depart-next predictions are anchored on `NextScheduledDeparture` so the model’s output (minutes vs Next scheduled departure) can be stored as an absolute epoch-ms `PredTime` on the corresponding projected row.
 
-**Prediction Constraints**: Predictions are clamped to ensure they never fall below
-their corresponding scheduled departure times:
+**Prediction Constraints**: Predictions are clamped to ensure they never fall below their corresponding scheduled departure times:
+
 - `AtDockDepartCurr`: Clamped to `ScheduledDeparture` (never earlier than scheduled)
 - `AtDockDepartNext`: Clamped to `NextScheduledDeparture` (never earlier than next scheduled)
 - `AtSeaDepartNext`: Clamped to `NextScheduledDeparture` (never earlier than next scheduled)
 
-When clamping occurs, the uncertainty bounds (`MinTime`/`MaxTime`) are recalculated
-based on the clamped `PredTime` to maintain proper statistical properties. If scheduled
-times are unavailable, predictions use the original ML model output without clamping.
+When clamping occurs, the uncertainty bounds (`MinTime`/`MaxTime`) are recalculated based on the clamped `PredTime` to maintain proper statistical properties. If scheduled times are unavailable, predictions use the original ML model output without clamping.
 
 - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`computeVesselTripPredictionsPatch`, `predictFromSpec`)
 
 #### 3) Prediction actualization (backfill)
 
-We patch **`eventsPredicted`** rows with `Actual` and `DeltaTotal` (epoch ms)
-when the relevant real-world event is observed—same logical boundaries as before,
-but storage is the `(Key, PredictionType, PredictionSource)` row, not nested fields
-on trip documents:
+We patch **`eventsPredicted`** rows with `Actual` and `DeltaTotal` (epoch ms) when the relevant real-world event is observed—same logical boundaries as before, but storage is the `(Key, PredictionType, PredictionSource)` row, not nested fields on trip documents:
 
 - Arrival-complete actualization when `TripEnd` becomes known
   - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`actualizePredictionsOnTripComplete`)
-- Depart-next actualization when the _next_ trip leaves dock (previous leg’s
-  next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip`
-  patching the prior leg’s `eventsPredicted` rows.
+- Depart-next actualization when the _next_ trip leaves dock (previous leg’s next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip` patching the prior leg’s `eventsPredicted` rows.
   - Trigger: `convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`)
 
 #### Feature Engineering Pipeline
 
-**Temporal Safety**: Use only features available at prediction time
-**Data Normalization**: Apply same transformations as training
-**Missing Data Handling**: Robust handling of incomplete trip information
-**Feature Ordering**: Maintain consistent vectorization for model compatibility
+**Temporal Safety**: Use only features available at prediction time **Data Normalization**: Apply same transformations as training **Missing Data Handling**: Robust handling of incomplete trip information **Feature Ordering**: Maintain consistent vectorization for model compatibility
 
 #### Prediction Workflows
 
 ##### Departure Delay Prediction (`predictDelayOnArrival`)
 
-**Input**: Vessel at terminal (arrival time known, departure time unknown)
-**Model**: `at-dock-depart-curr`
-**Output**: Expected delay in minutes from scheduled departure
-**Use Case**: Real-time departure predictions for terminal displays
+**Input**: Vessel at terminal (arrival time known, departure time unknown) **Model**: `at-dock-depart-curr` **Output**: Expected delay in minutes from scheduled departure **Use Case**: Real-time departure predictions for terminal displays
 
 ##### Arrival ETA Prediction (`predictArriveEta`)
 
-**Input**: Vessel has departed current terminal
-**Model**: `at-sea-arrive-next`
-**Output**: Expected arrival time at next terminal
-**Use Case**: Real-time ETA updates during transit
+**Input**: Vessel has departed current terminal **Model**: `at-sea-arrive-next` **Output**: Expected arrival time at next terminal **Use Case**: Real-time ETA updates during transit
 
 ##### Departure ETA Prediction (`predictEtaOnDeparture`)
 
-**Input**: Vessel at terminal with scheduled departure time
-**Model**: `at-dock-depart-curr`
-**Output**: Expected departure timestamp
-**Use Case**: Absolute departure time predictions
+**Input**: Vessel at terminal with scheduled departure time **Model**: `at-dock-depart-curr` **Output**: Expected departure timestamp **Use Case**: Absolute departure time predictions
 
 ### Error Handling & Robustness
 
@@ -608,41 +481,25 @@ on trip documents:
 
 #### Indirect Trip Segments
 
-**Problem**: WSF API includes both direct trips (A→B) and indirect trips (A→C which passes through B). For example, from Orcas Island at 14:50, the API may return trips to Shaw Island (15:05, direct), Lopez Island (15:35, indirect), and Friday Harbor (16:30, indirect).
-**Solution**: Filter indirect trips during window creation by grouping trips by vessel and scheduled departure time, then keeping only the shortest trip segment (earliest arrival) for each group
-**Impact**: Ensures models train only on direct trip segments, improving prediction accuracy for actual vessel movements
-**Implementation**: `convex/domain/ml/training/data/createTrainingWindows.ts` (`filterDirectTripsOnly`)
+**Problem**: WSF API includes both direct trips (A→B) and indirect trips (A→C which passes through B). For example, from Orcas Island at 14:50, the API may return trips to Shaw Island (15:05, direct), Lopez Island (15:35, indirect), and Friday Harbor (16:30, indirect). **Solution**: Filter indirect trips during window creation by grouping trips by vessel and scheduled departure time, then keeping only the shortest trip segment (earliest arrival) for each group **Impact**: Ensures models train only on direct trip segments, improving prediction accuracy for actual vessel movements **Implementation**: `convex/domain/ml/training/data/createTrainingWindows.ts` (`filterDirectTripsOnly`)
 
 #### Arrival Time Proxy Issue
 
-**Problem**: WSF data lacks true "arrived at dock" timestamps
-**Solution**: Use `EstArrival` as proxy (typically within 1 minute of reality)
-**Impact**: Introduces minor noise but maintains predictive utility
-**Mitigation**: Statistical validation of proxy accuracy
+**Problem**: WSF data lacks true "arrived at dock" timestamps **Solution**: Use `EstArrival` as proxy (typically within 1 minute of reality) **Impact**: Introduces minor noise but maintains predictive utility **Mitigation**: Statistical validation of proxy accuracy
 
 #### Terminal Mapping Complexity
 
-**Problem**: Multiple naming conventions for same terminals
-**Solution**: Comprehensive mapping table with 40+ terminal variations
-**Validation**: Automated checks against known terminal set
-**Maintenance**: Regular updates for new terminal codes
+**Problem**: Multiple naming conventions for same terminals **Solution**: Comprehensive mapping table with 40+ terminal variations **Validation**: Automated checks against known terminal set **Maintenance**: Regular updates for new terminal codes
 
 #### Duration Outlier Management
 
-**Problem**: Anomalous trip durations from data entry errors or extreme conditions
-**Solution**: Multi-tier filtering based on route-specific statistical bounds
-**Bounds**: Configurable min/max thresholds per duration type
-**Rationale**: Preserve operational reality while removing clear errors
+**Problem**: Anomalous trip durations from data entry errors or extreme conditions **Solution**: Multi-tier filtering based on route-specific statistical bounds **Bounds**: Configurable min/max thresholds per duration type **Rationale**: Preserve operational reality while removing clear errors
 
 ### Statistical Data Products
 
 #### Route-Specific Priors (Reference Values)
 
-**At-Dock Durations**: Mean turnaround times by terminal pair (from `config.ts`)
-**At-Sea Durations**: Mean transit times by terminal pair (from `config.ts`)
-**Methodology**: Pre-computed from historical data, not recalculated during training
-**Use Cases**: Feature engineering baselines and schedule validation
-**Note**: These are static reference values embedded in config, not recomputed per training run
+**At-Dock Durations**: Mean turnaround times by terminal pair (from `config.ts`) **At-Sea Durations**: Mean transit times by terminal pair (from `config.ts`) **Methodology**: Pre-computed from historical data, not recalculated during training **Use Cases**: Feature engineering baselines and schedule validation **Note**: These are static reference values embedded in config, not recomputed per training run
 
 ---
 
@@ -652,46 +509,29 @@ on trip documents:
 
 #### Mean Absolute Error (MAE)
 
-**Definition**: Average absolute prediction error in minutes
-**Formula**: \( MAE = \frac{1}{n} \sum |y*{predicted} - y*{actual}| \)
-**Interpretation**: Average minutes of prediction error
-**Business Relevance**: Direct measure of prediction accuracy
+**Definition**: Average absolute prediction error in minutes **Formula**: \( MAE = \frac{1}{n} \sum |y*{predicted} - y*{actual}| \) **Interpretation**: Average minutes of prediction error **Business Relevance**: Direct measure of prediction accuracy
 
 #### Root Mean Squared Error (RMSE)
 
-**Definition**: Square root of mean squared prediction error
-**Formula**: \( RMSE = \sqrt{\frac{1}{n} \sum (y*{predicted} - y*{actual})^2} \)
-**Interpretation**: Penalizes large errors more than MAE
-**Use Case**: Sensitive to outlier predictions
+**Definition**: Square root of mean squared prediction error **Formula**: \( RMSE = \sqrt{\frac{1}{n} \sum (y*{predicted} - y*{actual})^2} \) **Interpretation**: Penalizes large errors more than MAE **Use Case**: Sensitive to outlier predictions
 
 #### R-squared (Coefficient of Determination)
 
-**Definition**: Proportion of variance explained by the model
-**Formula**: \( R^2 = 1 - \frac{SS*{res}}{SS*{tot}} \)
-**Interpretation**: 0.0 (random) to 1.0 (perfect prediction)
-**Context**: Lower for complex, noisy real-world systems
+**Definition**: Proportion of variance explained by the model **Formula**: \( R^2 = 1 - \frac{SS*{res}}{SS*{tot}} \) **Interpretation**: 0.0 (random) to 1.0 (perfect prediction) **Context**: Lower for complex, noisy real-world systems
 
 #### Standard Deviation of Errors
 
-**Definition**: Measure of prediction error consistency/spread
-**Formula**: \( \sigma = \sqrt{\frac{1}{n-1} \sum (y*{predicted} - y*{actual} - \bar{e})^2} \)
-**Interpretation**: Lower values indicate more consistent predictions
-**Business Value**: Shows prediction reliability (e.g., "usually within ±X minutes")
+**Definition**: Measure of prediction error consistency/spread **Formula**: \( \sigma = \sqrt{\frac{1}{n-1} \sum (y*{predicted} - y*{actual} - \bar{e})^2} \) **Interpretation**: Lower values indicate more consistent predictions **Business Value**: Shows prediction reliability (e.g., "usually within ±X minutes")
 
 ### Evaluation Methodology
 
 #### Chronological Train/Test Split
 
-**Strategy**: Train on earlier data (80%), test on recent data (20%)
-**Rationale**: Simulates real-world prediction (past data → future predictions)
-**Advantage**: Prevents temporal data leakage
-**Limitation**: Training set smaller than random splits
+**Strategy**: Train on earlier data (80%), test on recent data (20%) **Rationale**: Simulates real-world prediction (past data → future predictions) **Advantage**: Prevents temporal data leakage **Limitation**: Training set smaller than random splits
 
 #### Route-Specific Evaluation
 
-**Per-Route Metrics**: Each terminal pair evaluated independently
-**Statistical Validity**: Minimum example thresholds for reliable assessment
-**Comparative Analysis**: Performance across different route types
+**Per-Route Metrics**: Each terminal pair evaluated independently **Statistical Validity**: Minimum example thresholds for reliable assessment **Comparative Analysis**: Performance across different route types
 
 ### Performance Benchmarks
 
@@ -785,9 +625,7 @@ convex/functions/predictions/
 npm run ml:train
 ```
 
-**Process**: Loads data, trains all models, stores to database with tag `"dev-temp"`, then exports results
-**Duration**: 10-30 minutes depending on data volume
-**Output**: Training statistics and model performance metrics
+**Process**: Loads data, trains all models, stores to database with tag `"dev-temp"`, then exports results **Duration**: 10-30 minutes depending on data volume **Output**: Training statistics and model performance metrics
 
 #### Results Export
 
@@ -795,9 +633,7 @@ npm run ml:train
 npm run ml:export-results
 ```
 
-**Purpose**: Extract training results for analysis (without retraining)
-**Format**: CSV files with model parameters and metrics
-**Location**: `ml/training-results.csv`
+**Purpose**: Extract training results for analysis (without retraining) **Format**: CSV files with model parameters and metrics **Location**: `ml/training-results.csv`
 
 ### Monitoring & Maintenance
 
@@ -821,21 +657,15 @@ npm run ml:export-results
 
 ##### No Model Found for Route
 
-**Symptoms**: Prediction returns null for specific terminal pair
-**Cause**: Insufficient training data for that route
-**Solution**: Check training logs, consider data augmentation
+**Symptoms**: Prediction returns null for specific terminal pair **Cause**: Insufficient training data for that route **Solution**: Check training logs, consider data augmentation
 
 ##### Unusually High Prediction Errors
 
-**Symptoms**: MAE significantly above baseline
-**Cause**: Changed operational patterns or data quality issues
-**Solution**: Retrain models with recent data, check data validity
+**Symptoms**: MAE significantly above baseline **Cause**: Changed operational patterns or data quality issues **Solution**: Retrain models with recent data, check data validity
 
 ##### Training Pipeline Failures
 
-**Symptoms**: Models fail to train for specific combinations
-**Cause**: Insufficient data or numerical instability
-**Solution**: Review data filtering, adjust minimum example thresholds
+**Symptoms**: Models fail to train for specific combinations **Cause**: Insufficient data or numerical instability **Solution**: Review data filtering, adjust minimum example thresholds
 
 ---
 
@@ -964,12 +794,10 @@ All models explicitly use Prev→Curr context and bucket by the **B→C pair key
 
 3. **`at-dock-depart-next`**
 
-- **Use when**: at dock at Curr and `NextScheduledDeparture` is available
-  (so we can anchor the prediction to an absolute timestamp)
+- **Use when**: at dock at Curr and `NextScheduledDeparture` is available (so we can anchor the prediction to an absolute timestamp)
 - **Predicts**: expected departure from Next, measured as minutes from **Next scheduled departure**
 - **Target**: \( \Delta(Next\_{schedDepart},\ Next\_{actualDepart}) \)
-  - Note: a next leg (Next→After) is required during training to label the target,
-    but it is not required at inference time.
+  - Note: a next leg (Next→After) is required during training to label the target, but it is not required at inference time.
 
 4. **`at-sea-arrive-next`**
 
@@ -979,12 +807,10 @@ All models explicitly use Prev→Curr context and bucket by the **B→C pair key
 
 5. **`at-sea-depart-next`**
 
-- **Use when**: at sea between Curr and Next and `NextScheduledDeparture`
-  is available (so we can anchor the prediction to an absolute timestamp)
+- **Use when**: at sea between Curr and Next and `NextScheduledDeparture` is available (so we can anchor the prediction to an absolute timestamp)
 - **Predicts**: expected departure from Next, measured as minutes from **Next scheduled departure**
 - **Target**: \( \Delta(Next\_{schedDepart},\ Next\_{actualDepart}) \)
-  - Note: a next leg (Next→After) is required during training to label the target,
-    but it is not required at inference time.
+  - Note: a next leg (Next→After) is required during training to label the target, but it is not required at inference time.
 
 ---
 
@@ -1115,9 +941,7 @@ We reuse v1’s time encoding:
 Anchors:
 
 - For “depart-curr” / “arrive-next” models: time features are anchored to **B scheduled departure** (`curr.ScheduledDepart`).
-- For “depart-next” models: time features are still anchored to **B scheduled departure**
-  (the current leg). The “depart-next” target is defined relative to **C scheduled
-  departure**, which is supplied at inference time via `NextScheduledDeparture` on the vessel trip.
+- For “depart-next” models: time features are still anchored to **B scheduled departure** (the current leg). The “depart-next” target is defined relative to **C scheduled departure**, which is supplied at inference time via `NextScheduledDeparture` on the vessel trip.
 
 ### Slack feature at Curr (both regimes)
 
@@ -1359,8 +1183,7 @@ Models include a single versioning field:
 
 - `versionTag`: `string` (e.g., "dev-temp", "dev-1", "prod-1")
 
-The `keyValueStore` table stores the active production version tag used for
-predictions under `key: "productionVersionTag"`.
+The `keyValueStore` table stores the active production version tag used for predictions under `key: "productionVersionTag"`.
 
 Current in-production model value:
 
@@ -1449,8 +1272,7 @@ npm run ml:delete-version -- "prod-2"     # Delete prod-2 (with confirmation)
 
 ### Production Version Selection
 
-The prediction system automatically uses the active production version tag
-stored in the `keyValueStore` table. When making predictions:
+The prediction system automatically uses the active production version tag stored in the `keyValueStore` table. When making predictions:
 
 1. The system queries `keyValueStore` for the current `productionVersionTag`
 2. Models are loaded with the specified `versionTag`
@@ -1516,8 +1338,7 @@ This is expected, but should be monitored when evaluating error distributions.
 
 ### Negative predictions
 
-Targets are signed minutes; early departures are rare but allowed.
-In production inference, strongly negative predictions should be treated as a safety signal and clamped/fallback if needed.
+Targets are signed minutes; early departures are rare but allowed. In production inference, strongly negative predictions should be treated as a safety signal and clamped/fallback if needed.
 
 ---
 

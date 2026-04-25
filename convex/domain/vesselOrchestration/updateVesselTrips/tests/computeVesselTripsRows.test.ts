@@ -4,7 +4,7 @@
 
 import { describe, expect, it, spyOn } from "bun:test";
 import {
-  createScheduledSegmentTablesFromSnapshot,
+  createScheduleContinuityAccessFromSnapshot,
   type TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
@@ -97,13 +97,13 @@ const makeLocation = (
 describe("computeVesselTripsRows", () => {
   it("returns empty arrays when the ping has no realtime inputs or active trips", async () => {
     const { computeVesselTripsRows } = await import(
-      "../computeVesselTripsBatch"
+      "../computeVesselTripsRows"
     );
 
     const result = await computeVesselTripsRows({
       vesselLocations: [],
       existingActiveTrips: [],
-      scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+      scheduleAccess: createScheduleContinuityAccessFromSnapshot(
         emptyScheduleSnapshot,
         testSailingDay
       ),
@@ -136,12 +136,12 @@ describe("computeVesselTripsRows", () => {
 
     try {
       const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsBatch"
+        "../computeVesselTripsRows"
       );
       const result = await computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [makeTrip(), untouchedTrip],
-        scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+        scheduleAccess: createScheduleContinuityAccessFromSnapshot(
           emptyScheduleSnapshot,
           testSailingDay
         ),
@@ -189,12 +189,12 @@ describe("computeVesselTripsRows", () => {
 
     try {
       const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsBatch"
+        "../computeVesselTripsRows"
       );
       const result = await computeVesselTripsRows({
         vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
         existingActiveTrips: [completedExisting],
-        scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+        scheduleAccess: createScheduleContinuityAccessFromSnapshot(
           emptyScheduleSnapshot,
           testSailingDay
         ),
@@ -223,12 +223,12 @@ describe("computeVesselTripsRows", () => {
 
     try {
       const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsBatch"
+        "../computeVesselTripsRows"
       );
       const result = await computeVesselTripsRows({
         vesselLocations: [makeLocation()],
         existingActiveTrips: [existingTrip],
-        scheduleAccess: createScheduledSegmentTablesFromSnapshot(
+        scheduleAccess: createScheduleContinuityAccessFromSnapshot(
           emptyScheduleSnapshot,
           testSailingDay
         ),

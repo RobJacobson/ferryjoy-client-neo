@@ -18,13 +18,6 @@ export type PingEventWrites = {
 };
 
 /**
- * Input to timeline projection after **updateVesselTrips** and
- * **updateVesselPredictions** for this ping. Structurally identical to
- * {@link PingEventWrites}.
- */
-export type TimelinePingProjectionInput = PingEventWrites;
-
-/**
  * Merges completed- then current-branch ping writes (stable ordering).
  *
  * @param completed - Writes from completed-trip transitions (first)

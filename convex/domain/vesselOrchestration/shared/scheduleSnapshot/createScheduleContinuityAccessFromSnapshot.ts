@@ -1,5 +1,7 @@
 /**
  * In-memory schedule continuity access for tests and non-hot-path callers.
+ *
+ * See `./README.md`: this is not production `vesselOrchestratorScheduleSnapshots` persistence.
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled";

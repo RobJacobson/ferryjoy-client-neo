@@ -17,7 +17,7 @@ leave-dock actualization for one ping. On the **orchestrator** path this runs in
 - **`VesselTripCoreProposal`** — Trip **immediately before this ping’s**
   `appendArriveDock` / `appendLeaveDock` phases. The row may still carry **prior**
   ML or joined minimal fields from storage; the boundary is not a stripped row.
-- **`PredictedTripComputation`** — defined in [`../shared/pingHandshake/types.ts`](../shared/pingHandshake/types.ts); ML merge input for timeline (same ping as prediction rows).
+- **`MlTimelineOverlay`** — defined in [`../shared/pingHandshake/types.ts`](../shared/pingHandshake/types.ts); same-ping ML merge input for timeline (alongside prediction table rows).
 
 ## Persistence vs overlay
 

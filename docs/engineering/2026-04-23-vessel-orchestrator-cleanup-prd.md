@@ -54,7 +54,7 @@ As of the latest cleanup pass, the core hot-path goals are largely in place:
 Recent cleanup also removed a layer of prediction-stage DTO indirection:
 
 - the prediction stage now returns the flat `predictionRows` and
-  `predictedTripComputations` shapes that persistence actually consumes
+  `mlTimelineOverlays` shapes that persistence actually consumes
 - stale per-vessel prediction/timeline wrapper DTOs were removed
 - small `Pick<...>` helper types in the touched orchestrator path were replaced
   with clearer explicit local types
@@ -86,7 +86,7 @@ Recent cleanup also removed a layer of prediction-stage DTO indirection:
 - the trip stage now carries `predictionInputs` directly, so `actions.ts` does
   not need to rebuild that handoff after the trip stage returns
 - persistence-bundle helper args are now flatter in runtime and tests, using
-  direct `tripRows`, `predictionRows`, and `predictedTripComputations` instead
+  direct `tripRows`, `predictionRows`, and `mlTimelineOverlays` instead
   of nested stage wrapper args
 - shared persistence-bundle assembly now lives in
   `convex/functions/vesselOrchestrator/persistenceBundle.ts`, with tests

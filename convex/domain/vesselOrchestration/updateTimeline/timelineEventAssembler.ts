@@ -17,9 +17,9 @@ import {
   type PingEventWrites,
 } from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
 import type {
-  CompletedTripBoundaryFact,
-  CurrentTripActualEventMessage,
-  CurrentTripPredictedEventMessage,
+  ActualDockWriteIntent,
+  CompletedArrivalHandoff,
+  PredictedDockWriteIntent,
 } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTripWithML,
@@ -37,11 +37,11 @@ import {
  * @returns ML-shaped new trip for `buildPredictedDockWriteBatch`
  */
 const completedBoundaryNewTripForTimeline = (
-  fact: CompletedTripBoundaryFact
+  fact: CompletedArrivalHandoff
 ): ConvexVesselTripWithML => {
   if (fact.newTrip === undefined) {
     throw new Error(
-      "CompletedTripBoundaryFact.newTrip is required before timeline projection; run updateVesselPredictions merge first."
+      "CompletedArrivalHandoff.newTrip is required before timeline projection; run updateVesselPredictions merge first."
     );
   }
   return fact.newTrip;
@@ -54,7 +54,7 @@ const completedBoundaryNewTripForTimeline = (
  * @returns Proposed trip row (ML optional for these writes)
  */
 const currentTripProposedForActuals = (
-  message: CurrentTripActualEventMessage
+  message: ActualDockWriteIntent
 ): ConvexVesselTripWithML =>
   message.finalProposed ?? (message.scheduleTrip as ConvexVesselTripWithML);
 
@@ -65,7 +65,7 @@ const currentTripProposedForActuals = (
  * @returns Proposed trip for predicted dock projection
  */
 const currentTripProposedForPredicted = (
-  message: CurrentTripPredictedEventMessage
+  message: PredictedDockWriteIntent
 ): ConvexVesselTripWithML =>
   message.finalProposed ?? (message.scheduleTrip as ConvexVesselTripWithML);
 
@@ -89,7 +89,7 @@ type TaggedPredictedDockBatch = {
  * @returns Actual and predicted dock writes for timeline mutations
  */
 export const buildPingEventWritesFromCompletedFacts = (
-  facts: CompletedTripBoundaryFact[],
+  facts: CompletedArrivalHandoff[],
   updatedAt: number
 ): PingEventWrites =>
   facts.reduce(
@@ -112,8 +112,8 @@ export const buildPingEventWritesFromCompletedFacts = (
  */
 export const buildPingEventWritesFromCurrentMessages = (
   successfulVessels: Set<string>,
-  pendingActualMessages: CurrentTripActualEventMessage[],
-  pendingPredictedMessages: CurrentTripPredictedEventMessage[],
+  pendingActualMessages: ActualDockWriteIntent[],
+  pendingPredictedMessages: PredictedDockWriteIntent[],
   updatedAt: number
 ): PingEventWrites => {
   const taggedActual = pendingActualMessages.flatMap((message) =>
@@ -143,7 +143,7 @@ export const buildPingEventWritesFromCurrentMessages = (
  * @returns Event-write payload for the completed trip
  */
 const pingEventWritesFromCompletedFact = (
-  fact: CompletedTripBoundaryFact,
+  fact: CompletedArrivalHandoff,
   updatedAt: number
 ): PingEventWrites => ({
   actualDockWrites: [
@@ -193,7 +193,7 @@ const shouldClearExistingPredictions = (
  * @returns Vessel-tagged rows gated by upsert success rules
  */
 const buildTaggedActualDockRowsFromMessage = (
-  message: CurrentTripActualEventMessage,
+  message: ActualDockWriteIntent,
   updatedAt: number
 ): TaggedActualDockRow[] => {
   const rows: ConvexActualDockEvent[] = [];
@@ -227,7 +227,7 @@ const buildTaggedActualDockRowsFromMessage = (
  * @returns Vessel-tagged batches gated by upsert success rules
  */
 const buildTaggedPredictedBatchesFromMessage = (
-  message: CurrentTripPredictedEventMessage
+  message: PredictedDockWriteIntent
 ): TaggedPredictedDockBatch[] => {
   const batches: ConvexPredictedDockWriteBatch[] = [];
   const { existingTrip, vesselAbbrev, requiresSuccessfulUpsert } = message;

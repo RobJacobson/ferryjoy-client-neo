@@ -9,13 +9,16 @@
 
 Root exports are intentionally small:
 
-- `computeVesselTripsBatch(input) -> { updates, rows }`
 - `computeVesselTripsRows(input) -> { activeTrips, completedTrips }`
+- `computeVesselTripUpdate(input) -> VesselTripUpdate`
 - `RunUpdateVesselTripsOutput`
 - `VesselTripUpdate`
 
-`computeVesselTripsBatch` exists for the orchestrator, which needs per-vessel
-change metadata. `computeVesselTripsRows` is the smaller trip-rows-only runner.
+The production orchestrator hot path uses `computeVesselTripUpdate` in a
+per-vessel loop over the **full** normalized location batch each ping so one
+failed vessel can be isolated without stopping the fleet ping.
+`computeVesselTripsRows` remains the rows-only domain runner for callers that
+only need merged active/completed rows.
 
 ## What this folder owns
 
@@ -53,10 +56,10 @@ is:
 
 ## Module map
 
-- `computeVesselTripsBatch.ts`
-  - Batch runner and authoritative active-row merge
 - `computeVesselTripUpdate.ts`
   - One-vessel orchestration and change classification
+- `computeVesselTripsRows.ts`
+  - Canonical rows-only batch runner
 - `lifecycle.ts`
   - Feed-driven lifecycle facts for one ping
 - `tripBuilders.ts`

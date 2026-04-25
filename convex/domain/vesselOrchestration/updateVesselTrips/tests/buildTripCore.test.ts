@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import { buildTripRowsForPing } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
-import { computeTripBatchForPing } from "functions/vesselOrchestrator/testing";
+import { computeTripStageForLocations } from "functions/vesselOrchestrator/actions";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -331,36 +331,16 @@ describe("buildTripRowsForPing", () => {
     );
     expect(authoritativeTrip?.ScheduleKey).toBe(nextSegment.Key);
 
-    const tripBatch = await computeTripBatchForPing(
-      [
-        {
-          vesselLocation: makeLocation({
-            VesselAbbrev: "CHE",
-            AtDock: true,
-            LeftDock: undefined,
-            DepartingTerminalAbbrev: "MUK",
-            DepartingTerminalName: "Mukilteo",
-            ArrivingTerminalAbbrev: "CLI",
-            ScheduledDeparture: nextSegment.DepartingTime,
-            ScheduleKey: undefined,
-            TimeStamp: ms("2026-03-13T12:01:00-07:00"),
-          }),
-          locationChanged: false,
-        },
-      ],
+    const tripStage = await computeTripStageForLocations(
+      [],
       authoritativeTrip ? [authoritativeTrip] : [],
-      {
-        SailingDay: "2026-03-13",
-        scheduledDepartureBySegmentKey: {},
-        scheduledDeparturesByVesselAbbrev: {},
-      },
-      "2026-03-13"
+      scheduleTables
     );
 
-    expect(tripBatch.updates).toEqual([]);
-    expect(tripBatch.rows.activeTrips).toEqual(
+    expect(tripStage.predictionInputs.activeTrips).toEqual([]);
+    expect(tripStage.tripRows.activeTrips).toEqual(
       authoritativeTrip ? [authoritativeTrip] : []
     );
-    expect(tripBatch.rows.completedTrips).toEqual([]);
+    expect(tripStage.tripRows.completedTrips).toEqual([]);
   });
 });

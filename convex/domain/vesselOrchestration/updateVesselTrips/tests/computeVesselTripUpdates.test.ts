@@ -1,6 +1,8 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
-import { createScheduledSegmentTablesFromSnapshot } from "domain/vesselOrchestration/shared";
+import {
+  createScheduleContinuityAccessFromSnapshot,
+  type TripLifecycleEventFlags,
+} from "domain/vesselOrchestration/shared";
 import type { ScheduleSnapshot } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -14,7 +16,7 @@ const emptyScheduleSnapshot: ScheduleSnapshot = {
   scheduledDeparturesByVesselAbbrev: {},
 };
 
-const scheduleTables = createScheduledSegmentTablesFromSnapshot(
+const scheduleTables = createScheduleContinuityAccessFromSnapshot(
   emptyScheduleSnapshot,
   "2026-03-13"
 );

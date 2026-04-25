@@ -1,45 +1,31 @@
 /**
- * Shared vessel-location update computation for the orchestrator.
+ * Shared vessel-location update computation for the vessel orchestrator.
  *
- * The production action and focused test helpers both need the same
- * normalize-and-dedupe logic, so this module keeps that work out of the
- * hot-path action file without introducing another persistence boundary.
+ * Fetches and normalizes the WSF feed into `ConvexVesselLocation` rows for one
+ * ping. Persistence compares against DB inside `performBulkUpsertVesselLocations`.
  */
 
-import type { Id } from "_generated/dataModel";
 import { fetchRawWsfVesselLocations } from "adapters";
-import type { Infer } from "convex/values";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  storedVesselLocationSchema,
-  VesselLocationUpdates,
-} from "functions/vesselOrchestrator/schemas";
+import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-
-type StoredVesselLocation = Infer<typeof storedVesselLocationSchema>;
-export type ChangedLocationWrite = {
-  vesselLocation: ConvexVesselLocation;
-  existingLocationId?: Id<"vesselLocations">;
-};
 
 type LoadVesselLocationUpdatesArgs = {
   pingStartedAt: number;
-  storedLocations: ReadonlyArray<StoredVesselLocation>;
   terminalsIdentity: ReadonlyArray<TerminalIdentity>;
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
 };
 
 /**
- * Fetches live vessel locations from WSF and compares them to stored rows.
+ * Fetches live vessel locations from WSF and normalizes them for this ping.
  *
- * @param args - Ping timestamp, identity tables, and stored location rows
- * @returns Full location rows annotated with change state and existing ids
+ * @param args - Ping timestamp and identity tables for feed resolution
+ * @returns One update per normalized vessel location for trip compute and persist
  */
 export const loadVesselLocationUpdates = async ({
   pingStartedAt,
-  storedLocations,
   terminalsIdentity,
   vesselsIdentity,
 }: LoadVesselLocationUpdatesArgs): Promise<
@@ -52,33 +38,11 @@ export const loadVesselLocationUpdates = async ({
     vesselsIdentity,
     terminalsIdentity,
   });
-  const storedLocationsByVessel = new Map(
-    storedLocations.map((row) => [row.VesselAbbrev, row] as const)
-  );
 
-  return vesselLocations.map((vesselLocation) => {
-    const existingLocation = storedLocationsByVessel.get(
-      vesselLocation.VesselAbbrev
-    );
-
-    return {
-      vesselLocation,
-      existingLocationId: existingLocation?._id,
-      locationChanged: existingLocation?.TimeStamp !== vesselLocation.TimeStamp,
-    };
-  });
+  return vesselLocations.map((vesselLocation) => ({ vesselLocation }));
 };
 
-/**
- * Extracts changed location writes for the orchestrator persistence mutation.
- *
- * @param locationUpdates - Changed location updates for the ping
- * @returns Changed rows plus optional existing document ids
- */
-export const buildChangedLocationWrites = (
+export const feedLocationsFromUpdates = (
   locationUpdates: ReadonlyArray<VesselLocationUpdates>
-): ReadonlyArray<ChangedLocationWrite> =>
-  locationUpdates.map((update) => ({
-    vesselLocation: update.vesselLocation,
-    existingLocationId: update.existingLocationId,
-  }));
+): ReadonlyArray<ConvexVesselLocation> =>
+  locationUpdates.map((u) => u.vesselLocation);

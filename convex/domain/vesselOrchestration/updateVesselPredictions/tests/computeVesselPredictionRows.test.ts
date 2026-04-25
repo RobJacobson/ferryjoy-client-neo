@@ -95,10 +95,10 @@ describe("runVesselPredictionPing", () => {
       predictionContext: richContext,
     });
 
-    expect(output.predictedTripComputations).toHaveLength(1);
+    expect(output.mlTimelineOverlays).toHaveLength(1);
     expect(output.predictionRows).toHaveLength(3);
     expect(
-      output.predictedTripComputations[0]?.finalPredictedTrip?.AtDockDepartCurr
+      output.mlTimelineOverlays[0]?.finalPredictedTrip?.AtDockDepartCurr
         ?.PredTime
     ).toBe(ms("2026-03-13T09:33:00-07:00"));
   });
@@ -131,14 +131,12 @@ describe("runVesselPredictionPing", () => {
       predictionContext: richContext,
     });
 
-    expect(output.predictedTripComputations).toHaveLength(1);
-    expect(output.predictedTripComputations[0]?.branch).toBe("completed");
-    expect(output.predictedTripComputations[0]?.completedTrip?.TripKey).toBe(
+    expect(output.mlTimelineOverlays).toHaveLength(1);
+    expect(output.mlTimelineOverlays[0]?.branch).toBe("completed");
+    expect(output.mlTimelineOverlays[0]?.completedTrip?.TripKey).toBe(
       completedTrip.TripKey
     );
-    expect(
-      output.predictedTripComputations[0]?.finalPredictedTrip
-    ).toBeDefined();
+    expect(output.mlTimelineOverlays[0]?.finalPredictedTrip).toBeDefined();
   });
 
   it("returns no prediction rows when the preload has no models", async () => {
@@ -151,8 +149,6 @@ describe("runVesselPredictionPing", () => {
     });
 
     expect(output.predictionRows).toEqual([]);
-    expect(output.predictedTripComputations[0]?.finalPredictedTrip).toEqual(
-      trip
-    );
+    expect(output.mlTimelineOverlays[0]?.finalPredictedTrip).toEqual(trip);
   });
 });

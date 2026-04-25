@@ -1,12 +1,12 @@
 /**
  * Pure **updateTimeline** step: merges lifecycle branch outputs into
- * `TimelinePingProjectionInput` for one ping.
+ * {@link PingEventWrites} for one ping.
  *
  * **Production contract:** `completedFacts` and `currentBranch` match the
  * lifecycle-shaped rows built from Stage C/D handoffs (see
  * `orchestratorTimelineProjection`), with ML-enriched trips where projection
  * needs them. Same-ping assembly must not reload `vesselTripPredictions` from the
- * DB; ML overlay uses {@link mergePredictedComputationsIntoTimelineProjectionAssembly}
+ * DB; ML overlay uses {@link mergeMlOverlayIntoTripHandoffForTimeline}
  * in `orchestratorTimelineProjection` after `runVesselPredictionPing`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
@@ -16,11 +16,11 @@
 
 import {
   mergePingEventWrites,
-  type TimelinePingProjectionInput,
+  type PingEventWrites,
 } from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
 import type {
-  CompletedTripBoundaryFact,
-  CurrentTripLifecycleBranchResult,
+  ActiveTripWriteOutcome,
+  CompletedArrivalHandoff,
 } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import {
   buildPingEventWritesFromCompletedFacts,
@@ -28,27 +28,26 @@ import {
 } from "./timelineEventAssembler";
 
 /**
- * Facts and current-branch state for one ping after ML overlay from prediction
- * handoffs (same shapes as {@link BuildTimelinePingProjectionInputArgs} minus ping
+ * Trip persistence output plus current-branch state for one ping, after ML
+ * overlay from prediction handoffs (same shapes as {@link BuildDockWritesFromTripHandoffArgs} minus ping
  * time).
  */
-export type TimelineProjectionAssembly = {
-  completedFacts: CompletedTripBoundaryFact[];
-  currentBranch: CurrentTripLifecycleBranchResult;
+export type TripHandoffForTimeline = {
+  completedFacts: CompletedArrivalHandoff[];
+  currentBranch: ActiveTripWriteOutcome;
 };
 
 /**
- * Arguments for {@link buildTimelinePingProjectionInput}.
+ * Arguments for {@link buildDockWritesFromTripHandoff}.
  */
-export type BuildTimelinePingProjectionInputArgs =
-  TimelineProjectionAssembly & {
-    pingStartedAt: number;
-  };
+export type BuildDockWritesFromTripHandoffArgs = TripHandoffForTimeline & {
+  pingStartedAt: number;
+};
 
 /**
  * Merges completed-branch then current-branch ping writes for one orchestrator
  * ping. For timeline rows that need ML (e.g. predicted dock batches), call only
- * after {@link mergePredictedComputationsIntoTimelineProjectionAssembly} in
+ * after {@link mergeMlOverlayIntoTripHandoffForTimeline} in
  * `orchestratorTimelineProjection`; `currentBranch` must still reflect
  * post-mutation upsert gating
  * (`successfulVessels`, pending messages).
@@ -56,9 +55,9 @@ export type BuildTimelinePingProjectionInputArgs =
  * @param args - Boundary facts, current-branch artifacts, and ping time
  * @returns Sparse timeline payload for orchestrator timeline mutations
  */
-export const buildTimelinePingProjectionInput = (
-  args: BuildTimelinePingProjectionInputArgs
-): TimelinePingProjectionInput => {
+export const buildDockWritesFromTripHandoff = (
+  args: BuildDockWritesFromTripHandoffArgs
+): PingEventWrites => {
   const { completedFacts, currentBranch, pingStartedAt } = args;
   return mergePingEventWrites(
     buildPingEventWritesFromCompletedFacts(completedFacts, pingStartedAt),

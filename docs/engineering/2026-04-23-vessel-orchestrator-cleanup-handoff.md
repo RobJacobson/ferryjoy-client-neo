@@ -20,7 +20,7 @@ The orchestrator hot path was updated toward the cleanup target:
 The latest cleanup pass also tightened the local code shape:
 
 - the prediction stage now returns the flat persistence-native
-  `predictionRows` / `predictedTripComputations` payload directly
+  `predictionRows` / `mlTimelineOverlays` payload directly
 - stale per-vessel prediction/timeline wrapper DTOs were removed
 - `actions.ts` now passes precomputed `changedLocations` into the final bundle
   instead of re-filtering full location updates
@@ -66,7 +66,7 @@ The latest cleanup pass also tightened the local code shape:
   that leaner stage shape
 - the persistence-bundle helper contract itself is now flatter in both runtime
   and tests: direct `tripRows`, `predictionRows`, and
-  `predictedTripComputations` instead of nested `tripStage` /
+  `mlTimelineOverlays` instead of nested `tripStage` /
   `predictionStage` wrapper args
 - shared persistence-bundle assembly now lives in
   `convex/functions/vesselOrchestrator/persistenceBundle.ts`, with `testing.ts`

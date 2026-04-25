@@ -4,7 +4,11 @@
  * `updateVesselTrips` does not depend on `updateTimeline` for primary typing.
  *
  * Branch processors emit facts and per-vessel messages; assembly into
- * `PingEventWrites` happens in `updateTimeline` (`timelineEventAssembler.ts`).
+ * `PingEventWrites` happens in `updateTimeline` via
+ * `buildDockWritesFromTripHandoff` (wired from `orchestratorTimelineProjection.ts`).
+ *
+ * **Handoff glossary:** see
+ * `convex/domain/vesselOrchestration/updateTimeline/README.md` (section **Handoff glossary**).
  */
 
 import type {
@@ -14,14 +18,14 @@ import type {
 import type { TripLifecycleEventFlags } from "../tripLifecycle";
 
 /**
- * One successful trip-boundary transition: trips ready for timeline writes.
+ * One completed arrival at dock: rows ready for timeline and prediction overlay.
  *
  * `scheduleTrip` is the replacement active row from `buildTripRowsForPing`
  * (schedule fields applied, no ML). **updateVesselPredictions** attaches ML
  * into {@link newTrip} before timeline projection
- * (`buildTimelinePingProjectionInput`).
+ * (`buildDockWritesFromTripHandoff`).
  */
-export type CompletedTripBoundaryFact = {
+export type CompletedArrivalHandoff = {
   existingTrip: ConvexVesselTrip;
   tripToComplete: ConvexVesselTrip;
   /**
@@ -40,10 +44,9 @@ export type CompletedTripBoundaryFact = {
 };
 
 /**
- * Per-vessel message to build sparse `eventsActual` patches on the current path.
+ * Per-vessel payload to build sparse `eventsActual` patches on the current path.
  */
-export type CurrentTripActualEventMessage = {
-  events: TripLifecycleEventFlags;
+type DockWriteIntentBase = {
   /** Schedule-enriched trip row from the trip stage (pre-ML overlay). */
   scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
@@ -54,85 +57,35 @@ export type CurrentTripActualEventMessage = {
   finalProposed?: ConvexVesselTripWithML;
 };
 
-/**
- * Per-vessel message to build `eventsPredicted` effects on the current path.
- */
-export type CurrentTripPredictedEventMessage = {
-  existingTrip: ConvexVesselTrip | undefined;
-  scheduleTrip: ConvexVesselTrip;
-  vesselAbbrev: string;
-  requiresSuccessfulUpsert: boolean;
-  /**
-   * Set in **updateVesselPredictions** before timeline assembly when ML applies.
-   */
-  finalProposed?: ConvexVesselTripWithML;
+export type ActualDockWriteIntent = DockWriteIntentBase & {
+  events: TripLifecycleEventFlags;
 };
 
 /**
- * Current-trip branch after lifecycle mutations (`successfulVessels` from batch
+ * Per-vessel payload to build `eventsPredicted` effects on the current path.
+ */
+export type PredictedDockWriteIntent = DockWriteIntentBase & {
+  existingTrip: ConvexVesselTrip | undefined;
+};
+
+/**
+ * Active-trip path after lifecycle mutations (`successfulVessels` from batch
  * upsert). Used by timeline assembly; must reflect persisted state.
  */
-export type CurrentTripLifecycleBranchResult = {
+export type ActiveTripWriteOutcome = {
   successfulVessels: Set<string>;
-  pendingActualMessages: CurrentTripActualEventMessage[];
-  pendingPredictedMessages: CurrentTripPredictedEventMessage[];
-};
-
-/** Leave-dock effect bundled with the ping compute for depart-next actualization. */
-export type PendingLeaveDockEffect = {
-  vesselAbbrev: string;
-  trip: ConvexVesselTrip;
-};
-
-/** Current-branch payload grouped for persistence and timeline assembly. */
-export type ActiveTripsBranch = {
-  activeUpserts: ConvexVesselTrip[];
-  pendingActualMessages: CurrentTripActualEventMessage[];
-  pendingPredictedMessages: CurrentTripPredictedEventMessage[];
-  pendingLeaveDockEffects: PendingLeaveDockEffect[];
+  pendingActualMessages: ActualDockWriteIntent[];
+  pendingPredictedMessages: PredictedDockWriteIntent[];
 };
 
 /**
- * Trip + lifecycle messages for one ping, before trip-table mutations.
- * Feeds storage row builders and timeline projection inputs.
- */
-export type VesselTripsComputeBundle = {
-  completedHandoffs: CompletedTripBoundaryFact[];
-  current: ActiveTripsBranch;
-};
-
-/**
- * One vessel’s row for timeline projection (Stage C), derived from the compute bundle.
- */
-export type TripComputation =
-  | {
-      branch: "completed";
-      vesselAbbrev: string;
-      events: TripLifecycleEventFlags;
-      existingTrip: ConvexVesselTrip;
-      completedTrip: ConvexVesselTrip;
-      /** Replacement active row used for persist gates (same as `scheduleTrip` today). */
-      activeTrip: ConvexVesselTrip;
-      /** Schedule-enriched row from the trip stage (pre-ML). */
-      scheduleTrip: ConvexVesselTrip;
-    }
-  | {
-      branch: "current";
-      vesselAbbrev: string;
-      events?: TripLifecycleEventFlags;
-      existingTrip?: ConvexVesselTrip;
-      activeTrip: ConvexVesselTrip;
-      scheduleTrip: ConvexVesselTrip;
-    };
-
-/**
- * ML overlay for one vessel’s prediction ping, used to merge `finalProposed` /
- * replacement-trip ML into timeline projection (`buildTimelinePingProjectionInput`).
+ * Same-ping ML overlay for timeline merge (in-memory; not a persistence DTO).
  *
- * Produced in the same pass as prediction table rows (`computeVesselPredictionRows`
- * in `updateVesselPredictions`); not a persistence DTO.
+ * Produced alongside prediction table rows (`computeVesselPredictionRows` /
+ * `runVesselPredictionPing`); used to merge `finalProposed` / replacement-trip ML
+ * into timeline projection (`buildDockWritesFromTripHandoff`).
  */
-export type PredictedTripComputation = {
+export type MlTimelineOverlay = {
   vesselAbbrev: string;
   branch: "completed" | "current";
   completedTrip?: ConvexVesselTrip;
@@ -141,13 +94,11 @@ export type PredictedTripComputation = {
 };
 
 /**
- * Canonical merged shape for one trip ping after lifecycle mutations (before
- * optional ML overlay for `vesselTripPredictions` / timeline projection).
+ * Outcome of applying trip table writes for one orchestrator ping: completed
+ * arrivals plus active-trip branch state (before optional ML overlay for
+ * timeline / `vesselTripPredictions`).
  */
-export type TripPingLifecycleOutcome = {
-  completedFacts: CompletedTripBoundaryFact[];
-  currentBranch: CurrentTripLifecycleBranchResult;
+export type TripPersistOutcome = {
+  completedFacts: CompletedArrivalHandoff[];
+  currentBranch: ActiveTripWriteOutcome;
 };
-
-/** Persist/handshake label for one ping's trip-table mutation result. */
-export type VesselTripPersistResult = TripPingLifecycleOutcome;

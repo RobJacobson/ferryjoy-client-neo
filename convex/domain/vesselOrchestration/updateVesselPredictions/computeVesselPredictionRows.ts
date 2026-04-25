@@ -6,8 +6,8 @@
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type {
-  CompletedTripBoundaryFact,
-  PredictedTripComputation,
+  CompletedArrivalHandoff,
+  MlTimelineOverlay,
 } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyVesselPredictions } from "./applyVesselPredictions";
@@ -19,7 +19,7 @@ import type {
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
 export type RunVesselPredictionPingOutput = RunUpdateVesselPredictionsOutput & {
-  predictedTripComputations: ReadonlyArray<PredictedTripComputation>;
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
 const predictionModelAccessFromContext = (
@@ -53,7 +53,7 @@ const predictionModelAccessFromContext = (
 const buildPredictedCurrentTrip = async (
   trip: ConvexVesselTrip,
   modelAccess: VesselTripPredictionModelAccess
-): Promise<PredictedTripComputation> => {
+): Promise<MlTimelineOverlay> => {
   const finalPredictedTrip = await applyVesselPredictions(modelAccess, trip);
 
   return {
@@ -65,9 +65,9 @@ const buildPredictedCurrentTrip = async (
 };
 
 const buildPredictedCompletedHandoff = async (
-  handoff: CompletedTripBoundaryFact,
+  handoff: CompletedArrivalHandoff,
   modelAccess: VesselTripPredictionModelAccess
-): Promise<PredictedTripComputation> => {
+): Promise<MlTimelineOverlay> => {
   const finalPredictedTrip = await applyVesselPredictions(
     modelAccess,
     handoff.scheduleTrip
@@ -86,7 +86,7 @@ export const runVesselPredictionPing = async (
   input: RunUpdateVesselPredictionsInput
 ): Promise<RunVesselPredictionPingOutput> => {
   const modelAccess = predictionModelAccessFromContext(input.predictionContext);
-  const predictedTripComputations = [
+  const mlTimelineOverlays = [
     ...(await Promise.all(
       input.completedHandoffs.map((handoff) =>
         buildPredictedCompletedHandoff(handoff, modelAccess)
@@ -99,15 +99,15 @@ export const runVesselPredictionPing = async (
     )),
   ];
 
-  const predictionRows = predictedTripComputations.flatMap((computation) =>
-    computation.finalPredictedTrip === undefined
+  const predictionRows = mlTimelineOverlays.flatMap((overlay) =>
+    overlay.finalPredictedTrip === undefined
       ? []
-      : vesselTripPredictionProposalsFromMlTrip(computation.finalPredictedTrip)
+      : vesselTripPredictionProposalsFromMlTrip(overlay.finalPredictedTrip)
   );
 
   return {
     predictionRows,
-    predictedTripComputations,
+    mlTimelineOverlays,
   };
 };
 

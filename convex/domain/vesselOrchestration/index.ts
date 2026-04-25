@@ -4,9 +4,9 @@
  *
  * Post-fetch DB writes for one pass are sequenced in Convex
  * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
- * {@link computeVesselTripsRows} for the trip branch. The orchestrator still owns
- * a wall-clock anchor for predictions, timeline (`pingStartedAt`), and schedule
- * snapshot queries — not for the trips domain input alone.
+ * the one-vessel trip update seam for the guarded hot path. The orchestrator
+ * still owns a wall-clock anchor for predictions and timeline (`pingStartedAt`)
+ * plus targeted schedule-continuity access.
  */
 
 export * as shared from "./shared";
