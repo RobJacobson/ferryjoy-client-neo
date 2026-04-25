@@ -1,8 +1,9 @@
 /**
- * Route timeline Convex module — schema validators, wire types, and domain
- * conversion for `RouteTimelineSnapshot` (Stage 1: no registered queries yet).
+ * Route timeline Convex module: validators, domain conversion, and public
+ * `getRouteTimelineSnapshot` query.
  */
 
+export * from "./queries";
 export type {
   ConvexRouteTimelineBoundary,
   ConvexRouteTimelineDockVisit,
