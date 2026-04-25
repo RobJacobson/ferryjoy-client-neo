@@ -1,6 +1,6 @@
 # VesselOrchestrator - Real-Time Ferry Coordination
 
-The `VesselOrchestrator` is the top-level coordination layer for real-time vessel processing. It fetches vessel locations from WSF once, converts that payload into the Convex location shape, and then fans the same location batch out to multiple backend consumers.
+The `VesselOrchestrator` is the top-level coordination layer for real-time vessel processing. It fetches vessel locations from WSF once, normalizes that payload into backend-owned location rows, persists locations in a dedicated mutation, then runs trip/prediction/timeline orchestration for the same ping.
 
 The orchestrator follows the backend layering rule:
 
@@ -16,7 +16,7 @@ Phase **O1** ([handoff](../../../docs/handoffs/vessel-orchestrator-o1-orchestrat
 
 1. **Locations** — computed in `actions.ts` from the WSF batch, then written through public mutation **`bulkUpsertVesselLocations`** (reads `vesselLocations`, matches by `VesselAbbrev`, skips unchanged `TimeStamp`).
 2. **`updateVesselTrips`** — the per-vessel loop calls `computeVesselTripUpdate` for each normalized location this tick, then function-layer `persistVesselTripWriteSet` applies active/completed rows after per-vessel failure isolation.
-3. **`runAndPersistVesselPredictionPing`** — `runVesselPredictionPing` (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
+3. **`runPredictionStage`** — `runVesselPredictionPing` (`updateVesselPredictions` domain module) computes prediction rows and ML timeline overlays in action code.
 4. **`persistOrchestratorPing`** — `persistVesselTripWriteSet`, prediction upserts, `runUpdateVesselTimelineFromAssembly` (`tripHandoffForTimeline` from trip persist output + `mlTimelineOverlays` after persist), then projection mutations for `eventsActual` / `eventsPredicted`.
 
 The handler in `actions.ts` chains these steps; each step either calls domain helpers and/or `ctx.runMutation` with the payloads produced for that phase.
@@ -33,7 +33,7 @@ The orchestrator runs periodically (currently every 5 seconds via `convex/crons.
 
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
-- **Live `vesselLocations`** — standalone `bulkUpsertVesselLocations` mutation (`locations` arg: full normalized fleet; `collect()` + compare by `VesselAbbrev` / `TimeStamp`).
+- **Live `vesselLocations`** — standalone `bulkUpsertVesselLocations` mutation (`locations` arg: full normalized fleet; `collect()` + compare by `VesselAbbrev` / `TimeStamp`; per-vessel write failures logged without aborting remaining rows).
 - **updateVesselTrips** — the per-vessel loop calls `computeVesselTripUpdate`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
 - **runAndPersistVesselPredictionPing** — `runVesselPredictionPing` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `runUpdateVesselTimelineFromAssembly` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (inside **`persistOrchestratorPing`** in **`mutations.ts`**).
@@ -261,15 +261,14 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, per-vessel orchestration flow, then **`persistOrchestratorPing`** (trips + predictions
-  - timeline).
+- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location upsert via `bulkUpsertVesselLocations`, per-vessel trip/prediction flow, then **`persistOrchestratorPing`** (trips + predictions + timeline).
 - `locationUpdates.ts` — shared location normalization and dedupe helpers for the orchestrator ping.
 - `scheduleContinuityAccess.ts` — targeted cached `eventsScheduled` access for continuity lookups during the trip stage.
 - `predictionStage.ts` — changed-trip prediction gating plus ML model preload and prediction execution.
 - `testing.ts` — focused orchestrator test helpers kept out of the runtime hot-path file.
 - `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed handoffs, active upserts, and leave-dock follow-ups.
 - `mutations.ts` — **`persistOrchestratorPing`**: **`persistVesselTripWriteSet`**, prediction upserts, **`runUpdateVesselTimelineFromAssembly`**, dock writes.
-- `computeVesselPredictionRows` / `runVesselPredictionPing` (domain `updateVesselPredictions`) — prediction proposals + ML overlay; **`runAndPersistVesselPredictionPing`** persists proposals then returns `mlFull` for timeline.
+- `computeVesselPredictionRows` / `runVesselPredictionPing` (domain `updateVesselPredictions`) — prediction proposals + ML overlays consumed by `persistOrchestratorPing`.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one ping).
 - `schemas.ts` — orchestrator-related schemas.
 

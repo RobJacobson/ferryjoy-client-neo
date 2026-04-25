@@ -27,6 +27,8 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Mutation: `bulkUpsertVesselLocations`
    - Payload: full normalized `locations[]`
    - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
+   - Failure policy: per-vessel upsert failures are logged and do not abort
+     writes for other vessels in the same batch
 
 4. **Build schedule continuity access**
    - Function: `createScheduleContinuityAccess`
@@ -74,6 +76,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Fatal ping failures are logged and rethrown by `updateVesselOrchestrator`.
 - Per-vessel trip-stage failures are isolated inside the loop and do not stop
   the whole ping.
+- Per-vessel location upsert failures are isolated inside
+  `performBulkUpsertVesselLocations`.
 - Completed-trip and leave-dock follow-up writes use settled handling so one
   vessel failure does not abort all write intents.
 
