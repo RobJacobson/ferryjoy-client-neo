@@ -10,7 +10,7 @@ import { v } from "convex/values";
 import { runUpdateVesselTimelineFromAssembly } from "domain/vesselOrchestration/updateTimeline";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { projectPredictedDockWriteBatchesInDb } from "functions/events/eventsPredicted/mutations";
-import { bulkUpsertChangedLocationsInDb } from "functions/vesselLocation/mutations";
+import { performBulkUpsertVesselLocations } from "functions/vesselLocation/mutations";
 import { batchUpsertProposalsInDb } from "functions/vesselTripPredictions/mutations";
 import {
   completeAndStartNewTripInDb,
@@ -24,7 +24,7 @@ export const persistOrchestratorPing = internalMutation({
   args: orchestratorPingPersistenceSchema,
   returns: v.null(),
   handler: async (ctx, args) => {
-    await bulkUpsertChangedLocationsInDb(ctx, args.changedLocations);
+    await performBulkUpsertVesselLocations(ctx, args.feedLocations);
 
     const tripPersistResult = await persistVesselTripWriteSet(
       args.tripRows,

@@ -11,7 +11,7 @@ import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import {
-  buildChangedLocationWrites,
+  feedLocationsFromUpdates,
   loadVesselLocationUpdates,
 } from "./locationUpdates";
 import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
@@ -31,32 +31,23 @@ export const updateVesselLocations = async (
   vesselsIdentity: ReadonlyArray<VesselIdentity>,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
-  const snapshot = await ctx.runQuery(
-    internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
-  );
   const locationUpdates = await loadVesselLocationUpdates({
     pingStartedAt,
-    storedLocations: snapshot.storedLocations,
     terminalsIdentity,
     vesselsIdentity,
   });
-  const changedLocations = buildChangedLocationWrites(
-    locationUpdates.filter((update) => update.locationChanged)
-  );
 
-  if (changedLocations.length > 0) {
-    await ctx.runMutation(
-      internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-      buildOrchestratorPersistenceBundle({
-        pingStartedAt,
-        changedLocations: [...changedLocations],
-        existingActiveTrips: [],
-        tripRows: { activeTrips: [], completedTrips: [] },
-        predictionRows: [],
-        mlTimelineOverlays: [],
-      })
-    );
-  }
+  await ctx.runMutation(
+    internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
+    buildOrchestratorPersistenceBundle({
+      pingStartedAt,
+      feedLocations: feedLocationsFromUpdates(locationUpdates),
+      existingActiveTrips: [],
+      tripRows: { activeTrips: [], completedTrips: [] },
+      predictionRows: [],
+      mlTimelineOverlays: [],
+    })
+  );
 
   return locationUpdates.map((update) => update.vesselLocation);
 };

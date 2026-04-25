@@ -6,12 +6,14 @@
  * Active trips are **storage-native** (no `eventsPredicted` join); public
  * queries load predicted rows via `eventsPredicted` queries and merge with
  * `mergeTripsWithPredictions` for API parity instead.
+ *
+ * Live `vesselLocations` are not loaded here; `persistOrchestratorPing` reads
+ * the table inside the mutation when applying the normalized feed batch.
  */
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
-import { storedVesselLocationSchema } from "functions/vesselOrchestrator/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -21,7 +23,6 @@ const orchestratorModelDataSchema = v.object({
   vesselsIdentity: v.array(vesselIdentitySchema),
   terminalsIdentity: v.array(terminalIdentitySchema),
   activeTrips: v.array(vesselTripStoredSchema),
-  storedLocations: v.array(storedVesselLocationSchema),
 });
 
 /**
@@ -38,21 +39,16 @@ export const getOrchestratorModelData = internalQuery({
   args: {},
   returns: orchestratorModelDataSchema,
   handler: async (ctx) => {
-    const [vessels, terminals, trips, storedLocations] = await Promise.all([
+    const [vessels, terminals, trips] = await Promise.all([
       ctx.db.query("vesselsIdentity").collect(),
       ctx.db.query("terminalsIdentity").collect(),
       ctx.db.query("activeVesselTrips").collect(),
-      ctx.db.query("vesselLocations").collect(),
     ]);
 
     return {
       vesselsIdentity: vessels.map(stripConvexMeta),
       terminalsIdentity: terminals.map(stripConvexMeta),
       activeTrips: trips.map(stripConvexMeta),
-      storedLocations: storedLocations.map((row) => {
-        const { _creationTime: _ignoredCreationTime, ...rest } = row;
-        return rest;
-      }),
     };
   },
 });

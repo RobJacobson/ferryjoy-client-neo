@@ -2,7 +2,6 @@
  * Mutation handlers for vessel location snapshots and backend vessel mirrors.
  */
 
-import type { Id } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
@@ -10,73 +9,55 @@ import { vesselIdentitySchema } from "../vessels/schemas";
 import type { ConvexVesselLocation } from "./schemas";
 import { vesselLocationValidationSchema } from "./schemas";
 
-type ChangedVesselLocationWrite = {
-  vesselLocation: ConvexVesselLocation;
-  existingLocationId?: Id<"vesselLocations">;
-};
+/**
+ * Bulk upsert live `vesselLocations`: read current table, match by `VesselAbbrev`,
+ * skip when `TimeStamp` is unchanged, otherwise replace or insert.
+ *
+ * Shared by {@link bulkUpsertVesselLocations} and orchestrator `persistOrchestratorPing`.
+ *
+ * @param ctx - Convex mutation context
+ * @param locations - Normalized feed snapshot for this tick
+ */
+export async function performBulkUpsertVesselLocations(
+  ctx: MutationCtx,
+  locations: ReadonlyArray<ConvexVesselLocation>
+): Promise<void> {
+  const existingLocations = await ctx.db.query("vesselLocations").collect();
+  const existingByAbbrev = new Map(
+    existingLocations.map((loc) => [loc.VesselAbbrev, loc] as const)
+  );
+
+  for (const location of locations) {
+    const existing = existingByAbbrev.get(location.VesselAbbrev);
+    if (existing?.TimeStamp === location.TimeStamp) {
+      continue;
+    }
+
+    if (existing) {
+      await ctx.db.replace(existing._id, location);
+    } else {
+      await ctx.db.insert("vesselLocations", location);
+    }
+  }
+}
 
 /**
- * Bulk upsert vessel locations into the database
- * Replaces existing vessel locations that match by VesselID
+ * Public bulk upsert for normalized vessel location rows (full feed batch).
  *
- * Only writes locations that are fresh (TimeStamp changed) or new vessels.
- * Skips stale locations where vessel + timestamp are unchanged.
+ * Replaces the former `bulkUpsert` mutation; same args and semantics.
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the location snapshot payload
  * @returns `null` after all required location upserts complete
  */
-export const bulkUpsert = mutation({
+export const bulkUpsertVesselLocations = mutation({
   args: { locations: v.array(vesselLocationValidationSchema) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Get all existing vessel locations.
-    const existingLocations = await ctx.db.query("vesselLocations").collect();
-
-    // Build a map of existing vessel locations by vessel ID.
-    const existingByVesselId = new Map(
-      existingLocations.map((loc) => [loc.VesselID, loc] as const)
-    );
-
-    // Upsert each location that needs to be written.
-    for (const location of args.locations) {
-      const existing = existingByVesselId.get(location.VesselID);
-      // Skip when this vessel already has the same snapshot (no DB change).
-      if (existing?.TimeStamp === location.TimeStamp) {
-        continue;
-      }
-
-      if (existing) {
-        await ctx.db.replace(existing._id, location);
-      } else {
-        await ctx.db.insert("vesselLocations", location);
-      }
-    }
-
+    await performBulkUpsertVesselLocations(ctx, args.locations);
     return null;
   },
 });
-
-/**
- * Applies changed vessel-location rows without rereading the location table.
- *
- * @param ctx - Convex mutation context
- * @param changedLocations - Changed rows plus optional existing document ids
- * @returns `null` when all changed rows are persisted
- */
-export const bulkUpsertChangedLocationsInDb = async (
-  ctx: MutationCtx,
-  changedLocations: ReadonlyArray<ChangedVesselLocationWrite>
-): Promise<void> => {
-  for (const { vesselLocation, existingLocationId } of changedLocations) {
-    if (existingLocationId) {
-      await ctx.db.replace(existingLocationId, vesselLocation);
-      continue;
-    }
-
-    await ctx.db.insert("vesselLocations", vesselLocation);
-  }
-};
 
 /**
  * Upsert the backend vessel snapshot with the latest upstream data.

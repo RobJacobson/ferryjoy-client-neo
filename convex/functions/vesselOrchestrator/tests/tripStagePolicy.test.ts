@@ -73,33 +73,30 @@ const makeLocation = (
 
 const makeLocationUpdate = (
   vesselAbbrev: string,
-  locationChanged: boolean,
   overrides: Partial<ConvexVesselLocation> = {}
 ): VesselLocationUpdates => ({
   vesselLocation: makeLocation(vesselAbbrev, overrides),
-  locationChanged,
 });
 
 describe("trip stage schedule-inference gating", () => {
-  it("skips trip recomputation for unchanged locations", async () => {
+  it("runs trip recomputation for each supplied location update", async () => {
     const scheduleAccess: ScheduleContinuityAccess = {
       getScheduledDeparturesForVesselAndSailingDay: async () => [],
       getScheduledSegmentByKey: async () => null,
     };
     const locationUpdates = [
-      makeLocationUpdate("CHE", false),
-      makeLocationUpdate("TAC", true, {
+      makeLocationUpdate("CHE"),
+      makeLocationUpdate("TAC", {
         TimeStamp: ms("2026-03-13T06:35:00-07:00"),
       }),
     ];
     const tripStage = await computeTripStageForLocations(
-      locationUpdates.filter((update) => update.locationChanged),
+      locationUpdates,
       [makeTrip("CHE"), makeTrip("TAC")],
       scheduleAccess
     );
 
-    expect(tripStage.predictionInputs.activeTrips).toHaveLength(1);
-    expect(tripStage.predictionInputs.activeTrips[0]?.VesselAbbrev).toBe("TAC");
+    expect(tripStage.predictionInputs.activeTrips).toHaveLength(2);
     expect(tripStage.tripRows.activeTrips).toHaveLength(2);
   });
 
@@ -142,8 +139,8 @@ describe("trip stage schedule-inference gating", () => {
       const failedTrip = makeTrip("CHE");
       const tripStage = await computeTripStageForLocations(
         [
-          makeLocationUpdate("CHE", true),
-          makeLocationUpdate("TAC", true, {
+          makeLocationUpdate("CHE"),
+          makeLocationUpdate("TAC", {
             TimeStamp: ms("2026-03-13T06:35:00-07:00"),
           }),
         ],

@@ -2,7 +2,6 @@
  * Validators and TypeScript shapes used by the vessel orchestrator.
  */
 
-import type { Id } from "_generated/dataModel";
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -15,15 +14,8 @@ import {
 
 export type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 
-export const storedVesselLocationSchema = v.object({
-  _id: v.id("vesselLocations"),
-  ...vesselLocationValidationSchema.fields,
-});
-
 export type VesselLocationUpdates = {
   vesselLocation: ConvexVesselLocation;
-  existingLocationId?: Id<"vesselLocations">;
-  locationChanged: boolean;
 };
 
 export const tripRowsForPingSchema = v.object({
@@ -48,14 +40,9 @@ export const mlTimelineOverlaySchema = v.union(
   })
 );
 
-export const changedVesselLocationWriteSchema = v.object({
-  vesselLocation: vesselLocationValidationSchema,
-  existingLocationId: v.optional(v.id("vesselLocations")),
-});
-
 export const orchestratorPingPersistenceSchema = v.object({
   pingStartedAt: v.number(),
-  changedLocations: v.array(changedVesselLocationWriteSchema),
+  feedLocations: v.array(vesselLocationValidationSchema),
   existingActiveTrips: v.array(vesselTripStoredSchema),
   tripRows: tripRowsForPingSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),

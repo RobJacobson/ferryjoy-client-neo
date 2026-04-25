@@ -14,10 +14,11 @@ Root exports are intentionally small:
 - `RunUpdateVesselTripsOutput`
 - `VesselTripUpdate`
 
-The production orchestrator hot path uses `computeVesselTripUpdate` in its
-changed-vessel loop so one failed vessel can be isolated without stopping the
-fleet ping. `computeVesselTripsRows` remains the rows-only domain runner for
-callers that only need merged active/completed rows.
+The production orchestrator hot path uses `computeVesselTripUpdate` in a
+per-vessel loop over the **full** normalized location batch each ping so one
+failed vessel can be isolated without stopping the fleet ping.
+`computeVesselTripsRows` remains the rows-only domain runner for callers that
+only need merged active/completed rows.
 
 ## What this folder owns
 

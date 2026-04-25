@@ -8,7 +8,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, 
 
 ## Production call chain
 
-1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` / `runOrchestratorPing`: **`updateVesselTrips`** (changed-vessel loop) → **`runPredictionStage`** → single mutation **`persistOrchestratorPing`** (changed `vesselLocations`, trips, prediction rows, then timeline).
+1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` / `runOrchestratorPing`: **`updateVesselTrips`** (per-vessel loop over the full normalized feed) → **`runPredictionStage`** → single mutation **`persistOrchestratorPing`** (`feedLocations` + **`performBulkUpsertVesselLocations`** first, then trips, prediction rows, then timeline).
 2. **`persistOrchestratorPing`** calls **`runUpdateVesselTimelineFromAssembly`** with **`tripHandoffForTimeline`** from trip persist results plus **`mlTimelineOverlays`**, then applies dock writes. **`vesselTripPredictions`** row dedupe (overlay equality, MAE-insensitive) lives in **`functions`** **`batchUpsertProposals`**; timeline assembly consumes the merged trip handoff, not the prediction table.
 
 ## Handoff glossary

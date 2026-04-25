@@ -109,7 +109,6 @@ describe("buildOrchestratorPersistenceBundle", () => {
       vesselLocation: makeLocation("CHE", {
         TimeStamp: ms("2026-03-13T06:35:00-07:00"),
       }),
-      locationChanged: true,
     };
     const cheTrip = makeTrip("CHE", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
@@ -119,12 +118,7 @@ describe("buildOrchestratorPersistenceBundle", () => {
     });
     const bundle = buildOrchestratorPersistenceBundle({
       pingStartedAt: ms("2026-03-13T06:35:00-07:00"),
-      changedLocations: [
-        {
-          vesselLocation: changedLocationUpdate.vesselLocation,
-          existingLocationId: changedLocationUpdate.existingLocationId,
-        },
-      ],
+      feedLocations: [changedLocationUpdate.vesselLocation],
       existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
       tripRows: {
         activeTrips: [cheTrip, makeTrip("TAC")],
@@ -134,9 +128,9 @@ describe("buildOrchestratorPersistenceBundle", () => {
       mlTimelineOverlays: [makeMlTimelineOverlay("CHE")],
     });
 
-    expect(
-      bundle.changedLocations.map((row) => row.vesselLocation.VesselAbbrev)
-    ).toEqual(["CHE"]);
+    expect(bundle.feedLocations.map((row) => row.VesselAbbrev)).toEqual([
+      "CHE",
+    ]);
     expect(
       bundle.tripRows.completedTrips.map((row) => row.VesselAbbrev)
     ).toEqual(["CHE"]);

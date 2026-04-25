@@ -8,15 +8,16 @@ Each orchestrator ping runs in this order:
 
 ```text
 updateVesselOrchestrator
-  -> fetch and normalize vessel locations
+  -> load identities + active trips (getOrchestratorModelData; no vesselLocations)
+  -> fetch and normalize vessel locations (WSF + computeVesselLocationRows)
   -> load schedule continuity access for the ping
-  -> compute trip rows through updateVesselTrips
-  -> persist trip write set / handoff facts
+  -> compute trip rows through updateVesselTrips (full normalized batch)
   -> run prediction stage from trip rows
-  -> assemble and persist timeline writes
+  -> persistOrchestratorPing: performBulkUpsertVesselLocations, then trip write set,
+     predictions, timeline assembly
 ```
 
-The trip stage is pure domain compute. Persistence, prediction, and timeline assembly happen downstream.
+The trip stage is pure domain compute in the action. Location table dedupe/read, trip persistence, prediction upserts, and timeline assembly run inside **`persistOrchestratorPing`**.
 
 ## Timestamp semantics (current code)
 

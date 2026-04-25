@@ -14,8 +14,8 @@ In this module, `actions.ts` is the Convex-facing shell (`updateVesselOrchestrat
 
 Phase **O1** ([handoff](../../../docs/handoffs/vessel-orchestrator-o1-orchestrator-extract-handoff-2026-04-18.md)) named these sequential steps in **`actions.ts`** without changing mutation order:
 
-1. **Locations** — computed in `actions.ts` from the WSF batch; **`bulkUpsertChangedLocationsInDb`** runs inside **`persistOrchestratorPing`** when any vessel’s timestamp advanced.
-2. **`updateVesselTrips`** — the changed-vessel loop calls `computeVesselTripUpdate`, then function-layer `persistVesselTripWriteSet` applies active/completed rows after per-vessel failure isolation.
+1. **Locations** — computed in `actions.ts` from the WSF batch; **`performBulkUpsertVesselLocations`** runs first inside **`persistOrchestratorPing`** (same body as public mutation **`bulkUpsertVesselLocations`**: reads `vesselLocations`, matches by `VesselAbbrev`, skips unchanged `TimeStamp`).
+2. **`updateVesselTrips`** — the per-vessel loop calls `computeVesselTripUpdate` for each normalized location this tick, then function-layer `persistVesselTripWriteSet` applies active/completed rows after per-vessel failure isolation.
 3. **`runAndPersistVesselPredictionPing`** — `runVesselPredictionPing` (`updateVesselPredictions` domain module), then `batchUpsertProposals` into `vesselTripPredictions` when non-empty.
 4. **`persistOrchestratorPing`** — `runUpdateVesselTimelineFromAssembly` (`tripHandoffForTimeline` from trip persist output + `mlTimelineOverlays` after persist), then projection mutations for `eventsActual` / `eventsPredicted`.
 
@@ -27,21 +27,21 @@ Primary path: **`runUpdateVesselTimelineFromAssembly`** consumes **`RunUpdateVes
 
 ## System Overview
 
-The orchestrator runs periodically (currently every 5 seconds via `convex/crons.ts`). **`updateVesselOrchestrator`** runs **sequentially**: after one shared WSF batch and trip dependency wiring, it persists **locations first**, then applies trip lifecycle writes, then predictions, then timeline rows. This keeps the expensive external fetch centralized while the domain trip pipeline (`computeVesselTripUpdate` within the orchestrator’s changed-vessel loop) and timeline assembly stay explicit.
+The orchestrator runs periodically (currently every 5 seconds via `convex/crons.ts`). **`updateVesselOrchestrator`** runs **sequentially**: after one shared WSF batch and trip dependency wiring, it persists **locations first** (full feed batch into the mutation, which dedupes against DB), then applies trip lifecycle writes, then predictions, then timeline rows. This keeps the expensive external fetch centralized while the domain trip pipeline (`computeVesselTripUpdate` within the orchestrator’s per-vessel loop) and timeline assembly stay explicit.
 
 ### Operational concerns (Phase 1)
 
 Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture.md):
 
-- **Live `vesselLocations`** — `bulkUpsertChangedLocationsInDb` inside **`persistOrchestratorPing`** when the ping has location changes.
-- **updateVesselTrips** — the changed-vessel loop calls `computeVesselTripUpdate`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
+- **Live `vesselLocations`** — `performBulkUpsertVesselLocations` inside **`persistOrchestratorPing`** (`feedLocations` arg: full normalized fleet; `collect()` + compare by `VesselAbbrev` / `TimeStamp`).
+- **updateVesselTrips** — the per-vessel loop calls `computeVesselTripUpdate`, then function-layer `persistVesselTripWriteSet` applies the translated trip writes.
 - **runAndPersistVesselPredictionPing** — `runVesselPredictionPing` from **`domain/vesselOrchestration/updateVesselPredictions`** + `batchUpsertProposals` when needed, after trips and before timeline.
 - **updateTimeline** — `runUpdateVesselTimelineFromAssembly` from **`domain/vesselOrchestration/updateTimeline`** plus `eventsActual` / `eventsPredicted` writes (inside **`persistOrchestratorPing`** in **`mutations.ts`**).
 
 ```text
 WSF VesselLocations API
   -> adapters/fetch/fetchRawWsfVesselLocations
-  -> functions/vesselOrchestrator/actions.ts (bulkUpsert -> trips -> predictions -> timeline)
+  -> functions/vesselOrchestrator/actions.ts (persist locations -> trips -> predictions -> timeline)
   -> vesselLocations / vesselTrips / vesselTripPredictions / eventsActual / eventsPredicted
 ```
 
@@ -72,17 +72,17 @@ Responsibilities:
 
 - fetch vessel locations from WSF
 - do that external fetch through `convex/adapters/fetch/fetchWsfVesselLocations.ts`
-- load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips` in **one** internal query per ping (`getOrchestratorModelData` in `queries.ts` — no `eventsPredicted` join; public `getActiveTrips` still enriches for API subscribers); soft-fail when identity tables are empty (seed / hourly identity crons)
+- load backend vessel rows, terminal rows, and **storage-native** `activeVesselTrips` in **one** internal query per ping (`getOrchestratorModelData` in `queries.ts` — no `vesselLocations` and no `eventsPredicted` join; public `getActiveTrips` still enriches for API subscribers); soft-fail when identity tables are empty (seed / hourly identity crons)
 - **fetch:** `fetchRawWsfVesselLocations` throws when WSF returns no rows
 - normalize raw WSF payloads through `computeVesselLocationRows`, which skips individual bad feed rows (`console.warn` per skip) and throws when every row fails conversion
 - convert raw WSF payloads into `ConvexVesselLocation`, including resolved vessel identity, canonical optional `Key`, and terminal-or-marine-location fields derived from the backend `terminalsIdentity` table
-- after locations: create cached targeted `eventsScheduled` access for the ping through `scheduleContinuityAccess.ts`, use that continuity seam during the per-vessel trip loop, preload ML models only if a materially changed trip needs predictions through `predictionStage.ts`, then run `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline`
+- after normalizing the WSF batch: create cached targeted `eventsScheduled` access for the ping through `scheduleContinuityAccess.ts`, use that continuity seam during the per-vessel trip loop, preload ML models only if a materially changed trip needs predictions through `predictionStage.ts`, then run `updateVesselTrips` → `updateVesselPredictions` → `updateVesselTimeline` and **`persistOrchestratorPing`** (which applies `feedLocations` to `vesselLocations` first)
 
 Domain pipeline (same ping semantics as before):
 
 - passenger-terminal allow-list and trip-eligible location filtering
 - lifecycle mutations always precede timeline projection for the ping
-- pass the same ping’s active-trip list into the changed-vessel trip loop so the trip branch does not run a separate `getActiveTrips` query
+- pass the same ping’s active-trip list into the per-vessel trip loop so the trip branch does not run a separate `getActiveTrips` query
 
 Transformation pipeline:
 
@@ -110,7 +110,7 @@ Purpose:
 - store one current vessel-location record per vessel
 - keep the optional canonical trip `Key` alongside live vessel state when it is safely derivable from the feed
 
-Changed locations are written inside **`persistOrchestratorPing`** via **`bulkUpsertChangedLocationsInDb`** (precomputed rows and optional existing `_id` from the baseline snapshot; no full-table reread in that mutation).
+Normalized feed locations are written inside **`persistOrchestratorPing`** via **`performBulkUpsertVesselLocations`** (reads `vesselLocations`, matches by **`VesselAbbrev`**, skips when `TimeStamp` is unchanged, then replace/insert; same logic as **`bulkUpsertVesselLocations`**).
 
 This table can therefore contain both:
 
@@ -137,7 +137,7 @@ Those provisional trip fields are observable, but not warnings by default. The t
 
 Trip processing remains intentionally stricter than vessel-location storage: only rows that resolve to passenger terminals participate in trip derivation.
 
-At the orchestrator boundary, trip-stage skip visibility is also aggregated. `actions.ts` emits a single summary only when the entire trip stage is skipped because every location in that ping was unchanged, instead of logging per-vessel skip noise on each orchestrator tick.
+At the orchestrator boundary, trip-stage failures are logged per vessel without aborting the rest of the fleet ping (`computeTripStageForLocations`).
 
 ### 4. Timeline Projection (`vesselTimeline/`)
 
@@ -214,10 +214,10 @@ Timeline overlays are applied **after** trip lifecycle mutations for the ping (`
 The orchestrator keeps external API usage efficient:
 
 - one WSF vessel-location fetch per ping
-- one internal query per ping for vessels, terminals, active trips, and stored `vesselLocations` (`getOrchestratorModelData` in `queries.ts`), instead of multiple separate `runQuery` round trips for that baseline
+- one internal query per ping for vessels, terminals, and active trips (`getOrchestratorModelData` in `queries.ts`), instead of multiple separate `runQuery` round trips for that baseline; live `vesselLocations` are read only inside **`persistOrchestratorPing`** when applying `feedLocations`
 - one converted location batch reused for trip compute and the location write payload
 
-Trip compute runs in the action’s changed-vessel loop (`computeVesselTripUpdate`); trip table writes and timeline projection run inside **`persistOrchestratorPing`** (`upsertVesselTripsBatch` where applicable, then `buildDockWritesFromTripHandoff` for dock writes).
+Trip compute runs in the action’s per-vessel loop (`computeVesselTripUpdate`); trip table writes and timeline projection run inside **`persistOrchestratorPing`** (`upsertVesselTripsBatch` where applicable, then `buildDockWritesFromTripHandoff` for dock writes).
 
 ### Schedule access rule (do not add parallel seams)
 
@@ -259,7 +259,7 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Core files
 
-- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, changed-vessel orchestration flow, then **`persistOrchestratorPing`** (trips + predictions
+- `actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, per-vessel orchestration flow, then **`persistOrchestratorPing`** (trips + predictions
   - timeline).
 - `locationUpdates.ts` — shared location normalization and dedupe helpers for the orchestrator ping.
 - `scheduleContinuityAccess.ts` — targeted cached `eventsScheduled` access for continuity lookups during the trip stage.
@@ -287,4 +287,4 @@ Canonical vessel and terminal table refreshes from WSF basics are implemented in
 
 ## Summary
 
-`updateVesselOrchestrator` uses one WSF batch per ping, then **`runOrchestratorPing`** in `actions.ts`: trip compute and **`runPredictionStage`** in the action, then a single **`persistOrchestratorPing`** mutation for changed locations, trip writes, prediction upserts, and timeline dock writes onto `eventsActual` / `eventsPredicted`.
+`updateVesselOrchestrator` uses one WSF batch per ping, then **`runOrchestratorPing`** in `actions.ts`: trip compute and **`runPredictionStage`** in the action, then a single **`persistOrchestratorPing`** mutation for `feedLocations` (location upsert with in-mutation dedupe), trip writes, prediction upserts, and timeline dock writes onto `eventsActual` / `eventsPredicted`.
