@@ -13,7 +13,6 @@ import { ScrollView } from "react-native";
 import {
   TimelineIndicatorOverlay,
   TimelineRowContent,
-  TimelineRowFixed,
   TimelineTerminalCardBackgrounds,
   TimelineTrack,
   useAnimatedProgress,
@@ -113,11 +112,22 @@ export const VesselTimelineContent = ({
               }
               theme={theme}
             />
-            {rows.map((row, _rowIndex) => (
-              <TimelineRowFixed key={row.id} heightPx={row.displayHeightPx}>
-                <TimelineRowContent row={row} theme={theme} />
-              </TimelineRowFixed>
-            ))}
+            {rows.map((row) => {
+              const rowLayout = rowLayouts[row.id];
+
+              return (
+                <View
+                  key={row.id}
+                  className="absolute right-0 left-0"
+                  style={{
+                    top: rowLayout?.y ?? 0,
+                    height: row.displayHeightPx,
+                  }}
+                >
+                  <TimelineRowContent row={row} theme={theme} />
+                </View>
+              );
+            })}
             <TimelineIndicatorOverlay
               overlayIndicator={activeIndicator}
               animatedBoundaryTopPx={

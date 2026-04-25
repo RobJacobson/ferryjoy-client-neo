@@ -204,6 +204,7 @@ export default function VesselTimelinePlaceholderScreen() {
         {selectedOption ? (
           <VesselTimeline
             vesselAbbrev={selectedOption.value}
+            routeAbbrev={selectedOption.routeAbbrev}
             sailingDay={sailingDay}
             theme={selectedVariant.timelineTheme}
           />

@@ -9,5 +9,6 @@ export * as eventsPredicted from "functions/events/eventsPredicted";
 export * as eventsScheduled from "functions/events/eventsScheduled";
 export * as keyValueStore from "functions/keyValueStore";
 export * as predictions from "functions/predictions";
+export * as routeTimeline from "functions/routeTimeline";
 export * as vesselPings from "functions/vesselPings";
 export * as vesselTimeline from "functions/vesselTimeline";

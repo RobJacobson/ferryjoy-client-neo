@@ -57,6 +57,8 @@ import type * as domain_ml_training_models_index from "../domain/ml/training/mod
 import type * as domain_ml_training_models_storeModels from "../domain/ml/training/models/storeModels.js";
 import type * as domain_ml_training_models_trainModels from "../domain/ml/training/models/trainModels.js";
 import type * as domain_ml_training_pipeline from "../domain/ml/training/pipeline.js";
+import type * as domain_routeTimeline_buildRouteTimelineSnapshot from "../domain/routeTimeline/buildRouteTimelineSnapshot.js";
+import type * as domain_routeTimeline_index from "../domain/routeTimeline/index.js";
 import type * as domain_scheduledTrips_applyPrefetchSchedulePolicies from "../domain/scheduledTrips/applyPrefetchSchedulePolicies.js";
 import type * as domain_scheduledTrips_buildInitialScheduledTripRow from "../domain/scheduledTrips/buildInitialScheduledTripRow.js";
 import type * as domain_scheduledTrips_calculateTripEstimates from "../domain/scheduledTrips/calculateTripEstimates.js";
@@ -159,6 +161,10 @@ import type * as functions_predictions_index from "../functions/predictions/inde
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
 import type * as functions_predictions_schemas from "../functions/predictions/schemas.js";
+import type * as functions_routeTimeline_index from "../functions/routeTimeline/index.js";
+import type * as functions_routeTimeline_loadRouteTimelineSnapshotInputs from "../functions/routeTimeline/loadRouteTimelineSnapshotInputs.js";
+import type * as functions_routeTimeline_queries from "../functions/routeTimeline/queries.js";
+import type * as functions_routeTimeline_schemas from "../functions/routeTimeline/schemas.js";
 import type * as functions_scheduledTrips_actions from "../functions/scheduledTrips/actions.js";
 import type * as functions_scheduledTrips_constants from "../functions/scheduledTrips/constants.js";
 import type * as functions_scheduledTrips_index from "../functions/scheduledTrips/index.js";
@@ -297,6 +303,8 @@ declare const fullApi: ApiFromModules<{
   "domain/ml/training/models/storeModels": typeof domain_ml_training_models_storeModels;
   "domain/ml/training/models/trainModels": typeof domain_ml_training_models_trainModels;
   "domain/ml/training/pipeline": typeof domain_ml_training_pipeline;
+  "domain/routeTimeline/buildRouteTimelineSnapshot": typeof domain_routeTimeline_buildRouteTimelineSnapshot;
+  "domain/routeTimeline/index": typeof domain_routeTimeline_index;
   "domain/scheduledTrips/applyPrefetchSchedulePolicies": typeof domain_scheduledTrips_applyPrefetchSchedulePolicies;
   "domain/scheduledTrips/buildInitialScheduledTripRow": typeof domain_scheduledTrips_buildInitialScheduledTripRow;
   "domain/scheduledTrips/calculateTripEstimates": typeof domain_scheduledTrips_calculateTripEstimates;
@@ -399,6 +407,10 @@ declare const fullApi: ApiFromModules<{
   "functions/predictions/mutations": typeof functions_predictions_mutations;
   "functions/predictions/queries": typeof functions_predictions_queries;
   "functions/predictions/schemas": typeof functions_predictions_schemas;
+  "functions/routeTimeline/index": typeof functions_routeTimeline_index;
+  "functions/routeTimeline/loadRouteTimelineSnapshotInputs": typeof functions_routeTimeline_loadRouteTimelineSnapshotInputs;
+  "functions/routeTimeline/queries": typeof functions_routeTimeline_queries;
+  "functions/routeTimeline/schemas": typeof functions_routeTimeline_schemas;
   "functions/scheduledTrips/actions": typeof functions_scheduledTrips_actions;
   "functions/scheduledTrips/constants": typeof functions_scheduledTrips_constants;
   "functions/scheduledTrips/index": typeof functions_scheduledTrips_index;
