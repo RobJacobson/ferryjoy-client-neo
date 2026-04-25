@@ -7,7 +7,9 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 - Action: `updateVesselOrchestrator` in `actions.ts`
 - Core flow: `runOrchestratorPing`
-- Persistence boundary: one mutation call to `persistOrchestratorPing`
+- Mutations per ping:
+  - `bulkUpsertVesselLocations` (locations only)
+  - `persistOrchestratorPing` (trips, predictions, timeline)
 
 ## Single-ping stages
 
@@ -21,44 +23,51 @@ hot path in `convex/functions/vesselOrchestrator`.
    - External input: WSF vessel locations
    - Output: `VesselLocationUpdates[]` (normalized batch)
 
-3. **Build schedule continuity access**
+3. **Persist normalized locations**
+   - Mutation: `bulkUpsertVesselLocations`
+   - Payload: full normalized `locations[]`
+   - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
+
+4. **Build schedule continuity access**
    - Function: `createScheduleContinuityAccess`
    - Behavior: targeted, memoized schedule lookups for this ping
    - Output: `ScheduleContinuityAccess` with optional sanity metrics summary
 
-4. **Compute trip stage for full normalized batch**
+5. **Compute trip stage for full normalized batch**
    - Function: `computeTripStageForLocations`
    - Loop policy: all normalized locations each ping
    - Output:
      - `tripRows` (`activeTrips`, `completedTrips`)
      - `predictionInputs` (changed-facts gate for prediction stage)
 
-5. **Run prediction stage (gated)**
+6. **Run prediction stage (gated)**
    - Function: `runPredictionStage`
    - Gate: no-op when both active and completed prediction inputs are empty
    - Output:
      - `predictionRows`
      - `mlTimelineOverlays`
 
-6. **Persist one orchestrator bundle**
+7. **Persist trip/prediction/timeline bundle**
    - Mutation: `persistOrchestratorPing`
    - Writes in order:
-     1. location upsert (`performBulkUpsertVesselLocations`)
-     2. trip writes (`persistVesselTripWriteSet`)
-     3. prediction upserts (`batchUpsertProposalsInDb`) when non-empty
-     4. timeline projection (`runUpdateVesselTimelineFromAssembly`)
-     5. timeline table writes (`upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`)
+     1. trip writes (`persistVesselTripWriteSet`)
+     2. prediction upserts (`batchUpsertProposalsInDb`) when non-empty
+     3. timeline projection (`runUpdateVesselTimelineFromAssembly`)
+     4. timeline table writes (`upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`)
 
 ## Invariants
 
 - One WSF fetch per ping.
 - One baseline orchestrator read-model query per ping.
-- One persistence mutation call per ping.
+- Two mutation calls per ping:
+  - one locations-only upsert mutation
+  - one trip/prediction/timeline mutation
 - Trip compute runs against the full normalized batch.
 - Schedule continuity reads are targeted and memoized per ping.
 - Prediction model loading is gated by changed durable trip facts.
 - Timeline projection consumes persisted trip handoff plus same-ping ML overlays.
-- Location dedupe is mutation-side (`VesselAbbrev` + `TimeStamp` skip).
+- Location dedupe is mutation-side in `bulkUpsertVesselLocations`
+  (`VesselAbbrev` + `TimeStamp` skip).
 
 ## Failure behavior
 

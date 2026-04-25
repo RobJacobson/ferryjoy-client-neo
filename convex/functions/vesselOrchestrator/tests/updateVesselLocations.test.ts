@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("functions/vesselOrchestrator updateVesselLocations", () => {
-  it("writes feed locations through the orchestrator persistence mutation", async () => {
+  it("writes locations through the location bulk-upsert mutation", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
@@ -55,15 +55,15 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
     expect(
       (
         mutationCalls[0] as {
-          feedLocations: Array<{
+          locations: Array<{
             VesselAbbrev: string;
           }>;
         }
-      ).feedLocations[0]?.VesselAbbrev
+      ).locations[0]?.VesselAbbrev
     ).toBe("CHE");
   });
 
-  it("passes full normalized feed in feedLocations for the mutation to dedupe", async () => {
+  it("passes the full normalized feed as locations for mutation-side dedupe", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
@@ -103,9 +103,9 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
     expect(
       (
         mutationCalls[0] as {
-          feedLocations: unknown[];
+          locations: unknown[];
         }
-      ).feedLocations
+      ).locations
     ).toHaveLength(1);
   });
 });

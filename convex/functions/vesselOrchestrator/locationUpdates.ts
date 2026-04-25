@@ -2,13 +2,13 @@
  * Shared vessel-location update computation for the vessel orchestrator.
  *
  * Fetches and normalizes the WSF feed into `ConvexVesselLocation` rows for one
- * ping. Persistence compares against DB inside `performBulkUpsertVesselLocations`.
+ * ping. The orchestrator action writes these rows through
+ * `bulkUpsertVesselLocations`, which dedupes against DB state in mutation code.
  */
 
 import { fetchRawWsfVesselLocations } from "adapters";
 import { computeVesselLocationRows } from "domain/vesselOrchestration/updateVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 
@@ -41,8 +41,3 @@ export const loadVesselLocationUpdates = async ({
 
   return vesselLocations.map((vesselLocation) => ({ vesselLocation }));
 };
-
-export const feedLocationsFromUpdates = (
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>
-): ReadonlyArray<ConvexVesselLocation> =>
-  locationUpdates.map((u) => u.vesselLocation);

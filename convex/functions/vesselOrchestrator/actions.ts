@@ -2,11 +2,11 @@
  * Vessel orchestrator actions.
  *
  * The hot path keeps one baseline snapshot query, one WSF fetch, a per-vessel
- * trip loop over the normalized feed for this tick, and one persistence
- * mutation per ping.
+ * trip loop over the normalized feed for this tick, one locations-only
+ * mutation, and one trip/prediction/timeline persistence mutation per ping.
  */
 
-import { internal } from "_generated/api";
+import { api, internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
@@ -29,10 +29,7 @@ import {
   ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS,
   ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT,
 } from "./constants";
-import {
-  feedLocationsFromUpdates,
-  loadVesselLocationUpdates,
-} from "./locationUpdates";
+import { loadVesselLocationUpdates } from "./locationUpdates";
 import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 import {
   buildPredictionStageInputs,
@@ -94,6 +91,12 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });
+  await ctx.runMutation(
+    api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
+    {
+      locations: locationUpdates.map((update) => update.vesselLocation),
+    }
+  );
   const scheduleAccess = createScheduleContinuityAccess(ctx);
 
   const tripStageResult = await computeTripStageForLocations(
@@ -114,7 +117,6 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
     buildOrchestratorPersistenceBundle({
       pingStartedAt,
-      feedLocations: feedLocationsFromUpdates(locationUpdates),
       existingActiveTrips: snapshot.activeTrips,
       tripRows: tripStageResult.tripRows,
       predictionRows: predictionStageResult.predictionRows,

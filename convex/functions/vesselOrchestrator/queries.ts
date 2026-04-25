@@ -7,8 +7,9 @@
  * queries load predicted rows via `eventsPredicted` queries and merge with
  * `mergeTripsWithPredictions` for API parity instead.
  *
- * Live `vesselLocations` are not loaded here; `persistOrchestratorPing` reads
- * the table inside the mutation when applying the normalized feed batch.
+ * Live `vesselLocations` are not loaded here; the orchestrator action applies
+ * the normalized feed through `bulkUpsertVesselLocations` in a separate
+ * mutation before trip/prediction/timeline persistence.
  */
 
 import { internalQuery } from "_generated/server";

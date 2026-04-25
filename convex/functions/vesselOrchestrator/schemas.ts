@@ -5,7 +5,6 @@
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
   vesselTripStoredSchema,
@@ -42,7 +41,6 @@ export const mlTimelineOverlaySchema = v.union(
 
 export const orchestratorPingPersistenceSchema = v.object({
   pingStartedAt: v.number(),
-  feedLocations: v.array(vesselLocationValidationSchema),
   existingActiveTrips: v.array(vesselTripStoredSchema),
   tripRows: tripRowsForPingSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),

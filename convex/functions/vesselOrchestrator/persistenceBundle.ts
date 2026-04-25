@@ -7,14 +7,12 @@
 
 import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { OrchestratorPingPersistence } from "./schemas";
 
 type BuildOrchestratorPersistenceBundleArgs = {
   pingStartedAt: number;
-  feedLocations: ReadonlyArray<ConvexVesselLocation>;
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>;
   tripRows: RunUpdateVesselTripsOutput;
   predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
@@ -29,14 +27,12 @@ type BuildOrchestratorPersistenceBundleArgs = {
  */
 export const buildOrchestratorPersistenceBundle = ({
   pingStartedAt,
-  feedLocations,
   existingActiveTrips,
   tripRows,
   predictionRows,
   mlTimelineOverlays,
 }: BuildOrchestratorPersistenceBundleArgs): OrchestratorPingPersistence => ({
   pingStartedAt,
-  feedLocations: [...feedLocations],
   existingActiveTrips: [...existingActiveTrips],
   tripRows: {
     activeTrips: [...tripRows.activeTrips],

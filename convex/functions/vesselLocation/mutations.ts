@@ -48,24 +48,35 @@ export async function performBulkUpsertVesselLocations(
   );
 
   for (const location of locations) {
-    const existing = existingByAbbrev.get(location.VesselAbbrev);
-    if (existing?.TimeStamp === location.TimeStamp) {
-      if (shouldCollectMetrics) {
-        summary.unchanged += 1;
+    try {
+      const existing = existingByAbbrev.get(location.VesselAbbrev);
+      if (existing?.TimeStamp === location.TimeStamp) {
+        if (shouldCollectMetrics) {
+          summary.unchanged += 1;
+        }
+        continue;
       }
-      continue;
-    }
 
-    if (existing) {
-      await ctx.db.replace(existing._id, location);
-      if (shouldCollectMetrics) {
-        summary.replaced += 1;
+      if (existing) {
+        await ctx.db.replace(existing._id, location);
+        if (shouldCollectMetrics) {
+          summary.replaced += 1;
+        }
+      } else {
+        await ctx.db.insert("vesselLocations", location);
+        if (shouldCollectMetrics) {
+          summary.inserted += 1;
+        }
       }
-    } else {
-      await ctx.db.insert("vesselLocations", location);
-      if (shouldCollectMetrics) {
-        summary.inserted += 1;
-      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.error("[bulkUpsertVesselLocations] failed vessel location upsert", {
+        vesselAbbrev: location.VesselAbbrev,
+        vesselId: location.VesselID,
+        timeStamp: location.TimeStamp,
+        message: err.message,
+        stack: err.stack,
+      });
     }
   }
 

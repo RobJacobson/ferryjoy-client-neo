@@ -5,16 +5,12 @@
  * so the hot-path file stays centered on real runtime concerns.
  */
 
-import { internal } from "_generated/api";
+import { api } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import {
-  feedLocationsFromUpdates,
-  loadVesselLocationUpdates,
-} from "./locationUpdates";
-import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
+import { loadVesselLocationUpdates } from "./locationUpdates";
 
 /**
  * Focused helper for location tests.
@@ -38,15 +34,10 @@ export const updateVesselLocations = async (
   });
 
   await ctx.runMutation(
-    internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-    buildOrchestratorPersistenceBundle({
-      pingStartedAt,
-      feedLocations: feedLocationsFromUpdates(locationUpdates),
-      existingActiveTrips: [],
-      tripRows: { activeTrips: [], completedTrips: [] },
-      predictionRows: [],
-      mlTimelineOverlays: [],
-    })
+    api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
+    {
+      locations: locationUpdates.map((update) => update.vesselLocation),
+    }
   );
 
   return locationUpdates.map((update) => update.vesselLocation);

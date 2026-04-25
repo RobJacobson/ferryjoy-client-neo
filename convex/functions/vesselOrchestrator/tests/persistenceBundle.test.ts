@@ -1,7 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -44,34 +42,6 @@ const makeTrip = (
   ...overrides,
 });
 
-const makeLocation = (
-  vesselAbbrev: string,
-  overrides: Partial<ConvexVesselLocation> = {}
-): ConvexVesselLocation => ({
-  VesselID: 1,
-  VesselAbbrev: vesselAbbrev,
-  VesselName: vesselAbbrev,
-  DepartingTerminalID: 10,
-  Speed: 15,
-  Heading: 90,
-  Latitude: 47.0,
-  Longitude: -122.0,
-  DepartingTerminalName: "Anacortes",
-  DepartingTerminalAbbrev: "ANA",
-  ArrivingTerminalID: 20,
-  ArrivingTerminalName: "Orcas",
-  ArrivingTerminalAbbrev: "ORI",
-  AtDock: false,
-  LeftDock: ms("2026-03-13T05:29:38-07:00"),
-  Eta: undefined,
-  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
-  VesselPositionNum: 1,
-  InService: true,
-  TimeStamp: ms("2026-03-13T06:28:45-07:00"),
-  RouteAbbrev: "ana-sj",
-  ...overrides,
-});
-
 const makePredictionRow = (
   vesselAbbrev: string,
   overrides: Partial<VesselTripPredictionProposal> = {}
@@ -105,11 +75,6 @@ const makeMlTimelineOverlay = (
 
 describe("buildOrchestratorPersistenceBundle", () => {
   it("merges stage outputs into the compact mutation payload", () => {
-    const changedLocationUpdate: VesselLocationUpdates = {
-      vesselLocation: makeLocation("CHE", {
-        TimeStamp: ms("2026-03-13T06:35:00-07:00"),
-      }),
-    };
     const cheTrip = makeTrip("CHE", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
@@ -118,7 +83,6 @@ describe("buildOrchestratorPersistenceBundle", () => {
     });
     const bundle = buildOrchestratorPersistenceBundle({
       pingStartedAt: ms("2026-03-13T06:35:00-07:00"),
-      feedLocations: [changedLocationUpdate.vesselLocation],
       existingActiveTrips: [makeTrip("CHE"), makeTrip("TAC")],
       tripRows: {
         activeTrips: [cheTrip, makeTrip("TAC")],
@@ -128,9 +92,7 @@ describe("buildOrchestratorPersistenceBundle", () => {
       mlTimelineOverlays: [makeMlTimelineOverlay("CHE")],
     });
 
-    expect(bundle.feedLocations.map((row) => row.VesselAbbrev)).toEqual([
-      "CHE",
-    ]);
+    expect("feedLocations" in bundle).toBe(false);
     expect(
       bundle.tripRows.completedTrips.map((row) => row.VesselAbbrev)
     ).toEqual(["CHE"]);

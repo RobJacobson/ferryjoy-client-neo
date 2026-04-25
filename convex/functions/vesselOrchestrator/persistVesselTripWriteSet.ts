@@ -54,10 +54,8 @@ export type VesselTripTableMutations = {
 export type VesselTripPersistencePlan = {
   attemptedCompletedFacts: CompletedArrivalHandoff[];
   activeTripUpserts: ConvexVesselTrip[];
-  currentBranchMessages: {
-    pendingActualMessages: ActualDockWriteIntent[];
-    pendingPredictedMessages: PredictedDockWriteIntent[];
-  };
+  pendingActualMessages: ActualDockWriteIntent[];
+  pendingPredictedMessages: PredictedDockWriteIntent[];
   leaveDockIntents: Array<{
     vesselAbbrev: string;
     actualDepartMs: number;
@@ -162,10 +160,8 @@ export const buildVesselTripPersistencePlan = (
   return {
     attemptedCompletedFacts,
     activeTripUpserts,
-    currentBranchMessages: {
-      pendingActualMessages,
-      pendingPredictedMessages,
-    },
+    pendingActualMessages,
+    pendingPredictedMessages,
     leaveDockIntents,
   };
 };
@@ -185,7 +181,8 @@ export const persistVesselTripWriteSet = async (
   const {
     attemptedCompletedFacts,
     activeTripUpserts,
-    currentBranchMessages: { pendingActualMessages, pendingPredictedMessages },
+    pendingActualMessages,
+    pendingPredictedMessages,
     leaveDockIntents,
   } = persistencePlan;
 
