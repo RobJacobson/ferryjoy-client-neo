@@ -4,7 +4,6 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import type { ActiveTimelineInterval } from "../../shared/activeTimelineInterval";
 import {
   epochMsToDate,
   optionalEpochMsToDate,
@@ -33,23 +32,11 @@ export type ConvexVesselTimelineEventRecord = Infer<
 export const vesselTimelineEventSchema = vesselTimelineEventRecordSchema;
 export type ConvexVesselTimelineEvent = Infer<typeof vesselTimelineEventSchema>;
 
-const vesselTimelineIntervalKindSchema = v.union(
-  v.literal("at-dock"),
-  v.literal("at-sea")
-);
-
-export const vesselTimelineActiveIntervalSchema = v.object({
-  kind: vesselTimelineIntervalKindSchema,
-  startEventKey: v.union(v.string(), v.null()),
-  endEventKey: v.union(v.string(), v.null()),
-});
-
 export const vesselTimelineBackboneSchema = v.object({
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   events: v.array(vesselTimelineEventSchema),
 });
-export type VesselTimelineActiveInterval = ActiveTimelineInterval;
 export type ConvexVesselTimelineBackbone = Infer<
   typeof vesselTimelineBackboneSchema
 >;
@@ -84,10 +71,3 @@ export const toDomainVesselTimelineBackbone = (
   ...backbone,
   events: backbone.events.map(toDomainVesselTimelineEvent),
 });
-
-export type VesselTimelineEvent = ReturnType<
-  typeof toDomainVesselTimelineEvent
->;
-export type VesselTimelineBackbone = ReturnType<
-  typeof toDomainVesselTimelineBackbone
->;

@@ -16,8 +16,6 @@ export type VesselTimelineDesignVariant = {
   timelineTheme: TimelineVisualTheme;
 };
 
-export type VesselTimelineVariantDefinition = VesselTimelineDesignVariant;
-
 export type VesselTimelineVariantDefinitionInput = {
   id: string;
   label: string;

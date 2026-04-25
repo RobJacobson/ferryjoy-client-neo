@@ -17,7 +17,6 @@ import {
 } from "@/components/timeline";
 import type {
   VesselTimelineDesignVariant,
-  VesselTimelineVariantDefinition,
   VesselTimelineVariantDefinitionInput,
 } from "./types";
 
@@ -57,7 +56,7 @@ export const defineVesselTimelineVariant = ({
   backgroundColor,
   backgroundColors,
   timelineTheme,
-}: VesselTimelineVariantDefinitionInput): VesselTimelineVariantDefinition => ({
+}: VesselTimelineVariantDefinitionInput): VesselTimelineDesignVariant => ({
   id,
   label,
   description,
@@ -74,7 +73,7 @@ export const defineVesselTimelineVariant = ({
 /**
  * All registered variant definitions consumed by `variantRegistry`.
  */
-export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineVariantDefinition[] =
+export const VESSEL_TIMELINE_VARIANT_DEFINITIONS: readonly VesselTimelineDesignVariant[] =
   [
     defineVesselTimelineVariant({
       id: "sea-glass",

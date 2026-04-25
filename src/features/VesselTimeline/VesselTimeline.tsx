@@ -21,7 +21,7 @@ import { getVesselTimelineDataHostKey } from "./utils";
 import { VesselTimelineContent } from "./VesselTimelineContent";
 import { VesselTimelineStatusView } from "./VesselTimelineStatusView";
 
-export type VesselTimelineProps = {
+type VesselTimelineProps = {
   vesselAbbrev: string;
   sailingDay: string;
   routeAbbrev?: string;

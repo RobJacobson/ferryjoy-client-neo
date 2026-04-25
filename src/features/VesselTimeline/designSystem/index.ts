@@ -4,7 +4,6 @@
 
 export type {
   VesselTimelineDesignVariant,
-  VesselTimelineVariantDefinition,
   VesselTimelineVariantDefinitionInput,
 } from "./types";
 export {
