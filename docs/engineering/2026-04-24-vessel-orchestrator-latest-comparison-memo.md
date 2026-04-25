@@ -174,16 +174,17 @@ The action is now compact enough to read as a real hot-path program:
 
 That is a meaningful improvement over the previous staged pipeline that loaded separate location-update and schedule-snapshot read models on every tick.
 
-The main tradeoff versus the original branch is that the latest path gives up branch-level partial success. In the original, location writes and trip writes ran in parallel and could fail independently. In the latest code, a failure throws the full action.
+Failure behavior is more nuanced than the first draft of this memo implied. The latest path still throws for fatal ping-level failures, but it now preserves partial progress in two important ways:
 
-That trade is probably acceptable for an internal orchestrator because the latest path also avoids inconsistent same-ping outcomes where locations succeed but trips/timeline fail silently into a partial result object. Still, it is worth being explicit about the behavior change.
+- per-vessel trip compute failures are isolated and logged, and the ping continues for other vessels
+- completed-trip writes and leave-dock follow-up intents are applied with `Promise.allSettled`, so one vessel write failure does not abort the entire write set
 
 My judgment:
 
 - **architecturally:** better than before and much better than the intermediate refactor
 - **operationally:** now appropriately lean
 - **debuggability for a full ping:** better than the intermediate refactor
-- **error isolation:** less forgiving than the original
+- **error isolation:** mixed but practical (fatal ping failures still fail fast, per-vessel failures are isolated)
 
 ## 4. `updateVesselLocations` Pipeline
 
@@ -381,7 +382,7 @@ This preserves code clarity without forcing full-day schedule reads every tick.
 
 Remaining opportunities:
 
-- production uses `computeVesselTripUpdate` in a changed-vessel loop and `computeVesselTripsRows` for rows-only batch callers; the old `computeVesselTripsBatch` entrypoint is removed — in-memory schedule fixtures under `shared/scheduleSnapshot/` are for tests only (not a production DB snapshot table)
+- production uses `computeVesselTripUpdate` in a per-vessel loop over the full normalized feed, and `computeVesselTripsRows` for rows-only batch callers; the old `computeVesselTripsBatch` entrypoint is removed — in-memory schedule fixtures under `shared/scheduleSnapshot/` are for tests only (not a production DB snapshot table)
 - trip-field inference logging is useful, but `resolveTripFieldsForTripRow.ts` is doing resolution, diagnostics, message formatting, and next-leg attachment; split only if it reduces real reading burden
 - keep the orchestrator-visible per-vessel loop; it is simpler than hiding the whole ping behind another batch adapter
 
@@ -754,71 +755,135 @@ That policy should stay narrow.
 
 ### 10.1 Code Flow
 
-The top-level action is now a useful map. Preserve that.
-
 Recommended improvements:
 
-1. Remove or quarantine snapshot-era production language.
-  - `architecture.md`, some READMEs, and test helpers still mention schedule snapshots as if they are central.
-  - The production path now uses targeted schedule access.
-  - Stale docs will mislead future refactors back toward the wrong shape.
-2. `computeVesselTripsBatch` is already removed from code; keep docs and memos aligned so no one reintroduces a parallel batch entrypoint.
-  - Prefer `computeVesselTripsRows` for rows-only batch compute and the orchestrator **per-vessel** loop (`computeTripStageForLocations`) for production flow.
-3. Keep `ScheduleContinuityAccess` as the only schedule abstraction.
-  - It is narrow enough.
-  - Adding another adapter above it would be ceremony without much payoff.
-4. Consolidate timeline handoff vocabulary.
-  - The model is sound, but there are too many similarly shaped objects.
-  - Prefer one persisted-trip outcome shape and one prediction overlay shape.
+1. Rename top-level trip-stage and persistence types for plain-language readability.
+  - `tripRows` in the orchestrator action currently represents the full computed trip stage (not just raw rows).
+  - Adopt intent-revealing names such as `tripStageResult`, `tripPersistencePlan`, and `timelineHandoff`.
+  - Do this in one pass with type aliases first, then symbol renames, to minimize churn.
+2. Reduce translation layers between trip persistence and timeline projection.
+  - Consolidate overlapping shapes (`TripPersistOutcome`, `ActiveTripWriteOutcome`, current branch message DTOs) into one canonical persist result contract.
+  - Keep only one ML overlay contract (`MlTimelineOverlay`) and remove parallel aliases.
+3. Split `resolveTripFieldsForTripRow` into two files by ownership, not by arbitrary size.
+  - Keep deterministic field resolution in one module.
+  - Move diagnostics/log formatting helpers into a separate module so core logic reads linearly.
+4. Remove snapshot-era wording from living docs and module comments.
+  - Update docs that still imply production schedule snapshots as a central runtime strategy.
+  - Mark snapshot helpers as test-only where they remain useful.
 
 ### 10.2 Reducing DB Queries And Writes
 
 Recommended improvements:
 
-1. Keep schedule access lazy and memoized.
-  - Do not reintroduce full-day schedule snapshots on the ping path without production measurements.
-2. Keep **`performBulkUpsertVesselLocations`** as the single implementation for **`persistOrchestratorPing`** and public **`bulkUpsertVesselLocations`** so dedupe rules (`VesselAbbrev`, `TimeStamp`) do not diverge.
-3. If `vesselLocations` **read** cost grows, evaluate a narrow index table or other measured strategy; avoid duplicating dedupe logic in the action again without a clear requirement.
-4. Measure schedule query cardinality per ping.
-  - Add lightweight counters around `getScheduledSegmentByKey` and `getScheduledDeparturesForVesselAndSailingDay`.
-  - This would validate that targeted access behaves as expected at 5-second cadence.
-5. Avoid unconditional prediction model loading.
-  - The current request builder is narrow. Keep it that way.
+1. Add per-ping instrumentation for schedule access cardinality and cache hit rate.
+  - Record counts for `getScheduledSegmentByKey` and `getScheduledDeparturesForVesselAndSailingDay`.
+  - Add one aggregate metric per ping so regressions are visible without log spam.
+2. Add per-ping instrumentation for location dedupe effectiveness.
+  - In `performBulkUpsertVesselLocations`, count `unchanged`, `replaced`, and `inserted` rows.
+  - Use this to decide whether any future index table optimization is worth the added write complexity.
+3. Convert `performBulkUpsertVesselLocations` to bounded parallel writes.
+  - Preserve deterministic dedupe (`VesselAbbrev`, `TimeStamp`) but batch `replace`/`insert` calls in small chunks.
+  - Goal: reduce mutation wall-clock time at peak fleet size without increasing query count.
+4. Keep prediction model fetches gated by changed durable trip facts and enforce this with tests.
+  - Add a regression test asserting no model query call when both active trips and completed handoffs are empty.
 
 ### 10.3 Keeping The Code Simple
 
 Recommended improvements:
 
-1. Avoid new adapters unless there is a second real implementation.
-  - `ScheduleContinuityAccess` already has production and in-memory implementations.
-  - `persistenceBundle.ts` is acceptable because it centralizes a generated mutation payload.
-  - Another layer around either would likely be noise.
-2. Prefer deleting stale compatibility helpers over wrapping them.
-  - Snapshot-backed helpers are useful for tests today, but they should not remain indefinitely if they describe a removed production strategy.
-3. Keep the orchestrator loop visible.
-  - The current action shows the full normalized batch feeding trip compute, then **`persistOrchestratorPing`**.
-  - Hiding that loop inside another batch function would make the flow harder to audit.
-4. Split files only along ownership, not size alone.
-  - `resolveTripFieldsForTripRow.ts` is long, but its responsibilities are tightly related.
-  - If it is split, split diagnostics/log formatting from resolution rather than inventing a new resolver hierarchy.
-5. Keep "changed durable trip facts" as the prediction/timeline gate.
-  - This is the right conceptual hinge for reducing work.
+1. Standardize on one naming pattern for stage functions.
+  - Use verb-first names with explicit scope (`load*`, `compute*`, `build*`, `persist*`) and avoid mixed nouns like `tripRows` for stage objects.
+  - Apply this first in `actions.ts`, `predictionStage.ts`, and `persistVesselTripWriteSet.ts`.
+2. Delete compatibility-only types and exports that are no longer referenced by production call paths.
+  - Keep test fixtures, but move compatibility helpers behind test-local imports when possible.
+  - Shrink public module surfaces to reduce accidental coupling.
+3. Add a short orchestrator “single-ping contract” doc near code.
+  - Include exact stage inputs/outputs and invariants (for example: timeline projection uses persisted trip outcomes plus ML overlays).
+  - Keep it versioned with code to prevent drift from engineering memos.
 
 ## 11. Final Recommendation
 
-Do not roll back the current design.
+Prioritize a focused cleanup iteration over another architectural rewrite.
 
-The latest branch keeps the real architectural wins from the refactor while removing the most expensive hot-path regressions from the intermediate version.
+The highest-value next steps are:
 
-The next work should be cleanup, not another large redesign:
-
-- remove snapshot-era production docs and compatibility surfaces
-- simplify timeline/prediction handoff types
-- keep location dedupe inside **`performBulkUpsertVesselLocations`** on `vesselLocations`
-- keep schedule continuity targeted and lazy
-- add measurement around schedule query counts before changing the data-access strategy again
+- simplify trip/timeline handoff contracts and names so one ping is easy to follow end-to-end
+- add lightweight per-ping metrics for schedule lookups and location dedupe outcomes
+- remove stale snapshot-era production language and compatibility surfaces that no longer reflect runtime behavior
+- reduce persistence mutation wall-clock time with safe bounded write batching
 
 In short:
 
-> The latest refactor has moved from "clearer but too expensive" to "clearer and plausibly efficient." The remaining opportunity is to make it smaller without making it cleverer.
+> The current design is directionally sound; the next gains come from shrinking conceptual overhead and tightening measured hot-path efficiency.
+
+## 12. Prioritized Execution Backlog (P0 / P1 / P2)
+
+This backlog converts the recommendations above into implementation-ready work.
+
+Effort scale:
+
+- **S**: up to 0.5 day
+- **M**: 1 to 2 days
+- **L**: 3 to 5 days
+
+Risk scale:
+
+- **Low**: localized change, low behavioral risk
+- **Medium**: cross-module change, moderate regression risk
+- **High**: broad change across hot path and data writes
+
+### P0 (Do Next)
+
+1. Add schedule access instrumentation in `createScheduleContinuityAccess`.
+  - **Scope:** count calls and cache hits for `getScheduledSegmentByKey` and `getScheduledDeparturesForVesselAndSailingDay`; emit one structured summary per ping.
+  - **Why:** confirms that lazy targeted schedule access remains bounded at 5-second cadence.
+  - **Effort / Risk:** **S / Low**.
+2. Add location dedupe instrumentation in `performBulkUpsertVesselLocations`.
+  - **Scope:** count `unchanged`, `replaced`, `inserted`; emit one summary payload from `persistOrchestratorPing`.
+  - **Why:** creates data to decide whether location-read optimizations are worth complexity.
+  - **Effort / Risk:** **S / Low**.
+3. Lock prediction-gate behavior with regression tests.
+  - **Scope:** assert no prediction context query when `buildPredictionStageInputs` yields empty active trips and completed handoffs.
+  - **Why:** prevents accidental model-query broadening.
+  - **Effort / Risk:** **S / Low**.
+4. Rename top-level stage variables for clarity in orchestrator files.
+  - **Scope:** first-pass symbol cleanup (`tripRows` -> `tripStageResult` style naming) in `actions.ts`, `predictionStage.ts`, `persistVesselTripWriteSet.ts`.
+  - **Why:** lowers reading burden and reduces handoff ambiguity.
+  - **Effort / Risk:** **M / Low**.
+
+### P1 (Do After P0 Metrics Land)
+
+1. Consolidate trip persistence and timeline handoff contracts.
+  - **Scope:** collapse overlapping DTOs into one canonical persisted-trip outcome object plus `MlTimelineOverlay`.
+  - **Why:** removes translation noise and reduces DRY violations in timeline assembly.
+  - **Effort / Risk:** **L / Medium**.
+2. Split diagnostics from deterministic trip-field resolution.
+  - **Scope:** extract log/diagnostic formatting from `resolveTripFieldsForTripRow` while preserving current resolution behavior.
+  - **Why:** keeps core logic linear and easier to test.
+  - **Effort / Risk:** **M / Medium**.
+3. Remove stale snapshot-era production language/docs.
+  - **Scope:** align architecture docs, module comments, and memos with current targeted schedule strategy.
+  - **Why:** avoids future refactors reintroducing retired hot-path patterns.
+  - **Effort / Risk:** **S / Low**.
+4. Add a colocated “single-ping contract” doc.
+  - **Scope:** one concise engineering note near orchestrator code describing stage I/O and invariants.
+  - **Why:** makes code intent durable and reviewable without reverse engineering the whole pipeline.
+  - **Effort / Risk:** **S / Low**.
+
+### P2 (Only If P0/P1 Metrics Justify It)
+
+1. Reduce mutation wall-clock with bounded parallel location writes.
+  - **Scope:** keep one `collect()`, preserve dedupe invariants, apply chunked `replace`/`insert` writes with bounded concurrency.
+  - **Why:** improves hot-path latency under larger fleet snapshots.
+  - **Effort / Risk:** **M / Medium**.
+2. Evaluate structural optimization for location read cost (if needed).
+  - **Scope:** design a narrow auxiliary index/table only if instrumentation shows sustained location-read pressure.
+  - **Why:** reduces per-ping `vesselLocations` read burden without duplicating dedupe policy in action code.
+  - **Effort / Risk:** **L / High**.
+
+### Suggested Success Criteria Per Priority
+
+- **P0 done when:** per-ping metrics exist for schedule and location dedupe, prediction gate has regression coverage, and top-level stage names read unambiguously.
+- **P1 done when:** timeline/persistence DTO count is materially reduced and docs/comments no longer imply snapshot-era production behavior.
+- **P2 done when:** measured ping latency or read-volume improvements are demonstrated without increasing write inconsistency risk.
 
