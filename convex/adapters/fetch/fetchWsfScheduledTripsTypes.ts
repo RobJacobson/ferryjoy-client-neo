@@ -18,6 +18,8 @@ export type VesselSailing = {
 
 export type RawWsfScheduleSegment = {
   VesselName: string;
+  DepartingTerminalID: number;
+  ArrivingTerminalID: number;
   DepartingTerminalName: string;
   ArrivingTerminalName: string;
   DepartingTime: Date;
