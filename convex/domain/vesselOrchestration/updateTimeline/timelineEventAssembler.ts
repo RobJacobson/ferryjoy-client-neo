@@ -102,33 +102,35 @@ export const buildPingEventWritesFromCompletedFacts = (
 /**
  * Builds ping event writes for the current-trip branch after lifecycle writes.
  *
- * @param successfulVessels - Vessels whose batch upsert succeeded (empty if none ran)
- * @param pendingActualMessages - Per-vessel actual write messages
- * @param pendingPredictedMessages - Per-vessel predicted-batch messages
+ * @param successfulVesselAbbrev - Vessel whose active upsert succeeded
+ * @param pendingActualWrite - Optional actual write intent for the vessel
+ * @param pendingPredictedWrite - Optional predicted write intent for the vessel
  * @param updatedAt - Timestamp used to stamp persisted actual rows
  * @returns Dock writes after upsert-gated filtering
  */
 export const buildPingEventWritesFromCurrentMessages = (
-  successfulVessels: Set<string>,
-  pendingActualMessages: ActualDockWriteIntent[],
-  pendingPredictedMessages: PredictedDockWriteIntent[],
+  successfulVesselAbbrev: string | undefined,
+  pendingActualWrite: ActualDockWriteIntent | undefined,
+  pendingPredictedWrite: PredictedDockWriteIntent | undefined,
   updatedAt: number
 ): PingEventWrites => {
-  const taggedActual = pendingActualMessages.flatMap((message) =>
-    buildTaggedActualDockRowsFromMessage(message, updatedAt)
-  );
-  const taggedPredicted = pendingPredictedMessages.flatMap(
-    buildTaggedPredictedBatchesFromMessage
-  );
+  const taggedActual =
+    pendingActualWrite === undefined
+      ? []
+      : buildTaggedActualDockRowsFromMessage(pendingActualWrite, updatedAt);
+  const taggedPredicted =
+    pendingPredictedWrite === undefined
+      ? []
+      : buildTaggedPredictedBatchesFromMessage(pendingPredictedWrite);
 
   return {
     actualDockWrites: filterTaggedActualDockRows(
       taggedActual,
-      successfulVessels
+      successfulVesselAbbrev
     ),
     predictedDockWriteBatches: filterTaggedPredictedDockBatches(
       taggedPredicted,
-      successfulVessels
+      successfulVesselAbbrev
     ),
   };
 };
@@ -255,15 +257,15 @@ const buildTaggedPredictedBatchesFromMessage = (
  * Filters actual dock rows by whether their required upsert succeeded.
  *
  * @param tagged - Tagged actual rows emitted during current-trip processing
- * @param successfulVessels - Vessels whose lifecycle upsert completed
+ * @param successfulVesselAbbrev - Vessel whose lifecycle upsert completed
  * @returns Persisted actual rows that should be written this ping
  */
 const filterTaggedActualDockRows = (
   tagged: TaggedActualDockRow[],
-  successfulVessels: Set<string>
+  successfulVesselAbbrev: string | undefined
 ): ConvexActualDockEvent[] =>
   tagged
-    .filter((taggedRow) => successfulVessels.has(taggedRow.vesselAbbrev))
+    .filter((taggedRow) => taggedRow.vesselAbbrev === successfulVesselAbbrev)
     .map((taggedRow) => taggedRow.row);
 
 /**
@@ -271,13 +273,15 @@ const filterTaggedActualDockRows = (
  *
  * @param tagged - Tagged predicted batches emitted during current-trip
  * processing
- * @param successfulVessels - Vessels whose lifecycle upsert completed
+ * @param successfulVesselAbbrev - Vessel whose lifecycle upsert completed
  * @returns Predicted batches that should be written this ping
  */
 const filterTaggedPredictedDockBatches = (
   tagged: TaggedPredictedDockBatch[],
-  successfulVessels: Set<string>
+  successfulVesselAbbrev: string | undefined
 ): ConvexPredictedDockWriteBatch[] =>
   tagged
-    .filter((taggedBatch) => successfulVessels.has(taggedBatch.vesselAbbrev))
+    .filter(
+      (taggedBatch) => taggedBatch.vesselAbbrev === successfulVesselAbbrev
+    )
     .map((taggedBatch) => taggedBatch.batch);

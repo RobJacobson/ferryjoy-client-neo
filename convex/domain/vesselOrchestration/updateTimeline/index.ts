@@ -8,7 +8,7 @@
  * Ping write types and `mergePingEventWrites` live in
  * `domain/vesselOrchestration/shared/pingHandshake/projectionWire`; handshake DTOs
  * live in `shared/pingHandshake/types`.
- * Tests may import `orchestratorTimelineProjection` internals directly.
+ * Tests may import `updateTimeline` internals directly.
  */
 
 export type { PingEventWrites } from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";

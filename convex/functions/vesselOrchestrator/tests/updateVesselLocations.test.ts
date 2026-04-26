@@ -22,7 +22,11 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
     const ctx = {
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return args;
+        return (
+          args as {
+            locations: unknown[];
+          }
+        ).locations;
       },
     } as unknown as ActionCtx;
 
@@ -71,7 +75,11 @@ describe("functions/vesselOrchestrator updateVesselLocations", () => {
     const ctx = {
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return args;
+        return (
+          args as {
+            locations: unknown[];
+          }
+        ).locations;
       },
     } as unknown as ActionCtx;
 

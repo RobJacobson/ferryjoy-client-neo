@@ -5,7 +5,7 @@
  *
  * Branch processors emit facts and per-vessel messages; assembly into
  * `PingEventWrites` happens in `updateTimeline` via
- * `buildDockWritesFromTripHandoff` (wired from `orchestratorTimelineProjection.ts`).
+ * `buildDockWritesFromTripHandoff` (wired from `updateTimeline.ts`).
  *
  * **Handoff glossary:** see
  * `convex/domain/vesselOrchestration/updateTimeline/README.md` (section **Handoff glossary**).
@@ -64,17 +64,17 @@ export type ActualDockWriteIntent = DockWriteIntentBase & {
  * Per-vessel payload to build `eventsPredicted` effects on the current path.
  */
 export type PredictedDockWriteIntent = DockWriteIntentBase & {
-  existingTrip: ConvexVesselTrip | undefined;
+  existingTrip?: ConvexVesselTrip;
 };
 
 /**
- * Active-trip path after lifecycle mutations (`successfulVessels` from batch
- * upsert). Used by timeline assembly; must reflect persisted state.
+ * Active-trip path after lifecycle mutations for one vessel write call.
+ * Used by timeline assembly; must reflect persisted state.
  */
 export type ActiveTripWriteOutcome = {
-  successfulVessels: Set<string>;
-  pendingActualMessages: ActualDockWriteIntent[];
-  pendingPredictedMessages: PredictedDockWriteIntent[];
+  successfulVesselAbbrev?: string;
+  pendingActualWrite?: ActualDockWriteIntent;
+  pendingPredictedWrite?: PredictedDockWriteIntent;
 };
 
 /**
@@ -95,6 +95,6 @@ export type MlTimelineOverlay = {
  * Canonical trip-persistence handoff for timeline projection.
  */
 export type PersistedTripTimelineHandoff = {
-  completedFacts: CompletedArrivalHandoff[];
+  completedTripFacts: CompletedArrivalHandoff[];
   currentBranch: ActiveTripWriteOutcome;
 };

@@ -2,12 +2,12 @@
  * Pure **updateTimeline** step: merges lifecycle branch outputs into
  * {@link PingEventWrites} for one ping.
  *
- * **Production contract:** `completedFacts` and `currentBranch` match the
+ * **Production contract:** `completedTripFacts` and `currentBranch` match the
  * lifecycle-shaped rows built from Stage C/D handoffs (see
- * `orchestratorTimelineProjection`), with ML-enriched trips where projection
+ * `updateTimeline`), with ML-enriched trips where projection
  * needs them. Same-ping assembly must not reload `vesselTripPredictions` from the
- * DB; ML overlay uses {@link mergeMlOverlayIntoTripHandoffForTimeline}
- * in `orchestratorTimelineProjection` after `updateVesselPredictions`.
+ * DB; ML overlay application runs in `updateTimeline` after
+ * `updateVesselPredictions`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
  *
@@ -34,10 +34,9 @@ export type BuildDockWritesFromTripHandoffArgs = PersistedTripTimelineHandoff & 
 /**
  * Merges completed-branch then current-branch ping writes for one orchestrator
  * ping. For timeline rows that need ML (e.g. predicted dock batches), call only
- * after {@link mergeMlOverlayIntoTripHandoffForTimeline} in
- * `orchestratorTimelineProjection`; `currentBranch` must still reflect
+ * after ML overlay application in `updateTimeline`; `currentBranch` must still reflect
  * post-mutation upsert gating
- * (`successfulVessels`, pending messages).
+ * (`successfulVesselAbbrev`, pending writes).
  *
  * @param args - Boundary facts, current-branch artifacts, and ping time
  * @returns Sparse timeline payload for orchestrator timeline mutations
@@ -45,13 +44,13 @@ export type BuildDockWritesFromTripHandoffArgs = PersistedTripTimelineHandoff & 
 export const buildDockWritesFromTripHandoff = (
   args: BuildDockWritesFromTripHandoffArgs
 ): PingEventWrites => {
-  const { completedFacts, currentBranch, pingStartedAt } = args;
+  const { completedTripFacts, currentBranch, pingStartedAt } = args;
   return mergePingEventWrites(
-    buildPingEventWritesFromCompletedFacts(completedFacts, pingStartedAt),
+    buildPingEventWritesFromCompletedFacts(completedTripFacts, pingStartedAt),
     buildPingEventWritesFromCurrentMessages(
-      currentBranch.successfulVessels,
-      currentBranch.pendingActualMessages,
-      currentBranch.pendingPredictedMessages,
+      currentBranch.successfulVesselAbbrev,
+      currentBranch.pendingActualWrite,
+      currentBranch.pendingPredictedWrite,
       pingStartedAt
     )
   );

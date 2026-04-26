@@ -105,7 +105,6 @@ import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromT
 import type * as domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff from "../domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff.js";
 import type * as domain_vesselOrchestration_updateTimeline_contracts from "../domain/vesselOrchestration/updateTimeline/contracts.js";
 import type * as domain_vesselOrchestration_updateTimeline_index from "../domain/vesselOrchestration/updateTimeline/index.js";
-import type * as domain_vesselOrchestration_updateTimeline_orchestratorTimelineProjection from "../domain/vesselOrchestration/updateTimeline/orchestratorTimelineProjection.js";
 import type * as domain_vesselOrchestration_updateTimeline_timelineEventAssembler from "../domain/vesselOrchestration/updateTimeline/timelineEventAssembler.js";
 import type * as domain_vesselOrchestration_updateTimeline_updateTimeline from "../domain/vesselOrchestration/updateTimeline/updateTimeline.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_contracts from "../domain/vesselOrchestration/updateVesselLocations/contracts.js";
@@ -198,7 +197,6 @@ import type * as functions_vesselOrchestrator_mutations from "../functions/vesse
 import type * as functions_vesselOrchestrator_persistVesselPredictions from "../functions/vesselOrchestrator/persistVesselPredictions.js";
 import type * as functions_vesselOrchestrator_persistVesselTimeline from "../functions/vesselOrchestrator/persistVesselTimeline.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
-import type * as functions_vesselOrchestrator_persistVesselTrips from "../functions/vesselOrchestrator/persistVesselTrips.js";
 import type * as functions_vesselOrchestrator_predictionStage from "../functions/vesselOrchestrator/predictionStage.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_scheduleContinuityAccess from "../functions/vesselOrchestrator/scheduleContinuityAccess.js";
@@ -356,7 +354,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff": typeof domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff;
   "domain/vesselOrchestration/updateTimeline/contracts": typeof domain_vesselOrchestration_updateTimeline_contracts;
   "domain/vesselOrchestration/updateTimeline/index": typeof domain_vesselOrchestration_updateTimeline_index;
-  "domain/vesselOrchestration/updateTimeline/orchestratorTimelineProjection": typeof domain_vesselOrchestration_updateTimeline_orchestratorTimelineProjection;
   "domain/vesselOrchestration/updateTimeline/timelineEventAssembler": typeof domain_vesselOrchestration_updateTimeline_timelineEventAssembler;
   "domain/vesselOrchestration/updateTimeline/updateTimeline": typeof domain_vesselOrchestration_updateTimeline_updateTimeline;
   "domain/vesselOrchestration/updateVesselLocations/contracts": typeof domain_vesselOrchestration_updateVesselLocations_contracts;
@@ -449,7 +446,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/persistVesselPredictions": typeof functions_vesselOrchestrator_persistVesselPredictions;
   "functions/vesselOrchestrator/persistVesselTimeline": typeof functions_vesselOrchestrator_persistVesselTimeline;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
-  "functions/vesselOrchestrator/persistVesselTrips": typeof functions_vesselOrchestrator_persistVesselTrips;
   "functions/vesselOrchestrator/predictionStage": typeof functions_vesselOrchestrator_predictionStage;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/scheduleContinuityAccess": typeof functions_vesselOrchestrator_scheduleContinuityAccess;

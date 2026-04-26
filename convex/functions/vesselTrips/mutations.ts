@@ -162,6 +162,23 @@ export const upsertVesselTripsBatchInDb = async (
   return { perVessel };
 };
 
+export const upsertActiveVesselTripInDb = async (
+  ctx: MutationCtx,
+  trip: ConvexVesselTrip
+): Promise<void> => {
+  const existing = await ctx.db
+    .query("activeVesselTrips")
+    .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", trip.VesselAbbrev))
+    .first();
+
+  if (existing !== null) {
+    await ctx.db.replace(existing._id, trip);
+    return;
+  }
+
+  await ctx.db.insert("activeVesselTrips", trip);
+};
+
 export const setDepartNextActualsForMostRecentCompletedTripInDb = async (
   ctx: MutationCtx,
   vesselAbbrev: string,

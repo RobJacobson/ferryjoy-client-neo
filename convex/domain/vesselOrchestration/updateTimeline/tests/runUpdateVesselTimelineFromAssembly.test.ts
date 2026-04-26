@@ -54,24 +54,20 @@ describe("updateTimeline", () => {
     const input: RunUpdateVesselTimelineFromAssemblyInput = {
       pingStartedAt: ms("2026-03-13T06:40:10-07:00"),
       tripHandoffForTimeline: {
-        completedFacts: [],
+        completedTripFacts: [],
         currentBranch: {
-          successfulVessels: new Set<string>(),
-          pendingActualMessages: [
-            {
-              events: {
-                isFirstTrip: false,
-                isTripStartReady: true,
-                isCompletedTrip: false,
-                didJustArriveAtDock: false,
-                didJustLeaveDock: true,
-                scheduleKeyChanged: false,
-              },
-              scheduleTrip: currentTrip,
-              vesselAbbrev: "TAC",
+          pendingActualWrite: {
+            events: {
+              isFirstTrip: false,
+              isTripStartReady: true,
+              isCompletedTrip: false,
+              didJustArriveAtDock: false,
+              didJustLeaveDock: true,
+              scheduleKeyChanged: false,
             },
-          ],
-          pendingPredictedMessages: [],
+            scheduleTrip: currentTrip,
+            vesselAbbrev: "TAC",
+          },
         },
       },
       mlTimelineOverlays: [],

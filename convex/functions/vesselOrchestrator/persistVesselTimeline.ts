@@ -1,24 +1,20 @@
 /**
- * Timeline projection + persistence helpers for per-vessel orchestrator writes.
+ * Timeline persistence helpers for per-vessel orchestrator writes.
  */
 
 import type { MutationCtx } from "_generated/server";
-import type {
-  MlTimelineOverlay,
-  PersistedTripTimelineHandoff,
-} from "domain/vesselOrchestration/shared";
-import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { projectPredictedDockWriteBatchesInDb } from "functions/events/eventsPredicted/mutations";
 
 type PersistVesselTimelineWritesArgs = {
-  pingStartedAt: number;
-  tripHandoffForTimeline: PersistedTripTimelineHandoff;
-  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
+  actualEvents: ReadonlyArray<ConvexActualDockEvent>;
+  predictedEvents: ReadonlyArray<ConvexPredictedDockWriteBatch>;
 };
 
 /**
- * Projects timeline writes and persists sparse actual/predicted rows.
+ * Persists sparse actual/predicted timeline rows.
  *
  * @param ctx - Convex mutation context
  * @param args - Per-vessel timeline projection inputs
@@ -27,16 +23,10 @@ export const persistVesselTimelineWrites = async (
   ctx: MutationCtx,
   args: PersistVesselTimelineWritesArgs
 ): Promise<void> => {
-  const { actualEvents, predictedEvents } = updateTimeline({
-    pingStartedAt: args.pingStartedAt,
-    tripHandoffForTimeline: args.tripHandoffForTimeline,
-    mlTimelineOverlays: args.mlTimelineOverlays,
-  });
-
-  if (actualEvents.length > 0) {
-    await upsertActualDockRows(ctx, actualEvents);
+  if (args.actualEvents.length > 0) {
+    await upsertActualDockRows(ctx, Array.from(args.actualEvents));
   }
-  if (predictedEvents.length > 0) {
-    await projectPredictedDockWriteBatchesInDb(ctx, predictedEvents);
+  if (args.predictedEvents.length > 0) {
+    await projectPredictedDockWriteBatchesInDb(ctx, Array.from(args.predictedEvents));
   }
 };

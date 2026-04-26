@@ -9,7 +9,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - one `bulkUpsertVesselLocations` for locations
-  - many sparse `persistPerVesselOrchestratorWrites` calls (one per changed vessel)
+  - many sparse `persistPerVesselOrchestratorWrites` calls (trip/prediction/timeline writes; one per changed vessel)
 
 ## Single-ping stages
 
@@ -41,11 +41,13 @@ hot path in `convex/functions/vesselOrchestrator`.
      1. `computeTripStageForLocation` computes trip diff (`updateVesselTrips`)
      2. skip vessel when no trip rows changed
      3. `runPredictionStage` computes prediction rows and ML overlays
-     4. mutation `persistPerVesselOrchestratorWrites` writes in order:
+    4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays
+    5. mutation `persistPerVesselOrchestratorWrites` writes in order:
         - trip writes (`persistVesselTripWrites`)
         - prediction upserts (`batchUpsertProposalsInDb`)
-        - timeline projection (`updateTimeline`)
-        - timeline row writes (`upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`)
+        - final timeline rows:
+          - actual row upserts (`upsertActualDockRows`)
+          - predicted row writes (`projectPredictedDockWriteBatchesInDb`)
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants
@@ -57,8 +59,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and memoized per ping.
 - Prediction model loading is gated per vessel by changed durable trip facts.
-- Timeline projection runs inside the per-vessel persistence mutation using
-  same-ping ML overlays.
+- Timeline projection runs in action memory using same-ping ML overlays, and
+  timeline mutations only apply supplied rows.
 - Location dedupe is mutation-side in `bulkUpsertVesselLocations`
   (`VesselAbbrev` + `TimeStamp` skip).
 

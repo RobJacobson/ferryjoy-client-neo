@@ -93,7 +93,7 @@ describe("trip stage schedule-inference gating", () => {
     );
 
     expect(tripStage).not.toBeNull();
-    expect(tripStage?.activeTripUpdate).toBeDefined();
+    expect(tripStage?.tripWrites.activeTripUpsert).toBeDefined();
   });
 
   it("returns null when a vessel trip update emits no writes", async () => {
