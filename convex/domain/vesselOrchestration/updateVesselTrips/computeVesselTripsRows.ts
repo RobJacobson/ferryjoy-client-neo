@@ -32,10 +32,10 @@ export const computeVesselTripsRows = async (
     )
   );
   const activeTripCandidates = updates
-    .map((update) => update.activeTripCandidate)
+    .map((update) => update.activeVesselTripUpdate)
     .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
   const completedTrips = updates
-    .map((update) => update.completedTrip)
+    .map((update) => update.completedVesselTripUpdate)
     .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
 
   return {

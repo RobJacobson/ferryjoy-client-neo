@@ -94,7 +94,7 @@ const makeLocation = (
 });
 
 describe("computeVesselTripUpdate", () => {
-  it("marks an unchanged vessel as not storage-changed and not lifecycle-changed", async () => {
+  it("emits no write intents for an unchanged vessel", async () => {
     const existingTrip = makeTrip();
     const detectTripEventsMod = await import("../lifecycle");
     const buildTripMod = await import("../tripBuilders");
@@ -116,18 +116,16 @@ describe("computeVesselTripUpdate", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.activeTripCandidate).toEqual(existingTrip);
-      expect(result.completedTrip).toBeUndefined();
-      expect(result.replacementTrip).toBeUndefined();
-      expect(result.tripStorageChanged).toBe(false);
-      expect(result.tripLifecycleChanged).toBe(false);
+      expect(result.vesselAbbrev).toBe(existingTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toBeUndefined();
+      expect(result.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
     }
   });
 
-  it("does not mark timestamp-only churn as a storage change", async () => {
+  it("does not emit a write intent for timestamp-only churn", async () => {
     const existingTrip = makeTrip();
     const updatedTrip = makeTrip({
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
@@ -152,18 +150,16 @@ describe("computeVesselTripUpdate", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.activeTripCandidate).toEqual(updatedTrip);
-      expect(result.completedTrip).toBeUndefined();
-      expect(result.replacementTrip).toBeUndefined();
-      expect(result.tripStorageChanged).toBe(false);
-      expect(result.tripLifecycleChanged).toBe(false);
+      expect(result.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toBeUndefined();
+      expect(result.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
     }
   });
 
-  it("marks ETA-only churn as a storage change", async () => {
+  it("emits an active write intent for ETA-only churn", async () => {
     const existingTrip = makeTrip({
       Eta: ms("2026-03-13T06:50:00-07:00"),
     });
@@ -190,18 +186,16 @@ describe("computeVesselTripUpdate", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.activeTripCandidate).toEqual(updatedTrip);
-      expect(result.completedTrip).toBeUndefined();
-      expect(result.replacementTrip).toBeUndefined();
-      expect(result.tripStorageChanged).toBe(true);
-      expect(result.tripLifecycleChanged).toBe(false);
+      expect(result.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toEqual(updatedTrip);
+      expect(result.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
     }
   });
 
-  it("marks a completed trip with replacement as both storage- and lifecycle-changed", async () => {
+  it("emits both active and completed write intents on completion rollover", async () => {
     const existingTrip = makeTrip();
     const completedTrip = makeTrip({
       TripEnd: ms("2026-03-13T06:29:56-07:00"),
@@ -239,18 +233,16 @@ describe("computeVesselTripUpdate", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.activeTripCandidate).toEqual(replacementTrip);
-      expect(result.completedTrip).toEqual(completedTrip);
-      expect(result.replacementTrip).toEqual(replacementTrip);
-      expect(result.tripStorageChanged).toBe(true);
-      expect(result.tripLifecycleChanged).toBe(true);
+      expect(result.vesselAbbrev).toBe(replacementTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toEqual(replacementTrip);
+      expect(result.completedVesselTripUpdate).toEqual(completedTrip);
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
     }
   });
 
-  it("falls back to the existing trip without marking a change when the update fails", async () => {
+  it("emits no write intents when domain trip update fails", async () => {
     const existingTrip = makeTrip();
     const detectTripEventsMod = await import("../lifecycle");
     const tripFieldsMod = await import("../tripFields");
@@ -272,11 +264,9 @@ describe("computeVesselTripUpdate", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.activeTripCandidate).toEqual(existingTrip);
-      expect(result.completedTrip).toBeUndefined();
-      expect(result.replacementTrip).toBeUndefined();
-      expect(result.tripStorageChanged).toBe(false);
-      expect(result.tripLifecycleChanged).toBe(false);
+      expect(result.vesselAbbrev).toBe(existingTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toBeUndefined();
+      expect(result.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       tripFieldsSpy.mockRestore();

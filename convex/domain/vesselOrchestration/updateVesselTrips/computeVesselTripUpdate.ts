@@ -24,41 +24,47 @@ type ComputeVesselTripUpdateInput = {
 export const computeVesselTripUpdate = async (
   input: ComputeVesselTripUpdateInput
 ): Promise<VesselTripUpdate> => {
-  // Detect lifecycle transitions before mutating trip rows.
-  const events = detectTripEvents(
-    input.existingActiveTrip,
-    input.vesselLocation
-  );
-  // Build candidate rows from lifecycle and schedule evidence.
-  const tripRows = await buildTripRowsForPing(
-    {
-      vesselLocation: input.vesselLocation,
-      existingActiveTrip: input.existingActiveTrip,
-      events,
-    },
-    input.scheduleAccess
-  );
-  const activeTripCandidate = tripRows.activeVesselTrip;
-  const completedTrip = tripRows.completedVesselTrip;
-  // Treat a different active TripKey after completion as a replacement start.
-  const replacementTrip =
-    completedTrip !== undefined &&
-    activeTripCandidate !== undefined &&
-    activeTripCandidate.TripKey !== completedTrip.TripKey
-      ? activeTripCandidate
-      : undefined;
-
-  return {
-    vesselLocation: input.vesselLocation,
-    existingActiveTrip: input.existingActiveTrip,
-    activeTripCandidate,
-    completedTrip,
-    replacementTrip,
-    tripStorageChanged: !areTripStorageRowsEqual(
+  try {
+    // Detect lifecycle transitions before mutating trip rows.
+    const events = detectTripEvents(
+      input.existingActiveTrip,
+      input.vesselLocation
+    );
+    // Build candidate rows from lifecycle and schedule evidence.
+    const tripRows = await buildTripRowsForPing(
+      {
+        vesselLocation: input.vesselLocation,
+        existingActiveTrip: input.existingActiveTrip,
+        events,
+      },
+      input.scheduleAccess
+    );
+    const activeTripCandidate = tripRows.activeVesselTrip;
+    const shouldWriteActiveTrip = !areTripStorageRowsEqual(
       input.existingActiveTrip,
       activeTripCandidate
-    ),
-    tripLifecycleChanged:
-      completedTrip !== undefined || replacementTrip !== undefined,
-  };
+    );
+
+    return {
+      vesselAbbrev: input.vesselLocation.VesselAbbrev,
+      activeVesselTripUpdate:
+        shouldWriteActiveTrip && activeTripCandidate !== undefined
+          ? activeTripCandidate
+          : undefined,
+      completedVesselTripUpdate: tripRows.completedVesselTrip,
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[computeVesselTripUpdate] failed trip update", {
+      vesselAbbrev: input.vesselLocation.VesselAbbrev,
+      locationTimeStamp: input.vesselLocation.TimeStamp,
+      existingTripKey: input.existingActiveTrip?.TripKey,
+      existingScheduleKey: input.existingActiveTrip?.ScheduleKey,
+      message: err.message,
+      stack: err.stack,
+    });
+    return {
+      vesselAbbrev: input.vesselLocation.VesselAbbrev,
+    };
+  }
 };

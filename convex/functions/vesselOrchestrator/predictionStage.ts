@@ -71,15 +71,6 @@ export const runPredictionStage = async (
 };
 
 /**
- * Returns whether downstream prediction/timeline work should continue.
- *
- * @param tripUpdate - Per-vessel trip update
- * @returns True when durable trip facts changed
- */
-const shouldContinueAfterTripUpdate = (tripUpdate: VesselTripUpdate): boolean =>
-  tripUpdate.tripStorageChanged || tripUpdate.tripLifecycleChanged;
-
-/**
  * Filters the trip stage down to the subset that needs prediction work.
  *
  * @param tripUpdates - Per-vessel trip updates
@@ -94,13 +85,16 @@ export const buildPredictionStageInputs = (
   const changedVesselAbbrevs = new Set<string>();
 
   for (const tripUpdate of tripUpdates) {
-    if (!shouldContinueAfterTripUpdate(tripUpdate)) {
+    const changed =
+      tripUpdate.activeVesselTripUpdate !== undefined ||
+      tripUpdate.completedVesselTripUpdate !== undefined;
+    if (!changed) {
       continue;
     }
 
-    changedVesselAbbrevs.add(tripUpdate.vesselLocation.VesselAbbrev);
-    if (tripUpdate.activeTripCandidate !== undefined) {
-      activeTrips.push(tripUpdate.activeTripCandidate);
+    changedVesselAbbrevs.add(tripUpdate.vesselAbbrev);
+    if (tripUpdate.activeVesselTripUpdate !== undefined) {
+      activeTrips.push(tripUpdate.activeVesselTripUpdate);
     }
   }
 
