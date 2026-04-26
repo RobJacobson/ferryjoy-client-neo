@@ -3,7 +3,7 @@
  */
 
 export { computeVesselTripsRows } from "./computeVesselTripsRows";
-export { computeVesselTripUpdate } from "./computeVesselTripUpdate";
+export { updateVesselTrips } from "./updateVesselTrips";
 export type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,

@@ -81,7 +81,7 @@ export type ActiveTripWriteOutcome = {
  * Same-ping ML overlay for timeline merge (in-memory; not a persistence DTO).
  *
  * Produced alongside prediction table rows (`computeVesselPredictionRows` /
- * `runVesselPredictionPing`); used to merge `finalProposed` / replacement-trip ML
+ * `updateVesselPredictions`); used to merge `finalProposed` / replacement-trip ML
  * into timeline projection (`buildDockWritesFromTripHandoff`).
  */
 export type MlTimelineOverlay = {

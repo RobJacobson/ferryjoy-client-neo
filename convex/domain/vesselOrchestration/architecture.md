@@ -15,7 +15,7 @@ updateVesselOrchestrator
   -> compute trip rows through updateVesselTrips (changed rows only)
   -> run prediction stage from trip rows
   -> persistTripAndPredictionWrites: trip write set + predictions
-  -> runUpdateVesselTimelineFromAssembly in action memory
+  -> updateTimeline in action memory
   -> persistTimelineEventWrites: actual/predicted event rows
 ```
 
@@ -70,14 +70,14 @@ Owns authoritative lifecycle trip rows for one ping.
 Public surface:
 
 - `computeVesselTripsRows`
-- `computeVesselTripUpdate`
+- `updateVesselTrips`
 - `RunUpdateVesselTripsOutput`
 - `VesselTripUpdate`
 
 Internal one-vessel flow:
 
 ```text
-computeVesselTripUpdate
+updateVesselTrips
   -> detectTripEvents
   -> buildTripRowsForPing
   -> classify storage/lifecycle change

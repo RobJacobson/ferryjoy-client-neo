@@ -15,9 +15,9 @@ import type {
   PersistedTripTimelineHandoff,
   ScheduleContinuityAccess,
 } from "domain/vesselOrchestration/shared";
-import { runUpdateVesselTimelineFromAssembly } from "domain/vesselOrchestration/updateTimeline";
+import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
+import { updateVesselTrips } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
@@ -111,7 +111,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     tripStageResult.tripWrites,
     predictionStageResult.predictionRows
   );
-  const { actualEvents, predictedEvents } = runUpdateVesselTimelineFromAssembly(
+  const { actualEvents, predictedEvents } = updateTimeline(
     {
       pingStartedAt,
       tripHandoffForTimeline,
@@ -206,7 +206,7 @@ export const computeTripStageForLocations = async (
   );
   const tripUpdates = await Promise.all(
     locationUpdates.map((vesselLocation) =>
-      computeVesselTripUpdate({
+      updateVesselTrips({
         vesselLocation,
         existingActiveTrip: existingActiveTripsByVesselAbbrev.get(
           vesselLocation.VesselAbbrev

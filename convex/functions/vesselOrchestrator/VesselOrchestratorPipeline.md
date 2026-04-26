@@ -61,7 +61,7 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Output: persisted trip handoff for timeline assembly
 
 8. **Assemble and persist timeline rows**
-   - Action assembly: `runUpdateVesselTimelineFromAssembly` runs in action memory
+   - Action assembly: `updateTimeline` runs in action memory
      using `tripHandoffForTimeline` + `mlTimelineOverlays`
    - Mutation: `persistTimelineEventWrites`
    - Writes: `upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`

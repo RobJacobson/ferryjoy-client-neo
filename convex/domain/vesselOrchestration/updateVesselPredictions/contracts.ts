@@ -36,7 +36,7 @@ export type RunUpdateVesselPredictionsInput = {
  * Pure prediction pipeline output: rows suitable for dedupe/upsert in
  * `functions/vesselOrchestrator` / `batchUpsertProposals`.
  *
- * Timeline ML merge handoffs are returned only from `runVesselPredictionPing`.
+ * Timeline ML merge handoffs are returned only from `updateVesselPredictions`.
  */
 export type RunUpdateVesselPredictionsOutput = {
   predictionRows: ReadonlyArray<VesselTripPredictionRow>;

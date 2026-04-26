@@ -93,7 +93,7 @@ const makeLocation = (
   ...overrides,
 });
 
-describe("computeVesselTripUpdate", () => {
+describe("updateVesselTrips", () => {
   it("emits no write intents for an unchanged vessel", async () => {
     const existingTrip = makeTrip();
     const detectTripEventsMod = await import("../lifecycle");
@@ -107,10 +107,8 @@ describe("computeVesselTripUpdate", () => {
     }));
 
     try {
-      const { computeVesselTripUpdate } = await import(
-        "../computeVesselTripUpdate"
-      );
-      const result = await computeVesselTripUpdate({
+      const { updateVesselTrips } = await import("../updateVesselTrips");
+      const result = await updateVesselTrips({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
         scheduleAccess: scheduleTables,
@@ -141,10 +139,8 @@ describe("computeVesselTripUpdate", () => {
     }));
 
     try {
-      const { computeVesselTripUpdate } = await import(
-        "../computeVesselTripUpdate"
-      );
-      const result = await computeVesselTripUpdate({
+      const { updateVesselTrips } = await import("../updateVesselTrips");
+      const result = await updateVesselTrips({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
         scheduleAccess: scheduleTables,
@@ -177,10 +173,8 @@ describe("computeVesselTripUpdate", () => {
     }));
 
     try {
-      const { computeVesselTripUpdate } = await import(
-        "../computeVesselTripUpdate"
-      );
-      const result = await computeVesselTripUpdate({
+      const { updateVesselTrips } = await import("../updateVesselTrips");
+      const result = await updateVesselTrips({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
         scheduleAccess: scheduleTables,
@@ -224,10 +218,8 @@ describe("computeVesselTripUpdate", () => {
     }));
 
     try {
-      const { computeVesselTripUpdate } = await import(
-        "../computeVesselTripUpdate"
-      );
-      const result = await computeVesselTripUpdate({
+      const { updateVesselTrips } = await import("../updateVesselTrips");
+      const result = await updateVesselTrips({
         vesselLocation: makeLocation({ AtDock: true, LeftDock: undefined }),
         existingActiveTrip: existingTrip,
         scheduleAccess: scheduleTables,
@@ -255,10 +247,8 @@ describe("computeVesselTripUpdate", () => {
     });
 
     try {
-      const { computeVesselTripUpdate } = await import(
-        "../computeVesselTripUpdate"
-      );
-      const result = await computeVesselTripUpdate({
+      const { updateVesselTrips } = await import("../updateVesselTrips");
+      const result = await updateVesselTrips({
         vesselLocation: makeLocation(),
         existingActiveTrip: existingTrip,
         scheduleAccess: scheduleTables,

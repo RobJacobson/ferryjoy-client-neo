@@ -101,7 +101,7 @@ describe("trip stage schedule-inference gating", () => {
     const tripUpdateMod = await import(
       "domain/vesselOrchestration/updateVesselTrips"
     );
-    const computeTripSpy = spyOn(tripUpdateMod, "computeVesselTripUpdate");
+    const computeTripSpy = spyOn(tripUpdateMod, "updateVesselTrips");
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
@@ -112,7 +112,7 @@ describe("trip stage schedule-inference gating", () => {
 
     computeTripSpy.mockImplementation(
       async (
-        input: Parameters<typeof tripUpdateMod.computeVesselTripUpdate>[0]
+        input: Parameters<typeof tripUpdateMod.updateVesselTrips>[0]
       ) => {
         if (input.vesselLocation.VesselAbbrev === "CHE") {
           return {

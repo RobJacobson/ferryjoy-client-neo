@@ -20,12 +20,12 @@ import {
   stripTripPredictionsForStorage,
 } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
   completeAndStartNewTripInDb,
   setDepartNextActualsForMostRecentCompletedTripInDb,
   upsertVesselTripsBatchInDb,
 } from "functions/vesselTrips/mutations";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type VesselTripWrites = {
   completedTripWrites: CompletedArrivalHandoff[];

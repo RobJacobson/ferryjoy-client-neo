@@ -120,10 +120,10 @@ export const mergeMlOverlayIntoTripHandoffForTimeline = (
 };
 
 /**
- * Timeline entrypoint for orchestrator callers that already have
- * completed/current trip handoff rows.
+ * Timeline assembly helper for callers that already have completed/current trip
+ * handoff rows.
  */
-export const runUpdateVesselTimelineFromAssembly = (
+export const updateTimelineFromAssembly = (
   input: RunUpdateVesselTimelineFromAssemblyInput
 ): RunUpdateVesselTimelineOutput => {
   const merged = mergeMlOverlayIntoTripHandoffForTimeline(

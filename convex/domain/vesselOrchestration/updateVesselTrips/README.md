@@ -10,11 +10,11 @@
 Root exports are intentionally small:
 
 - `computeVesselTripsRows(input) -> { activeTrips, completedTrips }`
-- `computeVesselTripUpdate(input) -> VesselTripUpdate`
+- `updateVesselTrips(input) -> VesselTripUpdate`
 - `RunUpdateVesselTripsOutput`
 - `VesselTripUpdate`
 
-The production orchestrator hot path uses `computeVesselTripUpdate` in a
+The production orchestrator hot path uses `updateVesselTrips` in a
 per-vessel loop over the **full** normalized location batch each ping so one
 failed vessel can be isolated without stopping the fleet ping.
 `computeVesselTripsRows` remains the rows-only domain runner for callers that
@@ -38,7 +38,7 @@ storage.
 For one vessel, the pipeline is intentionally linear:
 
 ```text
-computeVesselTripUpdate
+updateVesselTrips
   -> detectTripEvents
   -> buildTripRowsForPing
   -> classify storage change
@@ -56,7 +56,7 @@ is:
 
 ## Module map
 
-- `computeVesselTripUpdate.ts`
+- `updateVesselTrips.ts`
   - One-vessel orchestration and change classification
 - `computeVesselTripsRows.ts`
   - Canonical rows-only batch runner

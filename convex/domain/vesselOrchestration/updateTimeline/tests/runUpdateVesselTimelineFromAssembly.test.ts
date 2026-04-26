@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { RunUpdateVesselTimelineFromAssemblyInput } from "domain/vesselOrchestration/updateTimeline";
-import { runUpdateVesselTimelineFromAssembly } from "domain/vesselOrchestration/updateTimeline";
+import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -44,7 +44,7 @@ const makeTrip = (
   ...overrides,
 });
 
-describe("runUpdateVesselTimelineFromAssembly", () => {
+describe("updateTimeline", () => {
   it("applies successful-upsert gating for current-branch messages", () => {
     const currentTrip = makeTrip("TAC", {
       AtDock: false,
@@ -77,7 +77,7 @@ describe("runUpdateVesselTimelineFromAssembly", () => {
       mlTimelineOverlays: [],
     };
 
-    const out = runUpdateVesselTimelineFromAssembly(input);
+    const out = updateTimeline(input);
     expect(out.actualEvents).toHaveLength(0);
     expect(out.predictedEvents).toHaveLength(0);
   });

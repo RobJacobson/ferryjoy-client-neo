@@ -15,7 +15,7 @@ import type {
 } from "domain/vesselOrchestration/shared";
 import {
   predictionModelTypesForTrip,
-  runVesselPredictionPing,
+  updateVesselPredictions,
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
@@ -58,7 +58,7 @@ export const runPredictionStage = async (
     predictionInputs.activeTrips,
     predictionInputs.completedHandoffs
   );
-  const predictionPingResult = await runVesselPredictionPing({
+  const predictionPingResult = await updateVesselPredictions({
     activeTrips: predictionInputs.activeTrips,
     completedHandoffs: predictionInputs.completedHandoffs,
     predictionContext,

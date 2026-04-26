@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   computeVesselPredictionRows,
-  runVesselPredictionPing,
+  updateVesselPredictions,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -85,11 +85,11 @@ describe("computeVesselPredictionRows", () => {
   });
 });
 
-describe("runVesselPredictionPing", () => {
+describe("updateVesselPredictions", () => {
   it("computes prediction rows and timeline ML handoffs from active trips", async () => {
     const trip = makeTrip();
 
-    const output = await runVesselPredictionPing({
+    const output = await updateVesselPredictions({
       activeTrips: [trip],
       completedHandoffs: [],
       predictionContext: richContext,
@@ -111,7 +111,7 @@ describe("runVesselPredictionPing", () => {
       TripEnd: ms("2026-03-13T10:05:00-07:00"),
     });
 
-    const output = await runVesselPredictionPing({
+    const output = await updateVesselPredictions({
       activeTrips: [],
       completedHandoffs: [
         {
@@ -142,7 +142,7 @@ describe("runVesselPredictionPing", () => {
   it("returns no prediction rows when the preload has no models", async () => {
     const trip = makeTrip();
 
-    const output = await runVesselPredictionPing({
+    const output = await updateVesselPredictions({
       activeTrips: [trip],
       completedHandoffs: [],
       predictionContext: {},

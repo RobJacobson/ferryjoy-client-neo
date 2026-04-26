@@ -381,7 +381,7 @@ trip compute for changed location rows in the action (with
 `eventsScheduled` continuity), then **`runPredictionStage`**. Persistence is now
 split: [`persistTripAndPredictionWrites`](../../functions/vesselOrchestrator/mutations.ts)
 applies trip writes + prediction upserts and returns timeline handoff rows;
-`runUpdateVesselTimelineFromAssembly` runs in action memory; then
+`updateTimeline` runs in action memory; then
 [`persistTimelineEventWrites`](../../functions/vesselOrchestrator/mutations.ts)
 applies final `eventsActual`/`eventsPredicted` rows. Per-tick trip lifecycle
 logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` and is

@@ -4,7 +4,7 @@
  * folder (`timelineEventAssembler`, `buildDockWritesFromTripHandoff`).
  *
  * Stage A contracts: `contracts.ts`. Canonical domain entry is
- * {@link runUpdateVesselTimelineFromAssembly} (`RunUpdateVesselTimelineFromAssemblyInput` → output).
+ * {@link updateTimeline} (`RunUpdateVesselTimelineFromAssemblyInput` → output).
  * Ping write types and `mergePingEventWrites` live in
  * `domain/vesselOrchestration/shared/pingHandshake/projectionWire`; handshake DTOs
  * live in `shared/pingHandshake/types`.
@@ -28,4 +28,4 @@ export type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
-export { runUpdateVesselTimelineFromAssembly } from "./orchestratorTimelineProjection";
+export { updateTimeline } from "./updateTimeline";

@@ -4,7 +4,7 @@
  *
  * **Public surface**
  * - {@link computeVesselPredictionRows} — `{ predictionRows }` only
- * - {@link runVesselPredictionPing} — same pass plus timeline ML handoff (orchestrator)
+ * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
  * - {@link predictionModelTypesForTrip} — terminal-pair preload requests (orchestrator)
  *
  * Other helpers (`applyVesselPredictions`, `appendPredictions`, policy gates, etc.)
@@ -13,9 +13,11 @@
 
 export {
   computeVesselPredictionRows,
-  type RunVesselPredictionPingOutput,
-  runVesselPredictionPing,
 } from "./computeVesselPredictionRows";
+export {
+  type UpdateVesselPredictionsOutput,
+  updateVesselPredictions,
+} from "./updateVesselPredictions";
 export type {
   RunUpdateVesselPredictionsInput,
   RunUpdateVesselPredictionsOutput,

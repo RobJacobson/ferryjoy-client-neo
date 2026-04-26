@@ -7,7 +7,7 @@
  * `orchestratorTimelineProjection`), with ML-enriched trips where projection
  * needs them. Same-ping assembly must not reload `vesselTripPredictions` from the
  * DB; ML overlay uses {@link mergeMlOverlayIntoTripHandoffForTimeline}
- * in `orchestratorTimelineProjection` after `runVesselPredictionPing`.
+ * in `orchestratorTimelineProjection` after `updateVesselPredictions`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselTimeline` caller
  *
