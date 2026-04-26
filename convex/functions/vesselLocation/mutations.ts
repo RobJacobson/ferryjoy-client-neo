@@ -29,7 +29,8 @@ export type VesselLocationBulkUpsertResult = {
  * Bulk upsert live `vesselLocations`: read current table, match by `VesselAbbrev`,
  * skip when `TimeStamp` is unchanged, otherwise replace or insert.
  *
- * Shared by {@link bulkUpsertVesselLocations} and orchestrator `persistOrchestratorPing`.
+ * Shared by {@link bulkUpsertVesselLocations} and the orchestrator location
+ * stage in `updateVesselOrchestrator`.
  *
  * @param ctx - Convex mutation context
  * @param locations - Normalized feed snapshot for this tick

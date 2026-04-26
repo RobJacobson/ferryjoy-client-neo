@@ -146,7 +146,7 @@ describe("trip stage schedule-inference gating", () => {
       );
 
       expect(tripStage.tripWrites.completedTripWrites).toHaveLength(0);
-      expect(tripStage.tripWrites.activeTripUpserts).toEqual([healthyActiveTrip]);
+      expect(tripStage.tripWrites.activeTripUpserts).toEqual([]);
       expect(tripStage.predictionInputs.activeTrips).toEqual([
         healthyActiveTrip,
       ]);

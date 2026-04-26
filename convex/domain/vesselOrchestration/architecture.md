@@ -14,10 +14,16 @@ updateVesselOrchestrator
   -> load schedule continuity access for the ping
   -> compute trip rows through updateVesselTrips (changed rows only)
   -> run prediction stage from trip rows
-  -> persistOrchestratorPing: trip write set, predictions, timeline assembly
+  -> persistTripAndPredictionWrites: trip write set + predictions
+  -> runUpdateVesselTimelineFromAssembly in action memory
+  -> persistTimelineEventWrites: actual/predicted event rows
 ```
 
-The trip stage is pure domain compute in the action. Location table dedupe/read runs in `bulkUpsertVesselLocations`, and the action consumes only that mutation's changed-row return; trip persistence, prediction upserts, and timeline assembly run inside **`persistOrchestratorPing`**.
+The trip stage is pure domain compute in the action. Location table dedupe/read
+runs in `bulkUpsertVesselLocations`, and the action consumes only that
+mutation's changed-row return; trip persistence and prediction upserts run in
+`persistTripAndPredictionWrites`, timeline assembly runs in action memory, and
+`persistTimelineEventWrites` applies only final timeline rows.
 
 ## Timestamp semantics (current code)
 

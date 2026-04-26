@@ -3,6 +3,8 @@
  */
 
 import { v } from "convex/values";
+import { eventsActualSchema } from "functions/events/eventsActual/schemas";
+import { predictedDockWriteBatchSchema } from "functions/events/eventsPredicted/schemas";
 import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
   vesselTripStoredSchema,
@@ -31,14 +33,12 @@ const actualDockWriteIntentSchema = v.object({
   events: tripLifecycleEventFlagsSchema,
   scheduleTrip: vesselTripStoredSchema,
   vesselAbbrev: v.string(),
-  requiresSuccessfulUpsert: v.boolean(),
 });
 
 const predictedDockWriteIntentSchema = v.object({
   existingTrip: v.optional(vesselTripStoredSchema),
   scheduleTrip: vesselTripStoredSchema,
   vesselAbbrev: v.string(),
-  requiresSuccessfulUpsert: v.boolean(),
 });
 
 export const vesselTripWritesSchema = v.object({
@@ -52,15 +52,13 @@ export const mlTimelineOverlaySchema = v.union(
   v.object({
     vesselAbbrev: v.string(),
     branch: v.literal("completed"),
-    completedTrip: v.optional(vesselTripStoredSchema),
-    activeTrip: v.optional(vesselTripStoredSchema),
+    completedHandoffKey: v.optional(v.string()),
     finalPredictedTrip: v.optional(vesselTripWithMlSchema),
   }),
   v.object({
     vesselAbbrev: v.string(),
     branch: v.literal("current"),
-    completedTrip: v.optional(vesselTripStoredSchema),
-    activeTrip: v.optional(vesselTripStoredSchema),
+    completedHandoffKey: v.optional(v.string()),
     finalPredictedTrip: v.optional(vesselTripWithMlSchema),
   })
 );
@@ -70,4 +68,23 @@ export const orchestratorPingPersistenceSchema = v.object({
   tripWrites: vesselTripWritesSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),
   mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
+});
+
+export const persistTripAndPredictionWritesSchema = v.object({
+  tripWrites: vesselTripWritesSchema,
+  predictionRows: v.array(vesselTripPredictionProposalSchema),
+});
+
+export const persistedTripTimelineHandoffSchema = v.object({
+  completedFacts: v.array(completedArrivalHandoffSchema),
+  currentBranch: v.object({
+    successfulVessels: v.array(v.string()),
+    pendingActualMessages: v.array(actualDockWriteIntentSchema),
+    pendingPredictedMessages: v.array(predictedDockWriteIntentSchema),
+  }),
+});
+
+export const persistTimelineEventWritesSchema = v.object({
+  actualEvents: v.array(eventsActualSchema),
+  predictedEvents: v.array(predictedDockWriteBatchSchema),
 });

@@ -95,7 +95,7 @@ describe("persistVesselTripWrites", () => {
       "completeAndStartNewTripInDb"
     ).mockImplementation(async (_ctx, completedTrip, newTrip) => {
       completeCalls.push({ completedTrip, newTrip });
-      return null;
+      return;
     });
     const upsertSpy = spyOn(
       vesselTripMutations,
@@ -114,7 +114,7 @@ describe("persistVesselTripWrites", () => {
       "setDepartNextActualsForMostRecentCompletedTripInDb"
     ).mockImplementation(async (_ctx, vesselAbbrev, actualDepartMs) => {
       leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
-      return null;
+      return { updated: true };
     });
 
     let result: Awaited<ReturnType<typeof persistVesselTripWrites>> | null = null;
@@ -167,7 +167,7 @@ describe("persistVesselTripWrites", () => {
     const completeSpy = spyOn(
       vesselTripMutations,
       "completeAndStartNewTripInDb"
-    ).mockImplementation(async () => null);
+    ).mockImplementation(async () => {});
     const upsertSpy = spyOn(
       vesselTripMutations,
       "upsertVesselTripsBatchInDb"
@@ -179,7 +179,7 @@ describe("persistVesselTripWrites", () => {
       "setDepartNextActualsForMostRecentCompletedTripInDb"
     ).mockImplementation(async (_ctx, vesselAbbrev, actualDepartMs) => {
       leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
-      return null;
+      return { updated: true };
     });
 
     try {

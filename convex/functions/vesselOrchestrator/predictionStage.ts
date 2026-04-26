@@ -28,8 +28,8 @@ type PredictionStageInputs = {
 };
 
 type PredictionStageResult = {
-  predictionRows: VesselTripPredictionProposal[];
-  mlTimelineOverlays: MlTimelineOverlay[];
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
 /**

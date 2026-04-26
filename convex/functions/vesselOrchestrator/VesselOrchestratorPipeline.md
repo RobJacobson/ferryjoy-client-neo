@@ -9,7 +9,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - `bulkUpsertVesselLocations` (locations only)
-  - `persistOrchestratorPing` (trips, predictions, timeline)
+  - `persistTripAndPredictionWrites` (trips + predictions)
+  - `persistTimelineEventWrites` (timeline rows only)
 
 ## Single-ping stages
 
@@ -50,23 +51,29 @@ hot path in `convex/functions/vesselOrchestrator`.
      - `predictionRows`
      - `mlTimelineOverlays`
 
-7. **Persist trip/prediction/timeline bundle**
-   - Mutation: `persistOrchestratorPing`
+7. **Persist trip/prediction writes**
+   - Mutation: `persistTripAndPredictionWrites`
    - Writes in order:
      1. trip writes (`persistVesselTripWrites`)
         - leave-dock actualization intents are derived during persist from
           `actualDockWrites` for vessels whose active upsert succeeded
      2. prediction upserts (`batchUpsertProposalsInDb`) when non-empty
-     3. timeline projection (`runUpdateVesselTimelineFromAssembly`)
-     4. timeline table writes (`upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`)
+   - Output: persisted trip handoff for timeline assembly
+
+8. **Assemble and persist timeline rows**
+   - Action assembly: `runUpdateVesselTimelineFromAssembly` runs in action memory
+     using `tripHandoffForTimeline` + `mlTimelineOverlays`
+   - Mutation: `persistTimelineEventWrites`
+   - Writes: `upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`
 
 ## Invariants
 
 - One WSF fetch per ping.
 - One baseline orchestrator read-model query per ping.
-- Two mutation calls per ping:
+- Three mutation calls per ping:
   - one locations-only upsert mutation
-  - one trip/prediction/timeline mutation
+  - one trip/prediction mutation
+  - one timeline-rows-only mutation
 - Trip compute runs against changed location rows returned by location-upsert
   dedupe.
 - Schedule continuity reads are targeted and memoized per ping.

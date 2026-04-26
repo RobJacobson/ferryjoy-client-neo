@@ -103,7 +103,6 @@ export const buildVesselTripWrites = (
         events,
         scheduleTrip: nextTrip,
         vesselAbbrev: nextTrip.VesselAbbrev,
-        requiresSuccessfulUpsert: true,
       } satisfies ActualDockWriteIntent,
     ];
   });
@@ -113,7 +112,6 @@ export const buildVesselTripWrites = (
       existingTrip: existingByVessel.get(nextTrip.VesselAbbrev),
       scheduleTrip: nextTrip,
       vesselAbbrev: nextTrip.VesselAbbrev,
-      requiresSuccessfulUpsert: true,
     })
   );
 

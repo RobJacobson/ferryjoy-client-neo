@@ -133,8 +133,8 @@ describe("runVesselPredictionPing", () => {
 
     expect(output.mlTimelineOverlays).toHaveLength(1);
     expect(output.mlTimelineOverlays[0]?.branch).toBe("completed");
-    expect(output.mlTimelineOverlays[0]?.completedTrip?.TripKey).toBe(
-      completedTrip.TripKey
+    expect(output.mlTimelineOverlays[0]?.completedHandoffKey).toBe(
+      `${completedTrip.VesselAbbrev}::${completedTrip.ScheduleKey}`
     );
     expect(output.mlTimelineOverlays[0]?.finalPredictedTrip).toBeDefined();
   });

@@ -72,13 +72,11 @@ const currentTripProposedForPredicted = (
 type TaggedActualDockRow = {
   vesselAbbrev: string;
   row: ConvexActualDockEvent;
-  requiresSuccessfulUpsert: boolean;
 };
 
 type TaggedPredictedDockBatch = {
   vesselAbbrev: string;
   batch: ConvexPredictedDockWriteBatch;
-  requiresSuccessfulUpsert: boolean;
 };
 
 /**
@@ -198,7 +196,7 @@ const buildTaggedActualDockRowsFromMessage = (
 ): TaggedActualDockRow[] => {
   const rows: ConvexActualDockEvent[] = [];
   const proposed = currentTripProposedForActuals(message);
-  const { events, vesselAbbrev, requiresSuccessfulUpsert } = message;
+  const { events, vesselAbbrev } = message;
 
   if (events.didJustLeaveDock && proposed.LeftDockActual !== undefined) {
     const departure = buildDepartureActualDockWriteForTrip(proposed);
@@ -216,7 +214,6 @@ const buildTaggedActualDockRowsFromMessage = (
   return rows.map((row) => ({
     vesselAbbrev,
     row,
-    requiresSuccessfulUpsert,
   }));
 };
 
@@ -230,7 +227,7 @@ const buildTaggedPredictedBatchesFromMessage = (
   message: PredictedDockWriteIntent
 ): TaggedPredictedDockBatch[] => {
   const batches: ConvexPredictedDockWriteBatch[] = [];
-  const { existingTrip, vesselAbbrev, requiresSuccessfulUpsert } = message;
+  const { existingTrip, vesselAbbrev } = message;
   const finalProposed = currentTripProposedForPredicted(message);
 
   const projection = buildPredictedDockWriteBatch(finalProposed);
@@ -251,7 +248,6 @@ const buildTaggedPredictedBatchesFromMessage = (
   return batches.map((batch) => ({
     vesselAbbrev,
     batch,
-    requiresSuccessfulUpsert,
   }));
 };
 
@@ -267,11 +263,8 @@ const filterTaggedActualDockRows = (
   successfulVessels: Set<string>
 ): ConvexActualDockEvent[] =>
   tagged
-    .filter(
-      (t) =>
-        !t.requiresSuccessfulUpsert || successfulVessels.has(t.vesselAbbrev)
-    )
-    .map((t) => t.row);
+    .filter((taggedRow) => successfulVessels.has(taggedRow.vesselAbbrev))
+    .map((taggedRow) => taggedRow.row);
 
 /**
  * Filters predicted batches by whether their required upsert succeeded.
@@ -286,8 +279,5 @@ const filterTaggedPredictedDockBatches = (
   successfulVessels: Set<string>
 ): ConvexPredictedDockWriteBatch[] =>
   tagged
-    .filter(
-      (t) =>
-        !t.requiresSuccessfulUpsert || successfulVessels.has(t.vesselAbbrev)
-    )
-    .map((t) => t.batch);
+    .filter((taggedBatch) => successfulVessels.has(taggedBatch.vesselAbbrev))
+    .map((taggedBatch) => taggedBatch.batch);

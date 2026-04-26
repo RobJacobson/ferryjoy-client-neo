@@ -11,6 +11,7 @@ import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import type {
+  PersistedTripTimelineHandoff,
   CompletedArrivalHandoff,
   ScheduleContinuityAccess,
 } from "domain/vesselOrchestration/shared";
@@ -19,12 +20,14 @@ import type {
   VesselTripUpdate,
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
+import { runUpdateVesselTimelineFromAssembly } from "domain/vesselOrchestration/updateTimeline";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import {
   buildVesselTripWrites,
   type VesselTripWrites,
 } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
+import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -109,20 +112,59 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     ctx,
     tripStageResult.predictionInputs
   );
+  const tripHandoffForTimeline = await persistTripAndPredictionStages(
+    ctx,
+    tripStageResult.tripWrites,
+    predictionStageResult.predictionRows
+  );
+  const { actualEvents, predictedEvents } = runUpdateVesselTimelineFromAssembly({
+    pingStartedAt,
+    tripHandoffForTimeline,
+    mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
+  });
   logScheduleContinuitySanitySummary(
     pingStartedAt,
     scheduleAccess.getMetricsSummary()
   );
 
   await ctx.runMutation(
-    internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
+    internal.functions.vesselOrchestrator.mutations.persistTimelineEventWrites,
     {
-      pingStartedAt,
-      tripWrites: tripStageResult.tripWrites,
-      predictionRows: predictionStageResult.predictionRows,
-      mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
+      actualEvents,
+      predictedEvents,
     }
   );
+};
+
+/**
+ * Persists changed trip and prediction rows, then returns timeline handoff data.
+ *
+ * @param ctx - Convex action context for mutation calls
+ * @param tripWrites - Planned trip-table writes for this ping
+ * @param predictionRows - Prediction upserts for changed trips
+ * @returns Trip handoff used by timeline assembly in action memory
+ */
+const persistTripAndPredictionStages = async (
+  ctx: ActionCtx,
+  tripWrites: VesselTripWrites,
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>
+): Promise<PersistedTripTimelineHandoff> => {
+  const persisted = await ctx.runMutation(
+    internal.functions.vesselOrchestrator.mutations.persistTripAndPredictionWrites,
+    {
+      tripWrites,
+      predictionRows: Array.from(predictionRows),
+    }
+  );
+
+  return {
+    completedFacts: persisted.completedFacts,
+    currentBranch: {
+      successfulVessels: new Set(persisted.currentBranch.successfulVessels),
+      pendingActualMessages: persisted.currentBranch.pendingActualMessages,
+      pendingPredictedMessages: persisted.currentBranch.pendingPredictedMessages,
+    },
+  };
 };
 
 /**

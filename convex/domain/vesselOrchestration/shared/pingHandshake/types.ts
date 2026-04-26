@@ -50,7 +50,6 @@ type DockWriteIntentBase = {
   /** Schedule-enriched trip row from the trip stage (pre-ML overlay). */
   scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
-  requiresSuccessfulUpsert: boolean;
   /**
    * Set in **updateVesselPredictions** before timeline assembly when ML applies.
    */
@@ -88,8 +87,7 @@ export type ActiveTripWriteOutcome = {
 export type MlTimelineOverlay = {
   vesselAbbrev: string;
   branch: "completed" | "current";
-  completedTrip?: ConvexVesselTrip;
-  activeTrip?: ConvexVesselTrip;
+  completedHandoffKey?: string;
   finalPredictedTrip?: ConvexVesselTripWithML;
 };
 
