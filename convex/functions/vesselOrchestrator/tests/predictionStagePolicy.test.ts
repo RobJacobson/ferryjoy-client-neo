@@ -1,10 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
+import type { ActionCtx } from "_generated/server";
 import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/shared";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { buildPredictionStageInputs } from "../predictionStage";
+import {
+  buildPredictionStageInputs,
+  runPredictionStage,
+} from "../predictionStage";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -43,45 +46,13 @@ const makeTrip = (
   ...overrides,
 });
 
-const makeLocation = (
-  vesselAbbrev: string,
-  overrides: Partial<ConvexVesselLocation> = {}
-): ConvexVesselLocation => ({
-  VesselID: 1,
-  VesselAbbrev: vesselAbbrev,
-  VesselName: vesselAbbrev,
-  DepartingTerminalID: 10,
-  Speed: 15,
-  Heading: 90,
-  Latitude: 47.0,
-  Longitude: -122.0,
-  DepartingTerminalName: "Anacortes",
-  DepartingTerminalAbbrev: "ANA",
-  ArrivingTerminalID: 20,
-  ArrivingTerminalName: "Orcas",
-  ArrivingTerminalAbbrev: "ORI",
-  AtDock: false,
-  LeftDock: ms("2026-03-13T05:29:38-07:00"),
-  Eta: undefined,
-  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
-  VesselPositionNum: 1,
-  InService: true,
-  TimeStamp: ms("2026-03-13T06:28:45-07:00"),
-  RouteAbbrev: "ana-sj",
-  ...overrides,
-});
-
 const makeTripUpdate = (
   vesselAbbrev: string,
   overrides: Partial<VesselTripUpdate> = {}
 ): VesselTripUpdate => ({
-  vesselLocation: makeLocation(vesselAbbrev),
-  existingActiveTrip: makeTrip(vesselAbbrev),
-  activeTripCandidate: makeTrip(vesselAbbrev),
-  completedTrip: undefined,
-  replacementTrip: undefined,
-  tripStorageChanged: false,
-  tripLifecycleChanged: false,
+  vesselAbbrev,
+  activeVesselTripUpdate: undefined,
+  completedVesselTripUpdate: undefined,
   ...overrides,
 });
 
@@ -113,18 +84,14 @@ describe("prediction stage off-ramp policy", () => {
   it("continues only when trip storage or lifecycle changed", () => {
     const unchangedInput = buildPredictionStageInputs(
       [
-        makeTripUpdate("CHE", {
-          tripStorageChanged: false,
-          tripLifecycleChanged: false,
-        }),
+        makeTripUpdate("CHE"),
       ],
       []
     );
     const storageChangedInput = buildPredictionStageInputs(
       [
         makeTripUpdate("TAC", {
-          tripStorageChanged: true,
-          tripLifecycleChanged: false,
+          activeVesselTripUpdate: makeTrip("TAC"),
         }),
       ],
       []
@@ -132,8 +99,10 @@ describe("prediction stage off-ramp policy", () => {
     const lifecycleChangedInput = buildPredictionStageInputs(
       [
         makeTripUpdate("SAM", {
-          tripStorageChanged: false,
-          tripLifecycleChanged: true,
+          completedVesselTripUpdate: makeTrip("SAM", {
+            TripEnd: ms("2026-03-13T06:45:00-07:00"),
+          }),
+          activeVesselTripUpdate: makeTrip("SAM"),
         }),
       ],
       []
@@ -151,34 +120,25 @@ describe("prediction stage off-ramp policy", () => {
   it("filters prediction inputs down to the changed-vessel subset", () => {
     const unchangedChe = makeTripUpdate("CHE");
     const changedTac = makeTripUpdate("TAC", {
-      tripStorageChanged: true,
-      activeTripCandidate: makeTrip("TAC", {
+      activeVesselTripUpdate: makeTrip("TAC", {
         TimeStamp: ms("2026-03-13T06:35:00-07:00"),
       }),
     });
     const changedSam = makeTripUpdate("SAM", {
-      tripLifecycleChanged: true,
-      completedTrip: makeTrip("SAM", {
+      completedVesselTripUpdate: makeTrip("SAM", {
         TripEnd: ms("2026-03-13T06:45:00-07:00"),
       }),
-      replacementTrip: makeTrip("SAM", {
-        TripKey: generateTripKey("SAM", ms("2026-03-13T06:46:00-07:00")),
-        DepartingTerminalAbbrev: "ORI",
-        ArrivingTerminalAbbrev: "LOP",
-      }),
-      activeTripCandidate: makeTrip("SAM", {
+      activeVesselTripUpdate: makeTrip("SAM", {
         TripKey: generateTripKey("SAM", ms("2026-03-13T06:46:00-07:00")),
         DepartingTerminalAbbrev: "ORI",
         ArrivingTerminalAbbrev: "LOP",
       }),
     });
-    const unchangedCheTrip = unchangedChe.activeTripCandidate;
-    const changedTacTrip = changedTac.activeTripCandidate;
-    const changedSamTrip = changedSam.activeTripCandidate;
-    const changedSamCompletedTrip = changedSam.completedTrip;
+    const changedTacTrip = changedTac.activeVesselTripUpdate;
+    const changedSamTrip = changedSam.activeVesselTripUpdate;
+    const changedSamCompletedTrip = changedSam.completedVesselTripUpdate;
 
     if (
-      unchangedCheTrip === undefined ||
       changedTacTrip === undefined ||
       changedSamTrip === undefined ||
       changedSamCompletedTrip === undefined
@@ -209,5 +169,19 @@ describe("prediction stage off-ramp policy", () => {
 
     expect(predictionInputs.activeTrips).toEqual([]);
     expect(predictionInputs.completedHandoffs).toEqual([]);
+  });
+
+  it("skips prediction model context query when prediction inputs are empty", async () => {
+    const runQuery = mock(async () => ({}));
+    const ctx = { runQuery } as unknown as ActionCtx;
+
+    const result = await runPredictionStage(ctx, {
+      activeTrips: [],
+      completedHandoffs: [],
+    });
+
+    expect(result.predictionRows).toEqual([]);
+    expect(result.mlTimelineOverlays).toEqual([]);
+    expect(runQuery).toHaveBeenCalledTimes(0);
   });
 });

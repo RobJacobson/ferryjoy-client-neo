@@ -338,9 +338,7 @@ describe("buildTripRowsForPing", () => {
     );
 
     expect(tripStage.predictionInputs.activeTrips).toEqual([]);
-    expect(tripStage.tripRows.activeTrips).toEqual(
-      authoritativeTrip ? [authoritativeTrip] : []
-    );
-    expect(tripStage.tripRows.completedTrips).toEqual([]);
+    expect(tripStage.tripWrites.activeTripUpserts).toEqual([]);
+    expect(tripStage.tripWrites.completedTripWrites).toEqual([]);
   });
 });

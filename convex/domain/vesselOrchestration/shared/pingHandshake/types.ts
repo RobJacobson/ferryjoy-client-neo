@@ -50,7 +50,6 @@ type DockWriteIntentBase = {
   /** Schedule-enriched trip row from the trip stage (pre-ML overlay). */
   scheduleTrip: ConvexVesselTrip;
   vesselAbbrev: string;
-  requiresSuccessfulUpsert: boolean;
   /**
    * Set in **updateVesselPredictions** before timeline assembly when ML applies.
    */
@@ -88,17 +87,14 @@ export type ActiveTripWriteOutcome = {
 export type MlTimelineOverlay = {
   vesselAbbrev: string;
   branch: "completed" | "current";
-  completedTrip?: ConvexVesselTrip;
-  activeTrip?: ConvexVesselTrip;
+  completedHandoffKey?: string;
   finalPredictedTrip?: ConvexVesselTripWithML;
 };
 
 /**
- * Outcome of applying trip table writes for one orchestrator ping: completed
- * arrivals plus active-trip branch state (before optional ML overlay for
- * timeline / `vesselTripPredictions`).
+ * Canonical trip-persistence handoff for timeline projection.
  */
-export type TripPersistOutcome = {
+export type PersistedTripTimelineHandoff = {
   completedFacts: CompletedArrivalHandoff[];
   currentBranch: ActiveTripWriteOutcome;
 };

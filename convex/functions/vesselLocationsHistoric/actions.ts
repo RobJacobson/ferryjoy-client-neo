@@ -40,13 +40,11 @@ export const captureHistoricVesselLocations = internalAction({
     const vesselIdentities = await loadVesselIdentities(ctx);
     const terminalIdentities = await loadTerminalIdentities(ctx);
     const rawFeedLocations = await fetchRawWsfVesselLocations();
-    const { vesselLocations: convexLocations } =
-      await computeVesselLocationRows({
-        pingStartedAt: Date.now(),
-        rawFeedLocations,
-        vesselsIdentity: vesselIdentities,
-        terminalsIdentity: terminalIdentities,
-      });
+    const { vesselLocations: convexLocations } = computeVesselLocationRows({
+      rawFeedLocations,
+      vesselsIdentity: vesselIdentities,
+      terminalsIdentity: terminalIdentities,
+    });
 
     const locations: ConvexHistoricVesselLocation[] =
       convexLocations.map(addSailingDay);

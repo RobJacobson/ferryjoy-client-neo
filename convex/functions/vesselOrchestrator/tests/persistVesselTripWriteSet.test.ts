@@ -1,7 +1,11 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import * as vesselTripMutations from "functions/vesselTrips/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { persistVesselTripWriteSet } from "../persistVesselTripWriteSet";
+import {
+  buildVesselTripWrites,
+  persistVesselTripWrites,
+} from "../persistVesselTripWriteSet";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -43,7 +47,7 @@ const makeTrip = (
   ...overrides,
 });
 
-describe("persistVesselTripWriteSet", () => {
+describe("persistVesselTripWrites", () => {
   it("returns completed facts and current messages from arrays-only rows", async () => {
     const existingChe = makeTrip("CHE", { AtDock: false });
     const existingTac = makeTrip("TAC", { AtDock: true });
@@ -78,33 +82,52 @@ describe("persistVesselTripWriteSet", () => {
       vesselAbbrev: string;
       actualDepartMs: number;
     }> = [];
-
-    const result = await persistVesselTripWriteSet(
+    const tripWrites = buildVesselTripWrites(
       {
         completedTrips: [completedChe],
         activeTrips: [replacementChe, updatedTac],
       },
-      [existingChe, existingTac],
-      {
-        completeAndStartNewTrip: async (args) => {
-          completeCalls.push(args);
-          return null;
-        },
-        upsertVesselTripsBatch: async (args) => {
-          upsertCalls.push(args.activeUpserts);
-          return {
-            perVessel: args.activeUpserts.map((trip) => ({
-              vesselAbbrev: trip.VesselAbbrev,
-              ok: true,
-            })),
-          };
-        },
-        setDepartNextActualsForMostRecentCompletedTrip: async (args) => {
-          leaveDockCalls.push(args);
-          return null;
-        },
-      }
+      [existingChe, existingTac]
     );
+
+    const completeSpy = spyOn(
+      vesselTripMutations,
+      "completeAndStartNewTripInDb"
+    ).mockImplementation(async (_ctx, completedTrip, newTrip) => {
+      completeCalls.push({ completedTrip, newTrip });
+      return;
+    });
+    const upsertSpy = spyOn(
+      vesselTripMutations,
+      "upsertVesselTripsBatchInDb"
+    ).mockImplementation(async (_ctx, activeUpserts) => {
+      upsertCalls.push(activeUpserts);
+      return {
+        perVessel: activeUpserts.map((trip) => ({
+          vesselAbbrev: trip.VesselAbbrev,
+          ok: true,
+        })),
+      };
+    });
+    const leaveDockSpy = spyOn(
+      vesselTripMutations,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockImplementation(async (_ctx, vesselAbbrev, actualDepartMs) => {
+      leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
+      return { updated: true };
+    });
+
+    let result: Awaited<ReturnType<typeof persistVesselTripWrites>> | null = null;
+    try {
+      result = await persistVesselTripWrites({} as never, tripWrites);
+    } finally {
+      completeSpy.mockRestore();
+      upsertSpy.mockRestore();
+      leaveDockSpy.mockRestore();
+    }
+    if (result === null) {
+      throw new Error("Expected persistVesselTripWrites to return a result.");
+    }
 
     expect(completeCalls).toHaveLength(1);
     expect(completeCalls[0]?.completedTrip.VesselAbbrev).toBe("CHE");
@@ -119,5 +142,54 @@ describe("persistVesselTripWriteSet", () => {
     expect(result.currentBranch.successfulVessels.has("TAC")).toBe(true);
     expect(leaveDockCalls).toHaveLength(1);
     expect(leaveDockCalls[0]?.vesselAbbrev).toBe("TAC");
+  });
+
+  it("skips leave-dock actualization when active upsert fails", async () => {
+    const existingTac = makeTrip("TAC", { AtDock: true });
+    const updatedTac = makeTrip("TAC", {
+      AtDock: false,
+      LeftDockActual: ms("2026-03-13T06:40:00-07:00"),
+      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
+    });
+    const leaveDockCalls: Array<{
+      vesselAbbrev: string;
+      actualDepartMs: number;
+    }> = [];
+
+    const tripWrites = buildVesselTripWrites(
+      {
+        completedTrips: [],
+        activeTrips: [updatedTac],
+      },
+      [existingTac]
+    );
+
+    const completeSpy = spyOn(
+      vesselTripMutations,
+      "completeAndStartNewTripInDb"
+    ).mockImplementation(async () => {});
+    const upsertSpy = spyOn(
+      vesselTripMutations,
+      "upsertVesselTripsBatchInDb"
+    ).mockImplementation(async () => ({
+      perVessel: [{ vesselAbbrev: "TAC", ok: false, reason: "boom" }],
+    }));
+    const leaveDockSpy = spyOn(
+      vesselTripMutations,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockImplementation(async (_ctx, vesselAbbrev, actualDepartMs) => {
+      leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
+      return { updated: true };
+    });
+
+    try {
+      await persistVesselTripWrites({} as never, tripWrites);
+    } finally {
+      completeSpy.mockRestore();
+      upsertSpy.mockRestore();
+      leaveDockSpy.mockRestore();
+    }
+
+    expect(leaveDockCalls).toHaveLength(0);
   });
 });

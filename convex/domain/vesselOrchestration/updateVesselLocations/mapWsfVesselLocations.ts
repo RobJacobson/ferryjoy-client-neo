@@ -18,8 +18,6 @@ import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
-const warnedUnknownMarineLocations = new Set<string>();
-
 /**
  * Maps raw WSF feed rows into canonical vessel-location rows.
  *
@@ -50,25 +48,6 @@ export const mapWsfVesselLocations = (
   }
 
   return locations;
-};
-
-/**
- * Ensures a non-empty raw batch produced at least one normalized row.
- *
- * @param rawRowCount - Number of rows returned by the transport layer
- * @param locations - Successfully normalized vessel-location rows
- * @returns Nothing when the batch is usable
- * @throws Error when the transport returned rows but every row failed conversion
- */
-export const assertUsableVesselLocationBatch = (
-  rawRowCount: number,
-  locations: ReadonlyArray<ConvexVesselLocation>
-): void => {
-  if (rawRowCount > 0 && locations.length === 0) {
-    throw new Error(
-      `All ${rawRowCount} vessel location rows failed conversion; see warnings above.`
-    );
-  }
 };
 
 /**
@@ -105,11 +84,19 @@ const normalizeWsfVesselLocationRow = (
   }
 
   if (!resolvedDepartingTerminal) {
-    warnAboutUnknownMarineLocation("departing", rawDepartingTerminalAbbrev);
+    warnAboutUnknownMarineLocation(
+      "departing",
+      resolvedVessel.VesselAbbrev,
+      rawDepartingTerminalAbbrev
+    );
   }
 
   if (rawArrivingTerminalAbbrev && !resolvedArrivingTerminal) {
-    warnAboutUnknownMarineLocation("arriving", rawArrivingTerminalAbbrev);
+    warnAboutUnknownMarineLocation(
+      "arriving",
+      resolvedVessel.VesselAbbrev,
+      rawArrivingTerminalAbbrev
+    );
   }
 
   const departingTerminalAbbrev =
@@ -206,16 +193,10 @@ const getDistanceToTerminal = (
  */
 const warnAboutUnknownMarineLocation = (
   role: "departing" | "arriving",
+  vesselAbbrev: string,
   terminalAbbrev: string
 ): void => {
-  const key = `${role}:${terminalAbbrev.toUpperCase()}`;
-
-  if (warnedUnknownMarineLocations.has(key)) {
-    return;
-  }
-
-  warnedUnknownMarineLocations.add(key);
   console.warn(
-    `[vesselLocation] Unknown ${role} marine location in backend terminal lookup: ${terminalAbbrev}`
+    `[vesselLocation] Unknown ${role} terminal for vessel ${vesselAbbrev}: ${terminalAbbrev}`
   );
 };

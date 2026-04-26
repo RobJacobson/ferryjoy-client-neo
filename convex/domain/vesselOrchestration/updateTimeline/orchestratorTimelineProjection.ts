@@ -3,48 +3,39 @@
  */
 
 import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
+import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import {
-  buildDockWritesFromTripHandoff,
-  type TripHandoffForTimeline,
-} from "./buildDockWritesFromTripHandoff";
+import { buildDockWritesFromTripHandoff } from "./buildDockWritesFromTripHandoff";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
 
 /**
- * Schedule identity for matching completed-handoff facts to prediction-stage
- * `MlTimelineOverlay` rows. Must stay aligned with
- * {@link mlTimelineOverlayMatchKey} (same `ScheduleKey` then `TripKey`
- * fallbacks on completed row, then replacement active row).
+ * Builds the stable key for matching completed handoff facts to completed
+ * branch ML overlays.
+ *
+ * @param vesselAbbrev - Vessel abbreviation for the completed handoff
+ * @param completedTrip - Completed trip row from persistence output
+ * @param activeTrip - Replacement schedule trip row from persistence output
+ * @returns Stable vessel+schedule identity key
  */
-const scheduleIdentityForMlMergeKey = (
-  completedTrip: ConvexVesselTrip | undefined,
-  activeTrip: ConvexVesselTrip | undefined
-): string =>
-  completedTrip?.ScheduleKey ??
-  completedTrip?.TripKey ??
-  activeTrip?.ScheduleKey ??
-  activeTrip?.TripKey ??
-  "";
-
-const timelineMlMergeKeyFromCompletedHandoffParts = (
+const completedHandoffKey = (
   vesselAbbrev: string,
   completedTrip: ConvexVesselTrip | undefined,
   activeTrip: ConvexVesselTrip | undefined
-): string =>
-  `${vesselAbbrev}::${scheduleIdentityForMlMergeKey(completedTrip, activeTrip)}`;
-
-const mlTimelineOverlayMatchKey = (overlay: MlTimelineOverlay): string =>
-  timelineMlMergeKeyFromCompletedHandoffParts(
-    overlay.vesselAbbrev,
-    overlay.completedTrip,
-    overlay.activeTrip
-  );
+): string => {
+  const scheduleIdentity =
+    completedTrip?.ScheduleKey ??
+    completedTrip?.TripKey ??
+    activeTrip?.ScheduleKey ??
+    activeTrip?.TripKey ??
+    "";
+  return `${vesselAbbrev}::${scheduleIdentity}`;
+};
 
 const finalProposedByVesselFromMlOverlays = (
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
@@ -70,9 +61,9 @@ const finalProposedByVesselFromMlOverlays = (
  * @returns Handoff with `newTrip` / `finalProposed` fields merged from overlays
  */
 export const mergeMlOverlayIntoTripHandoffForTimeline = (
-  handoff: TripHandoffForTimeline,
+  handoff: PersistedTripTimelineHandoff,
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
-): TripHandoffForTimeline => {
+): PersistedTripTimelineHandoff => {
   const mlFactsByKey = new Map(
     mlTimelineOverlays
       .filter(
@@ -80,15 +71,17 @@ export const mergeMlOverlayIntoTripHandoffForTimeline = (
           overlay
         ): overlay is MlTimelineOverlay & {
           branch: "completed";
+          completedHandoffKey: string;
           finalPredictedTrip: ConvexVesselTripWithML;
         } =>
           overlay.branch === "completed" &&
+          overlay.completedHandoffKey !== undefined &&
           overlay.finalPredictedTrip !== undefined
       )
       .map(
         (overlay) =>
           [
-            mlTimelineOverlayMatchKey(overlay),
+            overlay.completedHandoffKey,
             overlay.finalPredictedTrip,
           ] as const
       )
@@ -98,7 +91,7 @@ export const mergeMlOverlayIntoTripHandoffForTimeline = (
   return {
     completedFacts: handoff.completedFacts.map((fact) => {
       const newTrip = mlFactsByKey.get(
-        timelineMlMergeKeyFromCompletedHandoffParts(
+        completedHandoffKey(
           fact.tripToComplete.VesselAbbrev,
           fact.tripToComplete,
           fact.scheduleTrip
@@ -138,8 +131,7 @@ export const runUpdateVesselTimelineFromAssembly = (
     input.mlTimelineOverlays
   );
   const tl = buildDockWritesFromTripHandoff({
-    completedFacts: merged.completedFacts,
-    currentBranch: merged.currentBranch,
+    ...merged,
     pingStartedAt: input.pingStartedAt,
   });
   return {

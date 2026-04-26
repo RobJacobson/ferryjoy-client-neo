@@ -2,14 +2,16 @@
 
 Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, merge, assembler, and **`buildDockWritesFromTripHandoff`**.
 
-**`TripPersistOutcome`** and prediction-stage **`MlTimelineOverlay`** rows are produced upstream (trip persistence / orchestrator handoff). The shipped orchestrator path calls **`runUpdateVesselTimelineFromAssembly`** from **`persistOrchestratorPing`** (`functions/vesselOrchestrator/mutations.ts`) with **`tripHandoffForTimeline`** built after trip writes.
+**`PersistedTripTimelineHandoff`** and prediction-stage **`MlTimelineOverlay`** rows are produced upstream (trip persistence / orchestrator handoff). The shipped orchestrator path calls **`runUpdateVesselTimelineFromAssembly`** in **`actions.ts`** after trip+prediction persistence, then persists final timeline rows through a dedicated mutation.
 
-**Apply** (Convex mutations) for timeline projection runs inside **`persistOrchestratorPing`**: domain **`runUpdateVesselTimelineFromAssembly`** takes **`RunUpdateVesselTimelineFromAssemblyInput`**, merges ML from **`mlTimelineOverlays`** via **`mergeMlOverlayIntoTripHandoffForTimeline`**, runs **`buildDockWritesFromTripHandoff`**, and returns **`actualEvents`** / **`predictedEvents`** for `eventsActual` / `eventsPredicted` mutations.
+**Apply** (Convex mutations) for timeline projection runs in a dedicated timeline mutation: domain **`runUpdateVesselTimelineFromAssembly`** takes **`RunUpdateVesselTimelineFromAssemblyInput`**, merges ML from **`mlTimelineOverlays`** via **`mergeMlOverlayIntoTripHandoffForTimeline`**, runs **`buildDockWritesFromTripHandoff`**, and returns **`actualEvents`** / **`predictedEvents`** that `persistTimelineEventWrites` applies to `eventsActual` / `eventsPredicted`.
 
 ## Production call chain
 
-1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` / `runOrchestratorPing`: **`updateVesselTrips`** (per-vessel loop over the full normalized feed) → **`runPredictionStage`** → single mutation **`persistOrchestratorPing`** (`feedLocations` + **`performBulkUpsertVesselLocations`** first, then trips, prediction rows, then timeline).
-2. **`persistOrchestratorPing`** calls **`runUpdateVesselTimelineFromAssembly`** with **`tripHandoffForTimeline`** from trip persist results plus **`mlTimelineOverlays`**, then applies dock writes. **`vesselTripPredictions`** row dedupe (overlay equality, MAE-insensitive) lives in **`functions`** **`batchUpsertProposals`**; timeline assembly consumes the merged trip handoff, not the prediction table.
+1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — `updateVesselOrchestrator` / `runOrchestratorPing`: **`updateVesselTrips`** (per-vessel loop over the full normalized feed) → **`runPredictionStage`**.
+2. Mutation **`persistTripAndPredictionWrites`** applies trip writes + prediction upserts and returns persisted handoff rows.
+3. `actions.ts` runs **`runUpdateVesselTimelineFromAssembly`** with that persisted-trip handoff + **`mlTimelineOverlays`**.
+4. Mutation **`persistTimelineEventWrites`** applies final dock writes to `eventsActual` / `eventsPredicted`. **`vesselTripPredictions`** row dedupe (overlay equality, MAE-insensitive) lives in **`functions`** **`batchUpsertProposals`**; timeline assembly consumes the merged handoff, not the prediction table.
 
 ## Handoff glossary
 
@@ -18,12 +20,11 @@ Orchestrator ping output crosses several DTOs. Canonical definitions live in [`.
 | Type | Produced when | Consumed by | Notes |
 | --- | --- | --- | --- |
 | `CompletedArrivalHandoff` | Trip persistence planning / completed rollover | Prediction gating, then timeline assembly (`buildDockWritesFromTripHandoff`) | `scheduleTrip` is pre-ML; `newTrip` is ML overlay when present. |
-| `ActualDockWriteIntent` | Persistence plan for vessels with dock boundary signals | Timeline current branch (`pendingActualMessages`) | Often upsert-gated via `requiresSuccessfulUpsert`. |
+| `ActualDockWriteIntent` | Persistence plan for vessels with dock boundary signals | Timeline current branch (`pendingActualMessages`) | Gated by `successfulVessels` from trip upsert outcomes. |
 | `PredictedDockWriteIntent` | Persistence plan for predicted dock effects on current path | Timeline current branch (`pendingPredictedMessages`) | Carries `existingTrip` + `scheduleTrip` for projection. |
 | `ActiveTripWriteOutcome` | After `persistVesselTripWriteSet` (with `successfulVessels` from batch upsert) | `runUpdateVesselTimelineFromAssembly` input assembly | Joins actual + predicted pending messages with success set. |
 | `MlTimelineOverlay` | Same pass as prediction row build (`updateVesselPredictions`) | `mergeMlOverlayIntoTripHandoffForTimeline` | ML overlay for timeline; not read back from `vesselTripPredictions` during projection. |
-| `TripPersistOutcome` | `persistVesselTripWriteSet` return value | Wrapped into `TripHandoffForTimeline` | Holds `completedFacts` + `currentBranch` (field names unchanged for now). |
-| `TripHandoffForTimeline` | Built from trip persist output before ML merge | `mergeMlOverlayIntoTripHandoffForTimeline` → `buildDockWritesFromTripHandoff` | Defined in `buildDockWritesFromTripHandoff.ts`. |
+| `PersistedTripTimelineHandoff` | `persistVesselTripWriteSet` return value | `mergeMlOverlayIntoTripHandoffForTimeline` → `buildDockWritesFromTripHandoff` | Holds `completedFacts` + `currentBranch` as the single shared handoff shape. |
 
 Further renames or public type aliases are optional: this table is the intended consolidation layer unless a future change agrees on a single rename pass across all imports.
 
@@ -41,7 +42,7 @@ Further renames or public type aliases are optional: this table is the intended 
 
 ## Imports
 
-- **`persistOrchestratorPing`** — production caller path for timeline projection (after predictions merge).
+- **`actions.ts` + `persistTimelineEventWrites`** — production caller path for timeline projection (after predictions merge).
 - Lifecycle code imports handshake DTOs from **`domain/vesselOrchestration/shared/pingHandshake/types`** (re-exported from **`updateTimeline`** barrel for convenience).
 - **`domain/vesselOrchestration/updateVesselTrips/index.ts`** re-exports key symbols for queries and shared callers.
 

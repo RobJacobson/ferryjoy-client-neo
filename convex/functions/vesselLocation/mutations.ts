@@ -5,15 +5,32 @@
 import type { MutationCtx } from "_generated/server";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
+import {
+  ENABLE_ORCHESTRATOR_SANITY_METRICS,
+  ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS,
+} from "functions/vesselOrchestrator/constants";
 import { vesselIdentitySchema } from "../vessels/schemas";
 import type { ConvexVesselLocation } from "./schemas";
 import { vesselLocationValidationSchema } from "./schemas";
+
+export type VesselLocationDedupeSummary = {
+  totalIncoming: number;
+  unchanged: number;
+  replaced: number;
+  inserted: number;
+};
+
+export type VesselLocationBulkUpsertResult = {
+  changedLocations: ReadonlyArray<ConvexVesselLocation>;
+  summary: VesselLocationDedupeSummary | null;
+};
 
 /**
  * Bulk upsert live `vesselLocations`: read current table, match by `VesselAbbrev`,
  * skip when `TimeStamp` is unchanged, otherwise replace or insert.
  *
- * Shared by {@link bulkUpsertVesselLocations} and orchestrator `persistOrchestratorPing`.
+ * Shared by {@link bulkUpsertVesselLocations} and the orchestrator location
+ * stage in `updateVesselOrchestrator`.
  *
  * @param ctx - Convex mutation context
  * @param locations - Normalized feed snapshot for this tick
@@ -21,24 +38,61 @@ import { vesselLocationValidationSchema } from "./schemas";
 export async function performBulkUpsertVesselLocations(
   ctx: MutationCtx,
   locations: ReadonlyArray<ConvexVesselLocation>
-): Promise<void> {
+): Promise<VesselLocationBulkUpsertResult> {
+  const shouldCollectMetrics =
+    ENABLE_ORCHESTRATOR_SANITY_METRICS &&
+    ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS;
+  const summary: VesselLocationDedupeSummary = {
+    totalIncoming: locations.length,
+    unchanged: 0,
+    replaced: 0,
+    inserted: 0,
+  };
   const existingLocations = await ctx.db.query("vesselLocations").collect();
   const existingByAbbrev = new Map(
     existingLocations.map((loc) => [loc.VesselAbbrev, loc] as const)
   );
+  const changedLocations: Array<ConvexVesselLocation> = [];
 
   for (const location of locations) {
-    const existing = existingByAbbrev.get(location.VesselAbbrev);
-    if (existing?.TimeStamp === location.TimeStamp) {
-      continue;
-    }
+    try {
+      const existing = existingByAbbrev.get(location.VesselAbbrev);
+      if (existing?.TimeStamp === location.TimeStamp) {
+        if (shouldCollectMetrics) {
+          summary.unchanged += 1;
+        }
+        continue;
+      }
 
-    if (existing) {
-      await ctx.db.replace(existing._id, location);
-    } else {
-      await ctx.db.insert("vesselLocations", location);
+      if (existing) {
+        await ctx.db.replace(existing._id, location);
+        changedLocations.push(location);
+        if (shouldCollectMetrics) {
+          summary.replaced += 1;
+        }
+      } else {
+        await ctx.db.insert("vesselLocations", location);
+        changedLocations.push(location);
+        if (shouldCollectMetrics) {
+          summary.inserted += 1;
+        }
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.error("[bulkUpsertVesselLocations] failed vessel location upsert", {
+        vesselAbbrev: location.VesselAbbrev,
+        vesselId: location.VesselID,
+        timeStamp: location.TimeStamp,
+        message: err.message,
+        stack: err.stack,
+      });
     }
   }
+
+  return {
+    changedLocations,
+    summary: shouldCollectMetrics ? summary : null,
+  };
 }
 
 /**
@@ -48,14 +102,14 @@ export async function performBulkUpsertVesselLocations(
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the location snapshot payload
- * @returns `null` after all required location upserts complete
+ * @returns Rows that were inserted/replaced after timestamp dedupe
  */
 export const bulkUpsertVesselLocations = mutation({
   args: { locations: v.array(vesselLocationValidationSchema) },
-  returns: v.null(),
+  returns: v.array(vesselLocationValidationSchema),
   handler: async (ctx, args) => {
-    await performBulkUpsertVesselLocations(ctx, args.locations);
-    return null;
+    const result = await performBulkUpsertVesselLocations(ctx, args.locations);
+    return [...result.changedLocations];
   },
 });
 

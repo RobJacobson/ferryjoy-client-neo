@@ -1,6 +1,15 @@
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { stripTripPredictionsForStorage } from "./orchestratorPersist";
 
+type TripStorageComparable = Omit<ConvexVesselTrip, "TimeStamp">;
+
+const toComparableTripStorageRow = (
+  trip: ConvexVesselTrip
+): TripStorageComparable => {
+  const { TimeStamp: _timeStamp, ...comparable } = trip;
+  return comparable;
+};
+
 export const areTripStorageRowsEqual = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip | undefined
@@ -10,7 +19,11 @@ export const areTripStorageRowsEqual = (
   }
 
   return (
-    JSON.stringify(stripTripPredictionsForStorage(existingTrip)) ===
-    JSON.stringify(stripTripPredictionsForStorage(nextTrip))
+    JSON.stringify(
+      toComparableTripStorageRow(stripTripPredictionsForStorage(existingTrip))
+    ) ===
+    JSON.stringify(
+      toComparableTripStorageRow(stripTripPredictionsForStorage(nextTrip))
+    )
   );
 };

@@ -34,11 +34,10 @@ afterEach(() => {
 });
 
 describe("computeVesselLocationRows", () => {
-  it("returns one location and skips rows that fail conversion", async () => {
+  it("returns one location and skips rows that fail conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await computeVesselLocationRows({
-      pingStartedAt: Date.now(),
+    const result = computeVesselLocationRows({
       rawFeedLocations: [validRawRow(), unknownVesselRow()],
       vesselsIdentity: vesselsFixture,
       terminalsIdentity: terminalsFixture,
@@ -49,26 +48,23 @@ describe("computeVesselLocationRows", () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("throws when every row fails conversion", async () => {
+  it("returns an empty result when every row fails conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(
-      computeVesselLocationRows({
-        pingStartedAt: Date.now(),
-        rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
-        vesselsIdentity: vesselsFixture,
-        terminalsIdentity: terminalsFixture,
-      })
-    ).rejects.toThrow(/All 2 vessel location rows failed conversion/);
+    const result = computeVesselLocationRows({
+      rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
+      vesselsIdentity: vesselsFixture,
+      terminalsIdentity: terminalsFixture,
+    });
 
+    expect(result.vesselLocations).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledTimes(2);
   });
 
-  it("preserves raw marine terminal values when the terminal abbrev is unknown", async () => {
+  it("preserves raw marine terminal values when the terminal abbrev is unknown", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await computeVesselLocationRows({
-      pingStartedAt: Date.now(),
+    const result = computeVesselLocationRows({
       rawFeedLocations: [
         validRawRow({
           DepartingTerminalAbbrev: "QQQ",
@@ -87,11 +83,10 @@ describe("computeVesselLocationRows", () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("skips rows missing a departing terminal abbreviation", async () => {
+  it("skips rows missing a departing terminal abbreviation", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await computeVesselLocationRows({
-      pingStartedAt: Date.now(),
+    const result = computeVesselLocationRows({
       rawFeedLocations: [
         validRawRow({
           DepartingTerminalAbbrev: "",

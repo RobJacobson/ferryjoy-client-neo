@@ -27,18 +27,13 @@ export type RunUpdateVesselTripsOutput = {
 };
 
 /**
- * Canonical Stage 2 per-vessel change bundle for the orchestrator pipeline.
+ * Canonical Stage 2 per-vessel write intents for the orchestrator pipeline.
  *
- * `activeTripCandidate` is the storage-shaped active row that would represent
- * this vessel after the ping. `replacementTrip` is populated only when the ping
- * closes a prior trip and starts a new active trip in the same pass.
+ * Each field represents a concrete storage update to apply. When a field is
+ * undefined, no write should be emitted for that table/branch.
  */
 export type VesselTripUpdate = {
-  vesselLocation: ConvexVesselLocation;
-  existingActiveTrip?: ConvexVesselTrip;
-  activeTripCandidate?: ConvexVesselTrip;
-  completedTrip?: ConvexVesselTrip;
-  replacementTrip?: ConvexVesselTrip;
-  tripStorageChanged: boolean;
-  tripLifecycleChanged: boolean;
+  vesselAbbrev: ConvexVesselLocation["VesselAbbrev"];
+  activeVesselTripUpdate?: ConvexVesselTrip;
+  completedVesselTripUpdate?: ConvexVesselTrip;
 };

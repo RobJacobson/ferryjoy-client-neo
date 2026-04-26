@@ -59,7 +59,6 @@ const buildPredictedCurrentTrip = async (
   return {
     vesselAbbrev: trip.VesselAbbrev,
     branch: "current",
-    activeTrip: trip,
     finalPredictedTrip,
   };
 };
@@ -76,10 +75,36 @@ const buildPredictedCompletedHandoff = async (
   return {
     vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
     branch: "completed",
-    completedTrip: handoff.tripToComplete,
-    activeTrip: handoff.scheduleTrip,
+    completedHandoffKey: completedHandoffKey(
+      handoff.tripToComplete.VesselAbbrev,
+      handoff.tripToComplete,
+      handoff.scheduleTrip
+    ),
     finalPredictedTrip,
   };
+};
+
+/**
+ * Builds the stable key used to merge completed-branch ML overlays into
+ * timeline handoff facts.
+ *
+ * @param vesselAbbrev - Vessel abbreviation for the completed handoff
+ * @param completedTrip - Completed trip row from the boundary ping
+ * @param activeTrip - Replacement schedule trip row from the boundary ping
+ * @returns Stable vessel+schedule identity key
+ */
+const completedHandoffKey = (
+  vesselAbbrev: string,
+  completedTrip: ConvexVesselTrip | undefined,
+  activeTrip: ConvexVesselTrip | undefined
+): string => {
+  const scheduleIdentity =
+    completedTrip?.ScheduleKey ??
+    completedTrip?.TripKey ??
+    activeTrip?.ScheduleKey ??
+    activeTrip?.TripKey ??
+    "";
+  return `${vesselAbbrev}::${scheduleIdentity}`;
 };
 
 export const runVesselPredictionPing = async (

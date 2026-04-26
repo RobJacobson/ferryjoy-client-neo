@@ -1,7 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { computeTripStageForLocations } from "../actions";
@@ -74,9 +73,7 @@ const makeLocation = (
 const makeLocationUpdate = (
   vesselAbbrev: string,
   overrides: Partial<ConvexVesselLocation> = {}
-): VesselLocationUpdates => ({
-  vesselLocation: makeLocation(vesselAbbrev, overrides),
-});
+): ConvexVesselLocation => makeLocation(vesselAbbrev, overrides);
 
 describe("trip stage schedule-inference gating", () => {
   it("runs trip recomputation for each supplied location update", async () => {
@@ -97,15 +94,14 @@ describe("trip stage schedule-inference gating", () => {
     );
 
     expect(tripStage.predictionInputs.activeTrips).toHaveLength(2);
-    expect(tripStage.tripRows.activeTrips).toHaveLength(2);
+    expect(tripStage.tripWrites.activeTripUpserts).toHaveLength(2);
   });
 
-  it("logs and skips a vessel whose trip computation throws", async () => {
+  it("skips a vessel whose trip computation returns no write intents", async () => {
     const tripUpdateMod = await import(
       "domain/vesselOrchestration/updateVesselTrips"
     );
     const computeTripSpy = spyOn(tripUpdateMod, "computeVesselTripUpdate");
-    const consoleErrorSpy = spyOn(console, "error");
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
@@ -119,24 +115,20 @@ describe("trip stage schedule-inference gating", () => {
         input: Parameters<typeof tripUpdateMod.computeVesselTripUpdate>[0]
       ) => {
         if (input.vesselLocation.VesselAbbrev === "CHE") {
-          throw new Error("poisoned trip row");
+          return {
+            vesselAbbrev: "CHE",
+          };
         }
 
         return {
-          vesselLocation: input.vesselLocation,
-          existingActiveTrip: input.existingActiveTrip,
-          activeTripCandidate: healthyActiveTrip,
-          completedTrip: undefined,
-          replacementTrip: undefined,
-          tripStorageChanged: true,
-          tripLifecycleChanged: false,
+          vesselAbbrev: "TAC",
+          activeVesselTripUpdate: healthyActiveTrip,
+          completedVesselTripUpdate: undefined,
         };
       }
     );
-    consoleErrorSpy.mockImplementation(() => {});
 
     try {
-      const failedTrip = makeTrip("CHE");
       const tripStage = await computeTripStageForLocations(
         [
           makeLocationUpdate("CHE"),
@@ -144,30 +136,18 @@ describe("trip stage schedule-inference gating", () => {
             TimeStamp: ms("2026-03-13T06:35:00-07:00"),
           }),
         ],
-        [failedTrip, makeTrip("TAC")],
+        [makeTrip("CHE"), makeTrip("TAC")],
         scheduleAccess
       );
 
-      expect(tripStage.tripRows.completedTrips).toHaveLength(0);
-      expect(tripStage.tripRows.activeTrips).toContainEqual(failedTrip);
-      expect(tripStage.tripRows.activeTrips).toContainEqual(healthyActiveTrip);
+      expect(tripStage.tripWrites.completedTripWrites).toHaveLength(0);
+      expect(tripStage.tripWrites.activeTripUpserts).toEqual([]);
       expect(tripStage.predictionInputs.activeTrips).toEqual([
         healthyActiveTrip,
       ]);
       expect(tripStage.predictionInputs.completedHandoffs).toHaveLength(0);
-      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
-      expect(consoleErrorSpy.mock.calls[0]?.[0]).toBe(
-        "[VESSEL_ORCHESTRATOR_CRITICAL_PER_VESSEL_FAILURE]"
-      );
-      expect(consoleErrorSpy.mock.calls[0]?.[1]).toMatchObject({
-        vesselAbbrev: "CHE",
-        message: "poisoned trip row",
-        existingTripKey: failedTrip.TripKey,
-        existingScheduleKey: failedTrip.ScheduleKey,
-      });
     } finally {
       computeTripSpy.mockRestore();
-      consoleErrorSpy.mockRestore();
     }
   });
 });

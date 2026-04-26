@@ -132,6 +132,7 @@ import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_hasWsfT
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_index from "../domain/vesselOrchestration/updateVesselTrips/tripFields/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_resolveTripFieldsForTripRow from "../domain/vesselOrchestration/updateVesselTrips/tripFields/resolveTripFieldsForTripRow.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_tests_testHelpers from "../domain/vesselOrchestration/updateVesselTrips/tripFields/tests/testHelpers.js";
+import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_tripFieldDiagnostics from "../domain/vesselOrchestration/updateVesselTrips/tripFields/tripFieldDiagnostics.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_tripFields_types from "../domain/vesselOrchestration/updateVesselTrips/tripFields/types.js";
 import type * as domain_vesselOrchestration_updateVesselTrips_types from "../domain/vesselOrchestration/updateVesselTrips/types.js";
 import type * as functions_events_eventsActual_index from "../functions/events/eventsActual/index.js";
@@ -190,10 +191,10 @@ import type * as functions_vesselLocationsHistoric_mutations from "../functions/
 import type * as functions_vesselLocationsHistoric_queries from "../functions/vesselLocationsHistoric/queries.js";
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
+import type * as functions_vesselOrchestrator_constants from "../functions/vesselOrchestrator/constants.js";
 import type * as functions_vesselOrchestrator_locationUpdates from "../functions/vesselOrchestrator/locationUpdates.js";
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
-import type * as functions_vesselOrchestrator_persistenceBundle from "../functions/vesselOrchestrator/persistenceBundle.js";
 import type * as functions_vesselOrchestrator_predictionStage from "../functions/vesselOrchestrator/predictionStage.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_scheduleContinuityAccess from "../functions/vesselOrchestrator/scheduleContinuityAccess.js";
@@ -378,6 +379,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrips/tripFields/index": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_index;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/resolveTripFieldsForTripRow": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_resolveTripFieldsForTripRow;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/tests/testHelpers": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_tests_testHelpers;
+  "domain/vesselOrchestration/updateVesselTrips/tripFields/tripFieldDiagnostics": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_tripFieldDiagnostics;
   "domain/vesselOrchestration/updateVesselTrips/tripFields/types": typeof domain_vesselOrchestration_updateVesselTrips_tripFields_types;
   "domain/vesselOrchestration/updateVesselTrips/types": typeof domain_vesselOrchestration_updateVesselTrips_types;
   "functions/events/eventsActual/index": typeof functions_events_eventsActual_index;
@@ -436,10 +438,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/queries": typeof functions_vesselLocationsHistoric_queries;
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
+  "functions/vesselOrchestrator/constants": typeof functions_vesselOrchestrator_constants;
   "functions/vesselOrchestrator/locationUpdates": typeof functions_vesselOrchestrator_locationUpdates;
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
-  "functions/vesselOrchestrator/persistenceBundle": typeof functions_vesselOrchestrator_persistenceBundle;
   "functions/vesselOrchestrator/predictionStage": typeof functions_vesselOrchestrator_predictionStage;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/scheduleContinuityAccess": typeof functions_vesselOrchestrator_scheduleContinuityAccess;

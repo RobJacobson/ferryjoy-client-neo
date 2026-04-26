@@ -2,10 +2,9 @@
  * Validators and TypeScript shapes used by the vessel orchestrator.
  */
 
-import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
+import { eventsActualSchema } from "functions/events/eventsActual/schemas";
+import { predictedDockWriteBatchSchema } from "functions/events/eventsPredicted/schemas";
 import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
   vesselTripStoredSchema,
@@ -14,41 +13,78 @@ import {
 
 export type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 
-export type VesselLocationUpdates = {
-  vesselLocation: ConvexVesselLocation;
-};
+const tripLifecycleEventFlagsSchema = v.object({
+  isFirstTrip: v.boolean(),
+  isTripStartReady: v.boolean(),
+  isCompletedTrip: v.boolean(),
+  didJustArriveAtDock: v.boolean(),
+  didJustLeaveDock: v.boolean(),
+  scheduleKeyChanged: v.boolean(),
+});
 
-export const tripRowsForPingSchema = v.object({
-  activeTrips: v.array(vesselTripStoredSchema),
-  completedTrips: v.array(vesselTripStoredSchema),
+const completedArrivalHandoffSchema = v.object({
+  existingTrip: vesselTripStoredSchema,
+  tripToComplete: vesselTripStoredSchema,
+  events: tripLifecycleEventFlagsSchema,
+  scheduleTrip: vesselTripStoredSchema,
+});
+
+const actualDockWriteIntentSchema = v.object({
+  events: tripLifecycleEventFlagsSchema,
+  scheduleTrip: vesselTripStoredSchema,
+  vesselAbbrev: v.string(),
+});
+
+const predictedDockWriteIntentSchema = v.object({
+  existingTrip: v.optional(vesselTripStoredSchema),
+  scheduleTrip: vesselTripStoredSchema,
+  vesselAbbrev: v.string(),
+});
+
+export const vesselTripWritesSchema = v.object({
+  completedTripWrites: v.array(completedArrivalHandoffSchema),
+  activeTripUpserts: v.array(vesselTripStoredSchema),
+  actualDockWrites: v.array(actualDockWriteIntentSchema),
+  predictedDockWrites: v.array(predictedDockWriteIntentSchema),
 });
 
 export const mlTimelineOverlaySchema = v.union(
   v.object({
     vesselAbbrev: v.string(),
     branch: v.literal("completed"),
-    completedTrip: v.optional(vesselTripStoredSchema),
-    activeTrip: v.optional(vesselTripStoredSchema),
+    completedHandoffKey: v.optional(v.string()),
     finalPredictedTrip: v.optional(vesselTripWithMlSchema),
   }),
   v.object({
     vesselAbbrev: v.string(),
     branch: v.literal("current"),
-    completedTrip: v.optional(vesselTripStoredSchema),
-    activeTrip: v.optional(vesselTripStoredSchema),
+    completedHandoffKey: v.optional(v.string()),
     finalPredictedTrip: v.optional(vesselTripWithMlSchema),
   })
 );
 
 export const orchestratorPingPersistenceSchema = v.object({
   pingStartedAt: v.number(),
-  feedLocations: v.array(vesselLocationValidationSchema),
-  existingActiveTrips: v.array(vesselTripStoredSchema),
-  tripRows: tripRowsForPingSchema,
+  tripWrites: vesselTripWritesSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),
   mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
 });
 
-export type OrchestratorPingPersistence = Infer<
-  typeof orchestratorPingPersistenceSchema
->;
+export const persistTripAndPredictionWritesSchema = v.object({
+  tripWrites: vesselTripWritesSchema,
+  predictionRows: v.array(vesselTripPredictionProposalSchema),
+});
+
+export const persistedTripTimelineHandoffSchema = v.object({
+  completedFacts: v.array(completedArrivalHandoffSchema),
+  currentBranch: v.object({
+    successfulVessels: v.array(v.string()),
+    pendingActualMessages: v.array(actualDockWriteIntentSchema),
+    pendingPredictedMessages: v.array(predictedDockWriteIntentSchema),
+  }),
+});
+
+export const persistTimelineEventWritesSchema = v.object({
+  actualEvents: v.array(eventsActualSchema),
+  predictedEvents: v.array(predictedDockWriteBatchSchema),
+});

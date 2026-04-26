@@ -368,7 +368,24 @@ Predictions are computed in the vessel orchestrator action `updateVesselOrchestr
 
 - `PredictionSource`), not as the five optional prediction fields on `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped before write; public `vesselTrips` queries **enrich** stored rows with joins from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses `PredictionSource: "wsf_eta"` when projected.
 
-The orchestrator fetches vessel locations once, loads **`vesselsIdentity`**, **`terminalsIdentity`**, and **storage-native** `activeVesselTrips` in one internal query ([`getOrchestratorModelData`](../../functions/vesselOrchestrator/queries.ts) — it does **not** load `vesselLocations`), then runs [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts): normalize the feed, run trip compute for the **full** normalized batch in the action (with **`ScheduleContinuityAccess`** from `scheduleContinuityAccess.ts` for targeted `eventsScheduled` continuity), then **`runPredictionStage`**, then one [`persistOrchestratorPing`](../../functions/vesselOrchestrator/mutations.ts) mutation that first applies **`feedLocations`** via **`performBulkUpsertVesselLocations`** (same logic as public [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts): `collect()` on `vesselLocations`, match by **`VesselAbbrev`**, skip unchanged `TimeStamp`), then trip writes via [`persistVesselTripWriteSet`](../../functions/vesselOrchestrator/persistVesselTripWriteSet.ts) and [`functions/vesselTrips/mutations`](../../functions/vesselTrips/mutations.ts), prediction upserts, and timeline assembly. Those bundled rows omit joined predictions (Stage 4); timeline projection still compares built trips to existing state using Stage 2 lifecycle vs projection predicates. Per-tick trip lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` and is driven by the per-vessel loop in `functions/vesselOrchestrator/actions.ts`.
+The orchestrator fetches vessel locations once, loads **`vesselsIdentity`**,
+**`terminalsIdentity`**, and **storage-native** `activeVesselTrips` in one
+internal query
+([`getOrchestratorModelData`](../../functions/vesselOrchestrator/queries.ts) —
+it does **not** load `vesselLocations`), then runs
+[`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts):
+normalize the feed, apply location dedupe/write via public
+[`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts), run
+trip compute for changed location rows in the action (with
+**`ScheduleContinuityAccess`** from `scheduleContinuityAccess.ts` for targeted
+`eventsScheduled` continuity), then **`runPredictionStage`**. Persistence is now
+split: [`persistTripAndPredictionWrites`](../../functions/vesselOrchestrator/mutations.ts)
+applies trip writes + prediction upserts and returns timeline handoff rows;
+`runUpdateVesselTimelineFromAssembly` runs in action memory; then
+[`persistTimelineEventWrites`](../../functions/vesselOrchestrator/mutations.ts)
+applies final `eventsActual`/`eventsPredicted` rows. Per-tick trip lifecycle
+logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` and is
+driven by the per-vessel loop in `functions/vesselOrchestrator/actions.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 

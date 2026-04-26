@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import {
   getTripFieldInferenceLog,
   resolveTripFieldsForTripRow,
-} from "../resolveTripFieldsForTripRow";
+} from "..";
 import {
   makeLocation,
   makeScheduledSegment,

@@ -112,6 +112,8 @@ const createRawWsfScheduleSegment = (
 
   return {
     VesselName: sailing.VesselName,
+    DepartingTerminalID: terminalCombo.DepartingTerminalID,
+    ArrivingTerminalID: terminalCombo.ArrivingTerminalID,
     DepartingTerminalName: departingTerminalName,
     ArrivingTerminalName: arrivingTerminalName,
     DepartingTime: sailing.DepartingTime,

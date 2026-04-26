@@ -17,13 +17,12 @@ export type {
   ActualDockWriteIntent,
   CompletedArrivalHandoff,
   MlTimelineOverlay,
+  PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
-  TripPersistOutcome,
 } from "domain/vesselOrchestration/shared/pingHandshake/types";
 export {
   type BuildDockWritesFromTripHandoffArgs,
   buildDockWritesFromTripHandoff,
-  type TripHandoffForTimeline,
 } from "./buildDockWritesFromTripHandoff";
 export type {
   RunUpdateVesselTimelineFromAssemblyInput,
