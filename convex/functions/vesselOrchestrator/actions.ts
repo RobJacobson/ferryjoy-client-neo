@@ -195,36 +195,34 @@ export const computeTripStageForLocation = async (
   }
 
   const predictionStageResult = await runPredictionStage(ctx, {
-    activeTrips:
+    activeTrip:
       tripUpdate.activeVesselTripUpdate === undefined
-        ? []
-        : [tripUpdate.activeVesselTripUpdate],
-    completedHandoffs:
+        ? undefined
+        : tripUpdate.activeVesselTripUpdate,
+    completedHandoff:
       tripUpdate.completedVesselTripUpdate === undefined ||
       tripUpdate.activeVesselTripUpdate === undefined ||
       existingActiveTrip === undefined
-        ? []
-        : [
-            {
-              existingTrip: existingActiveTrip,
-              tripToComplete: tripUpdate.completedVesselTripUpdate,
-              events: {
-                isFirstTrip: false,
-                isTripStartReady: true,
-                isCompletedTrip: true,
-                didJustArriveAtDock:
-                  tripUpdate.completedVesselTripUpdate.ArrivedNextActual !==
-                    undefined &&
-                  existingActiveTrip.ArrivedNextActual !==
-                    tripUpdate.completedVesselTripUpdate.ArrivedNextActual,
-                didJustLeaveDock: false,
-                scheduleKeyChanged:
-                  existingActiveTrip.ScheduleKey !==
-                  tripUpdate.completedVesselTripUpdate.ScheduleKey,
-              },
-              scheduleTrip: tripUpdate.activeVesselTripUpdate,
+        ? undefined
+        : {
+            existingTrip: existingActiveTrip,
+            tripToComplete: tripUpdate.completedVesselTripUpdate,
+            events: {
+              isFirstTrip: false,
+              isTripStartReady: true,
+              isCompletedTrip: true,
+              didJustArriveAtDock:
+                tripUpdate.completedVesselTripUpdate.ArrivedNextActual !==
+                  undefined &&
+                existingActiveTrip.ArrivedNextActual !==
+                  tripUpdate.completedVesselTripUpdate.ArrivedNextActual,
+              didJustLeaveDock: false,
+              scheduleKeyChanged:
+                existingActiveTrip.ScheduleKey !==
+                tripUpdate.completedVesselTripUpdate.ScheduleKey,
             },
-          ],
+            scheduleTrip: tripUpdate.activeVesselTripUpdate,
+          },
   });
 
   return {

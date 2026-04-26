@@ -11,8 +11,6 @@ import {
   vesselTripWithMlSchema,
 } from "functions/vesselTrips/schemas";
 
-export type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
-
 const tripLifecycleEventFlagsSchema = v.object({
   isFirstTrip: v.boolean(),
   isTripStartReady: v.boolean(),
