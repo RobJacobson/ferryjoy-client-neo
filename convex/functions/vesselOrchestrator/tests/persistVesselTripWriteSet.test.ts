@@ -3,8 +3,8 @@ import * as vesselTripMutations from "functions/vesselTrips/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
-  buildVesselTripWrites,
   persistVesselTripWrites,
+  type VesselTripWrites,
 } from "../persistVesselTripWriteSet";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -82,13 +82,45 @@ describe("persistVesselTripWrites", () => {
       vesselAbbrev: string;
       actualDepartMs: number;
     }> = [];
-    const tripWrites = buildVesselTripWrites(
-      {
-        completedTrips: [completedChe],
-        activeTrips: [replacementChe, updatedTac],
-      },
-      [existingChe, existingTac]
-    );
+    const tripWrites: VesselTripWrites = {
+      completedTripWrites: [
+        {
+          existingTrip: existingChe,
+          tripToComplete: completedChe,
+          events: {
+            isFirstTrip: false,
+            isTripStartReady: true,
+            isCompletedTrip: true,
+            didJustArriveAtDock: true,
+            didJustLeaveDock: false,
+            scheduleKeyChanged: false,
+          },
+          scheduleTrip: replacementChe,
+        },
+      ],
+      activeTripUpserts: [updatedTac],
+      actualDockWrites: [
+        {
+          events: {
+            isFirstTrip: false,
+            isTripStartReady: true,
+            isCompletedTrip: false,
+            didJustArriveAtDock: false,
+            didJustLeaveDock: true,
+            scheduleKeyChanged: false,
+          },
+          scheduleTrip: updatedTac,
+          vesselAbbrev: updatedTac.VesselAbbrev,
+        },
+      ],
+      predictedDockWrites: [
+        {
+          existingTrip: existingTac,
+          scheduleTrip: updatedTac,
+          vesselAbbrev: updatedTac.VesselAbbrev,
+        },
+      ],
+    };
 
     const completeSpy = spyOn(
       vesselTripMutations,
@@ -156,13 +188,31 @@ describe("persistVesselTripWrites", () => {
       actualDepartMs: number;
     }> = [];
 
-    const tripWrites = buildVesselTripWrites(
-      {
-        completedTrips: [],
-        activeTrips: [updatedTac],
-      },
-      [existingTac]
-    );
+    const tripWrites: VesselTripWrites = {
+      completedTripWrites: [],
+      activeTripUpserts: [updatedTac],
+      actualDockWrites: [
+        {
+          events: {
+            isFirstTrip: false,
+            isTripStartReady: true,
+            isCompletedTrip: false,
+            didJustArriveAtDock: false,
+            didJustLeaveDock: true,
+            scheduleKeyChanged: false,
+          },
+          scheduleTrip: updatedTac,
+          vesselAbbrev: updatedTac.VesselAbbrev,
+        },
+      ],
+      predictedDockWrites: [
+        {
+          existingTrip: existingTac,
+          scheduleTrip: updatedTac,
+          vesselAbbrev: updatedTac.VesselAbbrev,
+        },
+      ],
+    };
 
     const completeSpy = spyOn(
       vesselTripMutations,

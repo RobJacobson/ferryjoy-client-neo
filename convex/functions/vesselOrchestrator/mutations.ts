@@ -7,59 +7,34 @@
 
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
-import { projectPredictedDockWriteBatchesInDb } from "functions/events/eventsPredicted/mutations";
-import { batchUpsertProposalsInDb } from "functions/vesselTripPredictions/mutations";
-import {
-  persistVesselTripWrites,
-  type VesselTripWrites,
-} from "./persistVesselTripWriteSet";
-import {
-  persistTimelineEventWritesSchema,
-  persistTripAndPredictionWritesSchema,
-  persistedTripTimelineHandoffSchema,
-} from "./schemas";
+import { persistVesselPredictions } from "./persistVesselPredictions";
+import { persistVesselTimelineWrites } from "./persistVesselTimeline";
+import { persistTripWritesForVessel } from "./persistVesselTrips";
+import { persistPerVesselOrchestratorWritesSchema } from "./schemas";
 
-export const persistTripAndPredictionWrites = internalMutation({
-  args: persistTripAndPredictionWritesSchema,
-  returns: persistedTripTimelineHandoffSchema,
-  handler: async (ctx, args) => {
-    const tripWrites: VesselTripWrites = {
-      ...args.tripWrites,
-      predictedDockWrites: args.tripWrites.predictedDockWrites.map((write) => ({
-        ...write,
-        existingTrip: write.existingTrip,
-      })),
-    };
-    const tripPersistResult = await persistVesselTripWrites(ctx, tripWrites);
-
-    if (args.predictionRows.length > 0) {
-      await batchUpsertProposalsInDb(ctx, args.predictionRows);
-    }
-
-    return {
-      completedFacts: tripPersistResult.completedFacts,
-      currentBranch: {
-        successfulVessels: [...tripPersistResult.currentBranch.successfulVessels],
-        pendingActualMessages: tripPersistResult.currentBranch.pendingActualMessages,
-        pendingPredictedMessages:
-          tripPersistResult.currentBranch.pendingPredictedMessages,
-      },
-    };
-  },
-});
-
-export const persistTimelineEventWrites = internalMutation({
-  args: persistTimelineEventWritesSchema,
+export const persistPerVesselOrchestratorWrites = internalMutation({
+  args: persistPerVesselOrchestratorWritesSchema,
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (args.actualEvents.length > 0) {
-      await upsertActualDockRows(ctx, args.actualEvents);
-    }
-
-    if (args.predictedEvents.length > 0) {
-      await projectPredictedDockWriteBatchesInDb(ctx, args.predictedEvents);
-    }
+    const tripPersistResult = await persistTripWritesForVessel(
+      ctx,
+      args.tripWrite
+    );
+    await persistVesselPredictions(ctx, args.predictionRows);
+    await persistVesselTimelineWrites(ctx, {
+      pingStartedAt: args.pingStartedAt,
+      tripHandoffForTimeline: {
+        completedFacts: tripPersistResult.completedFacts,
+        currentBranch: {
+          successfulVessels: tripPersistResult.currentBranch.successfulVessels,
+          pendingActualMessages:
+            tripPersistResult.currentBranch.pendingActualMessages,
+          pendingPredictedMessages:
+            tripPersistResult.currentBranch.pendingPredictedMessages,
+        },
+      },
+      mlTimelineOverlays: args.mlTimelineOverlays,
+    });
 
     return null;
   },

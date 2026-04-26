@@ -3,8 +3,6 @@
  */
 
 import { v } from "convex/values";
-import { eventsActualSchema } from "functions/events/eventsActual/schemas";
-import { predictedDockWriteBatchSchema } from "functions/events/eventsPredicted/schemas";
 import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
   vesselTripStoredSchema,
@@ -48,6 +46,12 @@ export const vesselTripWritesSchema = v.object({
   predictedDockWrites: v.array(predictedDockWriteIntentSchema),
 });
 
+export const vesselTripWriteForUpdateSchema = v.object({
+  existingActiveTrip: v.optional(vesselTripStoredSchema),
+  activeTripUpdate: v.optional(vesselTripStoredSchema),
+  completedTripUpdate: v.optional(vesselTripStoredSchema),
+});
+
 export const mlTimelineOverlaySchema = v.union(
   v.object({
     vesselAbbrev: v.string(),
@@ -63,28 +67,9 @@ export const mlTimelineOverlaySchema = v.union(
   })
 );
 
-export const orchestratorPingPersistenceSchema = v.object({
+export const persistPerVesselOrchestratorWritesSchema = v.object({
   pingStartedAt: v.number(),
-  tripWrites: vesselTripWritesSchema,
+  tripWrite: vesselTripWriteForUpdateSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),
   mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
-});
-
-export const persistTripAndPredictionWritesSchema = v.object({
-  tripWrites: vesselTripWritesSchema,
-  predictionRows: v.array(vesselTripPredictionProposalSchema),
-});
-
-export const persistedTripTimelineHandoffSchema = v.object({
-  completedFacts: v.array(completedArrivalHandoffSchema),
-  currentBranch: v.object({
-    successfulVessels: v.array(v.string()),
-    pendingActualMessages: v.array(actualDockWriteIntentSchema),
-    pendingPredictedMessages: v.array(predictedDockWriteIntentSchema),
-  }),
-});
-
-export const persistTimelineEventWritesSchema = v.object({
-  actualEvents: v.array(eventsActualSchema),
-  predictedEvents: v.array(predictedDockWriteBatchSchema),
 });

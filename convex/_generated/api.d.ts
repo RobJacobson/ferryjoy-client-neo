@@ -195,7 +195,10 @@ import type * as functions_vesselOrchestrator_actions from "../functions/vesselO
 import type * as functions_vesselOrchestrator_constants from "../functions/vesselOrchestrator/constants.js";
 import type * as functions_vesselOrchestrator_locationUpdates from "../functions/vesselOrchestrator/locationUpdates.js";
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
+import type * as functions_vesselOrchestrator_persistVesselPredictions from "../functions/vesselOrchestrator/persistVesselPredictions.js";
+import type * as functions_vesselOrchestrator_persistVesselTimeline from "../functions/vesselOrchestrator/persistVesselTimeline.js";
 import type * as functions_vesselOrchestrator_persistVesselTripWriteSet from "../functions/vesselOrchestrator/persistVesselTripWriteSet.js";
+import type * as functions_vesselOrchestrator_persistVesselTrips from "../functions/vesselOrchestrator/persistVesselTrips.js";
 import type * as functions_vesselOrchestrator_predictionStage from "../functions/vesselOrchestrator/predictionStage.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselOrchestrator_scheduleContinuityAccess from "../functions/vesselOrchestrator/scheduleContinuityAccess.js";
@@ -443,7 +446,10 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/constants": typeof functions_vesselOrchestrator_constants;
   "functions/vesselOrchestrator/locationUpdates": typeof functions_vesselOrchestrator_locationUpdates;
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
+  "functions/vesselOrchestrator/persistVesselPredictions": typeof functions_vesselOrchestrator_persistVesselPredictions;
+  "functions/vesselOrchestrator/persistVesselTimeline": typeof functions_vesselOrchestrator_persistVesselTimeline;
   "functions/vesselOrchestrator/persistVesselTripWriteSet": typeof functions_vesselOrchestrator_persistVesselTripWriteSet;
+  "functions/vesselOrchestrator/persistVesselTrips": typeof functions_vesselOrchestrator_persistVesselTrips;
   "functions/vesselOrchestrator/predictionStage": typeof functions_vesselOrchestrator_predictionStage;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselOrchestrator/scheduleContinuityAccess": typeof functions_vesselOrchestrator_scheduleContinuityAccess;

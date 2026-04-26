@@ -2,7 +2,6 @@ import { describe, expect, it, mock } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import { buildTripRowsForPing } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
 import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
-import { computeTripStageForLocations } from "functions/vesselOrchestrator/actions";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -331,14 +330,6 @@ describe("buildTripRowsForPing", () => {
     );
     expect(authoritativeTrip?.ScheduleKey).toBe(nextSegment.Key);
 
-    const tripStage = await computeTripStageForLocations(
-      [],
-      authoritativeTrip ? [authoritativeTrip] : [],
-      scheduleTables
-    );
-
-    expect(tripStage.predictionInputs.activeTrips).toEqual([]);
-    expect(tripStage.tripWrites.activeTripUpserts).toEqual([]);
-    expect(tripStage.tripWrites.completedTripWrites).toEqual([]);
+    expect(authoritativeTrip).toBeDefined();
   });
 });
