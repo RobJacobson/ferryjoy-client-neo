@@ -21,7 +21,10 @@ import type {
 import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
+import {
+  buildVesselTripWrites,
+  type VesselTripWrites,
+} from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -30,7 +33,6 @@ import {
   ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT,
 } from "./constants";
 import { loadVesselLocationUpdates } from "./locationUpdates";
-import { buildOrchestratorPersistenceBundle } from "./persistenceBundle";
 import {
   buildPredictionStageInputs,
   runPredictionStage,
@@ -48,6 +50,7 @@ type OrchestratorSnapshot = {
 
 type TripStageResult = {
   tripRows: RunUpdateVesselTripsOutput;
+  tripWrites: VesselTripWrites;
   predictionInputs: {
     activeTrips: ReadonlyArray<ConvexVesselTrip>;
     completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>;
@@ -114,13 +117,12 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
 
   await ctx.runMutation(
     internal.functions.vesselOrchestrator.mutations.persistOrchestratorPing,
-    buildOrchestratorPersistenceBundle({
+    {
       pingStartedAt,
-      existingActiveTrips: snapshot.activeTrips,
-      tripRows: tripStageResult.tripRows,
-      predictionRows: predictionStageResult.predictionRows,
-      mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
-    })
+      tripWrites: tripStageResult.tripWrites,
+      predictionRows: [...predictionStageResult.predictionRows],
+      mlTimelineOverlays: [...predictionStageResult.mlTimelineOverlays],
+    }
   );
 };
 
@@ -205,20 +207,21 @@ export const computeTripStageForLocations = async (
     }
   }
 
-  const tripRows = {
+  const tripRows: RunUpdateVesselTripsOutput = {
     activeTrips: [...activeTripsByVesselAbbrev.values()],
     completedTrips: completedTripRows,
   };
-  const { attemptedCompletedFacts } = buildVesselTripPersistencePlan(
+  const tripWrites = buildVesselTripWrites(
     tripRows,
     existingActiveTrips
   );
 
   return {
     tripRows,
+    tripWrites,
     predictionInputs: buildPredictionStageInputs(
       tripUpdates,
-      attemptedCompletedFacts
+      tripWrites.completedTripWrites
     ),
   };
 };

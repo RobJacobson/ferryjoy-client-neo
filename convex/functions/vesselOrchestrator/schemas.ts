@@ -12,9 +12,47 @@ import {
 
 export type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 
-export const tripRowsForPingSchema = v.object({
-  activeTrips: v.array(vesselTripStoredSchema),
-  completedTrips: v.array(vesselTripStoredSchema),
+const tripLifecycleEventFlagsSchema = v.object({
+  isFirstTrip: v.boolean(),
+  isTripStartReady: v.boolean(),
+  isCompletedTrip: v.boolean(),
+  didJustArriveAtDock: v.boolean(),
+  didJustLeaveDock: v.boolean(),
+  scheduleKeyChanged: v.boolean(),
+});
+
+const completedArrivalHandoffSchema = v.object({
+  existingTrip: vesselTripStoredSchema,
+  tripToComplete: vesselTripStoredSchema,
+  events: tripLifecycleEventFlagsSchema,
+  scheduleTrip: vesselTripStoredSchema,
+});
+
+const actualDockWriteIntentSchema = v.object({
+  events: tripLifecycleEventFlagsSchema,
+  scheduleTrip: vesselTripStoredSchema,
+  vesselAbbrev: v.string(),
+  requiresSuccessfulUpsert: v.boolean(),
+});
+
+const predictedDockWriteIntentSchema = v.object({
+  existingTrip: v.optional(vesselTripStoredSchema),
+  scheduleTrip: vesselTripStoredSchema,
+  vesselAbbrev: v.string(),
+  requiresSuccessfulUpsert: v.boolean(),
+});
+
+const leaveDockIntentSchema = v.object({
+  vesselAbbrev: v.string(),
+  actualDepartMs: v.number(),
+});
+
+export const vesselTripWritesSchema = v.object({
+  completedTripWrites: v.array(completedArrivalHandoffSchema),
+  activeTripUpserts: v.array(vesselTripStoredSchema),
+  actualDockWrites: v.array(actualDockWriteIntentSchema),
+  predictedDockWrites: v.array(predictedDockWriteIntentSchema),
+  departNextActualWrites: v.array(leaveDockIntentSchema),
 });
 
 export const mlTimelineOverlaySchema = v.union(
@@ -36,8 +74,7 @@ export const mlTimelineOverlaySchema = v.union(
 
 export const orchestratorPingPersistenceSchema = v.object({
   pingStartedAt: v.number(),
-  existingActiveTrips: v.array(vesselTripStoredSchema),
-  tripRows: tripRowsForPingSchema,
+  tripWrites: vesselTripWritesSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),
   mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
 });

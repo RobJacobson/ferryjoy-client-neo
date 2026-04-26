@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { persistVesselTripWriteSet } from "../persistVesselTripWriteSet";
+import {
+  buildVesselTripWrites,
+  persistVesselTripWrites,
+} from "../persistVesselTripWriteSet";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -43,7 +46,7 @@ const makeTrip = (
   ...overrides,
 });
 
-describe("persistVesselTripWriteSet", () => {
+describe("persistVesselTripWrites", () => {
   it("returns completed facts and current messages from arrays-only rows", async () => {
     const existingChe = makeTrip("CHE", { AtDock: false });
     const existingTac = makeTrip("TAC", { AtDock: true });
@@ -78,13 +81,16 @@ describe("persistVesselTripWriteSet", () => {
       vesselAbbrev: string;
       actualDepartMs: number;
     }> = [];
-
-    const result = await persistVesselTripWriteSet(
+    const tripWrites = buildVesselTripWrites(
       {
         completedTrips: [completedChe],
         activeTrips: [replacementChe, updatedTac],
       },
-      [existingChe, existingTac],
+      [existingChe, existingTac]
+    );
+
+    const result = await persistVesselTripWrites(
+      tripWrites,
       {
         completeAndStartNewTrip: async (args) => {
           completeCalls.push(args);

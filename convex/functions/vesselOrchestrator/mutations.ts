@@ -16,16 +16,15 @@ import {
   setDepartNextActualsForMostRecentCompletedTripInDb,
   upsertVesselTripsBatchInDb,
 } from "functions/vesselTrips/mutations";
-import { persistVesselTripWriteSet } from "./persistVesselTripWriteSet";
+import { persistVesselTripWrites } from "./persistVesselTripWriteSet";
 import { orchestratorPingPersistenceSchema } from "./schemas";
 
 export const persistOrchestratorPing = internalMutation({
   args: orchestratorPingPersistenceSchema,
   returns: v.null(),
   handler: async (ctx, args) => {
-    const tripPersistResult = await persistVesselTripWriteSet(
-      args.tripRows,
-      args.existingActiveTrips,
+    const tripPersistResult = await persistVesselTripWrites(
+      args.tripWrites,
       {
         completeAndStartNewTrip: async ({ completedTrip, newTrip }) =>
           completeAndStartNewTripInDb(ctx, completedTrip, newTrip),

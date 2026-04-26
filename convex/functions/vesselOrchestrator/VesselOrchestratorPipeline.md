@@ -52,7 +52,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 7. **Persist trip/prediction/timeline bundle**
    - Mutation: `persistOrchestratorPing`
    - Writes in order:
-     1. trip writes (`persistVesselTripWriteSet`)
+     1. trip writes (`persistVesselTripWrites`)
      2. prediction upserts (`batchUpsertProposalsInDb`) when non-empty
      3. timeline projection (`runUpdateVesselTimelineFromAssembly`)
      4. timeline table writes (`upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`)

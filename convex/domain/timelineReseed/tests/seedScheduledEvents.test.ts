@@ -281,6 +281,8 @@ const makeRawSegment = (
   overrides: Partial<RawWsfScheduleSegment>
 ): RawWsfScheduleSegment => ({
   VesselName: "Tokitae",
+  DepartingTerminalID: 1,
+  ArrivingTerminalID: 2,
   DepartingTerminalName: "Seattle",
   ArrivingTerminalName: "Bainbridge Island",
   DepartingTime: new Date(at(8, 35)),
