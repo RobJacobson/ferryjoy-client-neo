@@ -7,7 +7,7 @@
 - **Before:** pre-refactor recovery branch at commit `ead67c9d` (`pre-vessel-orchestration-refactor`)
 - **After:** `main` at commit `aa07acc8` (as of this revision)
 - **Context:** this memo updates the 2026-04-23 before/after memo after the follow-up refactor that removed several hot-path regressions from the first refactored version.
-- **2026-04-25 PM update:** hot-path writes now use a **hybrid split**. `getOrchestratorModelData` still loads only `vesselsIdentity`, `terminalsIdentity`, and `activeVesselTrips` (not `vesselLocations`). The action normalizes the full WSF batch, calls public mutation **`bulkUpsertVesselLocations`** with locations-only payload, then runs trip compute for every normalized row, prediction stage, and a separate **`persistOrchestratorPing`** mutation for trips/predictions/timeline. `performBulkUpsertVesselLocations` remains the dedupe helper used by `bulkUpsertVesselLocations` and now isolates per-vessel failures via try/catch logging.
+- **2026-04-25 PM update:** hot-path writes now use a **hybrid split**. `getOrchestratorModelData` still loads only `vesselsIdentity`, `terminalsIdentity`, and `activeVesselTrips` (not `vesselLocations`). The action normalizes the full WSF batch, calls public mutation **`bulkUpsertVesselLocations`** with locations-only payload, and the mutation returns only changed rows after timestamp dedupe; trip compute, prediction stage, and a separate **`persistOrchestratorPing`** mutation then run from that changed subset. `performBulkUpsertVesselLocations` remains the dedupe helper used by `bulkUpsertVesselLocations` and now isolates per-vessel failures via try/catch logging.
 
 ## 1. Executive Summary
 
@@ -30,7 +30,7 @@ But it now does so with a much healthier hot-path shape:
 - one baseline read-model query (identities + active trips only; no `vesselLocations` in that query)
 - one WSF fetch
 - normalization of the feed using identity tables (`computeVesselLocationRows` / `mapWsfVesselLocations`)
-- trip compute over the **full** normalized batch each ping (not a “changed vessels only” subset)
+- trip compute over mutation-returned **changed** location rows each ping
 - targeted, memoized schedule reads only when trip-field inference needs them
 - two mutations per ping: one locations-only `bulkUpsertVesselLocations`, then one `persistOrchestratorPing` for trips/predictions/timeline
 
@@ -127,6 +127,7 @@ Primary entrypoint:
         - compute prediction rows and ML timeline handoffs
       - `bulkUpsertVesselLocations`
         - calls **`performBulkUpsertVesselLocations`**: `collect()` `vesselLocations`, match by **`VesselAbbrev`**, skip unchanged `TimeStamp`, replace/insert
+        - returns only inserted/replaced location rows to the action
       - `persistOrchestratorPing`
         - persist completed/current trip write set
         - upsert prediction rows when present
@@ -134,7 +135,7 @@ Primary entrypoint:
 
 Normal expected branches:
 
-- every ping runs locations upsert first, then trip + prediction orchestration in the action, then **`persistOrchestratorPing`**
+- every ping runs locations upsert first, then trip + prediction orchestration in the action from changed location rows, then **`persistOrchestratorPing`**
 - location **writes** in `bulkUpsertVesselLocations` still skip rows whose `TimeStamp` did not change
 - schedule reads happen lazily inside trip-field resolution
 - prediction stage only materializes rows when gated inputs warrant it
@@ -214,20 +215,21 @@ Primary flow:
 - `loadVesselLocationUpdates`
   - fetch raw WSF rows
   - normalize through `computeVesselLocationRows` (identity tables for resolution)
-  - yields `{ vesselLocation }[]` for the full normalized batch
+  - yields `ConvexVesselLocation[]` for the full normalized batch
 - `runOrchestratorPing`
   - `bulkUpsertVesselLocations` with full normalized locations batch
-  - `computeTripStageForLocations` over **all** normalized rows
+  - `computeTripStageForLocations` over mutation-returned **changed** rows
   - `runPredictionStage`, then `persistOrchestratorPing` with trip/prediction/timeline bundle
 - `bulkUpsertVesselLocations`
   - **`performBulkUpsertVesselLocations`**: `collect()` `vesselLocations`, index by **`VesselAbbrev`**, skip same `TimeStamp`, `replace` / `insert`
+  - returns changed rows (`inserted` + `replaced`) to the action
   - per-vessel upsert failures are logged and do not abort remaining vessel writes
 
 Expected non-error branches:
 
 - mutation skips DB writes for vessels whose feed `TimeStamp` matches stored row
 - new vessel abbrev inserts a new row
-- trip compute runs for every normalized vessel each ping (CPU trade for simpler data flow)
+- trip compute runs only for mutation-returned changed vessels each ping
 
 ### 4.3 High-Level Function Comparison
 
@@ -247,7 +249,7 @@ Expected non-error branches:
 | Inputs                    | raw WSF vessel rows, vessel and terminal tables | raw WSF + identity tables from baseline query (no stored location preload) |
 | DB reads                  | mutation reads all `vesselLocations`            | dedicated location mutation reads all `vesselLocations`                     |
 | DB writes                 | changed/new location rows only                  | changed/new location rows only                                          |
-| Output from compute stage | converted `ConvexVesselLocation[]`              | `{ vesselLocation }[]` wrapping each normalized row                      |
+| Output from compute stage | converted `ConvexVesselLocation[]`              | `ConvexVesselLocation[]` normalized rows                                 |
 | Side effects              | `vesselLocations`                               | `vesselLocations`                                                       |
 
 
@@ -257,8 +259,8 @@ The **2026-04-25 PM** update keeps live-location dedupe in mutation code while s
 
 Tradeoffs versus the intermediate “snapshot dedupe in the action” approach:
 
-- **Loss:** the action no longer skips the rest of the ping when every `TimeStamp` is unchanged; trip work runs on the full normalized batch each tick.
 - **Gain:** baseline query no longer pulls the entire `vesselLocations` table; location read/write policy is localized to **`performBulkUpsertVesselLocations`** in the dedicated `bulkUpsertVesselLocations` mutation (**`VesselAbbrev`** indexing).
+- **Gain:** trip stage now consumes only mutation-returned changed rows, so unchanged vessels avoid downstream trip/prediction/timeline compute for that ping.
 
 Remaining opportunities:
 
@@ -385,7 +387,7 @@ This preserves code clarity without forcing full-day schedule reads every tick.
 
 Remaining opportunities:
 
-- production uses `computeVesselTripUpdate` in a per-vessel loop over the full normalized feed, and `computeVesselTripsRows` for rows-only batch callers; the old `computeVesselTripsBatch` entrypoint is removed — in-memory schedule fixtures under `shared/scheduleSnapshot/` are for tests only (not a production DB snapshot table)
+- production uses `computeVesselTripUpdate` in a per-vessel loop over mutation-returned changed locations, and `computeVesselTripsRows` for rows-only batch callers; the old `computeVesselTripsBatch` entrypoint is removed — in-memory schedule fixtures under `shared/scheduleSnapshot/` are for tests only (not a production DB snapshot table)
 - trip-field inference logging is useful, but `resolveTripFieldsForTripRow.ts` is doing resolution, diagnostics, message formatting, and next-leg attachment; split only if it reduces real reading burden
 - keep the orchestrator-visible per-vessel loop; it is simpler than hiding the whole ping behind another batch adapter
 
@@ -708,7 +710,7 @@ The latest system pays for:
 
 1. one baseline query for identities + active trips (**no** `vesselLocations` preload)
 2. one WSF fetch
-3. trip computation for the **full** normalized location batch each ping
+3. trip computation for mutation-returned **changed** location rows each ping
 4. lazy, memoized schedule queries only when trip-field inference needs them
 5. prediction model query only when gated trip facts need prediction
 6. one locations-only **`bulkUpsertVesselLocations`** mutation per ping
