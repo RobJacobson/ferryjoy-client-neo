@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import * as vesselTripMutations from "functions/vesselTrips/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
@@ -89,33 +90,44 @@ describe("persistVesselTripWrites", () => {
       [existingChe, existingTac]
     );
 
-    const result = await persistVesselTripWrites(
-      {} as never,
-      tripWrites,
-      {
-        completeAndStartNewTripInDb: async (_ctx, completedTrip, newTrip) => {
-          completeCalls.push({ completedTrip, newTrip });
-          return null;
-        },
-        upsertVesselTripsBatchInDb: async (_ctx, activeUpserts) => {
-          upsertCalls.push(activeUpserts);
-          return {
-            perVessel: activeUpserts.map((trip) => ({
-              vesselAbbrev: trip.VesselAbbrev,
-              ok: true,
-            })),
-          };
-        },
-        setDepartNextActualsForMostRecentCompletedTripInDb: async (
-          _ctx,
-          vesselAbbrev,
-          actualDepartMs
-        ) => {
-          leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
-          return null;
-        },
-      }
-    );
+    const completeSpy = spyOn(
+      vesselTripMutations,
+      "completeAndStartNewTripInDb"
+    ).mockImplementation(async (_ctx, completedTrip, newTrip) => {
+      completeCalls.push({ completedTrip, newTrip });
+      return null;
+    });
+    const upsertSpy = spyOn(
+      vesselTripMutations,
+      "upsertVesselTripsBatchInDb"
+    ).mockImplementation(async (_ctx, activeUpserts) => {
+      upsertCalls.push(activeUpserts);
+      return {
+        perVessel: activeUpserts.map((trip) => ({
+          vesselAbbrev: trip.VesselAbbrev,
+          ok: true,
+        })),
+      };
+    });
+    const leaveDockSpy = spyOn(
+      vesselTripMutations,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockImplementation(async (_ctx, vesselAbbrev, actualDepartMs) => {
+      leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
+      return null;
+    });
+
+    let result: Awaited<ReturnType<typeof persistVesselTripWrites>> | null = null;
+    try {
+      result = await persistVesselTripWrites({} as never, tripWrites);
+    } finally {
+      completeSpy.mockRestore();
+      upsertSpy.mockRestore();
+      leaveDockSpy.mockRestore();
+    }
+    if (result === null) {
+      throw new Error("Expected persistVesselTripWrites to return a result.");
+    }
 
     expect(completeCalls).toHaveLength(1);
     expect(completeCalls[0]?.completedTrip.VesselAbbrev).toBe("CHE");
@@ -152,24 +164,31 @@ describe("persistVesselTripWrites", () => {
       [existingTac]
     );
 
-    await persistVesselTripWrites(
-      {} as never,
-      tripWrites,
-      {
-        completeAndStartNewTripInDb: async () => null,
-        upsertVesselTripsBatchInDb: async () => ({
-          perVessel: [{ vesselAbbrev: "TAC", ok: false, reason: "boom" }],
-        }),
-        setDepartNextActualsForMostRecentCompletedTripInDb: async (
-          _ctx,
-          vesselAbbrev,
-          actualDepartMs
-        ) => {
-          leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
-          return null;
-        },
-      }
-    );
+    const completeSpy = spyOn(
+      vesselTripMutations,
+      "completeAndStartNewTripInDb"
+    ).mockImplementation(async () => null);
+    const upsertSpy = spyOn(
+      vesselTripMutations,
+      "upsertVesselTripsBatchInDb"
+    ).mockImplementation(async () => ({
+      perVessel: [{ vesselAbbrev: "TAC", ok: false, reason: "boom" }],
+    }));
+    const leaveDockSpy = spyOn(
+      vesselTripMutations,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockImplementation(async (_ctx, vesselAbbrev, actualDepartMs) => {
+      leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
+      return null;
+    });
+
+    try {
+      await persistVesselTripWrites({} as never, tripWrites);
+    } finally {
+      completeSpy.mockRestore();
+      upsertSpy.mockRestore();
+      leaveDockSpy.mockRestore();
+    }
 
     expect(leaveDockCalls).toHaveLength(0);
   });

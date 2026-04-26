@@ -28,8 +28,8 @@ type PredictionStageInputs = {
 };
 
 type PredictionStageResult = {
-  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
+  predictionRows: VesselTripPredictionProposal[];
+  mlTimelineOverlays: MlTimelineOverlay[];
 };
 
 /**
@@ -65,8 +65,8 @@ export const runPredictionStage = async (
   });
 
   return {
-    predictionRows: [...predictionPingResult.predictionRows],
-    mlTimelineOverlays: [...predictionPingResult.mlTimelineOverlays],
+    predictionRows: predictionPingResult.predictionRows,
+    mlTimelineOverlays: predictionPingResult.mlTimelineOverlays,
   };
 };
 

@@ -2,7 +2,6 @@
  * Validators and TypeScript shapes used by the vessel orchestrator.
  */
 
-import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
@@ -72,7 +71,3 @@ export const orchestratorPingPersistenceSchema = v.object({
   predictionRows: v.array(vesselTripPredictionProposalSchema),
   mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
 });
-
-export type OrchestratorPingPersistence = Infer<
-  typeof orchestratorPingPersistenceSchema
->;

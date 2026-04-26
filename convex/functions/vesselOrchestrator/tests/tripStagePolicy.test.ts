@@ -94,7 +94,7 @@ describe("trip stage schedule-inference gating", () => {
     );
 
     expect(tripStage.predictionInputs.activeTrips).toHaveLength(2);
-    expect(tripStage.tripRows.activeTrips).toHaveLength(2);
+    expect(tripStage.tripWrites.activeTripUpserts).toHaveLength(2);
   });
 
   it("logs and skips a vessel whose trip computation throws", async () => {
@@ -145,9 +145,8 @@ describe("trip stage schedule-inference gating", () => {
         scheduleAccess
       );
 
-      expect(tripStage.tripRows.completedTrips).toHaveLength(0);
-      expect(tripStage.tripRows.activeTrips).toContainEqual(failedTrip);
-      expect(tripStage.tripRows.activeTrips).toContainEqual(healthyActiveTrip);
+      expect(tripStage.tripWrites.completedTripWrites).toHaveLength(0);
+      expect(tripStage.tripWrites.activeTripUpserts).toEqual([healthyActiveTrip]);
       expect(tripStage.predictionInputs.activeTrips).toEqual([
         healthyActiveTrip,
       ]);

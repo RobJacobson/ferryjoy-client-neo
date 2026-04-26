@@ -49,7 +49,6 @@ type OrchestratorSnapshot = {
 };
 
 type TripStageResult = {
-  tripRows: RunUpdateVesselTripsOutput;
   tripWrites: VesselTripWrites;
   predictionInputs: {
     activeTrips: ReadonlyArray<ConvexVesselTrip>;
@@ -96,7 +95,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   const dedupedLocationUpdates = await ctx.runMutation(
     api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
     {
-      locations: [...locationUpdates],
+      locations: Array.from(locationUpdates),
     }
   );
   const scheduleAccess = createScheduleContinuityAccess(ctx);
@@ -120,8 +119,8 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     {
       pingStartedAt,
       tripWrites: tripStageResult.tripWrites,
-      predictionRows: [...predictionStageResult.predictionRows],
-      mlTimelineOverlays: [...predictionStageResult.mlTimelineOverlays],
+      predictionRows: predictionStageResult.predictionRows,
+      mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
     }
   );
 };
@@ -217,7 +216,6 @@ export const computeTripStageForLocations = async (
   );
 
   return {
-    tripRows,
     tripWrites,
     predictionInputs: buildPredictionStageInputs(
       tripUpdates,

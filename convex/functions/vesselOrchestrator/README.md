@@ -27,7 +27,7 @@ Primary path: **`runUpdateVesselTimelineFromAssembly`** consumes **`RunUpdateVes
 
 ## System Overview
 
-The orchestrator runs periodically (currently every 5 seconds via `convex/crons.ts`). **`updateVesselOrchestrator`** runs **sequentially**: after one shared WSF batch and trip dependency wiring, it persists **locations first** in a dedicated mutation, then applies trip lifecycle writes, then predictions, then timeline rows through `persistOrchestratorPing`. This keeps the expensive external fetch centralized while the domain trip pipeline (`computeVesselTripUpdate` within the orchestrator’s per-vessel loop) and timeline assembly stay explicit.
+The orchestrator runs periodically (currently every 5 seconds via `convex/crons.ts`). **`updateVesselOrchestrator`** runs **sequentially**: after one shared WSF batch and trip-stage compute, it persists **locations first** in a dedicated mutation, then applies trip lifecycle writes, then predictions, then timeline rows through `persistOrchestratorPing`. This keeps the expensive external fetch centralized while the domain trip pipeline (`computeVesselTripUpdate` within the orchestrator’s per-vessel loop) and timeline assembly stay explicit.
 
 ### Operational concerns (Phase 1)
 
@@ -122,9 +122,9 @@ This table can therefore contain both:
 Purpose:
 
 - maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state
-- produce the authoritative per-ping trip arrays consumed by downstream phases
+- produce the per-ping persistence write set (`tripWrites`) and prediction gate inputs consumed by downstream phases
 
-Trip lifecycle is now intentionally narrower than predictions and timeline. The trip phase owns lifecycle transitions and the resulting trip rows; predictions run afterward from those rows every ping, and timeline assembles its own writes from the persisted/apply results plus the prediction outputs.
+Trip lifecycle is now intentionally narrower than predictions and timeline. The trip phase owns lifecycle transitions and the resulting write intents (`completedTripWrites`, `activeTripUpserts`, dock intents); predictions run afterward from changed-trip facts every ping, and timeline assembles its own writes from persisted trip outcomes plus prediction outputs.
 
 The active-trip lifecycle now follows the vessel's physical state more directly:
 

@@ -40,7 +40,7 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Loop policy: only changed location rows returned by
      `bulkUpsertVesselLocations` after timestamp dedupe
    - Output:
-     - `tripRows` (`activeTrips`, `completedTrips`)
+    - `tripWrites` (`completedTripWrites`, `activeTripUpserts`, `actualDockWrites`, `predictedDockWrites`)
      - `predictionInputs` (changed-facts gate for prediction stage)
 
 6. **Run prediction stage (gated)**
