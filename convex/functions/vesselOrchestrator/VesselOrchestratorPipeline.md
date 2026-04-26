@@ -35,9 +35,10 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Behavior: targeted, memoized schedule lookups for this ping
    - Output: `ScheduleContinuityAccess` with optional sanity metrics summary
 
-5. **Compute trip stage for full normalized batch**
+5. **Compute trip stage for changed normalized rows**
    - Function: `computeTripStageForLocations`
-   - Loop policy: all normalized locations each ping
+   - Loop policy: only changed location rows returned by
+     `bulkUpsertVesselLocations` after timestamp dedupe
    - Output:
      - `tripRows` (`activeTrips`, `completedTrips`)
      - `predictionInputs` (changed-facts gate for prediction stage)
@@ -53,6 +54,8 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Mutation: `persistOrchestratorPing`
    - Writes in order:
      1. trip writes (`persistVesselTripWrites`)
+        - leave-dock actualization intents are derived during persist from
+          `actualDockWrites` for vessels whose active upsert succeeded
      2. prediction upserts (`batchUpsertProposalsInDb`) when non-empty
      3. timeline projection (`runUpdateVesselTimelineFromAssembly`)
      4. timeline table writes (`upsertActualDockRows`, `projectPredictedDockWriteBatchesInDb`)
@@ -64,7 +67,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Two mutation calls per ping:
   - one locations-only upsert mutation
   - one trip/prediction/timeline mutation
-- Trip compute runs against the full normalized batch.
+- Trip compute runs against changed location rows returned by location-upsert
+  dedupe.
 - Schedule continuity reads are targeted and memoized per ping.
 - Prediction model loading is gated by changed durable trip facts.
 - Timeline projection consumes persisted trip handoff plus same-ping ML overlays.

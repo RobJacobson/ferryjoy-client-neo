@@ -266,7 +266,7 @@ The timeline overlay path is designed to stay lightweight:
 - `scheduleContinuityAccess.ts` — targeted cached `eventsScheduled` access for continuity lookups during the trip stage.
 - `predictionStage.ts` — changed-trip prediction gating plus ML model preload and prediction execution.
 - `testing.ts` — focused orchestrator test helpers kept out of the runtime hot-path file.
-- `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed rows, active upserts, and leave-dock follow-ups.
+- `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed rows and active upserts, with leave-dock follow-up intents derived from `actualDockWrites` during persist.
 - `mutations.ts` — **`persistOrchestratorPing`**: **`persistVesselTripWrites`**, prediction upserts, **`runUpdateVesselTimelineFromAssembly`**, dock writes.
 - `computeVesselPredictionRows` / `runVesselPredictionPing` (domain `updateVesselPredictions`) — prediction proposals + ML overlays consumed by `persistOrchestratorPing`.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one ping).

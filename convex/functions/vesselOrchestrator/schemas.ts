@@ -42,17 +42,11 @@ const predictedDockWriteIntentSchema = v.object({
   requiresSuccessfulUpsert: v.boolean(),
 });
 
-const leaveDockIntentSchema = v.object({
-  vesselAbbrev: v.string(),
-  actualDepartMs: v.number(),
-});
-
 export const vesselTripWritesSchema = v.object({
   completedTripWrites: v.array(completedArrivalHandoffSchema),
   activeTripUpserts: v.array(vesselTripStoredSchema),
   actualDockWrites: v.array(actualDockWriteIntentSchema),
   predictedDockWrites: v.array(predictedDockWriteIntentSchema),
-  departNextActualWrites: v.array(leaveDockIntentSchema),
 });
 
 export const mlTimelineOverlaySchema = v.union(

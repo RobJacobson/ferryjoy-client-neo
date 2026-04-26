@@ -90,23 +90,28 @@ describe("persistVesselTripWrites", () => {
     );
 
     const result = await persistVesselTripWrites(
+      {} as never,
       tripWrites,
       {
-        completeAndStartNewTrip: async (args) => {
-          completeCalls.push(args);
+        completeAndStartNewTripInDb: async (_ctx, completedTrip, newTrip) => {
+          completeCalls.push({ completedTrip, newTrip });
           return null;
         },
-        upsertVesselTripsBatch: async (args) => {
-          upsertCalls.push(args.activeUpserts);
+        upsertVesselTripsBatchInDb: async (_ctx, activeUpserts) => {
+          upsertCalls.push(activeUpserts);
           return {
-            perVessel: args.activeUpserts.map((trip) => ({
+            perVessel: activeUpserts.map((trip) => ({
               vesselAbbrev: trip.VesselAbbrev,
               ok: true,
             })),
           };
         },
-        setDepartNextActualsForMostRecentCompletedTrip: async (args) => {
-          leaveDockCalls.push(args);
+        setDepartNextActualsForMostRecentCompletedTripInDb: async (
+          _ctx,
+          vesselAbbrev,
+          actualDepartMs
+        ) => {
+          leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
           return null;
         },
       }
@@ -125,5 +130,47 @@ describe("persistVesselTripWrites", () => {
     expect(result.currentBranch.successfulVessels.has("TAC")).toBe(true);
     expect(leaveDockCalls).toHaveLength(1);
     expect(leaveDockCalls[0]?.vesselAbbrev).toBe("TAC");
+  });
+
+  it("skips leave-dock actualization when active upsert fails", async () => {
+    const existingTac = makeTrip("TAC", { AtDock: true });
+    const updatedTac = makeTrip("TAC", {
+      AtDock: false,
+      LeftDockActual: ms("2026-03-13T06:40:00-07:00"),
+      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
+    });
+    const leaveDockCalls: Array<{
+      vesselAbbrev: string;
+      actualDepartMs: number;
+    }> = [];
+
+    const tripWrites = buildVesselTripWrites(
+      {
+        completedTrips: [],
+        activeTrips: [updatedTac],
+      },
+      [existingTac]
+    );
+
+    await persistVesselTripWrites(
+      {} as never,
+      tripWrites,
+      {
+        completeAndStartNewTripInDb: async () => null,
+        upsertVesselTripsBatchInDb: async () => ({
+          perVessel: [{ vesselAbbrev: "TAC", ok: false, reason: "boom" }],
+        }),
+        setDepartNextActualsForMostRecentCompletedTripInDb: async (
+          _ctx,
+          vesselAbbrev,
+          actualDepartMs
+        ) => {
+          leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
+          return null;
+        },
+      }
+    );
+
+    expect(leaveDockCalls).toHaveLength(0);
   });
 });

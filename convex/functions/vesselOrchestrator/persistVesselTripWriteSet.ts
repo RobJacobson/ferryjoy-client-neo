@@ -4,10 +4,10 @@
  *
  * The trips concern owns the public trip-computation contract, including
  * provisional trip fields already inferred from schedule evidence. This module
- * owns only the one-way translation needed to persist those outputs through
- * `ActionCtx`-backed mutation bindings.
+ * owns only the one-way translation needed to persist those outputs.
  */
 
+import type { MutationCtx } from "_generated/server";
 import type {
   ActualDockWriteIntent,
   CompletedArrivalHandoff,
@@ -21,49 +21,44 @@ import {
 } from "domain/vesselOrchestration/shared";
 import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import {
+  completeAndStartNewTripInDb,
+  setDepartNextActualsForMostRecentCompletedTripInDb,
+  upsertVesselTripsBatchInDb,
+} from "functions/vesselTrips/mutations";
 
-/**
- * Result payload returned by `upsertVesselTripsBatch`.
- */
-export type VesselTripUpsertBatchResult = {
-  perVessel: Array<{
-    vesselAbbrev: string;
-    ok: boolean;
-    reason?: string;
-  }>;
+type VesselTripUpsertBatchResult = Awaited<
+  ReturnType<typeof upsertVesselTripsBatchInDb>
+>;
+
+type TripPersistenceDeps = {
+  completeAndStartNewTripInDb: (
+    ctx: MutationCtx,
+    completedTrip: ConvexVesselTrip,
+    newTrip: ConvexVesselTrip
+  ) => Promise<unknown>;
+  upsertVesselTripsBatchInDb: (
+    ctx: MutationCtx,
+    activeUpserts: ConvexVesselTrip[]
+  ) => Promise<VesselTripUpsertBatchResult>;
+  setDepartNextActualsForMostRecentCompletedTripInDb: (
+    ctx: MutationCtx,
+    vesselAbbrev: string,
+    actualDepartMs: number
+  ) => Promise<unknown>;
 };
 
-/**
- * Convex trip-table bindings for one persist pass. `activeUpserts` is mutable
- * because generated mutation args are not `readonly`.
- */
-export type VesselTripTableMutations = {
-  completeAndStartNewTrip: (args: {
-    completedTrip: ConvexVesselTrip;
-    newTrip: ConvexVesselTrip;
-  }) => Promise<unknown>;
-  upsertVesselTripsBatch: (args: {
-    activeUpserts: ConvexVesselTrip[];
-  }) => Promise<VesselTripUpsertBatchResult>;
-  setDepartNextActualsForMostRecentCompletedTrip: (args: {
-    vesselAbbrev: string;
-    actualDepartMs: number;
-  }) => Promise<unknown>;
+const TRIP_PERSISTENCE_DEPS: TripPersistenceDeps = {
+  completeAndStartNewTripInDb,
+  upsertVesselTripsBatchInDb,
+  setDepartNextActualsForMostRecentCompletedTripInDb,
 };
 
 export type VesselTripWrites = {
   completedTripWrites: CompletedArrivalHandoff[];
   activeTripUpserts: ConvexVesselTrip[];
   actualDockWrites: ActualDockWriteIntent[];
-  predictedDockWrites: Array<
-    Omit<PredictedDockWriteIntent, "existingTrip"> & {
-      existingTrip?: ConvexVesselTrip;
-    }
-  >;
-  departNextActualWrites: Array<{
-    vesselAbbrev: string;
-    actualDepartMs: number;
-  }>;
+  predictedDockWrites: PredictedDockWriteIntent[];
 };
 
 export const buildVesselTripWrites = (
@@ -148,53 +143,41 @@ export const buildVesselTripWrites = (
     requiresSuccessfulUpsert: true,
   })) satisfies PredictedDockWriteIntent[];
 
-  const departNextActualWrites = actualDockWrites
-    .filter((message) => message.events.didJustLeaveDock)
-    .flatMap((message) =>
-      message.scheduleTrip.LeftDockActual === undefined
-        ? []
-        : [
-            {
-              vesselAbbrev: message.vesselAbbrev,
-              actualDepartMs: message.scheduleTrip.LeftDockActual,
-            },
-          ]
-    );
-
   return {
     completedTripWrites,
     activeTripUpserts,
     actualDockWrites,
     predictedDockWrites,
-    departNextActualWrites,
   };
 };
 
 /**
  * Persists one tick of trip-table writes from precomputed write rows.
  *
+ * @param ctx - Convex mutation context
  * @param tripWrites - Trip write rows and timeline handoff inputs
- * @param mutations - Convex trip-table mutation bindings
+ * @param deps - Optional persistence dependency overrides (test seam)
  * @returns Persisted handoff used by timeline assembly
  */
 export const persistVesselTripWrites = async (
+  ctx: MutationCtx,
   tripWrites: VesselTripWrites,
-  mutations: VesselTripTableMutations
+  deps: TripPersistenceDeps = TRIP_PERSISTENCE_DEPS
 ): Promise<PersistedTripTimelineHandoff> => {
   const {
     completedTripWrites,
     activeTripUpserts,
     actualDockWrites,
     predictedDockWrites,
-    departNextActualWrites,
   } = tripWrites;
 
   const completedSettled = await Promise.allSettled(
     completedTripWrites.map((fact) =>
-      mutations.completeAndStartNewTrip({
-        completedTrip: stripTripPredictionsForStorage(fact.tripToComplete),
-        newTrip: stripTripPredictionsForStorage(fact.scheduleTrip),
-      })
+      deps.completeAndStartNewTripInDb(
+        ctx,
+        stripTripPredictionsForStorage(fact.tripToComplete),
+        stripTripPredictionsForStorage(fact.scheduleTrip)
+      )
     )
   );
 
@@ -214,9 +197,7 @@ export const persistVesselTripWrites = async (
   let successfulVessels = new Set<string>();
   if (activeTripUpserts.length > 0) {
     successfulVessels = successfulVesselAbbrevsFromUpsert(
-      await mutations.upsertVesselTripsBatch({
-        activeUpserts: [...activeTripUpserts],
-      })
+      await deps.upsertVesselTripsBatchInDb(ctx, [...activeTripUpserts])
     );
   }
 
@@ -225,9 +206,10 @@ export const persistVesselTripWrites = async (
     return result?.status === "fulfilled";
   });
   await runLeaveDockFromWriteSetIntents(
-    mutations,
+    ctx,
     successfulVessels,
-    departNextActualWrites
+    actualDockWrites,
+    deps
   );
 
   return {
@@ -325,22 +307,34 @@ const successfulVesselAbbrevsFromUpsert = (
  * successful active upsert.
  */
 const runLeaveDockFromWriteSetIntents = async (
-  mutations: VesselTripTableMutations,
+  ctx: MutationCtx,
   successfulVessels: Set<string>,
-  departNextActualWrites: Array<{
-    vesselAbbrev: string;
-    actualDepartMs: number;
-  }>
+  actualDockWrites: ReadonlyArray<ActualDockWriteIntent>,
+  deps: TripPersistenceDeps
 ): Promise<void> => {
+  const departNextActualWrites = actualDockWrites
+    .filter((message) => message.events.didJustLeaveDock)
+    .flatMap((message) =>
+      message.scheduleTrip.LeftDockActual === undefined
+        ? []
+        : [
+            {
+              vesselAbbrev: message.vesselAbbrev,
+              actualDepartMs: message.scheduleTrip.LeftDockActual,
+            },
+          ]
+    );
+
   await Promise.allSettled(
     departNextActualWrites
       .filter((intent) => successfulVessels.has(intent.vesselAbbrev))
       .map(async (intent) => {
         try {
-          await mutations.setDepartNextActualsForMostRecentCompletedTrip({
-            vesselAbbrev: intent.vesselAbbrev,
-            actualDepartMs: intent.actualDepartMs,
-          });
+          await deps.setDepartNextActualsForMostRecentCompletedTripInDb(
+            ctx,
+            intent.vesselAbbrev,
+            intent.actualDepartMs
+          );
         } catch (error) {
           console.error("[VesselTrips] leave-dock post-persist failed", {
             vesselAbbrev: intent.vesselAbbrev,
