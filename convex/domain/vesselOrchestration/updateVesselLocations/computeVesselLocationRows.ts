@@ -7,10 +7,7 @@ import type {
   RunUpdateVesselLocationsInput,
   RunUpdateVesselLocationsOutput,
 } from "./contracts";
-import {
-  assertUsableVesselLocationBatch,
-  mapWsfVesselLocations,
-} from "./mapWsfVesselLocations";
+import { mapWsfVesselLocations } from "./mapWsfVesselLocations";
 
 /**
  * Canonical runner for vessel-location normalization.
@@ -25,11 +22,6 @@ export const computeVesselLocationRows = (
     input.rawFeedLocations,
     input.vesselsIdentity,
     input.terminalsIdentity
-  );
-
-  assertUsableVesselLocationBatch(
-    input.rawFeedLocations.length,
-    vesselLocations
   );
 
   return {

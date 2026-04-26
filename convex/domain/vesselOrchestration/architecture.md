@@ -10,14 +10,14 @@ Each orchestrator ping runs in this order:
 updateVesselOrchestrator
   -> load identities + active trips (getOrchestratorModelData; no vesselLocations)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations + batch assert)
-  -> bulkUpsertVesselLocations (locations-only mutation)
+  -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
   -> load schedule continuity access for the ping
-  -> compute trip rows through updateVesselTrips (full normalized batch)
+  -> compute trip rows through updateVesselTrips (changed rows only)
   -> run prediction stage from trip rows
   -> persistOrchestratorPing: trip write set, predictions, timeline assembly
 ```
 
-The trip stage is pure domain compute in the action. Location table dedupe/read runs in `bulkUpsertVesselLocations`; trip persistence, prediction upserts, and timeline assembly run inside **`persistOrchestratorPing`**.
+The trip stage is pure domain compute in the action. Location table dedupe/read runs in `bulkUpsertVesselLocations`, and the action consumes only that mutation's changed-row return; trip persistence, prediction upserts, and timeline assembly run inside **`persistOrchestratorPing`**.
 
 ## Timestamp semantics (current code)
 

@@ -48,17 +48,16 @@ describe("computeVesselLocationRows", () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("throws when every row fails conversion", () => {
+  it("returns an empty result when every row fails conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    expect(() =>
-      computeVesselLocationRows({
-        rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
-        vesselsIdentity: vesselsFixture,
-        terminalsIdentity: terminalsFixture,
-      })
-    ).toThrow(/All 2 vessel location rows failed conversion/);
+    const result = computeVesselLocationRows({
+      rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
+      vesselsIdentity: vesselsFixture,
+      terminalsIdentity: terminalsFixture,
+    });
 
+    expect(result.vesselLocations).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledTimes(2);
   });
 

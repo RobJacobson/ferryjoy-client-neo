@@ -18,7 +18,7 @@ import { loadVesselLocationUpdates } from "./locationUpdates";
  * @param ctx - Action context for snapshot and persistence calls
  * @param vesselsIdentity - Backend vessel rows for feed resolution
  * @param terminalsIdentity - Backend terminal rows for normalization
- * @returns Normalized current vessel-location rows
+ * @returns Location rows changed after mutation-side timestamp dedupe
  */
 export const updateVesselLocations = async (
   ctx: ActionCtx,
@@ -30,12 +30,12 @@ export const updateVesselLocations = async (
     vesselsIdentity,
   });
 
-  await ctx.runMutation(
+  const dedupedLocationUpdates = await ctx.runMutation(
     api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
     {
-      locations: locationUpdates.map((update) => update.vesselLocation),
+      locations: [...locationUpdates],
     }
   );
 
-  return locationUpdates.map((update) => update.vesselLocation);
+  return dedupedLocationUpdates;
 };

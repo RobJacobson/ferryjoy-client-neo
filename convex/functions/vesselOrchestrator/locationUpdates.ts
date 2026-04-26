@@ -8,11 +8,10 @@
 
 import { fetchRawWsfVesselLocations } from "adapters";
 import {
-  assertUsableVesselLocationBatch,
   mapWsfVesselLocations,
 } from "domain/vesselOrchestration/updateVesselLocations/mapWsfVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 
 type LoadVesselLocationUpdatesArgs = {
@@ -29,16 +28,13 @@ type LoadVesselLocationUpdatesArgs = {
 export const loadVesselLocationUpdates = async ({
   terminalsIdentity,
   vesselsIdentity,
-}: LoadVesselLocationUpdatesArgs): Promise<
-  ReadonlyArray<VesselLocationUpdates>
-> => {
+}: LoadVesselLocationUpdatesArgs): Promise<ReadonlyArray<ConvexVesselLocation>> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
   const vesselLocations = mapWsfVesselLocations(
     rawFeedLocations,
     vesselsIdentity,
     terminalsIdentity
   );
-  assertUsableVesselLocationBatch(rawFeedLocations.length, vesselLocations);
 
-  return vesselLocations.map((vesselLocation) => ({ vesselLocation }));
+  return vesselLocations;
 };

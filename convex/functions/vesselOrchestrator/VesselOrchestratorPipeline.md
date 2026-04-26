@@ -21,7 +21,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 2. **Fetch and normalize live locations**
    - Function: `loadVesselLocationUpdates`
    - External input: WSF vessel locations
-   - Output: `VesselLocationUpdates[]` (normalized batch)
+   - Output: `ConvexVesselLocation[]` (normalized batch)
 
 3. **Persist normalized locations**
    - Mutation: `bulkUpsertVesselLocations`

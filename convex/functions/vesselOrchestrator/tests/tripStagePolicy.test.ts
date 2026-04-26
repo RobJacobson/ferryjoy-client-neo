@@ -1,7 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { computeTripStageForLocations } from "../actions";
@@ -74,9 +73,7 @@ const makeLocation = (
 const makeLocationUpdate = (
   vesselAbbrev: string,
   overrides: Partial<ConvexVesselLocation> = {}
-): VesselLocationUpdates => ({
-  vesselLocation: makeLocation(vesselAbbrev, overrides),
-});
+): ConvexVesselLocation => makeLocation(vesselAbbrev, overrides);
 
 describe("trip stage schedule-inference gating", () => {
   it("runs trip recomputation for each supplied location update", async () => {

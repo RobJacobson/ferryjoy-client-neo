@@ -20,8 +20,8 @@ import type {
 } from "domain/vesselOrchestration/updateVesselTrips";
 import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildVesselTripPersistencePlan } from "functions/vesselOrchestrator/persistVesselTripWriteSet";
-import type { VesselLocationUpdates } from "functions/vesselOrchestrator/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import {
@@ -90,16 +90,16 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });
-  await ctx.runMutation(
+  const dedupedLocationUpdates = await ctx.runMutation(
     api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
     {
-      locations: locationUpdates.map((update) => update.vesselLocation),
+      locations: [...locationUpdates],
     }
   );
   const scheduleAccess = createScheduleContinuityAccess(ctx);
 
   const tripStageResult = await computeTripStageForLocations(
-    locationUpdates,
+    dedupedLocationUpdates,
     snapshot.activeTrips,
     scheduleAccess
   );
@@ -156,7 +156,7 @@ const loadOrchestratorSnapshot = async (
  * @returns Trip rows plus prediction-stage inputs for downstream work
  */
 export const computeTripStageForLocations = async (
-  locationUpdates: ReadonlyArray<VesselLocationUpdates>,
+  locationUpdates: ReadonlyArray<ConvexVesselLocation>,
   existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
   scheduleAccess: ScheduleContinuityAccess
 ): Promise<TripStageResult> => {
@@ -166,20 +166,20 @@ export const computeTripStageForLocations = async (
   const completedTripRows: Array<ConvexVesselTrip> = [];
   const tripUpdates: Array<VesselTripUpdate> = [];
 
-  for (const locationUpdate of locationUpdates) {
-    const vesselAbbrev = locationUpdate.vesselLocation.VesselAbbrev;
+  for (const vesselLocation of locationUpdates) {
+    const vesselAbbrev = vesselLocation.VesselAbbrev;
     const existingActiveTrip = activeTripsByVesselAbbrev.get(vesselAbbrev);
     let tripUpdate: VesselTripUpdate;
 
     try {
       tripUpdate = await computeVesselTripUpdate({
-        vesselLocation: locationUpdate.vesselLocation,
+        vesselLocation,
         existingActiveTrip,
         scheduleAccess,
       });
     } catch (error) {
       logCriticalPerVesselTripStageFailure({
-        locationUpdate,
+        vesselLocation,
         existingActiveTrip,
         error,
       });
@@ -247,16 +247,15 @@ const logScheduleContinuitySanitySummary = (
  * @param args - Vessel location, active-trip context, and thrown failure
  */
 const logCriticalPerVesselTripStageFailure = ({
-  locationUpdate,
+  vesselLocation,
   existingActiveTrip,
   error,
 }: {
-  locationUpdate: VesselLocationUpdates;
+  vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
   error: unknown;
 }): void => {
   const err = error instanceof Error ? error : new Error(String(error));
-  const { vesselLocation } = locationUpdate;
 
   console.error(CRITICAL_PER_VESSEL_FAILURE_PREFIX, {
     vesselAbbrev: vesselLocation.VesselAbbrev,
