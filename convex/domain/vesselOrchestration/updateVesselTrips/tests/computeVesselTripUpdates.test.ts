@@ -127,10 +127,48 @@ describe("computeVesselTripUpdate", () => {
     }
   });
 
-  it("marks a same-trip storage change as storage-changed without lifecycle change", async () => {
+  it("does not mark timestamp-only churn as a storage change", async () => {
     const existingTrip = makeTrip();
     const updatedTrip = makeTrip({
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+    });
+    const detectTripEventsMod = await import("../lifecycle");
+    const buildTripMod = await import("../tripBuilders");
+    const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
+    const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
+
+    detectSpy.mockImplementation(() => defaultEvents);
+    buildTripSpy.mockImplementation(async () => ({
+      activeVesselTrip: updatedTrip,
+    }));
+
+    try {
+      const { computeVesselTripUpdate } = await import(
+        "../computeVesselTripUpdate"
+      );
+      const result = await computeVesselTripUpdate({
+        vesselLocation: makeLocation(),
+        existingActiveTrip: existingTrip,
+        scheduleAccess: scheduleTables,
+      });
+
+      expect(result.activeTripCandidate).toEqual(updatedTrip);
+      expect(result.completedTrip).toBeUndefined();
+      expect(result.replacementTrip).toBeUndefined();
+      expect(result.tripStorageChanged).toBe(false);
+      expect(result.tripLifecycleChanged).toBe(false);
+    } finally {
+      detectSpy.mockRestore();
+      buildTripSpy.mockRestore();
+    }
+  });
+
+  it("marks ETA-only churn as a storage change", async () => {
+    const existingTrip = makeTrip({
+      Eta: ms("2026-03-13T06:50:00-07:00"),
+    });
+    const updatedTrip = makeTrip({
+      Eta: ms("2026-03-13T06:52:00-07:00"),
     });
     const detectTripEventsMod = await import("../lifecycle");
     const buildTripMod = await import("../tripBuilders");
