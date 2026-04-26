@@ -269,7 +269,7 @@ The timeline overlay path is designed to stay lightweight:
 - `testing.ts` — focused orchestrator test helpers kept out of the runtime hot-path file.
 - `persistVesselTripWriteSet.ts` — function-layer trip-table mutation apply step for completed rows and active upserts, with leave-dock follow-up intents derived from `actualDockWrites` during persist.
 - `mutations.ts` — **`persistTripAndPredictionWrites`** (trip writes + prediction upserts, returns timeline handoff) and **`persistTimelineEventWrites`** (apply final actual/predicted event rows).
-- `computeVesselPredictionRows` / `updateVesselPredictions` (domain `updateVesselPredictions`) — prediction proposals + ML overlays consumed by action-side timeline assembly.
+- `updateVesselPredictions` (domain `updateVesselPredictions`) — prediction proposals + ML overlays consumed by action-side timeline assembly.
 - `queries.ts` — `getOrchestratorModelData` (bundled DB read for one ping).
 - `schemas.ts` — orchestrator-related schemas.
 

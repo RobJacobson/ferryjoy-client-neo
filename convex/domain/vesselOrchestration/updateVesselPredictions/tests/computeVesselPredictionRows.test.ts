@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  computeVesselPredictionRows,
-  updateVesselPredictions,
-} from "domain/vesselOrchestration/updateVesselPredictions";
+import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -71,19 +68,6 @@ const richContext = {
     },
   },
 };
-
-describe("computeVesselPredictionRows", () => {
-  it("returns only predictionRows (no timeline handoff array)", async () => {
-    const trip = makeTrip();
-    const output = await computeVesselPredictionRows({
-      activeTrips: [trip],
-      completedHandoffs: [],
-      predictionContext: richContext,
-    });
-    expect(Object.keys(output)).toEqual(["predictionRows"]);
-    expect(output.predictionRows.length).toBeGreaterThan(0);
-  });
-});
 
 describe("updateVesselPredictions", () => {
   it("computes prediction rows and timeline ML handoffs from active trips", async () => {

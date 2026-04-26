@@ -3,7 +3,6 @@
  * for one ping. Compare-then-write is in `functions/vesselTripPredictions`.
  *
  * **Public surface**
- * - {@link computeVesselPredictionRows} — `{ predictionRows }` only
  * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
  * - {@link predictionModelTypesForTrip} — terminal-pair preload requests (orchestrator)
  *
@@ -11,9 +10,6 @@
  * are internal to this folder; tests may import them via relative paths.
  */
 
-export {
-  computeVesselPredictionRows,
-} from "./computeVesselPredictionRows";
 export {
   type UpdateVesselPredictionsOutput,
   updateVesselPredictions,
