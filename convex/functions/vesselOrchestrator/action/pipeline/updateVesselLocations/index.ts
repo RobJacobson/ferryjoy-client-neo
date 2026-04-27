@@ -4,4 +4,4 @@
  * {@link ../../actions}.
  */
 
-export { updateVesselLocations as runStage1UpdateVesselLocations } from "./runStage1UpdateVesselLocations";
+export { runUpdateVesselLocations as runStage1UpdateVesselLocations } from "./runUpdateVesselLocations";

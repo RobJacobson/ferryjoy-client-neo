@@ -50,7 +50,7 @@ type RunStage1UpdateVesselLocationsArgs = {
  * @param args - Identity rows required for raw-feed normalization
  * @returns Rows that were inserted or replaced after mutation-side timestamp dedupe
  */
-export const updateVesselLocations = async (
+export const runUpdateVesselLocations = async (
   ctx: ActionCtx,
   { terminalsIdentity, vesselsIdentity }: RunStage1UpdateVesselLocationsArgs
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {

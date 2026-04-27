@@ -200,7 +200,7 @@ import type * as functions_vesselOrchestrator_action_pipeline_scheduleContinuity
 import type * as functions_vesselOrchestrator_action_pipeline_snapshot from "../functions/vesselOrchestrator/action/pipeline/snapshot.js";
 import type * as functions_vesselOrchestrator_action_pipeline_updateVesselLocations_index from "../functions/vesselOrchestrator/action/pipeline/updateVesselLocations/index.js";
 import type * as functions_vesselOrchestrator_action_pipeline_updateVesselLocations_persistVesselLocations from "../functions/vesselOrchestrator/action/pipeline/updateVesselLocations/persistVesselLocations.js";
-import type * as functions_vesselOrchestrator_action_pipeline_updateVesselLocations_runStage1UpdateVesselLocations from "../functions/vesselOrchestrator/action/pipeline/updateVesselLocations/runStage1UpdateVesselLocations.js";
+import type * as functions_vesselOrchestrator_action_pipeline_updateVesselLocations_runUpdateVesselLocations from "../functions/vesselOrchestrator/action/pipeline/updateVesselLocations/runUpdateVesselLocations.js";
 import type * as functions_vesselOrchestrator_action_predictionContextLoader from "../functions/vesselOrchestrator/action/predictionContextLoader.js";
 import type * as functions_vesselOrchestrator_mutation_index from "../functions/vesselOrchestrator/mutation/index.js";
 import type * as functions_vesselOrchestrator_mutation_mutations from "../functions/vesselOrchestrator/mutation/mutations.js";
@@ -458,7 +458,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/action/pipeline/snapshot": typeof functions_vesselOrchestrator_action_pipeline_snapshot;
   "functions/vesselOrchestrator/action/pipeline/updateVesselLocations/index": typeof functions_vesselOrchestrator_action_pipeline_updateVesselLocations_index;
   "functions/vesselOrchestrator/action/pipeline/updateVesselLocations/persistVesselLocations": typeof functions_vesselOrchestrator_action_pipeline_updateVesselLocations_persistVesselLocations;
-  "functions/vesselOrchestrator/action/pipeline/updateVesselLocations/runStage1UpdateVesselLocations": typeof functions_vesselOrchestrator_action_pipeline_updateVesselLocations_runStage1UpdateVesselLocations;
+  "functions/vesselOrchestrator/action/pipeline/updateVesselLocations/runUpdateVesselLocations": typeof functions_vesselOrchestrator_action_pipeline_updateVesselLocations_runUpdateVesselLocations;
   "functions/vesselOrchestrator/action/predictionContextLoader": typeof functions_vesselOrchestrator_action_predictionContextLoader;
   "functions/vesselOrchestrator/mutation/index": typeof functions_vesselOrchestrator_mutation_index;
   "functions/vesselOrchestrator/mutation/mutations": typeof functions_vesselOrchestrator_mutation_mutations;
