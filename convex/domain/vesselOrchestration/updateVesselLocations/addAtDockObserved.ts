@@ -22,7 +22,7 @@ const SPEED_DOCKED_THRESHOLD_KNOTS = 0.5;
  * @param incomingLocations - Newly normalized rows for this ingest tick
  * @returns Incoming rows augmented with `AtDockObserved`
  */
-export const withAtDockObserved = (
+export const addAtDockObserved = (
   existingLocations: ReadonlyArray<ConvexVesselLocation>,
   incomingLocations: ReadonlyArray<ConvexVesselLocationIncoming>
 ): ReadonlyArray<ConvexVesselLocation> =>

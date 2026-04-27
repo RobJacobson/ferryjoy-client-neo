@@ -5,9 +5,17 @@
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
+import { withAtDockObserved } from "domain/vesselOrchestration/updateVesselLocations";
+import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { vesselIdentitySchema } from "../vessels/schemas";
-import type { ConvexVesselLocation } from "./schemas";
-import { vesselLocationValidationSchema } from "./schemas";
+import type {
+  ConvexVesselLocation,
+  ConvexVesselLocationIncoming,
+} from "./schemas";
+import {
+  vesselLocationIncomingValidationSchema,
+  vesselLocationValidationSchema,
+} from "./schemas";
 
 export type VesselLocationDedupeSummary = {
   totalIncoming: number;
@@ -22,35 +30,42 @@ export type VesselLocationBulkUpsertResult = {
 };
 
 /**
- * Bulk upsert live `vesselLocations`: read current table, match by `VesselAbbrev`,
- * skip when `TimeStamp` is unchanged, otherwise replace or insert.
+ * Bulk upsert live `vesselLocations`: single table read, attach `AtDockObserved`,
+ * match by `VesselAbbrev`, skip when `TimeStamp` is unchanged, otherwise replace or insert.
  *
  * Shared by {@link bulkUpsertVesselLocations} and the orchestrator location
  * stage in `updateVesselOrchestrator`.
  *
  * @param ctx - Convex mutation context
- * @param locations - Normalized feed snapshot for this tick
+ * @param locations - Normalized incoming rows for this tick (no `AtDockObserved`)
  */
 export async function performBulkUpsertVesselLocations(
   ctx: MutationCtx,
-  locations: ReadonlyArray<ConvexVesselLocation>
+  locations: ReadonlyArray<ConvexVesselLocationIncoming>
 ): Promise<VesselLocationBulkUpsertResult> {
   // Last row wins per vessel when the feed repeats an abbrev in one batch.
-  const uniqueByAbbrev = new Map<string, ConvexVesselLocation>();
+  const uniqueByAbbrev = new Map<string, ConvexVesselLocationIncoming>();
   for (const location of locations) {
     uniqueByAbbrev.set(location.VesselAbbrev, location);
   }
-  const dedupedLocations = [...uniqueByAbbrev.values()];
+  const dedupedIncoming = [...uniqueByAbbrev.values()];
   const summary: VesselLocationDedupeSummary = {
-    totalIncoming: dedupedLocations.length,
+    totalIncoming: dedupedIncoming.length,
     unchanged: 0,
     replaced: 0,
     inserted: 0,
   };
-  const existingLocations = await ctx.db.query("vesselLocations").collect();
+
+  const existingDocs = await ctx.db.query("vesselLocations").collect();
   const existingByAbbrev = new Map(
-    existingLocations.map((loc) => [loc.VesselAbbrev, loc] as const)
+    existingDocs.map((loc) => [loc.VesselAbbrev, loc] as const)
   );
+  const existingForObserved = existingDocs.map(stripConvexMeta);
+  const dedupedLocations = withAtDockObserved(
+    existingForObserved,
+    dedupedIncoming
+  );
+
   const changedLocations: Array<ConvexVesselLocation> = [];
 
   for (const location of dedupedLocations) {
@@ -101,7 +116,7 @@ export async function performBulkUpsertVesselLocations(
  * @returns Rows that were inserted/replaced after timestamp dedupe
  */
 export const bulkUpsertVesselLocations = internalMutation({
-  args: { locations: v.array(vesselLocationValidationSchema) },
+  args: { locations: v.array(vesselLocationIncomingValidationSchema) },
   returns: v.array(vesselLocationValidationSchema),
   handler: async (ctx, args) => {
     const result = await performBulkUpsertVesselLocations(ctx, args.locations);

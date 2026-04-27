@@ -7,12 +7,12 @@ import type {
   ConvexVesselLocation,
   ConvexVesselLocationIncoming,
 } from "functions/vesselLocation/schemas";
-import { withAtDockObserved } from "../withAtDockObserved";
+import { addAtDockObserved } from "../addAtDockObserved";
 
 describe("withAtDockObserved", () => {
   it("sets true when docked-oriented vote wins 2-of-3", () => {
     const incoming = [makeIncomingLocation({ AtDock: true, Speed: 0.2 })];
-    const result = withAtDockObserved([], incoming);
+    const result = addAtDockObserved([], incoming);
     expect(result[0]?.AtDockObserved).toBe(true);
   });
 
@@ -20,7 +20,7 @@ describe("withAtDockObserved", () => {
     const incoming = [
       makeIncomingLocation({ AtDock: false, Speed: 10, LeftDock: 12345 }),
     ];
-    const result = withAtDockObserved([], incoming);
+    const result = addAtDockObserved([], incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 
@@ -33,7 +33,7 @@ describe("withAtDockObserved", () => {
       }),
     ];
     const existing = [makeExistingLocation({ AtDockObserved: false })];
-    const result = withAtDockObserved(existing, incoming);
+    const result = addAtDockObserved(existing, incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 
@@ -45,7 +45,7 @@ describe("withAtDockObserved", () => {
         LeftDock: 12345,
       }),
     ];
-    const result = withAtDockObserved([], incoming);
+    const result = addAtDockObserved([], incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 
@@ -58,7 +58,7 @@ describe("withAtDockObserved", () => {
         LeftDock: 12345,
       }),
     ];
-    const result = withAtDockObserved(existing, incoming);
+    const result = addAtDockObserved(existing, incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 });

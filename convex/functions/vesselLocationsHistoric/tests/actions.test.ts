@@ -47,6 +47,7 @@ describe("captureHistoricVesselLocations", () => {
 
     const calls: unknown[] = [];
     const ctx = {
+      runQuery: async () => [],
       runMutation: async (_mutation: unknown, args: unknown) => {
         calls.push(args);
         return { inserted: 1 };

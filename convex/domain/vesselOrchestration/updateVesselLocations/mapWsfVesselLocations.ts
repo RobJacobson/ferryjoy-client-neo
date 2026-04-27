@@ -3,7 +3,8 @@
  *
  * This module owns the Stage B business transformation from raw transport rows
  * into canonical `ConvexVesselLocation` POJOs. The surrounding functions layer
- * handles fetch, dedupe, and persistence.
+ * handles fetch and persistence; duplicate raw rows per vessel are collapsed here
+ * before normalization (see {@link dedupeRawWsfVesselLocationsByVesselId}).
  */
 
 import {
@@ -34,7 +35,7 @@ export const mapWsfVesselLocations = (
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): ConvexVesselLocationIncoming[] =>
-  rows
+  dedupeRawWsfVesselLocationsByVesselId(rows)
     .map((row) => {
       try {
         return normalizeWsfVesselLocationRow(row, vessels, terminals);
@@ -47,6 +48,23 @@ export const mapWsfVesselLocations = (
       }
     })
     .filter((loc): loc is ConvexVesselLocationIncoming => loc !== undefined);
+
+/**
+ * Collapses duplicate raw rows for the same vessel (`VesselID`).
+ *
+ * The upstream feed should contain at most one row per vessel; if a transient
+ * error repeats a vessel, the **last** row in feed order wins. That matches the
+ * normalized/mutation dedupe keyed by **VesselAbbrev** on Convex rows,
+ * since each `VesselID` maps to one abbreviation via identity resolution.
+ *
+ * @param rows - Raw rows from the WSF transport layer
+ * @returns De-duplicated rows (stable order: first occurrence of each id in the feed)
+ */
+const dedupeRawWsfVesselLocationsByVesselId = (
+  rows: ReadonlyArray<WsfVesselLocation>
+): WsfVesselLocation[] => [
+  ...new Map(rows.map((row) => [row.VesselID, row])).values(),
+];
 
 /**
  * Normalizes one raw WSF vessel-location row into canonical storage shape.
