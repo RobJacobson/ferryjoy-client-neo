@@ -10,3 +10,4 @@ export type {
   RunUpdateVesselLocationsOutput,
 } from "./contracts";
 export { updateVesselLocations } from "./updateVesselLocations";
+export { withAtDockObserved } from "./withAtDockObserved";

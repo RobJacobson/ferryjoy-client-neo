@@ -8,7 +8,7 @@ import { fetchRawWsfVesselLocations } from "adapters";
 import { v } from "convex/values";
 import { updateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import { loadTerminalIdentities } from "functions/terminals/actions";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { getSailingDay } from "shared/time";
@@ -116,9 +116,10 @@ export const cleanupHistoricVesselLocations = internalAction({
  * @returns Historic snapshot row including `SailingDay`
  */
 const addSailingDay = (
-  location: ConvexVesselLocation
+  location: ConvexVesselLocationIncoming
 ): ConvexHistoricVesselLocation => ({
   ...location,
+  AtDockObserved: location.AtDock,
   SailingDay: getSailingDay(new Date(location.TimeStamp)),
 });
 

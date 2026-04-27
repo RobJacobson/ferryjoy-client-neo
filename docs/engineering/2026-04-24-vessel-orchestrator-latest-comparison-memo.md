@@ -125,7 +125,7 @@ Primary entrypoint:
         - reads `vesselsIdentity`
         - reads `terminalsIdentity`
         - reads `activeVesselTrips`
-      - `loadVesselLocationUpdates`
+      - `updateVesselLocations` stage
         - `fetchRawWsfVesselLocations`
         - `updateVesselLocations` (uses identity tables for WSF → `ConvexVesselLocation`)
       - `createScheduleContinuityAccess`
@@ -163,7 +163,7 @@ Normal expected branches:
 | -------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `updateVesselOrchestrator`             | Fetch once, fan out branches, coordinate errors                          | `updateVesselOrchestrator` / `runOrchestratorPing`                     | Sequential hot path; one locations-only mutation, one trip/prediction mutation, and one timeline-row mutation per ping |
 | `loadOrchestratorTickReadModelOrThrow` | Load vessel, terminal, trip snapshot and bootstrap empty identity tables | `loadOrchestratorSnapshot`                                             | Load identities + active trips in one query (**no** `vesselLocations`); no bootstrap refresh in this path |
-| `updateVesselLocations`                | Write all current locations through bulk upsert                          | `loadVesselLocationUpdates` + public **`bulkUpsertVesselLocations`** (uses **`performBulkUpsertVesselLocations`**) | Normalize in action; dedupe + write in dedicated location mutation (`collect()` by `VesselAbbrev`)  |
+| `updateVesselLocations`                | Write all current locations through bulk upsert                          | `updateVesselLocations` stage + public **`bulkUpsertVesselLocations`** (uses **`performBulkUpsertVesselLocations`**) | Fetch + normalize + augment in action stage; dedupe + write in dedicated location mutation (`collect()` by `VesselAbbrev`)  |
 | `processVesselTrips`                   | Trip lifecycle, schedule enrichment, ML, persistence, timeline intents   | `computeTripStageForLocations` + `persistVesselTripWriteSet`           | Pure trip compute in action, trip-table writes in persistence mutation                            |
 | `applyTickEventWrites`                 | Persist actual/predicted timeline writes                                 | `updateTimeline` + `persistTimelineEventWrites`   | Action assembles timeline rows after trip persistence and ML merge; mutation applies final rows    |
 
@@ -228,7 +228,7 @@ Primary flow:
 
 - `getOrchestratorModelData`
   - reads `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips` only
-- `loadVesselLocationUpdates`
+- `updateVesselLocations` stage
   - fetch raw WSF rows
   - normalize through `updateVesselLocations` (identity tables for resolution)
   - yields `ConvexVesselLocation[]` for the full normalized batch
@@ -256,7 +256,7 @@ Expected non-error branches:
 | Before function          | Role                                            | Latest function                  | Role                                                      |
 | ------------------------ | ----------------------------------------------- | -------------------------------- | --------------------------------------------------------- |
 | `toConvexVesselLocation` | Convert one raw WSF row                         | `updateVesselLocations`      | Convert and validate the whole normalized batch           |
-| `updateVesselLocations`  | Send all locations to a mutation                | `loadVesselLocationUpdates` + `bulkUpsertVesselLocations` | Fetch + normalize in action; location mutation owns DB read/compare |
+| `updateVesselLocations`  | Send all locations to a mutation                | `updateVesselLocations` stage + `bulkUpsertVesselLocations` | Fetch + normalize + augment in action stage; location mutation owns DB read/compare |
 | `bulkUpsert`             | Reread table and compare timestamps in mutation | **`performBulkUpsertVesselLocations`** (public **`bulkUpsertVesselLocations`** mutation) | Same semantics: **`VesselAbbrev`** key + `TimeStamp` skip inside shared helper |
 
 

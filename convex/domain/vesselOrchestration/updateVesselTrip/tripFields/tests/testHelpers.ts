@@ -34,6 +34,7 @@ export const makeLocation = (
   DepartingDistance: 0,
   ArrivingDistance: undefined,
   ...overrides,
+  AtDockObserved: overrides.AtDockObserved ?? true,
 });
 
 export const makeTrip = (

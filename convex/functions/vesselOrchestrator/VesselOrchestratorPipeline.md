@@ -19,24 +19,20 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
    - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
-2. **Fetch and normalize live locations**
-   - Function: `loadVesselLocationUpdates`
+2. **Fetch, normalize, augment, and persist live locations**
+   - Function: `updateVesselLocations`
    - External input: WSF vessel locations
-   - Output: `ConvexVesselLocation[]` (normalized batch)
-
-3. **Persist normalized locations**
-   - Mutation: `bulkUpsertVesselLocations`
-   - Payload: full normalized `locations[]`
+   - Output: changed `ConvexVesselLocation[]` rows after dedupe
    - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
    - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 
-4. **Build schedule continuity access**
+3. **Build schedule continuity access**
    - Function: `createScheduleContinuityAccess`
    - Behavior: targeted, memoized schedule lookups for this ping
    - Output: `ScheduleContinuityAccess`
 
-5. **Sequential per-vessel sparse pipeline (changed rows only)**
+4. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const location of dedupedLocationUpdates)`
    - For each vessel:
      1. `computeTripStageForLocation` computes trip diff (`updateVesselTrip`)

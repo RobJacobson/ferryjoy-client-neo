@@ -3,11 +3,11 @@ export {
   resolveDepartNextLegContext,
 } from "./eventsPredicted";
 export { stripTripPredictionsForStorage } from "./orchestratorPersist";
+export { buildCompletedHandoffKey } from "./pingHandshake/completedHandoffKey";
 export {
   mergePingEventWrites,
   type PingEventWrites,
 } from "./pingHandshake/projectionWire";
-export { buildCompletedHandoffKey } from "./pingHandshake/completedHandoffKey";
 export type {
   ActiveTripWriteOutcome,
   ActualDockWriteIntent,

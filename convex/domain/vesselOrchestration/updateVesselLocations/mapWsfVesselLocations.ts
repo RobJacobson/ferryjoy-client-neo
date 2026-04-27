@@ -12,7 +12,7 @@ import {
   type TerminalIdentity,
   type VesselIdentity,
 } from "adapters";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { deriveTripIdentity } from "shared/tripIdentity";
@@ -33,7 +33,7 @@ export const mapWsfVesselLocations = (
   rows: ReadonlyArray<WsfVesselLocation>,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
-): ConvexVesselLocation[] =>
+): ConvexVesselLocationIncoming[] =>
   rows
     .map((row) => {
       try {
@@ -46,7 +46,7 @@ export const mapWsfVesselLocations = (
         return undefined;
       }
     })
-    .filter((loc): loc is ConvexVesselLocation => loc !== undefined);
+    .filter((loc): loc is ConvexVesselLocationIncoming => loc !== undefined);
 
 /**
  * Normalizes one raw WSF vessel-location row into canonical storage shape.
@@ -60,7 +60,7 @@ const normalizeWsfVesselLocationRow = (
   row: WsfVesselLocation,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
-): ConvexVesselLocation => {
+): ConvexVesselLocationIncoming => {
   const rawDepartAbbrev = trimFeedStr(row.DepartingTerminalAbbrev);
   if (!rawDepartAbbrev) {
     throw new Error(

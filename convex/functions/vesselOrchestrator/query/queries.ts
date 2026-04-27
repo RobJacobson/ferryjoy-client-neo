@@ -5,6 +5,7 @@
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
+import { vesselLocationValidationSchema } from "functions/vesselLocation/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -43,5 +44,20 @@ export const getOrchestratorModelData = internalQuery({
       terminalsIdentity: terminals.map(stripConvexMeta),
       activeTrips: trips.map(stripConvexMeta),
     };
+  },
+});
+
+/**
+ * Loads the current persisted live vessel locations for ingest-state lookups.
+ *
+ * @param ctx - Convex query context for database reads
+ * @returns Storage-native live vessel location rows without Convex metadata
+ */
+export const getCurrentVesselLocationsForIngest = internalQuery({
+  args: {},
+  returns: v.array(vesselLocationValidationSchema),
+  handler: async (ctx) => {
+    const locations = await ctx.db.query("vesselLocations").collect();
+    return locations.map(stripConvexMeta);
   },
 });

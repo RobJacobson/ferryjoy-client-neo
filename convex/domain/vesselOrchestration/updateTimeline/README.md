@@ -12,7 +12,7 @@ On the shipped path these rows are **not** written by a separate “timeline-onl
 
 ## Production call chain
 
-1. [`action/actions.ts`](../../../functions/vesselOrchestrator/action/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), normalize locations (**`loadVesselLocationUpdates`**), **`bulkUpsertVesselLocations`** (full batch; mutation returns **changed** rows only).
+1. [`action/actions.ts`](../../../functions/vesselOrchestrator/action/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), update locations (**`updateVesselLocations`** stage: fetch + normalize + `AtDockObserved` + persist), then process per-vessel changed rows.
 2. Per changed vessel: **`computeTripStageForLocation`** runs **`updateVesselTrip`**, **`runPredictionStage`**, and **`buildTripWritesForVessel`** → sparse **`tripWrites`**, **`predictionRows`**, **`mlTimelineOverlays`**.
 3. **`toTimelineHandoffFromTripWrites`** maps **`tripWrites`** → **`PersistedTripTimelineHandoff`** for **`updateTimeline`**.
 4. **`updateTimeline`** merges ML overlays (**`completedHandoffKey`** alignment uses shared **`buildCompletedHandoffKey`** from [`../shared/pingHandshake/completedHandoffKey.ts`](../shared/pingHandshake/completedHandoffKey.ts)).

@@ -91,6 +91,7 @@ const makeLocation = (
   TimeStamp: ms("2026-03-13T06:28:45-07:00"),
   RouteAbbrev: "ana-sj",
   ...overrides,
+  AtDockObserved: overrides.AtDockObserved ?? false,
 });
 
 describe("updateVesselTrip", () => {

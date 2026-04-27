@@ -2,16 +2,16 @@
  * Vessel orchestrator actions.
  */
 
-import { api, internal } from "_generated/api";
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
-import { loadVesselLocationUpdates } from "./pipeline/location";
 import { createScheduleContinuityAccess } from "./pipeline/scheduleContinuity";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
 import { toTimelineHandoffFromTripWrites } from "./pipeline/timelineHandoff";
 import { computeTripStageForLocation } from "./pipeline/tripStage";
+import { updateVesselLocations } from "./pipeline/updateVesselLocations";
 
 /**
  * Runs one orchestrator tick from location ingest through per-vessel writes.
@@ -62,19 +62,11 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   // Stamp the ping once so downstream timeline rows share the same tick time.
   const pingStartedAt = Date.now();
 
-  // Normalize the raw WSF batch before any mutation-side dedupe/write decisions.
-  const locationUpdates = await loadVesselLocationUpdates({
+  // Update location rows: fetch, normalize, augment, persist, and dedupe.
+  const dedupedLocationUpdates = await updateVesselLocations(ctx, {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });
-
-  // Persist locations first and only process vessels whose rows actually changed.
-  const dedupedLocationUpdates = await ctx.runMutation(
-    api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
-    {
-      locations: Array.from(locationUpdates),
-    }
-  );
 
   // Reuse one memoized schedule adapter for all per-vessel trip continuity reads.
   const scheduleAccess = createScheduleContinuityAccess(ctx);

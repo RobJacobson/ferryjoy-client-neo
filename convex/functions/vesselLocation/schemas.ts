@@ -38,9 +38,9 @@ const vesselLocationBaseValidationFields = {
 } as const;
 
 /**
- * Stored vessel-location fields, including derived terminal distances.
+ * Incoming normalized vessel-location fields before persistence-only enrichment.
  */
-export const vesselLocationValidationFields = {
+export const vesselLocationIncomingValidationFields = {
   ...vesselLocationBaseValidationFields,
   /** Feed-derived schedule segment composite (not physical trip identity). */
   ScheduleKey: v.optional(v.string()),
@@ -49,12 +49,34 @@ export const vesselLocationValidationFields = {
 } as const;
 
 /**
+ * Stored vessel-location fields, including derived terminal distances.
+ */
+export const vesselLocationValidationFields = {
+  ...vesselLocationIncomingValidationFields,
+  AtDockObserved: v.boolean(),
+} as const;
+
+/**
+ * Convex validator for incoming normalized vessel locations before persistence.
+ */
+export const vesselLocationIncomingValidationSchema = v.object(
+  vesselLocationIncomingValidationFields
+);
+
+/**
  * Convex validator for vessel locations (numbers)
  * This is used in defineTable and function argument validation
  */
 export const vesselLocationValidationSchema = v.object(
   vesselLocationValidationFields
 );
+
+/**
+ * Type for normalized vessel location before persistence-side enrichment.
+ */
+export type ConvexVesselLocationIncoming = Infer<
+  typeof vesselLocationIncomingValidationSchema
+>;
 
 /**
  * Type for vessel location in Convex storage (with numbers)

@@ -263,7 +263,7 @@ The timeline overlay path is designed to stay lightweight:
 ## Core files
 
 - `action/actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location upsert via `bulkUpsertVesselLocations`, per-vessel trip/prediction planning, timeline projection, and write-only mutation calls.
-- `action/pipeline/location.ts` — shared location normalization helper for the orchestrator ping.
+- `action/pipeline/updateVesselLocations/updateVesselLocations.ts` — location update stage (fetch, normalize, augment with `AtDockObserved`, persist, and return changed rows).
 - `action/pipeline/scheduleContinuity.ts` — targeted cached `eventsScheduled` access for continuity lookups during the trip stage.
 - `action/pipeline/prediction.ts` — changed-trip prediction gating plus ML model preload and prediction execution.
 - `action/pipeline/tripStage.ts` — per-vessel trip-stage compute and prediction-stage gating.

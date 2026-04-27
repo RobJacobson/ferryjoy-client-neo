@@ -130,6 +130,7 @@ export const makeVesselLocation = (
   TimeStamp: at(7, 50),
   ScheduleKey: "trip-1",
   ...overrides,
+  AtDockObserved: overrides.AtDockObserved ?? true,
 });
 
 export const makeTimelineItem = ({

@@ -24,29 +24,36 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
     ]);
 
     const mutationCalls: unknown[] = [];
+    let runQueryCallCount = 0;
     const ctx = {
-      runQuery: async () => ({
-        vesselsIdentity: [
-          { VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" },
-        ],
-        terminalsIdentity: [
-          {
-            TerminalID: 1,
-            TerminalName: "Anacortes",
-            TerminalAbbrev: "ANA",
-            Latitude: 48.507351,
-            Longitude: -122.677,
-          },
-          {
-            TerminalID: 15,
-            TerminalName: "Orcas Island",
-            TerminalAbbrev: "ORI",
-            Latitude: 48.597313,
-            Longitude: -122.92935,
-          },
-        ],
-        activeTrips: [],
-      }),
+      runQuery: async () => {
+        runQueryCallCount += 1;
+        if (runQueryCallCount === 1) {
+          return {
+            vesselsIdentity: [
+              { VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" },
+            ],
+            terminalsIdentity: [
+              {
+                TerminalID: 1,
+                TerminalName: "Anacortes",
+                TerminalAbbrev: "ANA",
+                Latitude: 48.507351,
+                Longitude: -122.677,
+              },
+              {
+                TerminalID: 15,
+                TerminalName: "Orcas Island",
+                TerminalAbbrev: "ORI",
+                Latitude: 48.597313,
+                Longitude: -122.92935,
+              },
+            ],
+            activeTrips: [],
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return [];
@@ -61,11 +68,13 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
     const firstCall = mutationCalls[0] as {
       locations: Array<{
         VesselAbbrev: string;
+        AtDockObserved: boolean;
         ScheduleKey?: string;
       }>;
     };
     expect(firstCall.locations).toHaveLength(1);
     expect(firstCall.locations[0]?.VesselAbbrev).toBe("CHE");
+    expect(firstCall.locations[0]?.AtDockObserved).toBe(false);
     expect(firstCall.locations[0]?.ScheduleKey).toBe(
       "CHE--2026-03-13--05:30--ANA-ORI"
     );
@@ -82,30 +91,37 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
     ]);
 
     const mutationCalls: unknown[] = [];
+    let runQueryCallCount = 0;
     const ctx = {
-      runQuery: async () => ({
-        vesselsIdentity: [
-          { VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" },
-          { VesselID: 3, VesselName: "Tacoma", VesselAbbrev: "TAC" },
-        ],
-        terminalsIdentity: [
-          {
-            TerminalID: 1,
-            TerminalName: "Anacortes",
-            TerminalAbbrev: "ANA",
-            Latitude: 48.507351,
-            Longitude: -122.677,
-          },
-          {
-            TerminalID: 15,
-            TerminalName: "Orcas Island",
-            TerminalAbbrev: "ORI",
-            Latitude: 48.597313,
-            Longitude: -122.92935,
-          },
-        ],
-        activeTrips: [],
-      }),
+      runQuery: async () => {
+        runQueryCallCount += 1;
+        if (runQueryCallCount === 1) {
+          return {
+            vesselsIdentity: [
+              { VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" },
+              { VesselID: 3, VesselName: "Tacoma", VesselAbbrev: "TAC" },
+            ],
+            terminalsIdentity: [
+              {
+                TerminalID: 1,
+                TerminalName: "Anacortes",
+                TerminalAbbrev: "ANA",
+                Latitude: 48.507351,
+                Longitude: -122.677,
+              },
+              {
+                TerminalID: 15,
+                TerminalName: "Orcas Island",
+                TerminalAbbrev: "ORI",
+                Latitude: 48.597313,
+                Longitude: -122.92935,
+              },
+            ],
+            activeTrips: [],
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return [];
