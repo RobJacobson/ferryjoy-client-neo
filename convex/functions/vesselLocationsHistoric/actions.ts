@@ -51,8 +51,7 @@ export const captureHistoricVesselLocations = internalAction({
       terminalsIdentity: terminalIdentities,
     });
     const existingLocations = await ctx.runQuery(
-      internal.functions.vesselOrchestrator.query.queries
-        .getCurrentVesselLocationsForIngest
+      internal.functions.vesselLocation.queries.getCurrentVesselLocations
     );
     const locationsWithObserved = withAtDockObserved(
       existingLocations,

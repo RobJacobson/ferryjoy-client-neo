@@ -47,8 +47,7 @@ export const updateVesselLocations = async (
 
   // Load current persisted live locations for observed-state continuity.
   const existingLocations = await ctx.runQuery(
-    internal.functions.vesselOrchestrator.query.queries
-      .getCurrentVesselLocationsForIngest
+    internal.functions.vesselLocation.queries.getCurrentVesselLocations
   );
 
   // Apply AtDockObserved heuristic using prior persisted vessel state.
