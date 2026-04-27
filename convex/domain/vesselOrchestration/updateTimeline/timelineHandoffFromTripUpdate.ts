@@ -1,0 +1,71 @@
+/**
+ * Derive a {@link PersistedTripTimelineHandoff} from a sparse trip update.
+ *
+ * Pure helper colocated with `updateTimeline` so the timeline domain owns its
+ * own input derivation from upstream trip rows.
+ */
+
+import {
+  buildCompletionTripEvents,
+  currentTripEvents,
+  type PersistedTripTimelineHandoff,
+} from "domain/vesselOrchestration/shared";
+import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+
+/**
+ * Builds the timeline handoff input from existing and updated trip rows.
+ *
+ * @param tripUpdate - Sparse trip update rows for the current vessel branch
+ * @returns Timeline handoff used by the timeline projection stage
+ */
+export const timelineHandoffFromTripUpdate = (
+  tripUpdate: VesselTripUpdate
+): PersistedTripTimelineHandoff => {
+  const existingActiveTrip = tripUpdate.existingActiveTrip;
+  const activeTrip = tripUpdate.activeVesselTripUpdate;
+  const completedTrip = tripUpdate.completedVesselTripUpdate;
+  const completedTripFacts =
+    existingActiveTrip === undefined || completedTrip === undefined
+      ? []
+      : [
+          {
+            existingTrip: existingActiveTrip,
+            tripToComplete: completedTrip,
+            events: buildCompletionTripEvents(
+              existingActiveTrip,
+              completedTrip
+            ),
+            scheduleTrip: activeTrip ?? completedTrip,
+          },
+        ];
+  const events =
+    activeTrip === undefined
+      ? undefined
+      : currentTripEvents(existingActiveTrip, activeTrip);
+  const pendingActualWrite =
+    activeTrip === undefined ||
+    events === undefined ||
+    (!events.didJustLeaveDock && !events.didJustArriveAtDock)
+      ? undefined
+      : {
+          events,
+          scheduleTrip: activeTrip,
+          vesselAbbrev: activeTrip.VesselAbbrev,
+        };
+  const pendingPredictedWrite =
+    activeTrip === undefined
+      ? undefined
+      : {
+          existingTrip: existingActiveTrip,
+          scheduleTrip: activeTrip,
+          vesselAbbrev: activeTrip.VesselAbbrev,
+        };
+  return {
+    completedTripFacts,
+    currentBranch: {
+      successfulVesselAbbrev: activeTrip?.VesselAbbrev,
+      pendingActualWrite,
+      pendingPredictedWrite,
+    },
+  };
+};

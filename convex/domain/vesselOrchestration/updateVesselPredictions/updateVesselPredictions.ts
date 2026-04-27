@@ -16,6 +16,7 @@ import type {
   RunUpdateVesselPredictionsOutput,
   VesselPredictionContext,
 } from "./contracts";
+import { predictionInputsFromTripUpdate } from "./predictionInputsFromTripUpdate";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
 export type UpdateVesselPredictionsOutput = RunUpdateVesselPredictionsOutput & {
@@ -85,23 +86,39 @@ const buildPredictedCompletedHandoff = async (
 /**
  * Canonical predictions entrypoint for orchestrator callers.
  *
- * @param input - Current and completed trip facts plus model access context
+ * Derives prediction inputs internally from the upstream trip update and
+ * short-circuits with empty output when there is no active or completed trip
+ * to predict against.
+ *
+ * @param input - Upstream trip update plus model access context
  * @returns Prediction rows and timeline ML overlays for this ping
  */
 export const updateVesselPredictions = async (
   input: RunUpdateVesselPredictionsInput
 ): Promise<UpdateVesselPredictionsOutput> => {
+  const { activeTrip, completedHandoff } = predictionInputsFromTripUpdate(
+    input.tripUpdate
+  );
+  if (activeTrip === undefined && completedHandoff === undefined) {
+    return {
+      predictionRows: [],
+      mlTimelineOverlays: [],
+    };
+  }
+
   const modelAccess = predictionModelAccessFromContext(input.predictionContext);
+  const completedHandoffs =
+    completedHandoff === undefined ? [] : [completedHandoff];
+  const activeTrips = activeTrip === undefined ? [] : [activeTrip];
+
   const mlTimelineOverlays = [
     ...(await Promise.all(
-      input.completedHandoffs.map((handoff) =>
+      completedHandoffs.map((handoff) =>
         buildPredictedCompletedHandoff(handoff, modelAccess)
       )
     )),
     ...(await Promise.all(
-      input.activeTrips.map((trip) =>
-        buildPredictedCurrentTrip(trip, modelAccess)
-      )
+      activeTrips.map((trip) => buildPredictedCurrentTrip(trip, modelAccess))
     )),
   ];
 

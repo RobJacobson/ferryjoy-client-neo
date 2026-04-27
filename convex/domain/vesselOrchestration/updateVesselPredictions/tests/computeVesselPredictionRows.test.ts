@@ -74,8 +74,12 @@ describe("updateVesselPredictions", () => {
     const trip = makeTrip();
 
     const output = await updateVesselPredictions({
-      activeTrips: [trip],
-      completedHandoffs: [],
+      tripUpdate: {
+        vesselAbbrev: trip.VesselAbbrev,
+        existingActiveTrip: undefined,
+        activeVesselTripUpdate: trip,
+        completedVesselTripUpdate: undefined,
+      },
       predictionContext: richContext,
     });
 
@@ -96,22 +100,12 @@ describe("updateVesselPredictions", () => {
     });
 
     const output = await updateVesselPredictions({
-      activeTrips: [],
-      completedHandoffs: [
-        {
-          existingTrip: trip,
-          tripToComplete: completedTrip,
-          events: {
-            isFirstTrip: false,
-            isTripStartReady: false,
-            isCompletedTrip: true,
-            didJustArriveAtDock: true,
-            didJustLeaveDock: false,
-            scheduleKeyChanged: false,
-          },
-          scheduleTrip: trip,
-        },
-      ],
+      tripUpdate: {
+        vesselAbbrev: trip.VesselAbbrev,
+        existingActiveTrip: trip,
+        activeVesselTripUpdate: undefined,
+        completedVesselTripUpdate: completedTrip,
+      },
       predictionContext: richContext,
     });
 
@@ -127,8 +121,12 @@ describe("updateVesselPredictions", () => {
     const trip = makeTrip();
 
     const output = await updateVesselPredictions({
-      activeTrips: [trip],
-      completedHandoffs: [],
+      tripUpdate: {
+        vesselAbbrev: trip.VesselAbbrev,
+        existingActiveTrip: undefined,
+        activeVesselTripUpdate: trip,
+        completedVesselTripUpdate: undefined,
+      },
       predictionContext: {},
     });
 

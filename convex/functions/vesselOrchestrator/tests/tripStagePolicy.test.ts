@@ -1,9 +1,9 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
+import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { runStage2UpdateVesselTrip } from "../action/pipeline/stage-2-updateVesselTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -76,20 +76,21 @@ const makeLocationUpdate = (
   overrides: Partial<ConvexVesselLocation> = {}
 ): ConvexVesselLocation => makeLocation(vesselAbbrev, overrides);
 
-describe("trip stage schedule-inference gating", () => {
+describe("updateVesselTrip stage-2 policy", () => {
   it("returns sparse writes for one changed location update", async () => {
     const scheduleAccess: ScheduleContinuityAccess = {
       getScheduledDeparturesForVesselAndSailingDay: async () => [],
       getScheduledSegmentByKey: async () => null,
     };
-    const tripStage = await runStage2UpdateVesselTrip(
-      makeLocationUpdate("CHE"),
-      makeTrip("CHE"),
-      scheduleAccess
-    );
+    const tripStage = await updateVesselTrip({
+      vesselLocation: makeLocationUpdate("CHE"),
+      existingActiveTrip: makeTrip("CHE"),
+      scheduleAccess,
+    });
 
     expect(tripStage).not.toBeNull();
-    expect(tripStage?.updatedTrips.activeVesselTrip).toBeDefined();
+    expect(tripStage?.existingActiveTrip).toBeDefined();
+    expect(tripStage?.activeVesselTripUpdate).toBeDefined();
   });
 
   it("returns null when a vessel trip update emits no writes", async () => {
@@ -106,23 +107,23 @@ describe("trip stage schedule-inference gating", () => {
     };
     computeTripSpy.mockImplementation(
       async (input: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]) => {
+        if (input.vesselLocation.VesselAbbrev === "CHE") {
+          return null;
+        }
         return {
           vesselAbbrev: "TAC",
-          activeVesselTripUpdate:
-            input.vesselLocation.VesselAbbrev === "CHE"
-              ? undefined
-              : healthyActiveTrip,
+          activeVesselTripUpdate: healthyActiveTrip,
           completedVesselTripUpdate: undefined,
         };
       }
     );
 
     try {
-      const tripStage = await runStage2UpdateVesselTrip(
-        makeLocationUpdate("CHE"),
-        makeTrip("CHE"),
-        scheduleAccess
-      );
+      const tripStage = await updateVesselTrip({
+        vesselLocation: makeLocationUpdate("CHE"),
+        existingActiveTrip: makeTrip("CHE"),
+        scheduleAccess,
+      });
 
       expect(tripStage).toBeNull();
     } finally {

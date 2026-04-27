@@ -115,9 +115,7 @@ describe("updateVesselTrip", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.vesselAbbrev).toBe(existingTrip.VesselAbbrev);
-      expect(result.activeVesselTripUpdate).toBeUndefined();
-      expect(result.completedVesselTripUpdate).toBeUndefined();
+      expect(result).toBeNull();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
@@ -147,9 +145,7 @@ describe("updateVesselTrip", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
-      expect(result.activeVesselTripUpdate).toBeUndefined();
-      expect(result.completedVesselTripUpdate).toBeUndefined();
+      expect(result).toBeNull();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
@@ -181,9 +177,9 @@ describe("updateVesselTrip", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
-      expect(result.activeVesselTripUpdate).toEqual(updatedTrip);
-      expect(result.completedVesselTripUpdate).toBeUndefined();
+      expect(result?.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
+      expect(result?.activeVesselTripUpdate).toEqual(updatedTrip);
+      expect(result?.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
@@ -226,9 +222,9 @@ describe("updateVesselTrip", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.vesselAbbrev).toBe(replacementTrip.VesselAbbrev);
-      expect(result.activeVesselTripUpdate).toEqual(replacementTrip);
-      expect(result.completedVesselTripUpdate).toEqual(completedTrip);
+      expect(result?.vesselAbbrev).toBe(replacementTrip.VesselAbbrev);
+      expect(result?.activeVesselTripUpdate).toEqual(replacementTrip);
+      expect(result?.completedVesselTripUpdate).toEqual(completedTrip);
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
@@ -255,9 +251,7 @@ describe("updateVesselTrip", () => {
         scheduleAccess: scheduleTables,
       });
 
-      expect(result.vesselAbbrev).toBe(existingTrip.VesselAbbrev);
-      expect(result.activeVesselTripUpdate).toBeUndefined();
-      expect(result.completedVesselTripUpdate).toBeUndefined();
+      expect(result).toBeNull();
     } finally {
       detectSpy.mockRestore();
       tripFieldsSpy.mockRestore();

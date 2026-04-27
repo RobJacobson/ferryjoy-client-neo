@@ -4,9 +4,8 @@
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/shared";
+import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /**
  * Plain-data prediction preload blob expected by the Stage A public contract.
@@ -27,8 +26,7 @@ export type VesselPredictionContext = {
 export type VesselTripPredictionRow = VesselTripPredictionProposal;
 
 export type RunUpdateVesselPredictionsInput = {
-  activeTrips: ReadonlyArray<ConvexVesselTrip>;
-  completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>;
+  tripUpdate: VesselTripUpdate;
   predictionContext: VesselPredictionContext;
 };
 

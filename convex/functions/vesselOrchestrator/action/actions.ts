@@ -2,16 +2,17 @@
  * Vessel orchestrator actions.
  */
 
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
+import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
+import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import { createScheduleContinuityAccess } from "./pipeline/scheduleContinuity";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
 import { runStage1UpdateVesselLocations } from "./pipeline/stage-1-updateVesselLocations";
-import { runStage2UpdateVesselTrip } from "./pipeline/stage-2-updateVesselTrip";
-import { runStage3UpdateVesselPredictions } from "./pipeline/stage-3-updateVesselPredictions";
-import { runStage4UpdateTimeline } from "./pipeline/stage-4-updateTimeline";
-import { runStage5PersistOrchestratorWrites } from "./pipeline/stage-5-persistOrchestratorWrites";
+import { loadPredictionContext } from "./predictionContextLoader";
 
 /**
  * Runs one orchestrator tick from location ingest through per-vessel writes.
@@ -20,9 +21,10 @@ import { runStage5PersistOrchestratorWrites } from "./pipeline/stage-5-persistOr
  * that coordinates cross-module sequencing for a live ping. It exists to keep
  * domain logic pure while centralizing side-effect ordering across
  * `action/pipeline/*`, `functions/vesselLocation/mutations`, and
- * `mutation/mutations`. The handler delegates most compute to pipeline helpers,
- * but intentionally owns failure semantics and stage order so trip, prediction,
- * and timeline writes stay causally aligned for the same vessel update.
+ * `mutation/mutations`. The handler delegates most compute to domain
+ * functions, but intentionally owns failure semantics and stage order so trip,
+ * prediction, and timeline writes stay causally aligned for the same vessel
+ * update.
  *
  * @param ctx - Convex action context for reads, mutations, and logging
  * @returns `null` after processing completes
@@ -48,9 +50,10 @@ export const updateVesselOrchestrator = internalAction({
  * This internal runner preserves the invariant that one WSF batch drives one
  * consistent orchestrator pass. It first builds a baseline snapshot from the
  * query module, then runs location normalization/dedupe, then executes sparse
- * per-vessel stage compute and persistence. Keeping this flow in one function
- * makes control-flow intent explicit while keeping stage details encapsulated
- * in pipeline helpers and mutation/query module boundaries.
+ * per-vessel domain compute and persistence. Keeping this flow in one
+ * function makes control-flow intent explicit while keeping domain details
+ * encapsulated in `domain/vesselOrchestration/*` and the persistence
+ * mutation boundary.
  *
  * @param ctx - Convex action context used throughout the ping
  * @returns Resolves when this ping has processed all changed vessels
@@ -62,7 +65,15 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   // Stamp the ping once so downstream timeline rows share the same tick time.
   const pingStartedAt = Date.now();
 
-  // Update location rows: fetch, normalize, augment, persist, and dedupe.
+  /**
+   * Stage 1: updateVesselLocations
+   *
+   * Take the latest fleet snapshot from WSF, normalize it with vessel/terminal
+   * identity data, and persist only rows that actually changed.
+   *
+   * Why: all downstream trip/prediction/timeline work should run only for
+   * vessels with new location evidence in this ping.
+   */
   const dedupedLocationUpdates = await runStage1UpdateVesselLocations(ctx, {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
@@ -83,50 +94,100 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         vesselLocation.VesselAbbrev
       );
 
-      // Compute sparse trip/prediction writes from this location change only.
-      const tripStageResult = await runStage2UpdateVesselTrip(
+      /**
+       * Stage 2: updateVesselTrip
+       *
+       * Core trip-lifecycle step: combine the previous `existingActiveTrip` with
+       * this ping's `vesselLocation` to determine whether we completed a trip,
+       * updated the active trip, both, or neither.
+       *
+       * Output is sparse durable trip state: `VesselTripUpdate | null`.
+       */
+      const tripUpdate = await updateVesselTrip({
         vesselLocation,
         existingActiveTrip,
-        scheduleAccess
-      );
+        scheduleAccess,
+      });
 
-      // Skip persistence entirely when the trip stage produced no durable changes.
-      if (tripStageResult === null) {
+      // Skip persistence entirely when there are no vessel-trip updates.
+      if (tripUpdate === null) {
         continue;
       }
 
-      const predictionStageResult = await runStage3UpdateVesselPredictions(
-        ctx,
-        tripStageResult.predictionInputs
-      );
+      /**
+       * Stage 3: updateVesselPredictions
+       *
+       * Use `tripUpdate` as the truth of what changed, load only the model
+       * context needed for this vessel, then compute prediction proposals and
+       * same-ping ML overlays.
+       *
+       * Why: keep prediction work targeted and ensure timeline projection uses
+       * the exact ML output computed for this ping.
+       */
+      const predictionContext = await loadPredictionContext(ctx, tripUpdate);
+      const { predictionRows, mlTimelineOverlays } =
+        await updateVesselPredictions({
+          tripUpdate,
+          predictionContext,
+        });
 
-      const timelineRows = runStage4UpdateTimeline({
+      /**
+       * Stage 4: updateTimeline
+       *
+       * Combine ping time + trip deltas + ML overlays to project timeline event
+       * rows (`actualEvents`, `predictedEvents`) for this vessel.
+       *
+       * Why: timeline writes should be derived from the same trip and prediction
+       * evidence that this ping just computed, not from a separate read pass.
+       */
+      const timelineRows = updateTimeline({
         pingStartedAt,
-        updatedTrips: tripStageResult.updatedTrips,
-        mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
+        tripUpdate,
+        mlTimelineOverlays,
       });
 
-      const { activeVesselTrip, completedVesselTrip } = tripStageResult.updatedTrips;
+      const { activeVesselTripUpdate, completedVesselTripUpdate } = tripUpdate;
 
-      if (activeVesselTrip !== undefined) {
+      if (activeVesselTripUpdate !== undefined) {
         console.log("[updateVesselOrchestrator] updated active vessel trip", {
           vesselAbbrev: vesselLocation.VesselAbbrev,
           previousActiveTrip: existingActiveTrip ?? null,
-          nextActiveTrip: activeVesselTrip,
+          nextActiveTrip: activeVesselTripUpdate,
         });
       }
-      if (completedVesselTrip !== undefined) {
-        console.log("[updateVesselOrchestrator] updated completed vessel trip", {
-          vesselAbbrev: vesselLocation.VesselAbbrev,
-          previousActiveTrip: existingActiveTrip ?? null,
-          completedVesselTrip,
-        });
+      if (completedVesselTripUpdate !== undefined) {
+        console.log(
+          "[updateVesselOrchestrator] updated completed vessel trip",
+          {
+            vesselAbbrev: vesselLocation.VesselAbbrev,
+            previousActiveTrip: existingActiveTrip ?? null,
+            completedVesselTrip: completedVesselTripUpdate,
+          }
+        );
       }
-      await runStage5PersistOrchestratorWrites(ctx, {
-        updatedTrips: tripStageResult.updatedTrips,
-        predictionRows: predictionStageResult.predictionRows,
-        timelineRows,
-      });
+
+      /**
+       * Stage 5: persistPerVesselOrchestratorWrites
+       *
+       * Persist all per-vessel outputs from this ping in one ordered mutation:
+       * trip rows, prediction rows, then timeline rows.
+       *
+       * Why: one mutation keeps side effects for this vessel consistent and
+       * makes partial ordering explicit at the write boundary.
+       */
+      await ctx.runMutation(
+        internal.functions.vesselOrchestrator.mutation.mutations
+          .persistPerVesselOrchestratorWrites,
+        {
+          vesselAbbrev: tripUpdate.vesselAbbrev,
+          existingActiveTrip: tripUpdate.existingActiveTrip,
+          activeVesselTrip: tripUpdate.activeVesselTripUpdate,
+          completedVesselTrip: tripUpdate.completedVesselTripUpdate,
+          predictionRows: Array.from(predictionRows),
+          actualEvents: timelineRows.actualEvents,
+          predictedEvents: timelineRows.predictedEvents,
+        }
+      );
     } catch (error) {
       // Log and continue so one vessel failure does not block other vessel branches.
       const err = error instanceof Error ? error : new Error(String(error));

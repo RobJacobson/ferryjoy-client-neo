@@ -9,7 +9,7 @@
 
 Root exports are intentionally small:
 
-- `updateVesselTrip(input) -> VesselTripUpdate`
+- `updateVesselTrip(input) -> VesselTripUpdate | null` (null when no substantive durable change; errors are caught and return null)
 - `VesselTripUpdate`
 
 The production orchestrator hot path calls `updateVesselTrip` inside its
@@ -73,13 +73,11 @@ Physical phase contract:
 
 Orchestrator change bundle:
 
-- `VesselTripUpdate`
-  - processed `vesselLocation`
-  - prior `existingActiveTrip`
-  - next `activeTripCandidate`
-  - optional `completedTrip`
-  - optional `replacementTrip`
-  - storage/lifecycle change flags
+- `VesselTripUpdate` (see `types.ts`)
+  - `vesselAbbrev`
+  - `existingActiveTrip?` — prior row for this vessel (debug + downstream derivation)
+  - `activeVesselTripUpdate?` — active row to upsert when it changed substantively
+  - `completedVesselTripUpdate?` — completed row when a leg finished this ping
 
 Shared cross-module contracts such as trip lifecycle event flags and storage
 equality live in `domain/vesselOrchestration/shared`, not in this folder.

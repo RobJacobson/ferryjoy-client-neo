@@ -22,5 +22,9 @@ export type {
   CompactScheduledDepartureEvent,
   ScheduleSnapshot,
 } from "./scheduleSnapshot/scheduleSnapshotTypes";
-export type { TripLifecycleEventFlags } from "./tripLifecycle";
+export {
+  buildCompletionTripEvents,
+  currentTripEvents,
+  type TripLifecycleEventFlags,
+} from "./tripLifecycle";
 export { areTripStorageRowsEqual } from "./tripStorage";

@@ -28,4 +28,5 @@ export type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
+export { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";
 export { updateTimeline } from "./updateTimeline";
