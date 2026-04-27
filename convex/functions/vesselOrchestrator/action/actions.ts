@@ -11,7 +11,7 @@ import { updateVesselPredictions } from "domain/vesselOrchestration/updateVessel
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import { createScheduleContinuityAccess } from "./pipeline/scheduleContinuity";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
-import { runStage1UpdateVesselLocations } from "./pipeline/updateVesselLocations";
+import { runUpdateVesselLocations } from "./pipeline/updateVesselLocations";
 import { loadPredictionContext } from "./predictionContextLoader";
 
 /**
@@ -74,7 +74,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
    * Why: all downstream trip/prediction/timeline work should run only for
    * vessels with new location evidence in this ping.
    */
-  const dedupedLocationUpdates = await runStage1UpdateVesselLocations(ctx, {
+  const dedupedLocationUpdates = await runUpdateVesselLocations(ctx, {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });

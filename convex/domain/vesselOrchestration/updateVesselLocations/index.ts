@@ -5,9 +5,9 @@
  * continues to own external fetch and persistence sequencing.
  */
 
+export { addAtDockObserved as withAtDockObserved } from "./addAtDockObserved";
 export type {
   RunUpdateVesselLocationsInput,
   RunUpdateVesselLocationsOutput,
 } from "./contracts";
 export { updateVesselLocations } from "./updateVesselLocations";
-export { withAtDockObserved } from "./withAtDockObserved";

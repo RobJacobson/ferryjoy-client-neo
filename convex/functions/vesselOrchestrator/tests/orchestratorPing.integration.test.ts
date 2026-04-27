@@ -14,8 +14,8 @@ import {
 } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as adapters from "adapters";
-import * as updateVesselPredictionsModule from "domain/vesselOrchestration/updateVesselPredictions";
 import * as updateTimelineModule from "domain/vesselOrchestration/updateTimeline";
+import * as updateVesselPredictionsModule from "domain/vesselOrchestration/updateVesselPredictions";
 import * as updateVesselTripModule from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -129,13 +129,14 @@ describe("updateVesselOrchestrator ping integration", () => {
       makeRawLocation(),
     ]);
 
-    const tripSpy = spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue(
-      {
-        vesselAbbrev: "CHE",
-        existingActiveTrip: undefined,
-        activeVesselTripUpdate: makeTrip("CHE"),
-      }
-    );
+    const tripSpy = spyOn(
+      updateVesselTripModule,
+      "updateVesselTrip"
+    ).mockResolvedValue({
+      vesselAbbrev: "CHE",
+      existingActiveTrip: undefined,
+      activeVesselTripUpdate: makeTrip("CHE"),
+    });
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
       "updateVesselPredictions"
@@ -143,28 +144,26 @@ describe("updateVesselOrchestrator ping integration", () => {
       predictionRows: [],
       mlTimelineOverlays: [],
     });
-    const timelineSpy = spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
+    const timelineSpy = spyOn(
+      updateTimelineModule,
+      "updateTimeline"
+    ).mockReturnValue({
       actualEvents: [],
       predictedEvents: [],
     });
 
     const mutationCalls: unknown[] = [];
-    let runQueryCallCount = 0;
     const ctx = {
-      runQuery: async () => {
-        runQueryCallCount += 1;
-        if (runQueryCallCount === 1) {
-          return {
-            vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
-            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-            activeTrips: [],
-          };
-        }
-        return [];
-      },
+      runQuery: async () => ({
+        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+        activeTrips: [],
+      }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return mutationCalls.length === 1 ? [makeNormalizedCheLocation()] : null;
+        return mutationCalls.length === 1
+          ? [makeNormalizedCheLocation()]
+          : null;
       },
     } as unknown as ActionCtx;
 
@@ -202,19 +201,12 @@ describe("updateVesselOrchestrator ping integration", () => {
     const timelineSpy = spyOn(updateTimelineModule, "updateTimeline");
 
     const mutationCalls: unknown[] = [];
-    let runQueryCallCount = 0;
     const ctx = {
-      runQuery: async () => {
-        runQueryCallCount += 1;
-        if (runQueryCallCount === 1) {
-          return {
-            vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
-            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-            activeTrips: [],
-          };
-        }
-        return [];
-      },
+      runQuery: async () => ({
+        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+        activeTrips: [],
+      }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return [];
@@ -232,7 +224,10 @@ describe("updateVesselOrchestrator ping integration", () => {
 
   it("continues other vessels when one vessel pipeline throws", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
-      makeRawLocation({ VesselID: 2, VesselName: "Chelan", VesselAbbrev: "CHE" }),
+      makeRawLocation({
+        VesselID: 2,
+        VesselName: "Chelan",
+      }),
       makeRawLocation({
         VesselID: 3,
         VesselName: "Tacoma",
@@ -252,7 +247,10 @@ describe("updateVesselOrchestrator ping integration", () => {
         };
       }
     );
-    spyOn(updateVesselPredictionsModule, "updateVesselPredictions").mockResolvedValue({
+    spyOn(
+      updateVesselPredictionsModule,
+      "updateVesselPredictions"
+    ).mockResolvedValue({
       predictionRows: [],
       mlTimelineOverlays: [],
     });
@@ -261,25 +259,17 @@ describe("updateVesselOrchestrator ping integration", () => {
       predictedEvents: [],
     });
 
-    const consoleErrorSpy = spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = spyOn(console, "error").mockImplementation(
+      () => {}
+    );
 
     const mutationCalls: unknown[] = [];
-    let runQueryCallCount = 0;
     const ctx = {
-      runQuery: async () => {
-        runQueryCallCount += 1;
-        if (runQueryCallCount === 1) {
-          return orchestratorSnapshot;
-        }
-        return [];
-      },
+      runQuery: async () => orchestratorSnapshot,
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         if (mutationCalls.length === 1) {
-          return [
-            makeNormalizedCheLocation(),
-            makeNormalizedTacLocation(),
-          ];
+          return [makeNormalizedCheLocation(), makeNormalizedTacLocation()];
         }
         return null;
       },

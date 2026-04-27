@@ -10,6 +10,7 @@ import { updateVesselLocations } from "../updateVesselLocations";
 
 const vesselsFixture: VesselIdentity[] = [
   { VesselID: 101, VesselName: "Kittitas", VesselAbbrev: "KIT" },
+  { VesselID: 102, VesselName: "Yakima", VesselAbbrev: "YAK" },
 ];
 
 const terminalsFixture: TerminalIdentity[] = [
@@ -52,7 +53,7 @@ describe("updateVesselLocations", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
     const result = updateVesselLocations({
-      rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
+      rawFeedLocations: [unknownVesselRow(998), unknownVesselRow(999)],
       vesselsIdentity: vesselsFixture,
       terminalsIdentity: terminalsFixture,
     });
@@ -83,6 +84,24 @@ describe("updateVesselLocations", () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps one normalized row per VesselID when the raw feed duplicates a vessel (last row wins)", () => {
+    const t1 = new Date("2025-01-01T12:00:00.000Z");
+    const t2 = new Date("2025-01-01T12:00:30.000Z");
+
+    const result = updateVesselLocations({
+      rawFeedLocations: [
+        validRawRow({ TimeStamp: t1, Speed: 1 }),
+        validRawRow({ TimeStamp: t2, Speed: 2 }),
+      ],
+      vesselsIdentity: vesselsFixture,
+      terminalsIdentity: terminalsFixture,
+    });
+
+    expect(result.vesselLocations).toHaveLength(1);
+    expect(result.vesselLocations[0]?.TimeStamp).toBe(t2.getTime());
+    expect(result.vesselLocations[0]?.Speed).toBe(2);
+  });
+
   it("skips rows missing a departing terminal abbreviation", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
@@ -91,7 +110,7 @@ describe("updateVesselLocations", () => {
         validRawRow({
           DepartingTerminalAbbrev: "",
         }),
-        validRawRow(),
+        validRawRow({ VesselID: 102, VesselName: "Yakima" }),
       ],
       vesselsIdentity: vesselsFixture,
       terminalsIdentity: terminalsFixture,
@@ -135,9 +154,9 @@ const validRawRow = (
 /**
  * Raw row that fails vessel resolution against {@link vesselsFixture}.
  */
-const unknownVesselRow = (): WsfVesselLocation =>
+const unknownVesselRow = (vesselId = 999): WsfVesselLocation =>
   ({
     ...validRawRow(),
     VesselName: "Not In Snapshot",
-    VesselID: 999,
+    VesselID: vesselId,
   }) as WsfVesselLocation;
