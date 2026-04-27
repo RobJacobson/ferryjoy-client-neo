@@ -27,9 +27,10 @@ import {
 /**
  * Arguments for {@link buildDockWritesFromTripHandoff}.
  */
-export type BuildDockWritesFromTripHandoffArgs = PersistedTripTimelineHandoff & {
-  pingStartedAt: number;
-};
+export type BuildDockWritesFromTripHandoffArgs =
+  PersistedTripTimelineHandoff & {
+    pingStartedAt: number;
+  };
 
 /**
  * Merges completed-branch then current-branch ping writes for one orchestrator

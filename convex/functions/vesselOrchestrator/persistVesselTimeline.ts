@@ -3,10 +3,10 @@
  */
 
 import type { MutationCtx } from "_generated/server";
-import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { projectPredictedDockWriteBatchesInDb } from "functions/events/eventsPredicted/mutations";
+import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 
 type PersistVesselTimelineWritesArgs = {
   actualEvents: ReadonlyArray<ConvexActualDockEvent>;
@@ -27,6 +27,9 @@ export const persistVesselTimelineWrites = async (
     await upsertActualDockRows(ctx, Array.from(args.actualEvents));
   }
   if (args.predictedEvents.length > 0) {
-    await projectPredictedDockWriteBatchesInDb(ctx, Array.from(args.predictedEvents));
+    await projectPredictedDockWriteBatchesInDb(
+      ctx,
+      Array.from(args.predictedEvents)
+    );
   }
 };

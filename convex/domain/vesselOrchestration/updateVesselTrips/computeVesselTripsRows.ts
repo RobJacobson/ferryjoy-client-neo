@@ -2,11 +2,11 @@
  * Batch trip row computation across vessel location rows.
  */
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { updateVesselTrips } from "./updateVesselTrips";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
 } from "./types";
+import { updateVesselTrips } from "./updateVesselTrips";
 
 /**
  * Computes persisted trip rows for one ping input.

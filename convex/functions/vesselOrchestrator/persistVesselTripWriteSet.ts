@@ -13,9 +13,7 @@ import type {
   CompletedArrivalHandoff,
   PredictedDockWriteIntent,
 } from "domain/vesselOrchestration/shared";
-import {
-  stripTripPredictionsForStorage,
-} from "domain/vesselOrchestration/shared";
+import { stripTripPredictionsForStorage } from "domain/vesselOrchestration/shared";
 import {
   completeAndStartNewTripInDb,
   setDepartNextActualsForMostRecentCompletedTripInDb,
@@ -40,11 +38,7 @@ export const persistVesselTripWrites = async (
   ctx: MutationCtx,
   tripWrites: VesselTripWrites
 ): Promise<void> => {
-  const {
-    completedTripWrite,
-    activeTripUpsert,
-    actualDockWrite,
-  } = tripWrites;
+  const { completedTripWrite, activeTripUpsert, actualDockWrite } = tripWrites;
 
   if (completedTripWrite !== undefined) {
     await completeAndStartNewTripInDb(

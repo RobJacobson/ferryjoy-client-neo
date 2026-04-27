@@ -91,7 +91,9 @@ const getTripFieldInferenceLogContext = ({
   resolvedCurrentTripFields,
 }: TripFieldInferenceInput): TripFieldInferenceLogContext | undefined => {
   const previousTripFields =
-    existingTrip === undefined ? undefined : tripFieldSnapshotFrom(existingTrip);
+    existingTrip === undefined
+      ? undefined
+      : tripFieldSnapshotFrom(existingTrip);
   const resolvedTripFields = tripFieldSnapshotFrom(resolvedCurrentTripFields);
   const rawWsfTripFields = tripFieldSnapshotFrom(location);
   const tripFieldsChanged = !areTripFieldsEqual(

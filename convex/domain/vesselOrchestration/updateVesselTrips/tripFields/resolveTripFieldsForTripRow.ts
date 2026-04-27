@@ -4,12 +4,12 @@
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { TripFieldInferenceInput } from "./tripFieldDiagnostics";
 import { getFallbackTripFields } from "./getFallbackTripFields";
 import { getNextScheduledTripFromExistingTrip } from "./getNextScheduledTripFromExistingTrip";
 import { getRolledOverScheduledTrip } from "./getRolledOverScheduledTrip";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
+import type { TripFieldInferenceInput } from "./tripFieldDiagnostics";
 import type { ResolvedCurrentTripFields, ScheduledTripMatch } from "./types";
 
 type ResolveTripFieldsForTripRowInput = {

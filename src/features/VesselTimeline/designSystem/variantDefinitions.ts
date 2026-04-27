@@ -23,24 +23,23 @@ import type {
 /**
  * Baseline design variant used as the merge root for derived presets.
  */
-const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant =
-  {
-    id: "sea-glass",
-    label: "Sea Glass",
-    description:
-      "Cool coastal glass treatment with aqua accents and misty surfaces.",
-    backgroundColor: "hsla(196, 45%, 93%, 1)",
-    backgroundColors: [
-      "hsla(188, 58%, 80%, 1)",
-      "hsla(176, 46%, 84%, 1)",
-      "hsla(201, 52%, 84%, 1)",
-      "hsla(193, 61%, 78%, 1)",
-      "hsla(178, 40%, 85%, 1)",
-      "hsla(212, 54%, 88%, 1)",
-      "hsla(187, 48%, 82%, 1)",
-    ],
-    timelineTheme: SEA_GLASS_TIMELINE_VISUAL_THEME,
-  };
+const DEFAULT_VESSEL_TIMELINE_DESIGN_VARIANT: VesselTimelineDesignVariant = {
+  id: "sea-glass",
+  label: "Sea Glass",
+  description:
+    "Cool coastal glass treatment with aqua accents and misty surfaces.",
+  backgroundColor: "hsla(196, 45%, 93%, 1)",
+  backgroundColors: [
+    "hsla(188, 58%, 80%, 1)",
+    "hsla(176, 46%, 84%, 1)",
+    "hsla(201, 52%, 84%, 1)",
+    "hsla(193, 61%, 78%, 1)",
+    "hsla(178, 40%, 85%, 1)",
+    "hsla(212, 54%, 88%, 1)",
+    "hsla(187, 48%, 82%, 1)",
+  ],
+  timelineTheme: SEA_GLASS_TIMELINE_VISUAL_THEME,
+};
 
 /**
  * Merges caller input with the baseline variant to produce a full definition.

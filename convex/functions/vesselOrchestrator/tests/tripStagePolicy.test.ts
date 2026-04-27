@@ -113,9 +113,7 @@ describe("trip stage schedule-inference gating", () => {
     } as unknown as ActionCtx;
 
     computeTripSpy.mockImplementation(
-      async (
-        input: Parameters<typeof tripUpdateMod.updateVesselTrips>[0]
-      ) => {
+      async (input: Parameters<typeof tripUpdateMod.updateVesselTrips>[0]) => {
         return {
           vesselAbbrev: "TAC",
           activeVesselTripUpdate:

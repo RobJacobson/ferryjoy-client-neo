@@ -79,13 +79,16 @@ export async function performBulkUpsertVesselLocations(
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      console.error("[bulkUpsertVesselLocations] failed vessel location upsert", {
-        vesselAbbrev: location.VesselAbbrev,
-        vesselId: location.VesselID,
-        timeStamp: location.TimeStamp,
-        message: err.message,
-        stack: err.stack,
-      });
+      console.error(
+        "[bulkUpsertVesselLocations] failed vessel location upsert",
+        {
+          vesselAbbrev: location.VesselAbbrev,
+          vesselId: location.VesselID,
+          timeStamp: location.TimeStamp,
+          message: err.message,
+          stack: err.stack,
+        }
+      );
     }
   }
 

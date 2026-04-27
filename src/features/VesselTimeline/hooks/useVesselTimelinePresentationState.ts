@@ -7,9 +7,7 @@ import { useConvexRouteTimeline } from "@/data/contexts/convex/ConvexRouteTimeli
 import { useConvexVesselLocations } from "@/data/contexts/convex/ConvexVesselLocationsContext";
 import { useTerminalsData } from "@/data/contexts/identity/TerminalsDataContext";
 import { useNowMs } from "@/shared/hooks";
-import {
-  buildRouteModelTimelinePresentationState,
-} from "./presentationStateBuilders";
+import { buildRouteModelTimelinePresentationState } from "./presentationStateBuilders";
 
 /**
  * Builds the screen-level VesselTimeline presentation state from the route

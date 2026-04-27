@@ -5,8 +5,8 @@
  * continues to own external fetch and persistence sequencing.
  */
 
-export { updateVesselLocations } from "./updateVesselLocations";
 export type {
   RunUpdateVesselLocationsInput,
   RunUpdateVesselLocationsOutput,
 } from "./contracts";
+export { updateVesselLocations } from "./updateVesselLocations";

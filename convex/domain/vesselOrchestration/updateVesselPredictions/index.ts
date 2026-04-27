@@ -10,10 +10,6 @@
  * are internal to this folder; tests may import them via relative paths.
  */
 
-export {
-  type UpdateVesselPredictionsOutput,
-  updateVesselPredictions,
-} from "./updateVesselPredictions";
 export type {
   RunUpdateVesselPredictionsInput,
   RunUpdateVesselPredictionsOutput,
@@ -21,3 +17,7 @@ export type {
   VesselTripPredictionRow,
 } from "./contracts";
 export { predictionModelTypesForTrip } from "./predictionPolicy";
+export {
+  type UpdateVesselPredictionsOutput,
+  updateVesselPredictions,
+} from "./updateVesselPredictions";

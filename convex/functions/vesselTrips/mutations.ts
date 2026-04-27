@@ -168,7 +168,9 @@ export const upsertActiveVesselTripInDb = async (
 ): Promise<void> => {
   const existing = await ctx.db
     .query("activeVesselTrips")
-    .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", trip.VesselAbbrev))
+    .withIndex("by_vessel_abbrev", (q) =>
+      q.eq("VesselAbbrev", trip.VesselAbbrev)
+    )
     .first();
 
   if (existing !== null) {
