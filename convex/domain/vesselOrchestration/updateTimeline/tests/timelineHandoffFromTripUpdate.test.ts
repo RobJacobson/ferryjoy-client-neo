@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { projectTimelineFromHandoff } from "../updateTimeline";
+import { timelineHandoffFromTripUpdate } from "../timelineHandoffFromTripUpdate";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -43,37 +43,44 @@ const makeTrip = (
   ...overrides,
 });
 
-describe("projectTimelineFromHandoff", () => {
-  it("applies successful-upsert gating for current-branch messages", () => {
-    const currentTrip = makeTrip("TAC", {
+describe("timelineHandoffFromTripUpdate", () => {
+  it("builds completion-only handoff", () => {
+    const existing = makeTrip("CHE", { ArrivedNextActual: undefined });
+    const completed = makeTrip("CHE", {
+      ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
+      TripEnd: ms("2026-03-13T06:45:00-07:00"),
+    });
+    const result = timelineHandoffFromTripUpdate({
+      vesselAbbrev: "CHE",
+      existingActiveTrip: existing,
+      activeVesselTripUpdate: undefined,
+      completedVesselTripUpdate: completed,
+    });
+    expect(result.completedTripFacts).toHaveLength(1);
+    expect(result.completedTripFacts[0]?.tripToComplete).toEqual(completed);
+    expect(result.currentBranch.pendingActualWrite).toBeUndefined();
+    expect(result.currentBranch.pendingPredictedWrite).toBeUndefined();
+  });
+
+  it("builds active-only current branch handoff", () => {
+    const existing = makeTrip("TAC", { AtDock: true });
+    const active = makeTrip("TAC", {
       AtDock: false,
       LeftDockActual: ms("2026-03-13T06:40:00-07:00"),
       TimeStamp: ms("2026-03-13T06:40:00-07:00"),
     });
-    const handoff = {
-      completedTripFacts: [],
-      currentBranch: {
-        pendingActualWrite: {
-          events: {
-            isFirstTrip: false,
-            isTripStartReady: true,
-            isCompletedTrip: false,
-            didJustArriveAtDock: false,
-            didJustLeaveDock: true,
-            scheduleKeyChanged: false,
-          },
-          scheduleTrip: currentTrip,
-          vesselAbbrev: "TAC",
-        },
-      },
-    };
-
-    const out = projectTimelineFromHandoff(
-      handoff,
-      [],
-      ms("2026-03-13T06:40:10-07:00")
+    const result = timelineHandoffFromTripUpdate({
+      vesselAbbrev: "TAC",
+      existingActiveTrip: existing,
+      activeVesselTripUpdate: active,
+      completedVesselTripUpdate: undefined,
+    });
+    expect(result.completedTripFacts).toEqual([]);
+    expect(
+      result.currentBranch.pendingActualWrite?.events.didJustLeaveDock
+    ).toBe(true);
+    expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
+      active
     );
-    expect(out.actualEvents).toHaveLength(0);
-    expect(out.predictedEvents).toHaveLength(0);
   });
 });

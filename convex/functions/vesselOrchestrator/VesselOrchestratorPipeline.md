@@ -35,16 +35,16 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Output: `ScheduleContinuityAccess`
 
 4. **Sequential per-vessel sparse pipeline (changed rows only)**
-   - Loop: `for (const location of dedupedLocationUpdates)`
+   - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
    - For each vessel:
-     1. `computeTripStageForLocation` computes trip diff (`updateVesselTrip`)
-     2. skip vessel when no trip rows changed
-     3. `runPredictionStage` computes prediction rows and ML overlays
-    4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays (`toTimelineHandoffFromTripWrites`)
-    5. mutation `persistPerVesselOrchestratorWrites` writes in order:
+     1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
+     2. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestsForTripUpdate`**)
+     3. Domain **`updateVesselPredictions`** takes `{ tripUpdate, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
+     4. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
+     5. Mutation **`persistPerVesselOrchestratorWrites`** writes in order:
         - trip writes (`persistVesselTripWrites`)
         - prediction upserts (`batchUpsertProposalsInDb`)
-        - final timeline rows:
+        - timeline rows:
           - actual row upserts (`upsertActualDockRows`)
           - predicted row writes (`projectPredictedDockWriteBatchesInDb`)
    - Failure policy: per-vessel failures are logged and the loop continues
@@ -53,8 +53,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 - One WSF fetch per ping.
 - One baseline orchestrator read-model query per ping.
-- One locations mutation per ping plus sparse per-vessel mutation calls only for
-  changed trip rows.
+- One locations mutation per ping plus one sparse `persistPerVesselOrchestratorWrites`
+  call per changed vessel whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and memoized per ping.
 - Prediction model loading is gated per vessel by changed durable trip facts.

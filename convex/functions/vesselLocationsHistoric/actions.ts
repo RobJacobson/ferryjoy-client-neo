@@ -11,9 +11,7 @@ import {
   withAtDockObserved,
 } from "domain/vesselOrchestration/updateVesselLocations";
 import { loadTerminalIdentities } from "functions/terminals/actions";
-import type {
-  ConvexVesselLocation,
-} from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { getSailingDay } from "shared/time";

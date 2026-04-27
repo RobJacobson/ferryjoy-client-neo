@@ -11,6 +11,7 @@ import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
+import { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";
 
 const buildCurrentMlByVessel = (
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
@@ -98,24 +99,43 @@ const applyMlOverlays = (
 };
 
 /**
- * Canonical timeline concern entrypoint for orchestrator callers.
+ * Folder-private timeline projection from a pre-built handoff plus ML overlay.
  *
- * @param input - Ping start time plus persisted trip handoff and ML overlays
+ * Exposed via relative import for tests that exercise lower-level handoff
+ * gating semantics directly.
+ *
+ * @param handoff - Pre-built timeline handoff (typically from `timelineHandoffFromTripUpdate`)
+ * @param mlTimelineOverlays - ML overlays from `updateVesselPredictions`
+ * @param pingStartedAt - Ping start tick used to stamp event rows
  * @returns Actual and predicted timeline event writes for persistence
  */
-export const updateTimeline = (
-  input: RunUpdateVesselTimelineFromAssemblyInput
+export const projectTimelineFromHandoff = (
+  handoff: PersistedTripTimelineHandoff,
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>,
+  pingStartedAt: number
 ): RunUpdateVesselTimelineOutput => {
-  const handoffWithMl = applyMlOverlays(
-    input.tripHandoffForTimeline,
-    input.mlTimelineOverlays
-  );
+  const handoffWithMl = applyMlOverlays(handoff, mlTimelineOverlays);
   const timelineWrites = buildDockWritesFromTripHandoff({
     ...handoffWithMl,
-    pingStartedAt: input.pingStartedAt,
+    pingStartedAt,
   });
   return {
     actualEvents: timelineWrites.actualDockWrites,
     predictedEvents: timelineWrites.predictedDockWriteBatches,
   };
 };
+
+/**
+ * Canonical timeline concern entrypoint for orchestrator callers.
+ *
+ * @param input - Ping start time, upstream trip update, and ML overlays
+ * @returns Actual and predicted timeline event writes for persistence
+ */
+export const updateTimeline = (
+  input: RunUpdateVesselTimelineFromAssemblyInput
+): RunUpdateVesselTimelineOutput =>
+  projectTimelineFromHandoff(
+    timelineHandoffFromTripUpdate(input.tripUpdate),
+    input.mlTimelineOverlays,
+    input.pingStartedAt
+  );

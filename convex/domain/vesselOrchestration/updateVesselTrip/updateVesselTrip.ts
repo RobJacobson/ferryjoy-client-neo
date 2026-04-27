@@ -20,11 +20,11 @@ type UpdateVesselTripInput = {
  * Computes storage and lifecycle changes for one vessel ping.
  *
  * @param input - Vessel location, optional active trip, and schedule lookup tables
- * @returns Trip update containing candidate rows and change indicators
+ * @returns Trip update when substantive changes exist, otherwise `null`
  */
 export const updateVesselTrip = async (
   input: UpdateVesselTripInput
-): Promise<VesselTripUpdate> => {
+): Promise<VesselTripUpdate | null> => {
   try {
     // Detect lifecycle transitions before mutating trip rows.
     const events = detectTripEvents(
@@ -46,14 +46,22 @@ export const updateVesselTrip = async (
       activeTripCandidate
     );
 
-    return {
+    const result: VesselTripUpdate = {
       vesselAbbrev: input.vesselLocation.VesselAbbrev,
+      existingActiveTrip: input.existingActiveTrip,
       activeVesselTripUpdate:
         shouldWriteActiveTrip && activeTripCandidate !== undefined
           ? activeTripCandidate
           : undefined,
       completedVesselTripUpdate: tripRows.completedVesselTrip,
     };
+    if (
+      result.activeVesselTripUpdate === undefined &&
+      result.completedVesselTripUpdate === undefined
+    ) {
+      return null;
+    }
+    return result;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("[updateVesselTrip] failed trip update", {
@@ -64,8 +72,6 @@ export const updateVesselTrip = async (
       message: err.message,
       stack: err.stack,
     });
-    return {
-      vesselAbbrev: input.vesselLocation.VesselAbbrev,
-    };
+    return null;
   }
 };

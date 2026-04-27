@@ -4,7 +4,7 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, 
 
 ## Production orchestrator wiring
 
-Domain **`updateTimeline`** is pure projection: it takes **`RunUpdateVesselTimelineFromAssemblyInput`** (`pingStartedAt`, **`tripHandoffForTimeline`** as **`PersistedTripTimelineHandoff`**, **`mlTimelineOverlays`**), applies ML overlays onto the handoff in memory, runs **`buildDockWritesFromTripHandoff`**, and returns **`actualEvents`** / **`predictedEvents`** for persistence.
+Domain **`updateTimeline`** is pure projection: it takes **`RunUpdateVesselTimelineFromAssemblyInput`** (`pingStartedAt`, **`tripUpdate`** as **`VesselTripUpdate`**, **`mlTimelineOverlays`**). It derives **`PersistedTripTimelineHandoff`** via **`timelineHandoffFromTripUpdate`**, applies ML overlays onto that handoff in memory, runs **`buildDockWritesFromTripHandoff`**, and returns **`actualEvents`** / **`predictedEvents`** for persistence. Lower-level projection from an already-built handoff is available as **`projectTimelineFromHandoff`** in **`updateTimeline.ts`** (used by focused tests).
 
 On the shipped path these rows are **not** written by a separate “timeline-only” mutation. **`functions/vesselOrchestrator/action/actions.ts`** runs **`updateTimeline`** inside **`runOrchestratorPing`** *before* calling **`persistPerVesselOrchestratorWrites`**, which applies trip lifecycle writes, prediction upserts, **and** those timeline rows in one internal mutation per changed vessel ([`persistPerVesselOrchestratorWrites`](../../../functions/vesselOrchestrator/mutation/mutations.ts)).
 
@@ -12,11 +12,12 @@ On the shipped path these rows are **not** written by a separate “timeline-onl
 
 ## Production call chain
 
-1. [`action/actions.ts`](../../../functions/vesselOrchestrator/action/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), update locations (**`updateVesselLocations`** stage: fetch + normalize + `AtDockObserved` + persist), then process per-vessel changed rows.
-2. Per changed vessel: **`computeTripStageForLocation`** runs **`updateVesselTrip`**, **`runPredictionStage`**, and **`buildTripWritesForVessel`** → sparse **`tripWrites`**, **`predictionRows`**, **`mlTimelineOverlays`**.
-3. **`toTimelineHandoffFromTripWrites`** maps **`tripWrites`** → **`PersistedTripTimelineHandoff`** for **`updateTimeline`**.
-4. **`updateTimeline`** merges ML overlays (**`completedHandoffKey`** alignment uses shared **`buildCompletedHandoffKey`** from [`../shared/pingHandshake/completedHandoffKey.ts`](../shared/pingHandshake/completedHandoffKey.ts)).
-5. **`persistPerVesselOrchestratorWrites`** applies **`persistVesselTripWrites`**, **`persistVesselPredictions`**, **`persistVesselTimelineWrites`** (actual + predicted dock rows).
+1. [`action/actions.ts`](../../../functions/vesselOrchestrator/action/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), update locations (**`runStage1UpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + persist), then process per-vessel changed rows.
+2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
+3. **`loadPredictionContext`** ([`predictionContextLoader.ts`](../../../functions/vesselOrchestrator/action/predictionContextLoader.ts)) queries production model parameters when **`predictionModelLoadRequestsForTripUpdate`** returns requests.
+4. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
+5. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`../shared/pingHandshake/completedHandoffKey.ts`](../shared/pingHandshake/completedHandoffKey.ts)).
+6. **`persistPerVesselOrchestratorWrites`** applies **`persistVesselTripWrites`**, prediction upserts, and timeline writes (actual + predicted dock rows).
 
 ## Handoff glossary
 
@@ -24,12 +25,12 @@ Orchestrator ping output crosses several DTOs. Canonical definitions live in [`.
 
 | Type | Produced when | Consumed by | Notes |
 | --- | --- | --- | --- |
-| `CompletedArrivalHandoff` | Sparse **`tripWrites.completedTripWrite`** / prediction **`completedHandoffs`** | Prediction (`updateVesselPredictions`), then timeline assembly | `scheduleTrip` is pre-ML; **`newTrip`** is ML-filled before **`buildDockWritesFromTripHandoff`** completes facts. |
-| `ActualDockWriteIntent` | **`tripWrites.actualDockWrite`** after lifecycle inference | Timeline current branch (`pendingActualWrite`) | Gated by **`successfulVesselAbbrev`** in assembler. |
-| `PredictedDockWriteIntent` | **`tripWrites.predictedDockWrite`** | Timeline current branch (`pendingPredictedWrite`) | Carries `existingTrip` + `scheduleTrip` for projection. |
-| `ActiveTripWriteOutcome` | Mapped from **`tripWrites`** via **`toTimelineHandoffFromTripWrites`** (`currentBranch`) | **`updateTimeline`** input assembly | Reflects sparse write intents for the ping; does not wait on DB persistence. |
+| `CompletedArrivalHandoff` | Derived inside **`predictionInputsFromTripUpdate`** / completion facts when **`VesselTripUpdate`** has **`existingActiveTrip`** + **`completedVesselTripUpdate`** | Prediction (`updateVesselPredictions`), then timeline assembly | `scheduleTrip` is pre-ML; **`newTrip`** is ML-filled before **`buildDockWritesFromTripHandoff`** completes facts. |
+| `ActualDockWriteIntent` | **`timelineHandoffFromTripUpdate`** when active-trip lifecycle events imply an actual dock write | Timeline current branch (`pendingActualWrite`) | Gated by **`successfulVesselAbbrev`** in assembler. |
+| `PredictedDockWriteIntent` | **`timelineHandoffFromTripUpdate`** when an active trip update exists | Timeline current branch (`pendingPredictedWrite`) | Carries `existingTrip` + `scheduleTrip` for projection. |
+| `ActiveTripWriteOutcome` | **`timelineHandoffFromTripUpdate`** (`currentBranch`) | **`updateTimeline`** internal handoff | Reflects sparse write intents for the ping; derived from **`VesselTripUpdate`**, not a separate action “write plan” bundle. |
 | `MlTimelineOverlay` | **`updateVesselPredictions`** (same pass as prediction row build) | **`updateTimeline`** | **`completed`** branch carries **`completedHandoffKey`** for merge with facts. |
-| `PersistedTripTimelineHandoff` | **`toTimelineHandoffFromTripWrites`** in orchestrator action | **`updateTimeline`** → **`buildDockWritesFromTripHandoff`** | Holds **`completedTripFacts`** + **`currentBranch`** — same shape whether or not rows are persisted yet. |
+| `PersistedTripTimelineHandoff` | **`timelineHandoffFromTripUpdate(tripUpdate)`** in domain | **`updateTimeline`** → **`buildDockWritesFromTripHandoff`** | Holds **`completedTripFacts`** + **`currentBranch`** — same ping semantics as before; assembly moved from orchestrator action into **`updateTimeline`**. |
 
 Further renames or public type aliases are optional: this table is the intended consolidation layer unless a future change agrees on a single rename pass across all imports.
 
@@ -37,7 +38,8 @@ Further renames or public type aliases are optional: this table is the intended 
 
 | File | Role |
 | --- | --- |
-| `updateTimeline.ts` | `updateTimeline`, ML overlay application + projection wiring |
+| `updateTimeline.ts` | `updateTimeline`, `projectTimelineFromHandoff` (tests / lower-level), ML overlay application + projection wiring |
+| `timelineHandoffFromTripUpdate.ts` | **`VesselTripUpdate`** → **`PersistedTripTimelineHandoff`** |
 | `../shared/pingHandshake/projectionWire.ts` | `PingEventWrites`, `mergePingEventWrites` (canonical; timeline imports here) |
 | `../shared/pingHandshake/completedHandoffKey.ts` | **`buildCompletedHandoffKey`** — stable key for completed-branch ML ↔ facts merge |
 | `timelineEventAssembler.ts` | Lifecycle facts/messages → ping writes |

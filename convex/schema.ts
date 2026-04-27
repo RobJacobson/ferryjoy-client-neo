@@ -30,7 +30,8 @@ export default defineSchema({
     ["TerminalAbbrev"]
   ),
 
-  // Active vessel trips - currently in progress, one per vessel
+  // Active vessel trips — in progress; at most one logical row per vessel.
+  // Convex does not enforce uniqueness; lifecycle mutations and callers assume this invariant.
   activeVesselTrips: defineTable(vesselTripStoredSchema)
     .index("by_vessel_abbrev", ["VesselAbbrev"])
     .index("by_route_abbrev", ["RouteAbbrev"])

@@ -35,8 +35,14 @@ export async function performBulkUpsertVesselLocations(
   ctx: MutationCtx,
   locations: ReadonlyArray<ConvexVesselLocation>
 ): Promise<VesselLocationBulkUpsertResult> {
+  // Last row wins per vessel when the feed repeats an abbrev in one batch.
+  const uniqueByAbbrev = new Map<string, ConvexVesselLocation>();
+  for (const location of locations) {
+    uniqueByAbbrev.set(location.VesselAbbrev, location);
+  }
+  const dedupedLocations = [...uniqueByAbbrev.values()];
   const summary: VesselLocationDedupeSummary = {
-    totalIncoming: locations.length,
+    totalIncoming: dedupedLocations.length,
     unchanged: 0,
     replaced: 0,
     inserted: 0,
@@ -47,7 +53,7 @@ export async function performBulkUpsertVesselLocations(
   );
   const changedLocations: Array<ConvexVesselLocation> = [];
 
-  for (const location of locations) {
+  for (const location of dedupedLocations) {
     try {
       const existing = existingByAbbrev.get(location.VesselAbbrev);
       if (existing?.TimeStamp === location.TimeStamp) {

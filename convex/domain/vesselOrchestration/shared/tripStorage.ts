@@ -30,7 +30,8 @@ export const areTripStorageRowsEqual = (
   ]);
 
   for (const key of keys) {
-    const existingValue = existingComparable[key as keyof TripStorageComparable];
+    const existingValue =
+      existingComparable[key as keyof TripStorageComparable];
     const nextValue = nextComparable[key as keyof TripStorageComparable];
     if (existingValue !== nextValue) {
       return false;

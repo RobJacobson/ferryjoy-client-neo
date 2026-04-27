@@ -161,8 +161,7 @@ const resolvePhysicalState = (
     rawDidJustLeaveDock(existingTrip, currLocation) &&
     !rawDepartureIsContradictory(existingTrip, currLocation);
 
-  let didJustArriveAtDock =
-    rawDidJustArriveAtDock(existingTrip, currLocation);
+  let didJustArriveAtDock = rawDidJustArriveAtDock(existingTrip, currLocation);
 
   if (didJustLeaveDock && didJustArriveAtDock) {
     // Drop impossible simultaneous transition events from noisy pings.

@@ -13,6 +13,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
  */
 export type VesselTripUpdate = {
   vesselAbbrev: ConvexVesselLocation["VesselAbbrev"];
+  existingActiveTrip?: ConvexVesselTrip;
   activeVesselTripUpdate?: ConvexVesselTrip;
   completedVesselTripUpdate?: ConvexVesselTrip;
 };

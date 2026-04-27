@@ -378,10 +378,11 @@ normalize the feed, apply location dedupe/write via public
 [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts), run
 trip compute for changed location rows in the action (with
 **`ScheduleContinuityAccess`** from `action/pipeline/scheduleContinuity.ts` for targeted
-`eventsScheduled` continuity), then **`runPredictionStage`**. **`updateTimeline`**
-runs in action memory from the trip-write handoff + ML overlays; then
+`eventsScheduled` continuity), then **`loadPredictionContext`** (when domain preload
+requests apply) and domain **`updateVesselPredictions`** (`{ tripUpdate, predictionContext }`).
+Domain **`updateTimeline`** runs in action memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived inside **`timelineHandoffFromTripUpdate`**); then
 [`persistPerVesselOrchestratorWrites`](../../functions/vesselOrchestrator/mutation/mutations.ts)
-applies trip writes, prediction upserts, and projected `eventsActual`/`eventsPredicted`
+applies trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted`
 rows in one ordered mutation per changed vessel. Per-tick trip lifecycle
 logic lives in `convex/domain/vesselOrchestration/updateVesselTrip/` and is
 driven by the per-vessel loop in `functions/vesselOrchestrator/action/actions.ts`.

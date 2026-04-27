@@ -1,9 +1,7 @@
 # updateVesselPredictions (orchestrator concern)
 
 ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
-leave-dock actualization for one ping. On the **orchestrator** path this runs in
-**Stage D** after trip persistence, over the trip rows produced by
-`updateVesselTrip` (not inside the trip row builder).
+leave-dock actualization for one ping. On the **orchestrator** path **`updateVesselOrchestrator`** calls **`updateVesselPredictions`** in the action per-vessel loop **before** **`persistPerVesselOrchestratorWrites`**, with input **`{ tripUpdate, predictionContext }`** (**`tripUpdate`** comes from **`updateVesselTrip`**). Persistence of trip rows and prediction proposals still happens in the consolidated mutation, not inside this domain function.
 
 ## Canonical code
 
@@ -29,10 +27,7 @@ leave-dock actualization for one ping. On the **orchestrator** path this runs in
 
 ## Imports
 
-Public API: [`index.ts`](./index.ts) — runners, contract types, and
-`predictionModelTypesForTrip` for orchestrator preload. Other modules in this
-folder are internal; colocated tests import them via relative paths. Timeline
-assembly lives under [`../updateTimeline`](../updateTimeline).
+Public API: [`index.ts`](./index.ts) — **`updateVesselPredictions`**, **`predictionInputsFromTripUpdate`**, **`predictionModelLoadRequestsForTripUpdate`**, contract types, and **`predictionModelTypesForTrip`** (phase routing). Other modules in this folder are internal; colocated tests import them via relative paths. Timeline assembly lives under [`../updateTimeline`](../updateTimeline).
 
 Primary runner implementation now lives in
 [`updateVesselPredictions.ts`](./updateVesselPredictions.ts).

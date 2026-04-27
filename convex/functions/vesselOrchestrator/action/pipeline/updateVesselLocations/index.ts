@@ -1,5 +1,7 @@
 /**
- * Public API for the orchestrator vessel-location update module.
+ * Barrel for the orchestrator location ingestion pipeline (fetch → normalize →
+ * augment → persist). Re-exported as `runStage1UpdateVesselLocations` for
+ * {@link ../../actions}.
  */
 
-export { updateVesselLocations } from "./updateVesselLocations";
+export { updateVesselLocations as runStage1UpdateVesselLocations } from "./runStage1UpdateVesselLocations";

@@ -12,9 +12,12 @@ updateVesselOrchestrator (action/actions.ts)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
   -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
   -> createScheduleContinuityAccess for the ping (memoized eventsScheduled reads)
-  -> per changed vessel: updateVesselTrip -> runPredictionStage -> buildTripWritesForVessel
-  -> updateTimeline in action memory (trip handoff + mlTimelineOverlays)
-  -> persistPerVesselOrchestratorWrites: trip writes + prediction upserts + timeline rows
+  -> per changed vessel:
+       updateVesselTrip -> VesselTripUpdate | null
+       loadPredictionContext (Convex query when model preload applies)
+       updateVesselPredictions ({ tripUpdate, predictionContext })
+       updateTimeline ({ pingStartedAt, tripUpdate, mlTimelineOverlays })
+  -> persistPerVesselOrchestratorWrites: trip rows + prediction upserts + timeline rows
 ```
 
 The trip and prediction stages run in the action per changed location row.
@@ -69,8 +72,8 @@ Owns authoritative lifecycle trip rows for one ping.
 
 Public surface:
 
-- `updateVesselTrip`
-- `VesselTripUpdate`
+- `updateVesselTrip` → **`VesselTripUpdate | null`** (null when no substantive durable change)
+- `VesselTripUpdate` — sparse rows: **`existingActiveTrip`**, **`activeVesselTripUpdate`**, **`completedVesselTripUpdate`**
 
 Internal one-vessel flow:
 
@@ -108,23 +111,20 @@ Owns cross-module contracts that should not leak from `updateVesselTrip`, such a
 
 ## Contracts between stages
 
-Trip stage durable output:
+Trip stage output to downstream domain callers:
 
-- `activeTrips: ReadonlyArray<ConvexVesselTrip>`
-- `completedTrips: ReadonlyArray<ConvexVesselTrip>`
+- **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
 
-Trip stage orchestrator metadata:
-
-- `ReadonlyArray<VesselTripUpdate>`
-
-Prediction and timeline stages consume trip rows plus handshake DTOs produced in `domain/vesselOrchestration/shared` and shaped in `functions/vesselOrchestrator/action/pipeline/*`.
+Prediction inputs are derived inside **`updateVesselPredictions`** from **`VesselTripUpdate`** (**`predictionInputsFromTripUpdate`**). Timeline handoff is derived inside **`updateTimeline`** from the same shape (**`timelineHandoffFromTripUpdate`**). Shared handshake DTO types live in **`domain/vesselOrchestration/shared`**.
 
 ## Current ownership
 
 - `functions/vesselOrchestrator/action/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/action/pipeline/*`
-  - location load, snapshot, schedule continuity, trip stage, prediction stage, trip-write shaping, timeline handoff adapter
+  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule continuity (**`scheduleContinuity.ts`**), locations stage (**`updateVesselLocations`**)
+- `functions/vesselOrchestrator/action/predictionContextLoader.ts`
+  - Convex query wrapper for production model preload (**`loadPredictionContext`**); pure request derivation lives in **`updateVesselPredictions/predictionContextRequests.ts`**
 - `functions/vesselOrchestrator/mutation/mutations.ts` (`persistPerVesselOrchestratorWrites`)
   - ordered trip + prediction + timeline persistence per vessel
 - `domain/vesselOrchestration/updateVesselTrip/`
