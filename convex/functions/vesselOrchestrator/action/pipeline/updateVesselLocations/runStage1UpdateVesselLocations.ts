@@ -1,5 +1,8 @@
 /**
- * Stage #1: fetch, normalize, and persist vessel locations.
+ * Orchestrator ingestion for live vessel positions: converts the upstream WSF
+ * feed into canonical {@link ConvexVesselLocation} rows with a stable observed
+ * dock phase, persists them with mutation-side dedupe, and returns only rows that
+ * actually changed so downstream stages do not rerun on noise.
  */
 
 import { internal } from "_generated/api";
@@ -14,92 +17,70 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { persistVesselLocationBatch } from "./persistVesselLocations";
 
-const EXISTING_LOCATION_CACHE_MAX_AGE_MS = 30_000;
-
-type ExistingLocationCache = {
-  cachedAtMs: number;
-  rowsByVesselAbbrev: Map<string, ConvexVesselLocation>;
-};
-
-let existingLocationCache: ExistingLocationCache | null = null;
-
 type RunStage1UpdateVesselLocationsArgs = {
   terminalsIdentity: ReadonlyArray<TerminalIdentity>;
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
 };
 
 /**
- * Returns cached existing vessel locations when the cache is still fresh.
+ * Ingest one vessel-location snapshot for an orchestrator ping.
  *
- * @returns Cached location rows, or `null` when cache is empty/stale
- */
-const readExistingLocationsFromCache =
-  (): ReadonlyArray<ConvexVesselLocation> | null => {
-    if (
-      existingLocationCache === null ||
-      Date.now() - existingLocationCache.cachedAtMs >
-        EXISTING_LOCATION_CACHE_MAX_AGE_MS
-    ) {
-      return null;
-    }
-    return [...existingLocationCache.rowsByVesselAbbrev.values()];
-  };
-
-/**
- * Rebuilds cache state after one ingest write pass.
+ * This ties together external data, normalization, persisted prior state, a
+ * derived continuity field (`AtDockObserved`), and a bulk write with
+ * dedupe-backed change detection. Trip and downstream stages rely on durable
+ * location writes and timestamps; this step is where raw feed jitter is filtered
+ * before any trip logic runs.
  *
- * @param existingRows - Previously known live location rows
- * @param nextRows - Current tick augmented location rows
- */
-const updateExistingLocationCache = (
-  existingRows: ReadonlyArray<ConvexVesselLocation>,
-  nextRows: ReadonlyArray<ConvexVesselLocation>
-): void => {
-  const rowsByVesselAbbrev = new Map(
-    existingRows.map((row) => [row.VesselAbbrev, row] as const)
-  );
-  for (const row of nextRows) {
-    rowsByVesselAbbrev.set(row.VesselAbbrev, row);
-  }
-  existingLocationCache = {
-    cachedAtMs: Date.now(),
-    rowsByVesselAbbrev,
-  };
-};
-
-/**
- * Runs stage #1 for one orchestrator ping.
+ * Flow (each line is one logical step):
+ *
+ * 1. **Fetch raw WSF payloads** via `fetchRawWsfVesselLocations` — pull the latest
+ *    fleet snapshot from the adapter (network / external API boundary lives here).
+ * 2. **Normalize to Convex rows** via domain `updateVesselLocations` — map feed
+ *    shapes + identity tables into validated `ConvexVesselLocationIncoming` rows.
+ * 3. **Load prior persisted locations** via `getCurrentVesselLocations` — read the
+ *    live table so `AtDockObserved` can vote against the last durable row per vessel.
+ * 4. **Augment with `AtDockObserved`** via `withAtDockObserved` — attach the
+ *    stabilized dock/sea phase signal downstream trip logic expects.
+ * 5. **Persist full batch** via `persistVesselLocationBatch` → `bulkUpsertVesselLocations`
+ *    — replace or insert rows where `TimeStamp` changed; skip unchanged vessels.
+ * 6. **Return changed rows only** — same rows the mutation wrote, so the orchestrator
+ *    loop runs trip/prediction/timeline only for vessels with new evidence.
  *
  * @param ctx - Convex action context used for query and mutation calls
  * @param args - Identity rows required for raw-feed normalization
- * @returns Changed persisted location rows after dedupe
+ * @returns Rows that were inserted or replaced after mutation-side timestamp dedupe
  */
-export const runStage1UpdateVesselLocations = async (
+export const updateVesselLocations = async (
   ctx: ActionCtx,
   { terminalsIdentity, vesselsIdentity }: RunStage1UpdateVesselLocationsArgs
 ): Promise<ReadonlyArray<ConvexVesselLocation>> => {
+  // 1) Fetch raw WSF vessel-location rows from the external adapter.
   const rawFeedLocations = await fetchRawWsfVesselLocations();
+
+  // 2) Normalize feed rows + identity tables into canonical location rows.
   const { vesselLocations: normalizedLocations } = normalizeVesselLocations({
     rawFeedLocations,
     vesselsIdentity,
     terminalsIdentity,
   });
 
-  const cachedExistingLocations = readExistingLocationsFromCache();
-  const existingLocations =
-    cachedExistingLocations ??
-    (await ctx.runQuery(
-      internal.functions.vesselLocation.queries.getCurrentVesselLocations
-    ));
+  // 3) Read current persisted locations used as prior-state context.
+  const existingLocations = await ctx.runQuery(
+    internal.functions.vesselLocation.queries.getCurrentVesselLocations
+  );
 
+  // 4) Compute and attach stable AtDockObserved for each normalized row.
   const augmentedLocations = withAtDockObserved(
     existingLocations,
     normalizedLocations
   );
+
+  // 5) Persist the full batch with mutation-side timestamp dedupe.
   const changedLocations = await persistVesselLocationBatch(
     ctx,
     augmentedLocations
   );
-  updateExistingLocationCache(existingLocations, augmentedLocations);
+
+  // 6) Return only inserted/replaced rows for downstream orchestrator stages.
   return changedLocations;
 };
