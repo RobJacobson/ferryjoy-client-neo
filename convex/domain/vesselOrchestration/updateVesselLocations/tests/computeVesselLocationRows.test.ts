@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { computeVesselLocationRows } from "../computeVesselLocationRows";
+import { updateVesselLocations } from "../updateVesselLocations";
 
 const vesselsFixture: VesselIdentity[] = [
   { VesselID: 101, VesselName: "Kittitas", VesselAbbrev: "KIT" },
@@ -33,11 +33,11 @@ afterEach(() => {
   mock.restore();
 });
 
-describe("computeVesselLocationRows", () => {
+describe("updateVesselLocations", () => {
   it("returns one location and skips rows that fail conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = computeVesselLocationRows({
+    const result = updateVesselLocations({
       rawFeedLocations: [validRawRow(), unknownVesselRow()],
       vesselsIdentity: vesselsFixture,
       terminalsIdentity: terminalsFixture,
@@ -51,7 +51,7 @@ describe("computeVesselLocationRows", () => {
   it("returns an empty result when every row fails conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = computeVesselLocationRows({
+    const result = updateVesselLocations({
       rawFeedLocations: [unknownVesselRow(), unknownVesselRow()],
       vesselsIdentity: vesselsFixture,
       terminalsIdentity: terminalsFixture,
@@ -64,7 +64,7 @@ describe("computeVesselLocationRows", () => {
   it("preserves raw marine terminal values when the terminal abbrev is unknown", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = computeVesselLocationRows({
+    const result = updateVesselLocations({
       rawFeedLocations: [
         validRawRow({
           DepartingTerminalAbbrev: "QQQ",
@@ -86,7 +86,7 @@ describe("computeVesselLocationRows", () => {
   it("skips rows missing a departing terminal abbreviation", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = computeVesselLocationRows({
+    const result = updateVesselLocations({
       rawFeedLocations: [
         validRawRow({
           DepartingTerminalAbbrev: "",

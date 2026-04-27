@@ -14,8 +14,11 @@ import { mapWsfVesselLocations } from "./mapWsfVesselLocations";
  *
  * The functions layer owns the external WSF fetch and persistence. This concern
  * owns normalization, enrichment, and batch validation for raw feed rows.
+ *
+ * @param input - Raw feed rows plus identity tables for canonical mapping
+ * @returns Normalized vessel-location rows ready for persistence
  */
-export const computeVesselLocationRows = (
+export const updateVesselLocations = (
   input: RunUpdateVesselLocationsInput
 ): RunUpdateVesselLocationsOutput => {
   const vesselLocations = mapWsfVesselLocations(

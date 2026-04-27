@@ -23,7 +23,7 @@ import type {
  * @param activeTrip - Replacement schedule trip row from persistence output
  * @returns Stable vessel+schedule identity key
  */
-const completedHandoffKey = (
+const buildCompletedHandoffKey = (
   vesselAbbrev: string,
   completedTrip: ConvexVesselTrip | undefined,
   activeTrip: ConvexVesselTrip | undefined
@@ -37,7 +37,7 @@ const completedHandoffKey = (
   return `${vesselAbbrev}::${scheduleIdentity}`;
 };
 
-const finalProposedByVesselFromMlOverlays = (
+const buildCurrentMlByVessel = (
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
 ): Map<string, ConvexVesselTripWithML> => {
   const map = new Map<string, ConvexVesselTripWithML>();
@@ -53,18 +53,17 @@ const finalProposedByVesselFromMlOverlays = (
 };
 
 /**
- * Matching uses vessel + completed-trip schedule identity, not object identity
- * between pings.
+ * Applies same-ping ML overlay rows onto persisted trip handoff rows.
  *
  * @param handoff - Trip persistence output before timeline dock writes
  * @param mlTimelineOverlays - ML overlay from predictions stage
- * @returns Handoff with `newTrip` / `finalProposed` fields merged from overlays
+ * @returns Handoff with `newTrip` / `finalProposed` fields populated
  */
-export const mergeMlOverlayIntoTripHandoffForTimeline = (
+const applyMlOverlays = (
   handoff: PersistedTripTimelineHandoff,
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>
 ): PersistedTripTimelineHandoff => {
-  const mlFactsByKey = new Map(
+  const completedMlByKey = new Map(
     mlTimelineOverlays
       .filter(
         (
@@ -80,18 +79,15 @@ export const mergeMlOverlayIntoTripHandoffForTimeline = (
       )
       .map(
         (overlay) =>
-          [
-            overlay.completedHandoffKey,
-            overlay.finalPredictedTrip,
-          ] as const
+          [overlay.completedHandoffKey, overlay.finalPredictedTrip] as const
       )
   );
-  const mlByVessel = finalProposedByVesselFromMlOverlays(mlTimelineOverlays);
+  const currentMlByVessel = buildCurrentMlByVessel(mlTimelineOverlays);
 
   return {
-    completedFacts: handoff.completedFacts.map((fact) => {
-      const newTrip = mlFactsByKey.get(
-        completedHandoffKey(
+    completedTripFacts: handoff.completedTripFacts.map((fact) => {
+      const newTrip = completedMlByKey.get(
+        buildCompletedHandoffKey(
           fact.tripToComplete.VesselAbbrev,
           fact.tripToComplete,
           fact.scheduleTrip
@@ -103,39 +99,48 @@ export const mergeMlOverlayIntoTripHandoffForTimeline = (
       };
     }),
     currentBranch: {
-      successfulVessels: handoff.currentBranch.successfulVessels,
-      pendingActualMessages: handoff.currentBranch.pendingActualMessages.map(
-        (m) => ({
-          ...m,
-          finalProposed: mlByVessel.get(m.vesselAbbrev),
-        })
-      ),
-      pendingPredictedMessages:
-        handoff.currentBranch.pendingPredictedMessages.map((m) => ({
-          ...m,
-          finalProposed: mlByVessel.get(m.vesselAbbrev),
-        })),
+      successfulVesselAbbrev: handoff.currentBranch.successfulVesselAbbrev,
+      pendingActualWrite:
+        handoff.currentBranch.pendingActualWrite === undefined
+          ? undefined
+          : {
+              ...handoff.currentBranch.pendingActualWrite,
+              finalProposed: currentMlByVessel.get(
+                handoff.currentBranch.pendingActualWrite.vesselAbbrev
+              ),
+            },
+      pendingPredictedWrite:
+        handoff.currentBranch.pendingPredictedWrite === undefined
+          ? undefined
+          : {
+              ...handoff.currentBranch.pendingPredictedWrite,
+              finalProposed: currentMlByVessel.get(
+                handoff.currentBranch.pendingPredictedWrite.vesselAbbrev
+              ),
+            },
     },
   };
 };
 
 /**
- * Timeline entrypoint for orchestrator callers that already have
- * completed/current trip handoff rows.
+ * Canonical timeline concern entrypoint for orchestrator callers.
+ *
+ * @param input - Ping start time plus persisted trip handoff and ML overlays
+ * @returns Actual and predicted timeline event writes for persistence
  */
-export const runUpdateVesselTimelineFromAssembly = (
+export const updateTimeline = (
   input: RunUpdateVesselTimelineFromAssemblyInput
 ): RunUpdateVesselTimelineOutput => {
-  const merged = mergeMlOverlayIntoTripHandoffForTimeline(
+  const handoffWithMl = applyMlOverlays(
     input.tripHandoffForTimeline,
     input.mlTimelineOverlays
   );
-  const tl = buildDockWritesFromTripHandoff({
-    ...merged,
+  const timelineWrites = buildDockWritesFromTripHandoff({
+    ...handoffWithMl,
     pingStartedAt: input.pingStartedAt,
   });
   return {
-    actualEvents: tl.actualDockWrites,
-    predictedEvents: tl.predictedDockWriteBatches,
+    actualEvents: timelineWrites.actualDockWrites,
+    predictedEvents: timelineWrites.predictedDockWriteBatches,
   };
 };

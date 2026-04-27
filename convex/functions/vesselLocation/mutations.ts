@@ -5,10 +5,6 @@
 import type { MutationCtx } from "_generated/server";
 import { internalMutation, mutation } from "_generated/server";
 import { v } from "convex/values";
-import {
-  ENABLE_ORCHESTRATOR_SANITY_METRICS,
-  ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS,
-} from "functions/vesselOrchestrator/constants";
 import { vesselIdentitySchema } from "../vessels/schemas";
 import type { ConvexVesselLocation } from "./schemas";
 import { vesselLocationValidationSchema } from "./schemas";
@@ -22,7 +18,7 @@ export type VesselLocationDedupeSummary = {
 
 export type VesselLocationBulkUpsertResult = {
   changedLocations: ReadonlyArray<ConvexVesselLocation>;
-  summary: VesselLocationDedupeSummary | null;
+  summary: VesselLocationDedupeSummary;
 };
 
 /**
@@ -39,9 +35,6 @@ export async function performBulkUpsertVesselLocations(
   ctx: MutationCtx,
   locations: ReadonlyArray<ConvexVesselLocation>
 ): Promise<VesselLocationBulkUpsertResult> {
-  const shouldCollectMetrics =
-    ENABLE_ORCHESTRATOR_SANITY_METRICS &&
-    ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS;
   const summary: VesselLocationDedupeSummary = {
     totalIncoming: locations.length,
     unchanged: 0,
@@ -58,40 +51,37 @@ export async function performBulkUpsertVesselLocations(
     try {
       const existing = existingByAbbrev.get(location.VesselAbbrev);
       if (existing?.TimeStamp === location.TimeStamp) {
-        if (shouldCollectMetrics) {
-          summary.unchanged += 1;
-        }
+        summary.unchanged += 1;
         continue;
       }
 
       if (existing) {
         await ctx.db.replace(existing._id, location);
         changedLocations.push(location);
-        if (shouldCollectMetrics) {
-          summary.replaced += 1;
-        }
+        summary.replaced += 1;
       } else {
         await ctx.db.insert("vesselLocations", location);
         changedLocations.push(location);
-        if (shouldCollectMetrics) {
-          summary.inserted += 1;
-        }
+        summary.inserted += 1;
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      console.error("[bulkUpsertVesselLocations] failed vessel location upsert", {
-        vesselAbbrev: location.VesselAbbrev,
-        vesselId: location.VesselID,
-        timeStamp: location.TimeStamp,
-        message: err.message,
-        stack: err.stack,
-      });
+      console.error(
+        "[bulkUpsertVesselLocations] failed vessel location upsert",
+        {
+          vesselAbbrev: location.VesselAbbrev,
+          vesselId: location.VesselID,
+          timeStamp: location.TimeStamp,
+          message: err.message,
+          stack: err.stack,
+        }
+      );
     }
   }
 
   return {
     changedLocations,
-    summary: shouldCollectMetrics ? summary : null,
+    summary,
   };
 }
 

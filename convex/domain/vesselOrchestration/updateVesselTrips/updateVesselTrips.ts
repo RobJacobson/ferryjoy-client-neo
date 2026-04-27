@@ -1,6 +1,7 @@
 /**
  * Per-vessel trip update computation from one location ping.
  */
+
 import { areTripStorageRowsEqual } from "domain/vesselOrchestration/shared";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -9,7 +10,7 @@ import { detectTripEvents } from "./lifecycle";
 import { buildTripRowsForPing } from "./tripBuilders";
 import type { VesselTripUpdate } from "./types";
 
-type ComputeVesselTripUpdateInput = {
+type UpdateVesselTripsInput = {
   vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
   scheduleAccess: ScheduleContinuityAccess;
@@ -21,8 +22,8 @@ type ComputeVesselTripUpdateInput = {
  * @param input - Vessel location, optional active trip, and schedule lookup tables
  * @returns Trip update containing candidate rows and change indicators
  */
-export const computeVesselTripUpdate = async (
-  input: ComputeVesselTripUpdateInput
+export const updateVesselTrips = async (
+  input: UpdateVesselTripsInput
 ): Promise<VesselTripUpdate> => {
   try {
     // Detect lifecycle transitions before mutating trip rows.
@@ -55,7 +56,7 @@ export const computeVesselTripUpdate = async (
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[computeVesselTripUpdate] failed trip update", {
+    console.error("[updateVesselTrips] failed trip update", {
       vesselAbbrev: input.vesselLocation.VesselAbbrev,
       locationTimeStamp: input.vesselLocation.TimeStamp,
       existingTripKey: input.existingActiveTrip?.TripKey,

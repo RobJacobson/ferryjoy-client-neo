@@ -11,36 +11,26 @@ import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import type {
-  CompletedArrivalHandoff,
+  MlTimelineOverlay,
   PersistedTripTimelineHandoff,
   ScheduleContinuityAccess,
+  TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
-import { runUpdateVesselTimelineFromAssembly } from "domain/vesselOrchestration/updateTimeline";
-import type { RunUpdateVesselTripsOutput } from "domain/vesselOrchestration/updateVesselTrips";
-import { computeVesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
+import {
+  areTripStorageRowsEqual,
+  stripTripPredictionsForStorage,
+} from "domain/vesselOrchestration/shared";
+import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
+import { updateVesselTrips } from "domain/vesselOrchestration/updateVesselTrips";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import {
-  buildVesselTripWrites,
-  type VesselTripWrites,
-} from "functions/vesselOrchestrator/persistVesselTripWriteSet";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import {
-  ENABLE_ORCHESTRATOR_SANITY_METRICS,
-  ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS,
-  ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT,
-} from "./constants";
 import { loadVesselLocationUpdates } from "./locationUpdates";
-import {
-  buildPredictionStageInputs,
-  runPredictionStage,
-} from "./predictionStage";
-import {
-  createScheduleContinuityAccess,
-  type ScheduleContinuityMetricsSummary,
-} from "./scheduleContinuityAccess";
+import type { VesselTripWrites } from "./persistVesselTripWriteSet";
+import { runPredictionStage } from "./predictionStage";
+import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
 
 type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
@@ -50,10 +40,8 @@ type OrchestratorSnapshot = {
 
 type TripStageResult = {
   tripWrites: VesselTripWrites;
-  predictionInputs: {
-    activeTrips: ReadonlyArray<ConvexVesselTrip>;
-    completedHandoffs: ReadonlyArray<CompletedArrivalHandoff>;
-  };
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+  mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
 /**
@@ -96,73 +84,52 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     }
   );
   const scheduleAccess = createScheduleContinuityAccess(ctx);
+  const activeTripsByVesselAbbrev = new Map(
+    snapshot.activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
+  );
 
-  const tripStageResult = await computeTripStageForLocations(
-    dedupedLocationUpdates,
-    snapshot.activeTrips,
-    scheduleAccess
-  );
-  const predictionStageResult = await runPredictionStage(
-    ctx,
-    tripStageResult.predictionInputs
-  );
-  const tripHandoffForTimeline = await persistTripAndPredictionStages(
-    ctx,
-    tripStageResult.tripWrites,
-    predictionStageResult.predictionRows
-  );
-  const { actualEvents, predictedEvents } = runUpdateVesselTimelineFromAssembly(
-    {
-      pingStartedAt,
-      tripHandoffForTimeline,
-      mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
+  for (const vesselLocation of dedupedLocationUpdates) {
+    try {
+      const existingActiveTrip = activeTripsByVesselAbbrev.get(
+        vesselLocation.VesselAbbrev
+      );
+      const tripStageResult = await computeTripStageForLocation(
+        ctx,
+        vesselLocation,
+        existingActiveTrip,
+        scheduleAccess
+      );
+      if (tripStageResult === null) {
+        continue;
+      }
+
+      const timelineRows = updateTimeline({
+        pingStartedAt,
+        tripHandoffForTimeline: toTimelineHandoffFromTripWrites(
+          tripStageResult.tripWrites
+        ),
+        mlTimelineOverlays: tripStageResult.mlTimelineOverlays,
+      });
+      await ctx.runMutation(
+        internal.functions.vesselOrchestrator.mutations
+          .persistPerVesselOrchestratorWrites,
+        {
+          tripWrites: tripStageResult.tripWrites,
+          predictionRows: Array.from(tripStageResult.predictionRows),
+          actualEvents: timelineRows.actualEvents,
+          predictedEvents: timelineRows.predictedEvents,
+        }
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.error("[updateVesselOrchestrator] per-vessel pipeline failed", {
+        vesselAbbrev: vesselLocation.VesselAbbrev,
+        message: err.message,
+        stack: err.stack,
+      });
     }
-  );
-  logScheduleContinuitySanitySummary(
-    pingStartedAt,
-    scheduleAccess.getMetricsSummary()
-  );
+  }
 
-  await ctx.runMutation(
-    internal.functions.vesselOrchestrator.mutations.persistTimelineEventWrites,
-    {
-      actualEvents,
-      predictedEvents,
-    }
-  );
-};
-
-/**
- * Persists changed trip and prediction rows, then returns timeline handoff data.
- *
- * @param ctx - Convex action context for mutation calls
- * @param tripWrites - Planned trip-table writes for this ping
- * @param predictionRows - Prediction upserts for changed trips
- * @returns Trip handoff used by timeline assembly in action memory
- */
-const persistTripAndPredictionStages = async (
-  ctx: ActionCtx,
-  tripWrites: VesselTripWrites,
-  predictionRows: ReadonlyArray<VesselTripPredictionProposal>
-): Promise<PersistedTripTimelineHandoff> => {
-  const persisted = await ctx.runMutation(
-    internal.functions.vesselOrchestrator.mutations
-      .persistTripAndPredictionWrites,
-    {
-      tripWrites,
-      predictionRows: Array.from(predictionRows),
-    }
-  );
-
-  return {
-    completedFacts: persisted.completedFacts,
-    currentBranch: {
-      successfulVessels: new Set(persisted.currentBranch.successfulVessels),
-      pendingActualMessages: persisted.currentBranch.pendingActualMessages,
-      pendingPredictedMessages:
-        persisted.currentBranch.pendingPredictedMessages,
-    },
-  };
 };
 
 /**
@@ -189,71 +156,176 @@ const loadOrchestratorSnapshot = async (
 };
 
 /**
- * Computes trip updates for each supplied location update using schedule access.
+ * Computes sparse per-vessel trip and prediction writes for one location update.
  *
- * @param locationUpdates - Normalized live locations for this ping
- * @param existingActiveTrips - Active-trip snapshot from ping start
+ * @param ctx - Convex action context for prediction model preload
+ * @param locationUpdate - One normalized live location row
+ * @param existingActiveTrip - Existing active trip for this vessel
  * @param scheduleAccess - Narrow schedule continuity access
- * @returns Trip rows plus prediction-stage inputs for downstream work
+ * @returns Sparse per-vessel write bundle, or null when trip rows are unchanged
  */
-export const computeTripStageForLocations = async (
-  locationUpdates: ReadonlyArray<ConvexVesselLocation>,
-  existingActiveTrips: ReadonlyArray<ConvexVesselTrip>,
+export const computeTripStageForLocation = async (
+  ctx: ActionCtx,
+  locationUpdate: ConvexVesselLocation,
+  existingActiveTrip: ConvexVesselTrip | undefined,
   scheduleAccess: ScheduleContinuityAccess
-): Promise<TripStageResult> => {
-  const existingActiveTripsByVesselAbbrev = new Map(
-    existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
-  );
-  const tripUpdates = await Promise.all(
-    locationUpdates.map((vesselLocation) =>
-      computeVesselTripUpdate({
-        vesselLocation,
-        existingActiveTrip: existingActiveTripsByVesselAbbrev.get(
-          vesselLocation.VesselAbbrev
-        ),
-        scheduleAccess,
-      })
-    )
-  );
-  const completedTripRows = tripUpdates
-    .map((tripUpdate) => tripUpdate.completedVesselTripUpdate)
-    .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
-  const activeTripUpdates = tripUpdates
-    .map((tripUpdate) => tripUpdate.activeVesselTripUpdate)
-    .filter((trip): trip is ConvexVesselTrip => trip !== undefined);
-  const activeTripsByVesselAbbrev = new Map([
-    ...existingActiveTrips.map((trip) => [trip.VesselAbbrev, trip] as const),
-    ...activeTripUpdates.map((trip) => [trip.VesselAbbrev, trip] as const),
-  ] as const);
-  const tripRows: RunUpdateVesselTripsOutput = {
-    activeTrips: [...activeTripsByVesselAbbrev.values()],
-    completedTrips: completedTripRows,
-  };
-  const tripWrites = buildVesselTripWrites(tripRows, existingActiveTrips);
-
-  return {
-    tripWrites,
-    predictionInputs: buildPredictionStageInputs(
-      tripUpdates,
-      tripWrites.completedTripWrites
-    ),
-  };
-};
-
-const logScheduleContinuitySanitySummary = (
-  pingStartedAt: number,
-  summary: ScheduleContinuityMetricsSummary | null
-): void => {
-  if (
-    !ENABLE_ORCHESTRATOR_SANITY_METRICS ||
-    !ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS ||
-    summary === null
-  ) {
-    return;
+): Promise<TripStageResult | null> => {
+  const tripUpdate = await updateVesselTrips({
+    vesselLocation: locationUpdate,
+    existingActiveTrip,
+    scheduleAccess,
+  });
+  const tripRowsChanged =
+    tripUpdate.activeVesselTripUpdate !== undefined ||
+    tripUpdate.completedVesselTripUpdate !== undefined;
+  if (!tripRowsChanged) {
+    return null;
   }
 
-  console.info(ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT, {
-    pingStartedAt,
-    ...summary,
+  const predictionStageResult = await runPredictionStage(ctx, {
+    activeTrip:
+      tripUpdate.activeVesselTripUpdate === undefined
+        ? undefined
+        : tripUpdate.activeVesselTripUpdate,
+    completedHandoff:
+      tripUpdate.completedVesselTripUpdate === undefined ||
+      tripUpdate.activeVesselTripUpdate === undefined ||
+      existingActiveTrip === undefined
+        ? undefined
+        : {
+            existingTrip: existingActiveTrip,
+            tripToComplete: tripUpdate.completedVesselTripUpdate,
+            events: {
+              isFirstTrip: false,
+              isTripStartReady: true,
+              isCompletedTrip: true,
+              didJustArriveAtDock:
+                tripUpdate.completedVesselTripUpdate.ArrivedNextActual !==
+                  undefined &&
+                existingActiveTrip.ArrivedNextActual !==
+                  tripUpdate.completedVesselTripUpdate.ArrivedNextActual,
+              didJustLeaveDock: false,
+              scheduleKeyChanged:
+                existingActiveTrip.ScheduleKey !==
+                tripUpdate.completedVesselTripUpdate.ScheduleKey,
+            },
+            scheduleTrip: tripUpdate.activeVesselTripUpdate,
+          },
   });
+
+  return {
+    tripWrites: buildTripWritesForVessel({
+      existingActiveTrip,
+      activeTripUpdate: tripUpdate.activeVesselTripUpdate,
+      completedTripUpdate: tripUpdate.completedVesselTripUpdate,
+    }),
+    predictionRows: predictionStageResult.predictionRows,
+    mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
+  };
 };
+
+type PerVesselTripUpdateInput = {
+  existingActiveTrip?: ConvexVesselTrip;
+  activeTripUpdate?: ConvexVesselTrip;
+  completedTripUpdate?: ConvexVesselTrip;
+};
+
+const buildTripWritesForVessel = (
+  tripUpdate: PerVesselTripUpdateInput
+): VesselTripWrites => {
+  const existing = tripUpdate.existingActiveTrip;
+  const active = tripUpdate.activeTripUpdate;
+  const completed = tripUpdate.completedTripUpdate;
+
+  if (
+    completed !== undefined &&
+    existing !== undefined &&
+    active !== undefined
+  ) {
+    return {
+      completedTripWrite: {
+        existingTrip: existing,
+        tripToComplete: completed,
+        events: completionTripEvents(existing, completed),
+        scheduleTrip: active,
+      },
+    };
+  }
+
+  if (active === undefined) {
+    return {};
+  }
+
+  const activeUpsert = stripTripPredictionsForStorage(active);
+  if (areTripStorageRowsEqual(existing, activeUpsert)) {
+    return {};
+  }
+
+  const events = currentTripEvents(existing, activeUpsert);
+  return {
+    activeTripUpsert: activeUpsert,
+    actualDockWrite:
+      events.didJustLeaveDock || events.didJustArriveAtDock
+        ? {
+            events,
+            scheduleTrip: activeUpsert,
+            vesselAbbrev: activeUpsert.VesselAbbrev,
+          }
+        : undefined,
+    predictedDockWrite: {
+      existingTrip: existing,
+      scheduleTrip: activeUpsert,
+      vesselAbbrev: activeUpsert.VesselAbbrev,
+    },
+  };
+};
+
+const toTimelineHandoffFromTripWrites = (
+  tripWrites: VesselTripWrites
+): PersistedTripTimelineHandoff => ({
+  completedTripFacts:
+    tripWrites.completedTripWrite === undefined
+      ? []
+      : [tripWrites.completedTripWrite],
+  currentBranch: {
+    successfulVesselAbbrev: tripWrites.activeTripUpsert?.VesselAbbrev,
+    pendingActualWrite: tripWrites.actualDockWrite,
+    pendingPredictedWrite: tripWrites.predictedDockWrite,
+  },
+});
+
+const completionTripEvents = (
+  existingTrip: ConvexVesselTrip,
+  completedTrip: ConvexVesselTrip
+): TripLifecycleEventFlags => ({
+  isFirstTrip: false,
+  isTripStartReady: true,
+  isCompletedTrip: true,
+  didJustArriveAtDock:
+    completedTrip.ArrivedNextActual !== undefined &&
+    existingTrip.ArrivedNextActual !== completedTrip.ArrivedNextActual,
+  didJustLeaveDock: false,
+  scheduleKeyChanged: existingTrip.ScheduleKey !== completedTrip.ScheduleKey,
+});
+
+const currentTripEvents = (
+  existingTrip: ConvexVesselTrip | undefined,
+  nextTrip: ConvexVesselTrip
+): TripLifecycleEventFlags => ({
+  isFirstTrip: existingTrip === undefined,
+  isTripStartReady:
+    nextTrip.DepartingTerminalAbbrev !== undefined &&
+    nextTrip.ArrivingTerminalAbbrev !== undefined &&
+    nextTrip.ScheduledDeparture !== undefined,
+  isCompletedTrip: false,
+  didJustArriveAtDock:
+    existingTrip?.AtDock !== true &&
+    nextTrip.AtDock === true &&
+    nextTrip.ArrivedNextActual !== undefined,
+  didJustLeaveDock:
+    existingTrip?.AtDock === true &&
+    nextTrip.AtDock !== true &&
+    nextTrip.LeftDockActual !== undefined,
+  scheduleKeyChanged: existingTrip?.ScheduleKey !== nextTrip.ScheduleKey,
+});
+

@@ -35,4 +35,4 @@ folder are internal; colocated tests import them via relative paths. Timeline
 assembly lives under [`../updateTimeline`](../updateTimeline).
 
 Primary runner implementation now lives in
-[`computeVesselPredictionRows.ts`](./computeVesselPredictionRows.ts).
+[`updateVesselPredictions.ts`](./updateVesselPredictions.ts).

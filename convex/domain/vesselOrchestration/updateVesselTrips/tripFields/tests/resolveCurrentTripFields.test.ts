@@ -1,8 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import {
-  getTripFieldInferenceLog,
-  resolveTripFieldsForTripRow,
-} from "..";
+import { getTripFieldInferenceLog, resolveTripFieldsForTripRow } from "..";
 import {
   makeLocation,
   makeScheduledSegment,

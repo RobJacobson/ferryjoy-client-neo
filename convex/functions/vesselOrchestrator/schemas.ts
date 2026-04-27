@@ -11,8 +11,6 @@ import {
   vesselTripWithMlSchema,
 } from "functions/vesselTrips/schemas";
 
-export type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrips";
-
 const tripLifecycleEventFlagsSchema = v.object({
   isFirstTrip: v.boolean(),
   isTripStartReady: v.boolean(),
@@ -42,10 +40,10 @@ const predictedDockWriteIntentSchema = v.object({
 });
 
 export const vesselTripWritesSchema = v.object({
-  completedTripWrites: v.array(completedArrivalHandoffSchema),
-  activeTripUpserts: v.array(vesselTripStoredSchema),
-  actualDockWrites: v.array(actualDockWriteIntentSchema),
-  predictedDockWrites: v.array(predictedDockWriteIntentSchema),
+  completedTripWrite: v.optional(completedArrivalHandoffSchema),
+  activeTripUpsert: v.optional(vesselTripStoredSchema),
+  actualDockWrite: v.optional(actualDockWriteIntentSchema),
+  predictedDockWrite: v.optional(predictedDockWriteIntentSchema),
 });
 
 export const mlTimelineOverlaySchema = v.union(
@@ -63,28 +61,9 @@ export const mlTimelineOverlaySchema = v.union(
   })
 );
 
-export const orchestratorPingPersistenceSchema = v.object({
-  pingStartedAt: v.number(),
+export const persistPerVesselOrchestratorWritesSchema = v.object({
   tripWrites: vesselTripWritesSchema,
   predictionRows: v.array(vesselTripPredictionProposalSchema),
-  mlTimelineOverlays: v.array(mlTimelineOverlaySchema),
-});
-
-export const persistTripAndPredictionWritesSchema = v.object({
-  tripWrites: vesselTripWritesSchema,
-  predictionRows: v.array(vesselTripPredictionProposalSchema),
-});
-
-export const persistedTripTimelineHandoffSchema = v.object({
-  completedFacts: v.array(completedArrivalHandoffSchema),
-  currentBranch: v.object({
-    successfulVessels: v.array(v.string()),
-    pendingActualMessages: v.array(actualDockWriteIntentSchema),
-    pendingPredictedMessages: v.array(predictedDockWriteIntentSchema),
-  }),
-});
-
-export const persistTimelineEventWritesSchema = v.object({
   actualEvents: v.array(eventsActualSchema),
   predictedEvents: v.array(predictedDockWriteBatchSchema),
 });

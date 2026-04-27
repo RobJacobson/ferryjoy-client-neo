@@ -2,11 +2,11 @@
  * Batch trip row computation across vessel location rows.
  */
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { computeVesselTripUpdate } from "./computeVesselTripUpdate";
 import type {
   RunUpdateVesselTripsInput,
   RunUpdateVesselTripsOutput,
 } from "./types";
+import { updateVesselTrips } from "./updateVesselTrips";
 
 /**
  * Computes persisted trip rows for one ping input.
@@ -22,7 +22,7 @@ export const computeVesselTripsRows = async (
   );
   const updates = await Promise.all(
     input.vesselLocations.map((vesselLocation) =>
-      computeVesselTripUpdate({
+      updateVesselTrips({
         vesselLocation,
         existingActiveTrip: existingActiveTripsByVessel.get(
           vesselLocation.VesselAbbrev

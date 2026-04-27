@@ -7,9 +7,7 @@
  */
 
 import { fetchRawWsfVesselLocations } from "adapters";
-import {
-  mapWsfVesselLocations,
-} from "domain/vesselOrchestration/updateVesselLocations/mapWsfVesselLocations";
+import { mapWsfVesselLocations } from "domain/vesselOrchestration/updateVesselLocations/mapWsfVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -28,7 +26,9 @@ type LoadVesselLocationUpdatesArgs = {
 export const loadVesselLocationUpdates = async ({
   terminalsIdentity,
   vesselsIdentity,
-}: LoadVesselLocationUpdatesArgs): Promise<ReadonlyArray<ConvexVesselLocation>> => {
+}: LoadVesselLocationUpdatesArgs): Promise<
+  ReadonlyArray<ConvexVesselLocation>
+> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
   const vesselLocations = mapWsfVesselLocations(
     rawFeedLocations,

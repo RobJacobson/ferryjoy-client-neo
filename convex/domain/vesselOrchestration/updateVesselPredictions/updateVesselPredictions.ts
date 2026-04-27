@@ -1,7 +1,6 @@
 /**
  * One-ping prediction pass: ML overlay per active trip and completed handoff,
- * then derive table proposals. Orchestrator uses {@link runVesselPredictionPing};
- * callers that only need upsert DTOs use {@link computeVesselPredictionRows}.
+ * then derive table proposals.
  */
 
 import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
@@ -18,7 +17,7 @@ import type {
 } from "./contracts";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
-export type RunVesselPredictionPingOutput = RunUpdateVesselPredictionsOutput & {
+export type UpdateVesselPredictionsOutput = RunUpdateVesselPredictionsOutput & {
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
@@ -31,8 +30,6 @@ const predictionModelAccessFromContext = (
 
   const loadModelsForProductionPairBatch: VesselTripPredictionModelAccess["loadModelsForProductionPairBatch"] =
     async (pairKey, modelTypes) =>
-      // Access interface expects `Record<ModelType, ...>` even when callers pass
-      // a subset of `ModelType[]`; build only requested keys and narrow once.
       Object.fromEntries(
         modelTypes.map((modelType) => [
           modelType,
@@ -84,15 +81,6 @@ const buildPredictedCompletedHandoff = async (
   };
 };
 
-/**
- * Builds the stable key used to merge completed-branch ML overlays into
- * timeline handoff facts.
- *
- * @param vesselAbbrev - Vessel abbreviation for the completed handoff
- * @param completedTrip - Completed trip row from the boundary ping
- * @param activeTrip - Replacement schedule trip row from the boundary ping
- * @returns Stable vessel+schedule identity key
- */
 const completedHandoffKey = (
   vesselAbbrev: string,
   completedTrip: ConvexVesselTrip | undefined,
@@ -107,9 +95,15 @@ const completedHandoffKey = (
   return `${vesselAbbrev}::${scheduleIdentity}`;
 };
 
-export const runVesselPredictionPing = async (
+/**
+ * Canonical predictions entrypoint for orchestrator callers.
+ *
+ * @param input - Current and completed trip facts plus model access context
+ * @returns Prediction rows and timeline ML overlays for this ping
+ */
+export const updateVesselPredictions = async (
   input: RunUpdateVesselPredictionsInput
-): Promise<RunVesselPredictionPingOutput> => {
+): Promise<UpdateVesselPredictionsOutput> => {
   const modelAccess = predictionModelAccessFromContext(input.predictionContext);
   const mlTimelineOverlays = [
     ...(await Promise.all(
@@ -134,11 +128,4 @@ export const runVesselPredictionPing = async (
     predictionRows,
     mlTimelineOverlays,
   };
-};
-
-export const computeVesselPredictionRows = async (
-  input: RunUpdateVesselPredictionsInput
-): Promise<RunUpdateVesselPredictionsOutput> => {
-  const { predictionRows } = await runVesselPredictionPing(input);
-  return { predictionRows };
 };
