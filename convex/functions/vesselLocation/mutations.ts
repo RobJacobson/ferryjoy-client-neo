@@ -3,7 +3,7 @@
  */
 
 import type { MutationCtx } from "_generated/server";
-import { internalMutation, mutation } from "_generated/server";
+import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { vesselIdentitySchema } from "../vessels/schemas";
 import type { ConvexVesselLocation } from "./schemas";
@@ -86,7 +86,7 @@ export async function performBulkUpsertVesselLocations(
 }
 
 /**
- * Public bulk upsert for normalized vessel location rows (full feed batch).
+ * Internal bulk upsert for normalized vessel location rows (full feed batch).
  *
  * Replaces the former `bulkUpsert` mutation; same args and semantics.
  *
@@ -94,7 +94,7 @@ export async function performBulkUpsertVesselLocations(
  * @param args - Mutation arguments containing the location snapshot payload
  * @returns Rows that were inserted/replaced after timestamp dedupe
  */
-export const bulkUpsertVesselLocations = mutation({
+export const bulkUpsertVesselLocations = internalMutation({
   args: { locations: v.array(vesselLocationValidationSchema) },
   returns: v.array(vesselLocationValidationSchema),
   handler: async (ctx, args) => {

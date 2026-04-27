@@ -18,7 +18,7 @@ import { eventsScheduledSchema } from "./schemas";
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format
  * @returns Same-day scheduled dock events for that vessel
  */
-export const loadScheduledDockEventsForVesselSailingDay = async (
+export const queryScheduledDockEventsForVesselSailingDay = async (
   ctx: { db: QueryCtx["db"] },
   args: { vesselAbbrev: string; sailingDay: string }
 ): Promise<ConvexScheduledDockEvent[]> =>
@@ -47,7 +47,7 @@ export const getScheduledDockEventsForSailingDay = internalQuery({
   },
   returns: v.array(eventsScheduledSchema),
   handler: async (ctx, args): Promise<ConvexScheduledDockEvent[]> =>
-    loadScheduledDockEventsForVesselSailingDay(ctx, args),
+    queryScheduledDockEventsForVesselSailingDay(ctx, args),
 });
 
 /**

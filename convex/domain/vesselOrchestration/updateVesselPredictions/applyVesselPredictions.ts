@@ -2,7 +2,7 @@
  * **updateVesselPredictions** (domain): ML attachment for one vessel-trip ping.
  *
  * Callers should invoke this with schedule/lifecycle trip rows from
- * **`updateVesselTrips`** (schedule-enriched `ConvexVesselTrip`). Canonical
+ * **`updateVesselTrip`** (schedule-enriched `ConvexVesselTrip`). Canonical
  * prediction logic lives in {@link ./appendPredictions}; this module routes by
  * physical phase (`AtDock` vs `AtSea`) and then applies leave-dock
  * actualization.
@@ -23,7 +23,7 @@ import { isAtDockPhase, isAtSeaPhase } from "./predictionPolicy";
 /**
  * Trip state immediately before this ping’s `appendAtDockPredictions` /
  * `appendAtSeaPredictions` (and leave-dock actualize): schedule + lifecycle
- * fields from **updateVesselTrips**, storage-shaped only.
+ * fields from **updateVesselTrip**, storage-shaped only.
  */
 export type VesselTripCoreProposal = ConvexVesselTrip;
 

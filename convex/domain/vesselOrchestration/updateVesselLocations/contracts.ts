@@ -3,7 +3,7 @@
  */
 
 import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
@@ -22,7 +22,7 @@ export type RunUpdateVesselLocationsInput = {
 /**
  * Canonical normalized row emitted by `updateVesselLocations`.
  */
-export type VesselLocationRow = ConvexVesselLocation;
+export type VesselLocationRow = ConvexVesselLocationIncoming;
 
 export type RunUpdateVesselLocationsOutput = {
   vesselLocations: VesselLocationRow[];

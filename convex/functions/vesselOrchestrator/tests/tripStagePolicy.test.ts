@@ -4,7 +4,7 @@ import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { computeTripStageForLocation } from "../actions";
+import { computeTripStageForLocation } from "../action/pipeline/tripStage";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -69,6 +69,7 @@ const makeLocation = (
   TimeStamp: ms("2026-03-13T06:28:45-07:00"),
   RouteAbbrev: "ana-sj",
   ...overrides,
+  AtDockObserved: overrides.AtDockObserved ?? false,
 });
 
 const makeLocationUpdate = (
@@ -98,9 +99,9 @@ describe("trip stage schedule-inference gating", () => {
 
   it("returns null when a vessel trip update emits no writes", async () => {
     const tripUpdateMod = await import(
-      "domain/vesselOrchestration/updateVesselTrips"
+      "domain/vesselOrchestration/updateVesselTrip"
     );
-    const computeTripSpy = spyOn(tripUpdateMod, "updateVesselTrips");
+    const computeTripSpy = spyOn(tripUpdateMod, "updateVesselTrip");
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
@@ -113,7 +114,7 @@ describe("trip stage schedule-inference gating", () => {
     } as unknown as ActionCtx;
 
     computeTripSpy.mockImplementation(
-      async (input: Parameters<typeof tripUpdateMod.updateVesselTrips>[0]) => {
+      async (input: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]) => {
         return {
           vesselAbbrev: "TAC",
           activeVesselTripUpdate:

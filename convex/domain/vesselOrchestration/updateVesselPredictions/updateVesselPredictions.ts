@@ -8,6 +8,7 @@ import type {
   CompletedArrivalHandoff,
   MlTimelineOverlay,
 } from "domain/vesselOrchestration/shared";
+import { buildCompletedHandoffKey } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyVesselPredictions } from "./applyVesselPredictions";
 import type {
@@ -72,27 +73,13 @@ const buildPredictedCompletedHandoff = async (
   return {
     vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
     branch: "completed",
-    completedHandoffKey: completedHandoffKey(
+    completedHandoffKey: buildCompletedHandoffKey(
       handoff.tripToComplete.VesselAbbrev,
       handoff.tripToComplete,
       handoff.scheduleTrip
     ),
     finalPredictedTrip,
   };
-};
-
-const completedHandoffKey = (
-  vesselAbbrev: string,
-  completedTrip: ConvexVesselTrip | undefined,
-  activeTrip: ConvexVesselTrip | undefined
-): string => {
-  const scheduleIdentity =
-    completedTrip?.ScheduleKey ??
-    completedTrip?.TripKey ??
-    activeTrip?.ScheduleKey ??
-    activeTrip?.TripKey ??
-    "";
-  return `${vesselAbbrev}::${scheduleIdentity}`;
 };
 
 /**

@@ -155,7 +155,7 @@ export const vesselTripStoredSchema = v.object({
 /**
  * Rows stored on `activeVesselTrips` / `completedVesselTrips` (no joined ML columns).
  *
- * Canonical minimum shape for preloaded `activeTrips` in **updateVesselTrips** and the
+ * Canonical minimum shape for preloaded `activeTrips` in **updateVesselTrip** and the
  * orchestrator snapshot. Client queries may return {@link ConvexVesselTripWithPredictions}
  * (joined minimal predictions); the trips pipeline and persistence use this type only.
  *

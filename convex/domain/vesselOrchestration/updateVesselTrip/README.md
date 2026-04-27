@@ -1,0 +1,85 @@
+# updateVesselTrip
+
+`updateVesselTrip` owns one narrow concern:
+
+> Given one vessel location ping, produce the authoritative active and
+> completed `ConvexVesselTrip` rows for that vessel update.
+
+## Public surface
+
+Root exports are intentionally small:
+
+- `updateVesselTrip(input) -> VesselTripUpdate`
+- `VesselTripUpdate`
+
+The production orchestrator hot path calls `updateVesselTrip` inside its
+per-vessel loop so one failed vessel can be isolated without stopping the
+fleet ping.
+
+## What this folder owns
+
+- Feed-driven lifecycle detection for one vessel ping
+- Building storage-shaped active and completed trip rows
+- Schedule-backed trip-field enrichment through `tripFields/`
+- Per-vessel change classification:
+  - `tripStorageChanged`
+  - `tripLifecycleChanged`
+- Batch merging of changed actives with unchanged carry-forward actives
+
+It does not own location persistence, ML prediction attachment, or timeline
+storage.
+
+## One-vessel flow
+
+For one vessel, the pipeline is intentionally linear:
+
+```text
+updateVesselTrip
+  -> detectTripEvents
+  -> buildUpdatedVesselRows
+  -> classify storage change
+  -> classify lifecycle change
+```
+
+`buildUpdatedVesselRows` is the single row-construction seam. Its internal
+order
+is:
+
+1. Resolve schedule-facing trip fields through `tripFields/`
+2. Build the base active or replacement row
+3. Finalize arrival/completion fields
+4. Clear stale next-leg attachment when identity changed
+5. Return the completed row and/or the active row for this ping
+
+## Module map
+
+- `updateVesselTrip.ts`
+  - One-vessel orchestration and change classification
+- `lifecycle.ts`
+  - Feed-driven lifecycle facts for one ping
+- `tripBuilders.ts`
+  - Single exported row-construction seam: `buildUpdatedVesselRows`
+- `tripFields/`
+  - Schedule inference policy and next-leg attachment
+- `storage.ts`
+  - Pipeline-local failure logging
+
+## Contracts
+
+Physical phase contract:
+
+- Trip-row `AtDock` is persisted from location `AtDockObserved` (stabilized
+  dock/sea phase), not directly from raw feed `AtDock`.
+
+Orchestrator change bundle:
+
+- `VesselTripUpdate`
+  - processed `vesselLocation`
+  - prior `existingActiveTrip`
+  - next `activeTripCandidate`
+  - optional `completedTrip`
+  - optional `replacementTrip`
+  - storage/lifecycle change flags
+
+Shared cross-module contracts such as trip lifecycle event flags and storage
+equality live in `domain/vesselOrchestration/shared`, not in this folder.

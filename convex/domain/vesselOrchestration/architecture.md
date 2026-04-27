@@ -7,23 +7,22 @@ This document describes the current shipped trip orchestration path, with the fo
 Each orchestrator ping runs in this order:
 
 ```text
-updateVesselOrchestrator
-  -> load identities + active trips (getOrchestratorModelData; no vesselLocations)
-  -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations + batch assert)
+updateVesselOrchestrator (action/actions.ts)
+  -> load identities + active trips (getOrchestratorModelData via loadOrchestratorSnapshot; fail fast if identity tables empty)
+  -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
   -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
-  -> load schedule continuity access for the ping
-  -> compute trip rows through updateVesselTrips (changed rows only)
-  -> run prediction stage from trip rows
-  -> persistTripAndPredictionWrites: trip write set + predictions
-  -> updateTimeline in action memory
-  -> persistTimelineEventWrites: actual/predicted event rows
+  -> createScheduleContinuityAccess for the ping (memoized eventsScheduled reads)
+  -> per changed vessel: updateVesselTrip -> runPredictionStage -> buildTripWritesForVessel
+  -> updateTimeline in action memory (trip handoff + mlTimelineOverlays)
+  -> persistPerVesselOrchestratorWrites: trip writes + prediction upserts + timeline rows
 ```
 
-The trip stage is pure domain compute in the action. Location table dedupe/read
-runs in `bulkUpsertVesselLocations`, and the action consumes only that
-mutation's changed-row return; trip persistence and prediction upserts run in
-`persistTripAndPredictionWrites`, timeline assembly runs in action memory, and
-`persistTimelineEventWrites` applies only final timeline rows.
+The trip and prediction stages run in the action per changed location row.
+Location dedupe runs in `bulkUpsertVesselLocations`, and the action consumes only
+that mutation's changed-row return. Timeline projection (`updateTimeline`) runs
+in the action **before** persistence; `persistPerVesselOrchestratorWrites` applies
+trip lifecycle writes, prediction proposals, and projected actual/predicted dock
+rows in one ordered mutation per vessel.
 
 ## Timestamp semantics (current code)
 
@@ -38,6 +37,7 @@ Use this as the canonical timestamp vocabulary for trip, timeline, and client re
 
 - Coverage interval: `StartTime` and `EndTime` describe when a trip row exists in storage. `EndTime` can be a synthetic close.
 - Physical boundaries: `ArrivedCurrActual`, `LeftDockActual`, `ArrivedNextActual` are the canonical physical boundary facts.
+- Phase state: trip `AtDock` is sourced from location `AtDockObserved` (stabilized observed phase), not directly from raw WSF `AtDock`.
 - Legacy mirrors/fallbacks: `TripStart`, `TripEnd`, `ArriveDest`, `LeftDock`, `AtDockActual` remain for compatibility and display fallback chains.
 
 ### Key rule
@@ -63,27 +63,25 @@ Use this as the canonical timestamp vocabulary for trip, timeline, and client re
 
 ## Core boundaries
 
-### `updateVesselTrips`
+### `updateVesselTrip`
 
 Owns authoritative lifecycle trip rows for one ping.
 
 Public surface:
 
-- `computeVesselTripsRows`
-- `updateVesselTrips`
-- `RunUpdateVesselTripsOutput`
+- `updateVesselTrip`
 - `VesselTripUpdate`
 
 Internal one-vessel flow:
 
 ```text
-updateVesselTrips
+updateVesselTrip
   -> detectTripEvents
-  -> buildTripRowsForPing
+  -> buildUpdatedVesselRows
   -> classify storage/lifecycle change
 ```
 
-`buildTripRowsForPing` is the only row-construction seam in the folder.
+`buildUpdatedVesselRows` is the only row-construction seam in the folder.
 
 ### `tripFields`
 
@@ -97,7 +95,7 @@ That seam resolves current-trip fields, emits transient inference observability,
 
 ### `shared`
 
-Owns cross-module contracts that should not leak from `updateVesselTrips`, such as:
+Owns cross-module contracts that should not leak from `updateVesselTrip`, such as:
 
 - `TripLifecycleEventFlags`
 - `areTripStorageRowsEqual`
@@ -105,7 +103,7 @@ Owns cross-module contracts that should not leak from `updateVesselTrips`, such 
 
 ### Schedule continuity (production vs tests)
 
-- **Production:** trip-field code depends only on `ScheduleContinuityAccess`, wired from `functions/vesselOrchestrator/scheduleContinuityAccess.ts` with memoized internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
+- **Production:** trip-field code depends only on `ScheduleContinuityAccess`, wired from `functions/vesselOrchestrator/action/pipeline/scheduleContinuity.ts` (`createScheduleContinuityAccess`) with memoized internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** `shared/scheduleSnapshot/` builds the same interface from an in-memory `ScheduleSnapshot` fixture (see that folder’s README). Do not treat that fixture as documentation of production persistence.
 
 ## Contracts between stages
@@ -119,25 +117,27 @@ Trip stage orchestrator metadata:
 
 - `ReadonlyArray<VesselTripUpdate>`
 
-Prediction and timeline stages consume trip rows plus handshake DTOs produced in `domain/vesselOrchestration/shared` and `functions/vesselOrchestrator`.
+Prediction and timeline stages consume trip rows plus handshake DTOs produced in `domain/vesselOrchestration/shared` and shaped in `functions/vesselOrchestrator/action/pipeline/*`.
 
 ## Current ownership
 
-- `functions/vesselOrchestrator/actions.ts`
-  - top-level ping orchestration
-- `functions/vesselOrchestrator/persistVesselTripWriteSet.ts`
-  - trip write persistence and handoff construction
-- `domain/vesselOrchestration/updateVesselTrips/`
+- `functions/vesselOrchestrator/action/actions.ts`
+  - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
+- `functions/vesselOrchestrator/action/pipeline/*`
+  - location load, snapshot, schedule continuity, trip stage, prediction stage, trip-write shaping, timeline handoff adapter
+- `functions/vesselOrchestrator/mutation/mutations.ts` (`persistPerVesselOrchestratorWrites`)
+  - ordered trip + prediction + timeline persistence per vessel
+- `domain/vesselOrchestration/updateVesselTrip/`
   - trip compute only
 - `domain/vesselOrchestration/updateVesselPredictions/`
   - ML overlay from trip rows
 - `domain/vesselOrchestration/updateTimeline/`
-  - actual/predicted dock event assembly and persistence prep
+  - actual/predicted dock event assembly (pure); orchestrator calls it before `persistPerVesselOrchestratorWrites`
 
 ## Key design rules
 
 - Trip compute stays prediction-free.
-- Schedule continuity in production uses only **`ScheduleContinuityAccess`** (see `functions/vesselOrchestrator/scheduleContinuityAccess.ts`); do not add a parallel schedule seam for trip-field code.
-- Shared downstream contracts are owned in `shared/`, not in `updateVesselTrips`.
+- Schedule continuity in production uses only **`ScheduleContinuityAccess`** (see `functions/vesselOrchestrator/action/pipeline/scheduleContinuity.ts`); do not add a parallel schedule seam for trip-field code.
+- Shared downstream contracts are owned in `shared/`, not in `updateVesselTrip`.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
 - `tripFields/` remains isolated because schedule identity policy changes for different reasons than physical lifecycle logic.

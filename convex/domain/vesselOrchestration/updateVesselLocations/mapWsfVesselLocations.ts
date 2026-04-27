@@ -12,7 +12,7 @@ import {
   type TerminalIdentity,
   type VesselIdentity,
 } from "adapters";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
 import { deriveTripIdentity } from "shared/tripIdentity";
@@ -33,22 +33,20 @@ export const mapWsfVesselLocations = (
   rows: ReadonlyArray<WsfVesselLocation>,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
-): ConvexVesselLocation[] => {
-  const locations: ConvexVesselLocation[] = [];
-
-  for (const row of rows) {
-    try {
-      locations.push(normalizeWsfVesselLocationRow(row, vessels, terminals));
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `[vesselLocation] Skipping feed row (VesselID=${row.VesselID}, VesselName=${JSON.stringify(row.VesselName ?? "")}): ${detail}`
-      );
-    }
-  }
-
-  return locations;
-};
+): ConvexVesselLocationIncoming[] =>
+  rows
+    .map((row) => {
+      try {
+        return normalizeWsfVesselLocationRow(row, vessels, terminals);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[vesselLocation] Skipping feed row (VesselID=${row.VesselID}, VesselName=${JSON.stringify(row.VesselName ?? "")}): ${detail}`
+        );
+        return undefined;
+      }
+    })
+    .filter((loc): loc is ConvexVesselLocationIncoming => loc !== undefined);
 
 /**
  * Normalizes one raw WSF vessel-location row into canonical storage shape.
@@ -62,69 +60,53 @@ const normalizeWsfVesselLocationRow = (
   row: WsfVesselLocation,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
-): ConvexVesselLocation => {
-  const vesselName = (row.VesselName ?? "").trim();
-  const rawDepartingTerminalAbbrev = (row.DepartingTerminalAbbrev ?? "").trim();
-  const rawDepartingTerminalName = (row.DepartingTerminalName ?? "").trim();
-  const rawArrivingTerminalAbbrev =
-    row.ArrivingTerminalAbbrev?.trim() ?? undefined;
-  const rawArrivingTerminalName = row.ArrivingTerminalName?.trim() ?? undefined;
-  const resolvedVessel = resolveVessel(vesselName, vessels);
-  const resolvedDepartingTerminal = rawDepartingTerminalAbbrev
-    ? resolveTerminalByAbbrev(rawDepartingTerminalAbbrev, terminals)
-    : null;
-  const resolvedArrivingTerminal = rawArrivingTerminalAbbrev
-    ? resolveTerminalByAbbrev(rawArrivingTerminalAbbrev, terminals)
-    : null;
-
-  if (!rawDepartingTerminalAbbrev) {
+): ConvexVesselLocationIncoming => {
+  const rawDepartAbbrev = trimFeedStr(row.DepartingTerminalAbbrev);
+  if (!rawDepartAbbrev) {
     throw new Error(
       "Missing departing terminal abbreviation in vessel location."
     );
   }
 
-  if (!resolvedDepartingTerminal) {
+  const vesselName = trimFeedStr(row.VesselName);
+  const vessel = resolveVessel(vesselName, vessels);
+  const rawArriveAbbrev = trimFeedOpt(row.ArrivingTerminalAbbrev);
+  const depTerminal = resolveTerminalByAbbrev(rawDepartAbbrev, terminals);
+  const arrTerminal = rawArriveAbbrev
+    ? resolveTerminalByAbbrev(rawArriveAbbrev, terminals)
+    : null;
+
+  if (!depTerminal) {
     warnAboutUnknownMarineLocation(
       "departing",
-      resolvedVessel.VesselAbbrev,
-      rawDepartingTerminalAbbrev
+      vessel.VesselAbbrev,
+      rawDepartAbbrev
     );
   }
-
-  if (rawArrivingTerminalAbbrev && !resolvedArrivingTerminal) {
+  if (rawArriveAbbrev && !arrTerminal) {
     warnAboutUnknownMarineLocation(
       "arriving",
-      resolvedVessel.VesselAbbrev,
-      rawArrivingTerminalAbbrev
+      vessel.VesselAbbrev,
+      rawArriveAbbrev
     );
   }
 
-  const departingTerminalAbbrev =
-    resolvedDepartingTerminal?.TerminalAbbrev ?? rawDepartingTerminalAbbrev;
-  const arrivingTerminalAbbrev =
-    resolvedArrivingTerminal?.TerminalAbbrev ?? rawArrivingTerminalAbbrev;
-  const departingTerminalName =
-    resolvedDepartingTerminal?.TerminalName ?? rawDepartingTerminalName;
-  const arrivingTerminalName =
-    resolvedArrivingTerminal?.TerminalName ?? rawArrivingTerminalName;
+  const depAbbrev = depTerminal?.TerminalAbbrev ?? rawDepartAbbrev;
+  const arrAbbrev = arrTerminal?.TerminalAbbrev ?? rawArriveAbbrev;
   const scheduledDepartureMs = optionalDateToEpochMs(row.ScheduledDeparture);
-  const tripIdentity = deriveTripIdentity({
-    vesselAbbrev: resolvedVessel.VesselAbbrev,
-    departingTerminalAbbrev,
-    arrivingTerminalAbbrev,
-    scheduledDepartureMs,
-  });
 
   return {
     VesselID: row.VesselID,
     VesselName: vesselName,
-    VesselAbbrev: resolvedVessel.VesselAbbrev,
+    VesselAbbrev: vessel.VesselAbbrev,
     DepartingTerminalID: row.DepartingTerminalID,
-    DepartingTerminalName: departingTerminalName,
-    DepartingTerminalAbbrev: departingTerminalAbbrev,
+    DepartingTerminalName:
+      depTerminal?.TerminalName ?? trimFeedStr(row.DepartingTerminalName),
+    DepartingTerminalAbbrev: depAbbrev,
     ArrivingTerminalID: row.ArrivingTerminalID ?? undefined,
-    ArrivingTerminalName: arrivingTerminalName,
-    ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    ArrivingTerminalName:
+      arrTerminal?.TerminalName ?? trimFeedOpt(row.ArrivingTerminalName),
+    ArrivingTerminalAbbrev: arrAbbrev,
     Latitude: row.Latitude,
     Longitude: row.Longitude,
     Speed: row.Speed,
@@ -137,21 +119,44 @@ const normalizeWsfVesselLocationRow = (
     RouteAbbrev: row.OpRouteAbbrev?.[0] ?? undefined,
     VesselPositionNum: row.VesselPositionNum ?? undefined,
     TimeStamp: dateToEpochMs(row.TimeStamp),
-    ScheduleKey: tripIdentity.ScheduleKey,
+    ScheduleKey: deriveTripIdentity({
+      vesselAbbrev: vessel.VesselAbbrev,
+      departingTerminalAbbrev: depAbbrev,
+      arrivingTerminalAbbrev: arrAbbrev,
+      scheduledDepartureMs,
+    }).ScheduleKey,
     DepartingDistance: getDistanceToTerminal(
       row.Latitude,
       row.Longitude,
-      departingTerminalAbbrev,
+      depAbbrev,
       terminals
     ),
     ArrivingDistance: getDistanceToTerminal(
       row.Latitude,
       row.Longitude,
-      arrivingTerminalAbbrev,
+      arrAbbrev,
       terminals
     ),
   };
 };
+
+/**
+ * Trims a required feed string to the Convex `v.string()` shape.
+ *
+ * @param value - Raw text from the WSF payload
+ * @returns Trimmed string (empty when missing)
+ */
+const trimFeedStr = (value: string | undefined | null): string =>
+  (value ?? "").trim();
+
+/**
+ * Trims an optional feed string; preserves empty string when the field is present.
+ *
+ * @param value - Raw optional text from the WSF payload
+ * @returns Trimmed text, or `undefined` when the field is absent
+ */
+const trimFeedOpt = (value: string | undefined | null): string | undefined =>
+  value == null ? undefined : value.trim();
 
 /**
  * Measures the vessel's distance from a known terminal when that terminal can

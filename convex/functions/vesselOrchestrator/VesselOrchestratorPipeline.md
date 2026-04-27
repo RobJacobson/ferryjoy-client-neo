@@ -5,7 +5,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Entry point
 
-- Action: `updateVesselOrchestrator` in `actions.ts`
+- Action: `updateVesselOrchestrator` in `action/actions.ts`
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - one `bulkUpsertVesselLocations` for locations
@@ -17,31 +17,30 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Function: `loadOrchestratorSnapshot`
    - Reads: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips`
    - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
+   - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
-2. **Fetch and normalize live locations**
-   - Function: `loadVesselLocationUpdates`
+2. **Fetch, normalize, augment, and persist live locations**
+   - Function: `updateVesselLocations`
    - External input: WSF vessel locations
-   - Output: `ConvexVesselLocation[]` (normalized batch)
-
-3. **Persist normalized locations**
-   - Mutation: `bulkUpsertVesselLocations`
-   - Payload: full normalized `locations[]`
+   - Output: changed `ConvexVesselLocation[]` rows after dedupe
+   - Phase contract: this stage derives `AtDockObserved`; downstream trip
+     `AtDock` is persisted from that observed phase
    - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
    - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 
-4. **Build schedule continuity access**
+3. **Build schedule continuity access**
    - Function: `createScheduleContinuityAccess`
    - Behavior: targeted, memoized schedule lookups for this ping
-   - Output: `ScheduleContinuityAccess` with optional sanity metrics summary
+   - Output: `ScheduleContinuityAccess`
 
-5. **Sequential per-vessel sparse pipeline (changed rows only)**
+4. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const location of dedupedLocationUpdates)`
    - For each vessel:
-     1. `computeTripStageForLocation` computes trip diff (`updateVesselTrips`)
+     1. `computeTripStageForLocation` computes trip diff (`updateVesselTrip`)
      2. skip vessel when no trip rows changed
      3. `runPredictionStage` computes prediction rows and ML overlays
-    4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays
+    4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays (`toTimelineHandoffFromTripWrites`)
     5. mutation `persistPerVesselOrchestratorWrites` writes in order:
         - trip writes (`persistVesselTripWrites`)
         - prediction upserts (`batchUpsertProposalsInDb`)

@@ -148,6 +148,7 @@ const makeVesselLocation = (
   DepartingDistance: undefined,
   ArrivingDistance: undefined,
   ...overrides,
+  AtDockObserved: overrides.AtDockObserved ?? false,
 });
 
 describe("fromRouteTimelineModel", () => {

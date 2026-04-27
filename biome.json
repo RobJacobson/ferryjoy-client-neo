@@ -70,7 +70,7 @@
                 "patterns": [
                   {
                     "group": [
-                      "domain/vesselOrchestration/updateVesselTrips/**",
+                      "domain/vesselOrchestration/updateVesselTrip/**",
                       "domain/vesselOrchestration/updateTimeline/**",
                       "domain/vesselOrchestration/updateVesselPredictions/**"
                     ],
@@ -94,7 +94,7 @@
                 "patterns": [
                   {
                     "group": [
-                      "domain/vesselOrchestration/updateVesselTrips/**",
+                      "domain/vesselOrchestration/updateVesselTrip/**",
                       "domain/vesselOrchestration/updateTimeline/**",
                       "domain/vesselOrchestration/updateVesselPredictions/**"
                     ],
@@ -109,7 +109,7 @@
     },
     {
       "includes": [
-        "convex/domain/vesselOrchestration/updateVesselTrips/**/*.ts"
+        "convex/domain/vesselOrchestration/updateVesselTrip/**/*.ts"
       ],
       "linter": {
         "rules": {
@@ -120,7 +120,7 @@
                 "patterns": [
                   {
                     "group": ["domain/vesselOrchestration/updateTimeline/**"],
-                    "message": "Handshake types live in domain/vesselOrchestration/shared/tickHandshake; do not import updateTimeline from updateVesselTrips."
+                    "message": "Handshake types live in domain/vesselOrchestration/shared/tickHandshake; do not import updateTimeline from updateVesselTrip."
                   }
                 ]
               }

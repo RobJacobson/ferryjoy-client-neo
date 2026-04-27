@@ -52,6 +52,21 @@ export const getByVesselAbbrev = query({
 });
 
 /**
+ * Get all current vessel locations as internal storage-native rows.
+ *
+ * @param ctx - Convex internal query context
+ * @returns All live vessel location rows without Convex metadata
+ */
+export const getCurrentVesselLocations = internalQuery({
+  args: {},
+  returns: v.array(vesselLocationValidationSchema),
+  handler: async (ctx) => {
+    const vesselLocations = await ctx.db.query("vesselLocations").collect();
+    return vesselLocations.map(stripConvexMeta);
+  },
+});
+
+/**
  * Fetch all backend vessel rows.
  *
  * @param ctx - Convex internal query context

@@ -18,12 +18,24 @@ export const areTripStorageRowsEqual = (
     return existingTrip === nextTrip;
   }
 
-  return (
-    JSON.stringify(
-      toComparableTripStorageRow(stripTripPredictionsForStorage(existingTrip))
-    ) ===
-    JSON.stringify(
-      toComparableTripStorageRow(stripTripPredictionsForStorage(nextTrip))
-    )
+  const existingComparable = toComparableTripStorageRow(
+    stripTripPredictionsForStorage(existingTrip)
   );
+  const nextComparable = toComparableTripStorageRow(
+    stripTripPredictionsForStorage(nextTrip)
+  );
+  const keys = new Set([
+    ...Object.keys(existingComparable),
+    ...Object.keys(nextComparable),
+  ]);
+
+  for (const key of keys) {
+    const existingValue = existingComparable[key as keyof TripStorageComparable];
+    const nextValue = nextComparable[key as keyof TripStorageComparable];
+    if (existingValue !== nextValue) {
+      return false;
+    }
+  }
+
+  return true;
 };
