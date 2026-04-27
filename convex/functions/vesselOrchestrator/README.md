@@ -277,7 +277,7 @@ The timeline overlay path is designed to stay lightweight:
 ## Core files
 
 - `action/actions.ts` — `updateVesselOrchestrator`: read model, WSF fetch, location upsert via `bulkUpsertVesselLocations`, per-vessel **`updateVesselTrip`** → **`loadPredictionContext`** → **`updateVesselPredictions`** → **`updateTimeline`** → **`persistPerVesselOrchestratorWrites`**.
-- `action/pipeline/stage-1-updateVesselLocations/` — location update stage (fetch, normalize, augment with `AtDockObserved`, persist via `bulkUpsertVesselLocations`, return changed rows).
+- `action/pipeline/updateVesselLocations/` — location update stage (fetch, normalize, augment with `AtDockObserved`, persist via `bulkUpsertVesselLocations`, return changed rows).
 - `action/pipeline/scheduleContinuity.ts` — targeted cached `eventsScheduled` access for continuity lookups during the trip stage.
 - `action/pipeline/snapshot.ts` — **`loadOrchestratorSnapshot`** baseline read model for one ping.
 - `action/predictionContextLoader.ts` — **`loadPredictionContext`**: Convex query for **`getProductionModelParametersForPing`** when domain preload requests are non-empty.

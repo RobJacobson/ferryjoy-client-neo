@@ -122,7 +122,7 @@ Prediction inputs are derived inside **`updateVesselPredictions`** from **`Vesse
 - `functions/vesselOrchestrator/action/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/action/pipeline/*`
-  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule continuity (**`scheduleContinuity.ts`**), locations stage (**`stage-1-updateVesselLocations`**)
+  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule continuity (**`scheduleContinuity.ts`**), locations stage (**`updateVesselLocations`**)
 - `functions/vesselOrchestrator/action/predictionContextLoader.ts`
   - Convex query wrapper for production model preload (**`loadPredictionContext`**); pure request derivation lives in **`updateVesselPredictions/predictionContextRequests.ts`**
 - `functions/vesselOrchestrator/mutation/mutations.ts` (`persistPerVesselOrchestratorWrites`)

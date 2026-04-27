@@ -11,7 +11,7 @@ import { updateVesselPredictions } from "domain/vesselOrchestration/updateVessel
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import { createScheduleContinuityAccess } from "./pipeline/scheduleContinuity";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
-import { runStage1UpdateVesselLocations } from "./pipeline/stage-1-updateVesselLocations";
+import { runStage1UpdateVesselLocations } from "./pipeline/updateVesselLocations";
 import { loadPredictionContext } from "./predictionContextLoader";
 
 /**
