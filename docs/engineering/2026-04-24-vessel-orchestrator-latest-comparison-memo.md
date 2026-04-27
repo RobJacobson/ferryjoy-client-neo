@@ -12,7 +12,7 @@
 - **2026-04-25 PM update:** hot-path writes now use a **hybrid split**.
   `getOrchestratorModelData` still loads only `vesselsIdentity`,
   `terminalsIdentity`, and `activeVesselTrips` (not `vesselLocations`). The
-  action normalizes the full WSF batch, calls public mutation
+  action normalizes the full WSF batch, calls internal mutation
   **`bulkUpsertVesselLocations`** with locations-only payload, and the mutation
   returns only changed rows after timestamp dedupe; trip compute and prediction
   stage then run from that changed subset. Persistence is now split into
@@ -68,7 +68,7 @@ The most important design conclusion is:
 | Concern                   | Before                                                                            | Latest                                                                                                                        | My assessment                                                                                  |
 | ------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Top-level orchestration   | Fetch, convert, fan out location/trip branches, apply timeline writes             | Load identities + trips, fetch/normalize feed, locations-only mutation, then compute trip/prediction and persist timeline bundle | Latest is sequential, with improved payload isolation and clear stage ownership |
-| `updateVesselLocations`   | Upsert all converted locations every tick                                         | Full feed sent to public `bulkUpsertVesselLocations`; **`performBulkUpsertVesselLocations`** (`collect()` + compare by `VesselAbbrev` / `TimeStamp`) inside location mutation | Aligns with classic mutation-side dedupe while avoiding bundled cross-stage payloads   |
+| `updateVesselLocations`   | Upsert all converted locations every tick                                         | Full feed sent to internal `bulkUpsertVesselLocations`; **`performBulkUpsertVesselLocations`** (`collect()` + compare by `VesselAbbrev` / `TimeStamp`) inside location mutation | Aligns with classic mutation-side dedupe while avoiding bundled cross-stage payloads   |
 | `updateVesselTrip`       | Lifecycle, schedule enrichment, ML, persistence, and timeline intents intertwined | Per-vessel pure compute with targeted schedule access; persistence separated                                                  | Stronger domain boundary, still more files/types than before                                   |
 | `updateVesselPredictions` | Embedded inside trip building                                                     | Separate stage gated by changed trip facts                                                                                    | Clear win; keep this separation                                                                |
 | `updateVesselTimeline`    | Built from trip lifecycle messages and applied after trip writes                  | Built after trip persistence from persisted facts plus ML computations                                                        | More correct, still the densest handoff area                                                   |
@@ -163,7 +163,7 @@ Normal expected branches:
 | -------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `updateVesselOrchestrator`             | Fetch once, fan out branches, coordinate errors                          | `updateVesselOrchestrator` / `runOrchestratorPing`                     | Sequential hot path; one locations-only mutation, one trip/prediction mutation, and one timeline-row mutation per ping |
 | `loadOrchestratorTickReadModelOrThrow` | Load vessel, terminal, trip snapshot and bootstrap empty identity tables | `loadOrchestratorSnapshot`                                             | Load identities + active trips in one query (**no** `vesselLocations`); no bootstrap refresh in this path |
-| `updateVesselLocations`                | Write all current locations through bulk upsert                          | `updateVesselLocations` stage + public **`bulkUpsertVesselLocations`** (uses **`performBulkUpsertVesselLocations`**) | Fetch + normalize + augment in action stage; dedupe + write in dedicated location mutation (`collect()` by `VesselAbbrev`)  |
+| `updateVesselLocations`                | Write all current locations through bulk upsert                          | `updateVesselLocations` stage + internal **`bulkUpsertVesselLocations`** (uses **`performBulkUpsertVesselLocations`**) | Fetch + normalize + augment in action stage; dedupe + write in dedicated location mutation (`collect()` by `VesselAbbrev`)  |
 | `processVesselTrips`                   | Trip lifecycle, schedule enrichment, ML, persistence, timeline intents   | `computeTripStageForLocations` + `persistVesselTripWriteSet`           | Pure trip compute in action, trip-table writes in persistence mutation                            |
 | `applyTickEventWrites`                 | Persist actual/predicted timeline writes                                 | `updateTimeline` + `persistTimelineEventWrites`   | Action assembles timeline rows after trip persistence and ML merge; mutation applies final rows    |
 
@@ -212,7 +212,7 @@ Primary flow:
 
 - raw WSF rows are converted inline using `toConvexVesselLocation`
 - `updateVesselLocations`
-  - `api.functions.vesselLocation.mutations.bulkUpsertVesselLocations`
+  - `internal.functions.vesselLocation.mutations.bulkUpsertVesselLocations`
   - mutation reads all `vesselLocations`
   - mutation replaces/inserts rows whose timestamps differ
 
@@ -257,7 +257,7 @@ Expected non-error branches:
 | ------------------------ | ----------------------------------------------- | -------------------------------- | --------------------------------------------------------- |
 | `toConvexVesselLocation` | Convert one raw WSF row                         | `updateVesselLocations`      | Convert and validate the whole normalized batch           |
 | `updateVesselLocations`  | Send all locations to a mutation                | `updateVesselLocations` stage + `bulkUpsertVesselLocations` | Fetch + normalize + augment in action stage; location mutation owns DB read/compare |
-| `bulkUpsert`             | Reread table and compare timestamps in mutation | **`performBulkUpsertVesselLocations`** (public **`bulkUpsertVesselLocations`** mutation) | Same semantics: **`VesselAbbrev`** key + `TimeStamp` skip inside shared helper |
+| `bulkUpsert`             | Reread table and compare timestamps in mutation | **`performBulkUpsertVesselLocations`** (internal **`bulkUpsertVesselLocations`** mutation) | Same semantics: **`VesselAbbrev`** key + `TimeStamp` skip inside shared helper |
 
 
 ### 4.4 Data Flow And Side Effects
@@ -284,7 +284,7 @@ Tradeoffs versus the intermediate “snapshot dedupe in the action” approach:
 Remaining opportunities:
 
 - optional narrow index table later if `vesselLocations` **read** volume becomes costly (see discussion elsewhere); not required for correctness today
-- keep **`performBulkUpsertVesselLocations`** as the dedupe helper behind public **`bulkUpsertVesselLocations`**
+- keep **`performBulkUpsertVesselLocations`** as the dedupe helper behind internal **`bulkUpsertVesselLocations`**
 
 ## 5. `updateVesselTrip` Pipeline
 

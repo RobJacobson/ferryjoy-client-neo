@@ -2,7 +2,7 @@
  * Persistence adapter for vessel-location update stage.
  */
 
-import { api } from "_generated/api";
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 
@@ -23,7 +23,7 @@ export const persistVesselLocationBatch = async (
 ): Promise<ReadonlyArray<ConvexVesselLocation>> =>
   // Invoke the location bulk-upsert mutation with the full current batch.
   ctx.runMutation(
-    api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
+    internal.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
     {
       // Convert readonly input into a mutable array payload for Convex args.
       locations: Array.from(locations),

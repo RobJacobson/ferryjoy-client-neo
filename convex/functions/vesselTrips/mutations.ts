@@ -7,7 +7,7 @@
 
 import type { Id } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
-import { mutation } from "_generated/server";
+import { internalMutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
 import { resolveDepartNextLegContext } from "domain/vesselOrchestration/shared";
 import { actualizeDepartNextMlPredictions } from "functions/events/eventsPredicted/mutations";
@@ -26,7 +26,7 @@ import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
  * @param args.newTrip - The new vessel trip to start
  * @returns Null on success
  */
-export const completeAndStartNewTrip = mutation({
+export const completeAndStartNewTrip = internalMutation({
   args: {
     completedTrip: vesselTripStoredSchema,
     newTrip: vesselTripStoredSchema,
@@ -60,7 +60,7 @@ export const completeAndStartNewTrip = mutation({
  * @param args.activeUpserts - Active trips to upsert (one per vessel)
  * @returns Status list per vessel
  */
-export const upsertVesselTripsBatch = mutation({
+export const upsertVesselTripsBatch = internalMutation({
   args: {
     activeUpserts: v.array(vesselTripStoredSchema),
   },
@@ -86,7 +86,7 @@ export const upsertVesselTripsBatch = mutation({
  * @param args.actualDepartMs - Actual departure timestamp of the next trip (epoch ms)
  * @returns Whether any prediction row was patched and optional skip reason
  */
-export const setDepartNextActualsForMostRecentCompletedTrip = mutation({
+export const setDepartNextActualsForMostRecentCompletedTrip = internalMutation({
   args: {
     vesselAbbrev: v.string(),
     actualDepartMs: v.number(),
