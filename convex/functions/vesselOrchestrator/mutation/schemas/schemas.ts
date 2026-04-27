@@ -1,5 +1,5 @@
 /**
- * Validators and TypeScript shapes used by the vessel orchestrator.
+ * Validators for vessel-orchestrator mutation write contracts.
  */
 
 import { v } from "convex/values";
@@ -39,13 +39,21 @@ const predictedDockWriteIntentSchema = v.object({
   vesselAbbrev: v.string(),
 });
 
-export const vesselTripWritesSchema = v.object({
+const vesselTripWritesSchema = v.object({
   completedTripWrite: v.optional(completedArrivalHandoffSchema),
   activeTripUpsert: v.optional(vesselTripStoredSchema),
   actualDockWrite: v.optional(actualDockWriteIntentSchema),
   predictedDockWrite: v.optional(predictedDockWriteIntentSchema),
 });
 
+export const persistPerVesselOrchestratorWritesSchema = v.object({
+  tripWrites: vesselTripWritesSchema,
+  predictionRows: v.array(vesselTripPredictionProposalSchema),
+  actualEvents: v.array(eventsActualSchema),
+  predictedEvents: v.array(predictedDockWriteBatchSchema),
+});
+
+// Maintains backward compatibility for existing ML overlay tests/imports.
 export const mlTimelineOverlaySchema = v.union(
   v.object({
     vesselAbbrev: v.string(),
@@ -60,10 +68,3 @@ export const mlTimelineOverlaySchema = v.union(
     finalPredictedTrip: v.optional(vesselTripWithMlSchema),
   })
 );
-
-export const persistPerVesselOrchestratorWritesSchema = v.object({
-  tripWrites: vesselTripWritesSchema,
-  predictionRows: v.array(vesselTripPredictionProposalSchema),
-  actualEvents: v.array(eventsActualSchema),
-  predictedEvents: v.array(predictedDockWriteBatchSchema),
-});

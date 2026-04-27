@@ -1,15 +1,5 @@
 /**
  * Internal read models for the vessel orchestrator action.
- *
- * Bundles DB snapshots that the orchestrator needs each ping so one query
- * replaces separate vessel, terminal, and active-trip round trips from actions.
- * Active trips are **storage-native** (no `eventsPredicted` join); public
- * queries load predicted rows via `eventsPredicted` queries and merge with
- * `mergeTripsWithPredictions` for API parity instead.
- *
- * Live `vesselLocations` are not loaded here; the orchestrator action applies
- * the normalized feed through `bulkUpsertVesselLocations` in a separate
- * mutation before trip/prediction/timeline persistence.
  */
 
 import { internalQuery } from "_generated/server";
@@ -19,7 +9,6 @@ import { vesselIdentitySchema } from "functions/vessels/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
-/** Return validator for {@link getOrchestratorModelData}. */
 const orchestratorModelDataSchema = v.object({
   vesselsIdentity: v.array(vesselIdentitySchema),
   terminalsIdentity: v.array(terminalIdentitySchema),
@@ -27,14 +16,17 @@ const orchestratorModelDataSchema = v.object({
 });
 
 /**
- * Load vessels, terminals, and active trips in one transaction for one ping.
+ * Loads the baseline orchestrator read model in one query transaction.
  *
- * Matches vessel/terminal shapes used elsewhere; active trips match persisted
- * `activeVesselTrips` rows (not `getActiveTrips`, which enriches them with
- * predictions for subscribers).
+ * This query is intentionally narrow and storage-native so the action layer can
+ * build one consistent ping snapshot without joining prediction overlays or
+ * other derived views. Centralizing these reads behind one function reduces
+ * round trips and gives the action pipeline a single dependency for baseline
+ * state. It also cleanly separates read-model assembly concerns from action
+ * sequencing and mutation-side persistence concerns.
  *
- * @param ctx - Convex query context
- * @returns Stripped vessel rows, terminal rows, and storage-native active trips
+ * @param ctx - Convex query context for database reads
+ * @returns Identity rows and storage-native active trip rows
  */
 export const getOrchestratorModelData = internalQuery({
   args: {},

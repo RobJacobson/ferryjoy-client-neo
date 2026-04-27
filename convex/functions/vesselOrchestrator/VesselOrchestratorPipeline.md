@@ -5,7 +5,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Entry point
 
-- Action: `updateVesselOrchestrator` in `actions.ts`
+- Action: `updateVesselOrchestrator` in `action/actions.ts`
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - one `bulkUpsertVesselLocations` for locations
@@ -33,7 +33,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 4. **Build schedule continuity access**
    - Function: `createScheduleContinuityAccess`
    - Behavior: targeted, memoized schedule lookups for this ping
-   - Output: `ScheduleContinuityAccess` with optional sanity metrics summary
+   - Output: `ScheduleContinuityAccess`
 
 5. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const location of dedupedLocationUpdates)`

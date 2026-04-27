@@ -1,10 +1,5 @@
 /**
- * Vessel-orchestrator trip persistence: apply one functions-owned translation
- * from the public trips DTOs to Convex mutations.
- *
- * The trips concern owns the public trip-computation contract, including
- * provisional trip fields already inferred from schedule evidence. This module
- * owns only the one-way translation needed to persist those outputs.
+ * Vessel-orchestrator trip persistence helpers.
  */
 
 import type { MutationCtx } from "_generated/server";
@@ -29,10 +24,18 @@ export type VesselTripWrites = {
 };
 
 /**
- * Persists one tick of trip-table writes from precomputed write rows.
+ * Persists one vessel's trip-table writes for the current ping branch.
  *
- * @param ctx - Convex mutation context
- * @param tripWrites - Trip write rows and timeline handoff inputs
+ * This function is the mutation-layer adapter between orchestrator write
+ * intents and lower-level vessel-trip table mutations. It exists to keep the
+ * top-level mutation focused on phase ordering while this helper handles trip
+ * lifecycle details and follow-up leave-dock actualization rules. By consuming
+ * sparse intents, it avoids unnecessary writes and preserves clear ownership of
+ * trip-specific persistence behavior inside the mutation/persistence module.
+ *
+ * @param ctx - Convex mutation context for trip lifecycle writes
+ * @param tripWrites - Sparse trip writes precomputed by action pipeline
+ * @returns Resolves when trip writes and follow-up intents are applied
  */
 export const persistVesselTripWrites = async (
   ctx: MutationCtx,
@@ -56,7 +59,11 @@ export const persistVesselTripWrites = async (
 };
 
 /**
- * Runs depart-next actualization for leave-dock intents.
+ * Applies leave-dock follow-up actualization when a branch just left dock.
+ *
+ * @param ctx - Convex mutation context for completed-trip follow-up updates
+ * @param actualDockWrite - Dock intent emitted from trip write construction
+ * @returns Resolves when depart-next actuals are applied, if required
  */
 const runLeaveDockFromWriteSetIntent = async (
   ctx: MutationCtx,

@@ -1,9 +1,5 @@
 /**
  * Shared vessel-location update computation for the vessel orchestrator.
- *
- * Fetches and normalizes the WSF feed into `ConvexVesselLocation` rows for one
- * ping. The orchestrator action writes these rows through
- * `bulkUpsertVesselLocations`, which dedupes against DB state in mutation code.
  */
 
 import { fetchRawWsfVesselLocations } from "adapters";
@@ -18,10 +14,18 @@ type LoadVesselLocationUpdatesArgs = {
 };
 
 /**
- * Fetches live vessel locations from WSF and normalizes them for this ping.
+ * Fetches and normalizes live WSF vessel locations for the current ping.
  *
- * @param args - Identity tables for feed resolution
- * @returns One update per normalized vessel location for trip compute and persist
+ * This helper isolates the external-feed boundary from the orchestrator shell
+ * so `action/actions.ts` can focus on sequencing rather than payload shaping.
+ * It bridges adapters and domain mapping by taking identity rows from the
+ * snapshot stage and producing canonical `ConvexVesselLocation` rows consumed
+ * by location dedupe mutation logic. Keeping this step separate makes feed
+ * normalization reusable and keeps WSF-specific concerns out of trip/timeline code.
+ *
+ * @param terminalsIdentity - Backend terminal rows used during normalization
+ * @param vesselsIdentity - Backend vessel rows used during normalization
+ * @returns Normalized location rows for downstream dedupe and trip staging
  */
 export const loadVesselLocationUpdates = async ({
   terminalsIdentity,
@@ -30,11 +34,9 @@ export const loadVesselLocationUpdates = async ({
   ReadonlyArray<ConvexVesselLocation>
 > => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
-  const vesselLocations = mapWsfVesselLocations(
+  return mapWsfVesselLocations(
     rawFeedLocations,
     vesselsIdentity,
     terminalsIdentity
   );
-
-  return vesselLocations;
 };

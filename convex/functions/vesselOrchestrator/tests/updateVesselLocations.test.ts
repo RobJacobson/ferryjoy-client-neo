@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as adapters from "adapters";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { updateVesselOrchestrator } from "../actions";
+import { updateVesselOrchestrator } from "../action";
 
 type InternalActionHandler = (
   ctx: ActionCtx,

@@ -1,5 +1,5 @@
 /**
- * Timeline persistence helpers for per-vessel orchestrator writes.
+ * Persists timeline rows for one vessel branch.
  */
 
 import type { MutationCtx } from "_generated/server";
@@ -14,10 +14,18 @@ type PersistVesselTimelineWritesArgs = {
 };
 
 /**
- * Persists sparse actual/predicted timeline rows.
+ * Applies actual and predicted timeline writes when each set is non-empty.
  *
- * @param ctx - Convex mutation context
- * @param args - Per-vessel timeline projection inputs
+ * This helper encapsulates timeline table persistence details so orchestrator
+ * mutation orchestration can stay focused on stage order, not per-table API
+ * calls. It conditionally applies actual and predicted rows to preserve sparse
+ * write behavior for unchanged branches. Keeping this function separate from
+ * trip/prediction persistence clarifies that timeline writes are projection
+ * outputs, not lifecycle state transitions.
+ *
+ * @param ctx - Convex mutation context for timeline persistence calls
+ * @param args - Sparse actual and predicted timeline row batches
+ * @returns Resolves when all applicable timeline writes are applied
  */
 export const persistVesselTimelineWrites = async (
   ctx: MutationCtx,

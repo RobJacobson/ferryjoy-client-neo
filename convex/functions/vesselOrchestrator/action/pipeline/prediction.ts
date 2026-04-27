@@ -1,8 +1,5 @@
 /**
  * Prediction-stage helpers for the vessel orchestrator.
- *
- * This keeps changed-trip gating and ML preload work near each other so the
- * main action file can stay focused on top-level ping control flow.
  */
 
 import { internal } from "_generated/api";
@@ -32,11 +29,18 @@ type PredictionStageResult = {
 };
 
 /**
- * Runs prediction work only for vessels whose durable trip facts changed.
+ * Runs prediction logic for changed trip facts in the current vessel branch.
  *
- * @param ctx - Action context for prediction model preload
- * @param predictionInputs - Changed-trip active row plus optional completed handoff
- * @returns Flat prediction rows and timeline ML handoffs for persistence
+ * This stage sits between trip lifecycle compute and timeline projection so
+ * prediction work only runs when durable trip facts changed. It shields the
+ * action shell from ML context-loading details and keeps the contract to later
+ * stages intentionally small: prediction rows plus ML timeline overlays. By
+ * colocating gating and model-context assembly here, the orchestrator can keep
+ * branch-level flow simple while preserving demand-driven prediction reads.
+ *
+ * @param ctx - Convex action context used to load prediction model payloads
+ * @param predictionInputs - Changed active trip plus optional completion handoff
+ * @returns Prediction rows and ML timeline overlays for mutation persistence
  */
 export const runPredictionStage = async (
   ctx: ActionCtx,
@@ -78,11 +82,11 @@ export const runPredictionStage = async (
 };
 
 /**
- * Builds terminal-pair model-load requests for this prediction pass.
+ * Builds model-load requests from the best trip evidence for this branch.
  *
- * @param activeTrip - Active trip from this ping
- * @param completedHandoff - Completed rollover fact from the trip stage
- * @returns Distinct terminal-pair requests with model types merged per pair
+ * @param activeTrip - Active trip update candidate for the current vessel
+ * @param completedHandoff - Completion handoff when rollover happened this ping
+ * @returns Terminal-pair requests with model types needed for prediction
  */
 const buildPredictionContextRequests = (
   activeTrip: ConvexVesselTrip | undefined,
@@ -110,12 +114,12 @@ const buildPredictionContextRequests = (
 };
 
 /**
- * Loads production ML model parameters needed for the current prediction pass.
+ * Loads production prediction context for the current branch inputs.
  *
- * @param ctx - Convex action context for prediction model query
- * @param activeTrip - Active trip to evaluate this ping
- * @param completedHandoff - Completed rollover handoff from the trip stage
- * @returns Terminal-pair keyed production model payloads (or empty context)
+ * @param ctx - Convex action context used for model parameter query
+ * @param activeTrip - Active trip evidence for this branch
+ * @param completedHandoff - Completion handoff evidence for this branch
+ * @returns Prediction context keyed by terminal pair, or empty context
  */
 const loadPredictionContext = async (
   ctx: ActionCtx,
