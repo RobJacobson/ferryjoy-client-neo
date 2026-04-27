@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
-import { buildTripRowsForPing } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
+import { buildUpdatedVesselRows } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
 import {
   makeLocation,
   makeScheduledTables,
@@ -25,7 +25,7 @@ const completionEvents = (
   ...overrides,
 });
 
-describe("buildTripRowsForPing completion shaping", () => {
+describe("buildUpdatedVesselRows completion shaping", () => {
   it("preserves a valid ArriveDest when it occurs after departure", async () => {
     const existingTrip = makeTrip({
       StartTime: ms("2026-03-13T04:33:00-07:00"),
@@ -35,7 +35,7 @@ describe("buildTripRowsForPing completion shaping", () => {
       AtDock: false,
     });
 
-    const { completedVesselTrip } = await buildTripRowsForPing(
+    const { completedVesselTrip } = await buildUpdatedVesselRows(
       {
         vesselLocation: makeLocation({
           AtDock: true,
@@ -66,7 +66,7 @@ describe("buildTripRowsForPing completion shaping", () => {
       AtDock: false,
     });
 
-    const { completedVesselTrip } = await buildTripRowsForPing(
+    const { completedVesselTrip } = await buildUpdatedVesselRows(
       {
         vesselLocation: makeLocation({
           AtDock: true,
@@ -93,7 +93,7 @@ describe("buildTripRowsForPing completion shaping", () => {
       AtDock: false,
     });
 
-    const { completedVesselTrip } = await buildTripRowsForPing(
+    const { completedVesselTrip } = await buildUpdatedVesselRows(
       {
         vesselLocation: makeLocation({
           AtDock: true,
@@ -122,7 +122,7 @@ describe("buildTripRowsForPing completion shaping", () => {
       AtDock: false,
     });
 
-    const { completedVesselTrip } = await buildTripRowsForPing(
+    const { completedVesselTrip } = await buildUpdatedVesselRows(
       {
         vesselLocation: makeLocation({
           DepartingTerminalAbbrev: "ORI",

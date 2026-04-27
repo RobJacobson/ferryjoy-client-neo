@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrips/lifecycle";
+import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrip/lifecycle";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";

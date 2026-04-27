@@ -7,10 +7,10 @@ import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { detectTripEvents } from "./lifecycle";
-import { buildTripRowsForPing } from "./tripBuilders";
+import { buildUpdatedVesselRows } from "./tripBuilders";
 import type { VesselTripUpdate } from "./types";
 
-type UpdateVesselTripsInput = {
+type UpdateVesselTripInput = {
   vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
   scheduleAccess: ScheduleContinuityAccess;
@@ -22,8 +22,8 @@ type UpdateVesselTripsInput = {
  * @param input - Vessel location, optional active trip, and schedule lookup tables
  * @returns Trip update containing candidate rows and change indicators
  */
-export const updateVesselTrips = async (
-  input: UpdateVesselTripsInput
+export const updateVesselTrip = async (
+  input: UpdateVesselTripInput
 ): Promise<VesselTripUpdate> => {
   try {
     // Detect lifecycle transitions before mutating trip rows.
@@ -32,7 +32,7 @@ export const updateVesselTrips = async (
       input.vesselLocation
     );
     // Build candidate rows from lifecycle and schedule evidence.
-    const tripRows = await buildTripRowsForPing(
+    const tripRows = await buildUpdatedVesselRows(
       {
         vesselLocation: input.vesselLocation,
         existingActiveTrip: input.existingActiveTrip,
@@ -56,7 +56,7 @@ export const updateVesselTrips = async (
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[updateVesselTrips] failed trip update", {
+    console.error("[updateVesselTrip] failed trip update", {
       vesselAbbrev: input.vesselLocation.VesselAbbrev,
       locationTimeStamp: input.vesselLocation.TimeStamp,
       existingTripKey: input.existingActiveTrip?.TripKey,

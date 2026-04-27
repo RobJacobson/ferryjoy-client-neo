@@ -12,7 +12,7 @@ updateVesselOrchestrator (action/actions.ts)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
   -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
   -> createScheduleContinuityAccess for the ping (memoized eventsScheduled reads)
-  -> per changed vessel: updateVesselTrips -> runPredictionStage -> buildTripWritesForVessel
+  -> per changed vessel: updateVesselTrip -> runPredictionStage -> buildTripWritesForVessel
   -> updateTimeline in action memory (trip handoff + mlTimelineOverlays)
   -> persistPerVesselOrchestratorWrites: trip writes + prediction upserts + timeline rows
 ```
@@ -62,27 +62,25 @@ Use this as the canonical timestamp vocabulary for trip, timeline, and client re
 
 ## Core boundaries
 
-### `updateVesselTrips`
+### `updateVesselTrip`
 
 Owns authoritative lifecycle trip rows for one ping.
 
 Public surface:
 
-- `computeVesselTripsRows`
-- `updateVesselTrips`
-- `RunUpdateVesselTripsOutput`
+- `updateVesselTrip`
 - `VesselTripUpdate`
 
 Internal one-vessel flow:
 
 ```text
-updateVesselTrips
+updateVesselTrip
   -> detectTripEvents
-  -> buildTripRowsForPing
+  -> buildUpdatedVesselRows
   -> classify storage/lifecycle change
 ```
 
-`buildTripRowsForPing` is the only row-construction seam in the folder.
+`buildUpdatedVesselRows` is the only row-construction seam in the folder.
 
 ### `tripFields`
 
@@ -96,7 +94,7 @@ That seam resolves current-trip fields, emits transient inference observability,
 
 ### `shared`
 
-Owns cross-module contracts that should not leak from `updateVesselTrips`, such as:
+Owns cross-module contracts that should not leak from `updateVesselTrip`, such as:
 
 - `TripLifecycleEventFlags`
 - `areTripStorageRowsEqual`
@@ -128,7 +126,7 @@ Prediction and timeline stages consume trip rows plus handshake DTOs produced in
   - location load, snapshot, schedule continuity, trip stage, prediction stage, trip-write shaping, timeline handoff adapter
 - `functions/vesselOrchestrator/mutation/mutations.ts` (`persistPerVesselOrchestratorWrites`)
   - ordered trip + prediction + timeline persistence per vessel
-- `domain/vesselOrchestration/updateVesselTrips/`
+- `domain/vesselOrchestration/updateVesselTrip/`
   - trip compute only
 - `domain/vesselOrchestration/updateVesselPredictions/`
   - ML overlay from trip rows
@@ -139,6 +137,6 @@ Prediction and timeline stages consume trip rows plus handshake DTOs produced in
 
 - Trip compute stays prediction-free.
 - Schedule continuity in production uses only **`ScheduleContinuityAccess`** (see `functions/vesselOrchestrator/action/pipeline/scheduleContinuity.ts`); do not add a parallel schedule seam for trip-field code.
-- Shared downstream contracts are owned in `shared/`, not in `updateVesselTrips`.
+- Shared downstream contracts are owned in `shared/`, not in `updateVesselTrip`.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
 - `tripFields/` remains isolated because schedule identity policy changes for different reasons than physical lifecycle logic.

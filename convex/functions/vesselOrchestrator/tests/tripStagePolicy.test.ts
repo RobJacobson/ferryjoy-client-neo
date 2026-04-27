@@ -98,9 +98,9 @@ describe("trip stage schedule-inference gating", () => {
 
   it("returns null when a vessel trip update emits no writes", async () => {
     const tripUpdateMod = await import(
-      "domain/vesselOrchestration/updateVesselTrips"
+      "domain/vesselOrchestration/updateVesselTrip"
     );
-    const computeTripSpy = spyOn(tripUpdateMod, "updateVesselTrips");
+    const computeTripSpy = spyOn(tripUpdateMod, "updateVesselTrip");
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
@@ -113,7 +113,7 @@ describe("trip stage schedule-inference gating", () => {
     } as unknown as ActionCtx;
 
     computeTripSpy.mockImplementation(
-      async (input: Parameters<typeof tripUpdateMod.updateVesselTrips>[0]) => {
+      async (input: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]) => {
         return {
           vesselAbbrev: "TAC",
           activeVesselTripUpdate:

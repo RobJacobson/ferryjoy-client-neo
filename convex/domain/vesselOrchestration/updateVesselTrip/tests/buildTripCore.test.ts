@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
-import { buildTripRowsForPing } from "domain/vesselOrchestration/updateVesselTrips/tripBuilders";
-import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
+import { buildUpdatedVesselRows } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
+import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -37,14 +37,16 @@ const buildActiveTrip = ({
   events = continuingEvents(),
   scheduleTables = makeScheduledTables(),
 }: {
-  vesselLocation: Parameters<typeof buildTripRowsForPing>[0]["vesselLocation"];
+  vesselLocation: Parameters<
+    typeof buildUpdatedVesselRows
+  >[0]["vesselLocation"];
   existingActiveTrip?: Parameters<
-    typeof buildTripRowsForPing
+    typeof buildUpdatedVesselRows
   >[0]["existingActiveTrip"];
   events?: DetectedTripEvents;
-  scheduleTables?: Parameters<typeof buildTripRowsForPing>[1];
+  scheduleTables?: Parameters<typeof buildUpdatedVesselRows>[1];
 }) =>
-  buildTripRowsForPing(
+  buildUpdatedVesselRows(
     {
       vesselLocation,
       existingActiveTrip,
@@ -53,7 +55,7 @@ const buildActiveTrip = ({
     scheduleTables
   ).then((result) => result.activeVesselTrip);
 
-describe("buildTripRowsForPing", () => {
+describe("buildUpdatedVesselRows", () => {
   it("keeps inferred trip fields stable while WSF remains incomplete", async () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: "MUK",
@@ -122,7 +124,7 @@ describe("buildTripRowsForPing", () => {
       NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
     });
 
-    const tripRows = await buildTripRowsForPing(
+    const tripRows = await buildUpdatedVesselRows(
       {
         vesselLocation: makeLocation({
           DepartingTerminalAbbrev: "MUK",

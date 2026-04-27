@@ -39,7 +39,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 5. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const location of dedupedLocationUpdates)`
    - For each vessel:
-     1. `computeTripStageForLocation` computes trip diff (`updateVesselTrips`)
+     1. `computeTripStageForLocation` computes trip diff (`updateVesselTrip`)
      2. skip vessel when no trip rows changed
      3. `runPredictionStage` computes prediction rows and ML overlays
     4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays (`toTimelineHandoffFromTripWrites`)

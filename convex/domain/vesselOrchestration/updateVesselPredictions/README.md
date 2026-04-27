@@ -3,7 +3,7 @@
 ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
 leave-dock actualization for one ping. On the **orchestrator** path this runs in
 **Stage D** after trip persistence, over the trip rows produced by
-`updateVesselTrips` (not inside the trip row builder).
+`updateVesselTrip` (not inside the trip row builder).
 
 ## Canonical code
 

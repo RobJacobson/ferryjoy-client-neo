@@ -1,7 +1,7 @@
 /**
  * Handshake DTOs for the vessel orchestrator ping: trip lifecycle outputs that
  * feed predictions and timeline projection. Owned in `shared/` so
- * `updateVesselTrips` does not depend on `updateTimeline` for primary typing.
+ * `updateVesselTrip` does not depend on `updateTimeline` for primary typing.
  *
  * Branch processors emit facts and per-vessel messages; assembly into
  * `PingEventWrites` happens in `updateTimeline` via
@@ -20,7 +20,7 @@ import type { TripLifecycleEventFlags } from "../tripLifecycle";
 /**
  * One completed arrival at dock: rows ready for timeline and prediction overlay.
  *
- * `scheduleTrip` is the replacement active row from `buildTripRowsForPing`
+ * `scheduleTrip` is the replacement active row from `buildUpdatedVesselRows`
  * (schedule fields applied, no ML). **updateVesselPredictions** attaches ML
  * into {@link newTrip} before timeline projection
  * (`buildDockWritesFromTripHandoff`).

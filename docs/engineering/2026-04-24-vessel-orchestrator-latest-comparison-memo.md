@@ -69,7 +69,7 @@ The most important design conclusion is:
 | ------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Top-level orchestration   | Fetch, convert, fan out location/trip branches, apply timeline writes             | Load identities + trips, fetch/normalize feed, locations-only mutation, then compute trip/prediction and persist timeline bundle | Latest is sequential, with improved payload isolation and clear stage ownership |
 | `updateVesselLocations`   | Upsert all converted locations every tick                                         | Full feed sent to public `bulkUpsertVesselLocations`; **`performBulkUpsertVesselLocations`** (`collect()` + compare by `VesselAbbrev` / `TimeStamp`) inside location mutation | Aligns with classic mutation-side dedupe while avoiding bundled cross-stage payloads   |
-| `updateVesselTrips`       | Lifecycle, schedule enrichment, ML, persistence, and timeline intents intertwined | Per-vessel pure compute with targeted schedule access; persistence separated                                                  | Stronger domain boundary, still more files/types than before                                   |
+| `updateVesselTrip`       | Lifecycle, schedule enrichment, ML, persistence, and timeline intents intertwined | Per-vessel pure compute with targeted schedule access; persistence separated                                                  | Stronger domain boundary, still more files/types than before                                   |
 | `updateVesselPredictions` | Embedded inside trip building                                                     | Separate stage gated by changed trip facts                                                                                    | Clear win; keep this separation                                                                |
 | `updateVesselTimeline`    | Built from trip lifecycle messages and applied after trip writes                  | Built after trip persistence from persisted facts plus ML computations                                                        | More correct, still the densest handoff area                                                   |
 | Hot-path schedule reads   | Targeted schedule queries when needed                                             | Targeted, memoized `eventsScheduled` queries when needed                                                                      | Recovers the old workload-friendly granularity while preserving cleaner trip logic             |
@@ -132,7 +132,7 @@ Primary entrypoint:
         - memoized targeted schedule readers
       - `computeTripStageForLocations`
         - loop **all** normalized locations this tick
-        - `updateVesselTrips`
+        - `updateVesselTrip`
         - targeted schedule reads only as needed by trip-field inference
         - build prediction-stage inputs from durable trip fact changes (gated downstream)
       - `runPredictionStage`
@@ -286,7 +286,7 @@ Remaining opportunities:
 - optional narrow index table later if `vesselLocations` **read** volume becomes costly (see discussion elsewhere); not required for correctness today
 - keep **`performBulkUpsertVesselLocations`** as the dedupe helper behind public **`bulkUpsertVesselLocations`**
 
-## 5. `updateVesselTrips` Pipeline
+## 5. `updateVesselTrip` Pipeline
 
 ### 5.1 Happy Path Control Flow: Before
 
@@ -327,9 +327,9 @@ Primary entrypoint:
 - `computeTripStageForLocations`
   - build `activeTripsByVessel`
   - loop all normalized location rows for this ping
-  - `updateVesselTrips`
+  - `updateVesselTrip`
     - `detectTripEvents`
-    - `buildTripRowsForPing`
+    - `buildUpdatedVesselRows`
       - completion path:
         - finalize completed trip
         - seed replacement active trip
@@ -366,10 +366,10 @@ Expected non-error branches:
 
 | Before function              | Role                                                                     | Latest function                                              | Role                                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `processVesselTripsWithDeps` | End-to-end lifecycle orchestration plus persistence and timeline intents | `updateVesselTrips` loop in `actions.ts`               | Per-vessel pure computation, orchestrator-visible loop                                     |
-| `buildTrip`                  | Base trip shaping, schedule enrichment, ML attachment, actualization     | `buildTripRowsForPing` + `resolveTripFieldsForTripRow`       | Lifecycle row shaping and schedule-field inference without ML                              |
+| `processVesselTripsWithDeps` | End-to-end lifecycle orchestration plus persistence and timeline intents | `updateVesselTrip` loop in `actions.ts`               | Per-vessel pure computation, orchestrator-visible loop                                     |
+| `buildTrip`                  | Base trip shaping, schedule enrichment, ML attachment, actualization     | `buildUpdatedVesselRows` + `resolveTripFieldsForTripRow`       | Lifecycle row shaping and schedule-field inference without ML                              |
 | `processCompletedTrips`      | Persist completed boundary and replacement active trip                   | `persistVesselTripWriteSet`                                  | Functions-layer applier for completed/current rows                                         |
-| `processCurrentTrips`        | Build current trip, persist, produce timeline messages                   | `updateVesselTrips` + `buildVesselTripPersistencePlan` | Compute and persistence are separated                                                      |
+| `processCurrentTrips`        | Build current trip, persist, produce timeline messages                   | `updateVesselTrip` + `buildVesselTripPersistencePlan` | Compute and persistence are separated                                                      |
 | schedule adapters            | Targeted queries mixed into trip builder                                 | `ScheduleContinuityAccess`                                   | Narrow interface with targeted production implementation and in-memory test implementation |
 
 
@@ -406,7 +406,7 @@ This preserves code clarity without forcing full-day schedule reads every tick.
 
 Remaining opportunities:
 
-- production uses `updateVesselTrips` in a per-vessel loop over mutation-returned changed locations, and `computeVesselTripsRows` for rows-only batch callers; the old `computeVesselTripsBatch` entrypoint is removed — in-memory schedule fixtures under `shared/scheduleSnapshot/` are for tests only (not a production DB snapshot table)
+- production uses `updateVesselTrip` in a per-vessel loop over mutation-returned changed locations; in-memory schedule fixtures under `shared/scheduleSnapshot/` are for tests only (not a production DB snapshot table)
 - trip-field inference logging is useful, but `resolveTripFieldsForTripRow.ts` is doing resolution, diagnostics, message formatting, and next-leg attachment; split only if it reduces real reading burden
 - keep the orchestrator-visible per-vessel loop; it is simpler than hiding the whole ping behind another batch adapter
 
@@ -648,7 +648,7 @@ These numbers are approximate and are only meant to support the qualitative asse
 | -------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Top-level orchestrator action          | `actions.ts` ≈ 287 LOC plus `applyTickEventWrites.ts` | `actions.ts` ≈ 209 LOC plus helper modules                                                                                          |
 | Orchestrator runtime helper cluster    | small inline helpers plus `applyTickEventWrites`      | `locationUpdates.ts`, `mutations.ts`, `persistVesselTripWriteSet.ts`, `predictionStage.ts`, `scheduleContinuityAccess.ts` ≈ 815 LOC |
-| Trip compute cluster                   | old `processTick` and `tripLifecycle` modules         | `updateVesselTrips`, `tripBuilders`, `lifecycle`, `tripFields` ≈ 1,084 LOC                                                    |
+| Trip compute cluster                   | old `processTick` and `tripLifecycle` modules         | `updateVesselTrip`, `tripBuilders`, `lifecycle`, `tripFields` ≈ 1,084 LOC                                                    |
 | Timeline/prediction projection cluster | embedded prediction plus old assembler                | standalone prediction and timeline projection modules; clearer but larger                                                           |
 
 

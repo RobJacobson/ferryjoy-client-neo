@@ -1,24 +1,20 @@
-# updateVesselTrips
+# updateVesselTrip
 
-`updateVesselTrips` owns one narrow concern:
+`updateVesselTrip` owns one narrow concern:
 
-> Given one orchestrator ping, produce the authoritative active and completed
-> `ConvexVesselTrip` rows for that ping.
+> Given one vessel location ping, produce the authoritative active and
+> completed `ConvexVesselTrip` rows for that vessel update.
 
 ## Public surface
 
 Root exports are intentionally small:
 
-- `computeVesselTripsRows(input) -> { activeTrips, completedTrips }`
-- `updateVesselTrips(input) -> VesselTripUpdate`
-- `RunUpdateVesselTripsOutput`
+- `updateVesselTrip(input) -> VesselTripUpdate`
 - `VesselTripUpdate`
 
-The production orchestrator hot path uses `updateVesselTrips` in a
-per-vessel loop over the **full** normalized location batch each ping so one
-failed vessel can be isolated without stopping the fleet ping.
-`computeVesselTripsRows` remains the rows-only domain runner for callers that
-only need merged active/completed rows.
+The production orchestrator hot path calls `updateVesselTrip` inside its
+per-vessel loop so one failed vessel can be isolated without stopping the
+fleet ping.
 
 ## What this folder owns
 
@@ -38,14 +34,15 @@ storage.
 For one vessel, the pipeline is intentionally linear:
 
 ```text
-updateVesselTrips
+updateVesselTrip
   -> detectTripEvents
-  -> buildTripRowsForPing
+  -> buildUpdatedVesselRows
   -> classify storage change
   -> classify lifecycle change
 ```
 
-`buildTripRowsForPing` is the single row-construction seam. Its internal order
+`buildUpdatedVesselRows` is the single row-construction seam. Its internal
+order
 is:
 
 1. Resolve schedule-facing trip fields through `tripFields/`
@@ -56,25 +53,18 @@ is:
 
 ## Module map
 
-- `updateVesselTrips.ts`
+- `updateVesselTrip.ts`
   - One-vessel orchestration and change classification
-- `computeVesselTripsRows.ts`
-  - Canonical rows-only batch runner
 - `lifecycle.ts`
   - Feed-driven lifecycle facts for one ping
 - `tripBuilders.ts`
-  - Single exported row-construction seam: `buildTripRowsForPing`
+  - Single exported row-construction seam: `buildUpdatedVesselRows`
 - `tripFields/`
   - Schedule inference policy and next-leg attachment
 - `storage.ts`
   - Pipeline-local failure logging
 
 ## Contracts
-
-Durable trip output:
-
-- `activeTrips: ReadonlyArray<ConvexVesselTrip>`
-- `completedTrips: ReadonlyArray<ConvexVesselTrip>`
 
 Orchestrator change bundle:
 

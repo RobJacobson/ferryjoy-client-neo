@@ -7,7 +7,7 @@ import type {
   MlTimelineOverlay,
   ScheduleContinuityAccess,
 } from "domain/vesselOrchestration/shared";
-import { updateVesselTrips } from "domain/vesselOrchestration/updateVesselTrips";
+import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -47,7 +47,7 @@ export const computeTripStageForLocation = async (
   scheduleAccess: ScheduleContinuityAccess
 ): Promise<TripStageResult | null> => {
   // Compute lifecycle deltas first; downstream stages only run when durable facts changed.
-  const tripUpdate = await updateVesselTrips({
+  const tripUpdate = await updateVesselTrip({
     vesselLocation: locationUpdate,
     existingActiveTrip,
     scheduleAccess,

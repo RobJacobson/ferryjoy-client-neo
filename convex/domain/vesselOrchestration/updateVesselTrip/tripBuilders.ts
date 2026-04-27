@@ -9,7 +9,7 @@ import type {
   ScheduleContinuityAccess,
   TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
-import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrips/tripFields";
+import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
@@ -69,7 +69,7 @@ type ResolvedTripIdentity = {
  * @param scheduleAccess - Narrow schedule continuity access
  * @returns Completed and/or active trip rows derived from lifecycle state
  */
-export const buildTripRowsForPing = async (
+export const buildUpdatedVesselRows = async (
   update: TripBuildInput,
   scheduleAccess: ScheduleContinuityAccess
 ): Promise<TripRowOutcome> => {

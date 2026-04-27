@@ -383,7 +383,7 @@ runs in action memory from the trip-write handoff + ML overlays; then
 [`persistPerVesselOrchestratorWrites`](../../functions/vesselOrchestrator/mutation/mutations.ts)
 applies trip writes, prediction upserts, and projected `eventsActual`/`eventsPredicted`
 rows in one ordered mutation per changed vessel. Per-tick trip lifecycle
-logic lives in `convex/domain/vesselOrchestration/updateVesselTrips/` and is
+logic lives in `convex/domain/vesselOrchestration/updateVesselTrip/` and is
 driven by the per-vessel loop in `functions/vesselOrchestrator/action/actions.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
@@ -391,7 +391,7 @@ driven by the per-vessel loop in `functions/vesselOrchestrator/action/actions.ts
 On each orchestrator tick, trip build attaches schedule-backed fields using **segment keys** and targeted `eventsScheduled` continuity lookups:
 
 - `resolveTripFieldsForTripRow` resolves authoritative WSF fields first, then uses the orchestrator's `ScheduleContinuityAccess` for next-leg and rollover inference so `ScheduleKey`, `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
-- **Safety / clearing**: Physical trip change, loss of schedule attachment, or `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state in `buildTripRowsForPing` so identities do not mix.
+- **Safety / clearing**: Physical trip change, loss of schedule attachment, or `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state in `buildUpdatedVesselRows` so identities do not mix.
 - **Display / API**: Public vessel-trip queries may still **enrich** a full `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g. `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`); inference uses the schedule fields merged on the trip during build.
 
 Note: Next-leg timing for ML anchoring comes from enriched schedule fields (e.g. `NextScheduledDeparture`), not from duplicating full scheduled-trip documents on every tick write.
@@ -431,7 +431,7 @@ We patch **`eventsPredicted`** rows with `Actual` and `DeltaTotal` (epoch ms) wh
 - Arrival-complete actualization when `TripEnd` becomes known
   - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`actualizePredictionsOnTripComplete`)
 - Depart-next actualization when the _next_ trip leaves dock (previous leg’s next-departure prediction), via `setDepartNextActualsForMostRecentCompletedTrip` patching the prior leg’s `eventsPredicted` rows.
-  - Trigger: `convex/domain/vesselOrchestration/updateVesselTrips/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
+  - Trigger: `convex/domain/vesselOrchestration/updateVesselTrip/tripLifecycle/processCurrentTrips.ts` (`processCurrentTrips`, `didJustLeaveDock`)
   - Implementation: `convex/functions/vesselTrips/mutations.ts` (`setDepartNextActualsForMostRecentCompletedTrip`)
   - Orchestrator: `convex/functions/vesselOrchestrator/action/actions.ts` (`updateVesselOrchestrator`)
 

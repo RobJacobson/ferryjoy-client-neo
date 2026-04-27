@@ -13,7 +13,7 @@ On the shipped path these rows are **not** written by a separate “timeline-onl
 ## Production call chain
 
 1. [`action/actions.ts`](../../../functions/vesselOrchestrator/action/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), normalize locations (**`loadVesselLocationUpdates`**), **`bulkUpsertVesselLocations`** (full batch; mutation returns **changed** rows only).
-2. Per changed vessel: **`computeTripStageForLocation`** runs **`updateVesselTrips`**, **`runPredictionStage`**, and **`buildTripWritesForVessel`** → sparse **`tripWrites`**, **`predictionRows`**, **`mlTimelineOverlays`**.
+2. Per changed vessel: **`computeTripStageForLocation`** runs **`updateVesselTrip`**, **`runPredictionStage`**, and **`buildTripWritesForVessel`** → sparse **`tripWrites`**, **`predictionRows`**, **`mlTimelineOverlays`**.
 3. **`toTimelineHandoffFromTripWrites`** maps **`tripWrites`** → **`PersistedTripTimelineHandoff`** for **`updateTimeline`**.
 4. **`updateTimeline`** merges ML overlays (**`completedHandoffKey`** alignment uses shared **`buildCompletedHandoffKey`** from [`../shared/pingHandshake/completedHandoffKey.ts`](../shared/pingHandshake/completedHandoffKey.ts)).
 5. **`persistPerVesselOrchestratorWrites`** applies **`persistVesselTripWrites`**, **`persistVesselPredictions`**, **`persistVesselTimelineWrites`** (actual + predicted dock rows).
@@ -50,7 +50,7 @@ Further renames or public type aliases are optional: this table is the intended 
 
 - **`functions/vesselOrchestrator/action/actions.ts`** + **`persistPerVesselOrchestratorWrites`** — production caller path: action-side **`updateTimeline`**, then unified per-vessel persistence.
 - Lifecycle code imports handshake DTOs from **`domain/vesselOrchestration/shared/pingHandshake/types`** (re-exported from **`domain/vesselOrchestration/shared`** and the **`updateTimeline`** barrel for convenience).
-- **`domain/vesselOrchestration/updateVesselTrips/index.ts`** re-exports key symbols for queries and shared callers.
+- **`domain/vesselOrchestration/updateVesselTrip/index.ts`** re-exports key symbols for queries and shared callers.
 
 ## See also
 

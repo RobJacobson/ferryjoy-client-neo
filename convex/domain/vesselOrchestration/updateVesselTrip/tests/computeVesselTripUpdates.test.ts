@@ -1,7 +1,3 @@
-/**
- * Tests for the canonical public trips runner.
- */
-
 import { describe, expect, it, spyOn } from "bun:test";
 import {
   createScheduleContinuityAccessFromSnapshot,
@@ -20,7 +16,10 @@ const emptyScheduleSnapshot: ScheduleSnapshot = {
   scheduledDeparturesByVesselAbbrev: {},
 };
 
-const testSailingDay = "2026-03-13";
+const scheduleTables = createScheduleContinuityAccessFromSnapshot(
+  emptyScheduleSnapshot,
+  "2026-03-13"
+);
 
 const makeTrip = (
   overrides: Partial<ConvexVesselTrip> = {}
@@ -94,40 +93,45 @@ const makeLocation = (
   ...overrides,
 });
 
-describe("computeVesselTripsRows", () => {
-  it("returns empty arrays when the ping has no realtime inputs or active trips", async () => {
-    const { computeVesselTripsRows } = await import(
-      "../computeVesselTripsRows"
-    );
+describe("updateVesselTrip", () => {
+  it("emits no write intents for an unchanged vessel", async () => {
+    const existingTrip = makeTrip();
+    const detectTripEventsMod = await import("../lifecycle");
+    const buildTripMod = await import("../tripBuilders");
+    const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
+    const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
 
-    const result = await computeVesselTripsRows({
-      vesselLocations: [],
-      existingActiveTrips: [],
-      scheduleAccess: createScheduleContinuityAccessFromSnapshot(
-        emptyScheduleSnapshot,
-        testSailingDay
-      ),
-    });
+    detectSpy.mockImplementation(() => defaultEvents);
+    buildTripSpy.mockImplementation(async () => ({
+      activeVesselTrip: existingTrip,
+    }));
 
-    expect(result).toEqual({
-      completedTrips: [],
-      activeTrips: [],
-    });
+    try {
+      const { updateVesselTrip } = await import("../updateVesselTrip");
+      const result = await updateVesselTrip({
+        vesselLocation: makeLocation(),
+        existingActiveTrip: existingTrip,
+        scheduleAccess: scheduleTables,
+      });
+
+      expect(result.vesselAbbrev).toBe(existingTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toBeUndefined();
+      expect(result.completedVesselTripUpdate).toBeUndefined();
+    } finally {
+      detectSpy.mockRestore();
+      buildTripSpy.mockRestore();
+    }
   });
 
-  it("keeps untouched active trips and returns the authoritative active set", async () => {
+  it("does not emit a write intent for timestamp-only churn", async () => {
+    const existingTrip = makeTrip();
     const updatedTrip = makeTrip({
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
-    });
-    const untouchedTrip = makeTrip({
-      VesselAbbrev: "TAC",
-      TripKey: generateTripKey("TAC", ms("2026-03-13T05:00:00-07:00")),
-      ScheduleKey: "TAC--2026-03-13--05:15--P52-BBI",
     });
     const detectTripEventsMod = await import("../lifecycle");
     const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
-    const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
+    const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
 
     detectSpy.mockImplementation(() => defaultEvents);
     buildTripSpy.mockImplementation(async () => ({
@@ -135,32 +139,58 @@ describe("computeVesselTripsRows", () => {
     }));
 
     try {
-      const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsRows"
-      );
-      const result = await computeVesselTripsRows({
-        vesselLocations: [makeLocation()],
-        existingActiveTrips: [makeTrip(), untouchedTrip],
-        scheduleAccess: createScheduleContinuityAccessFromSnapshot(
-          emptyScheduleSnapshot,
-          testSailingDay
-        ),
+      const { updateVesselTrip } = await import("../updateVesselTrip");
+      const result = await updateVesselTrip({
+        vesselLocation: makeLocation(),
+        existingActiveTrip: existingTrip,
+        scheduleAccess: scheduleTables,
       });
 
-      expect(result.completedTrips).toEqual([]);
-      expect(result.activeTrips.map((trip) => trip.VesselAbbrev)).toEqual([
-        "CHE",
-        "TAC",
-      ]);
-      expect(result.activeTrips[0]?.TimeStamp).toBe(updatedTrip.TimeStamp);
+      expect(result.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toBeUndefined();
+      expect(result.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
     }
   });
 
-  it("moves ended trips to completedTrips and starts replacement active trips", async () => {
-    const completedExisting = makeTrip();
+  it("emits an active write intent for ETA-only churn", async () => {
+    const existingTrip = makeTrip({
+      Eta: ms("2026-03-13T06:50:00-07:00"),
+    });
+    const updatedTrip = makeTrip({
+      Eta: ms("2026-03-13T06:52:00-07:00"),
+    });
+    const detectTripEventsMod = await import("../lifecycle");
+    const buildTripMod = await import("../tripBuilders");
+    const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
+    const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
+
+    detectSpy.mockImplementation(() => defaultEvents);
+    buildTripSpy.mockImplementation(async () => ({
+      activeVesselTrip: updatedTrip,
+    }));
+
+    try {
+      const { updateVesselTrip } = await import("../updateVesselTrip");
+      const result = await updateVesselTrip({
+        vesselLocation: makeLocation(),
+        existingActiveTrip: existingTrip,
+        scheduleAccess: scheduleTables,
+      });
+
+      expect(result.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toEqual(updatedTrip);
+      expect(result.completedVesselTripUpdate).toBeUndefined();
+    } finally {
+      detectSpy.mockRestore();
+      buildTripSpy.mockRestore();
+    }
+  });
+
+  it("emits both active and completed write intents on completion rollover", async () => {
+    const existingTrip = makeTrip();
     const completedTrip = makeTrip({
       TripEnd: ms("2026-03-13T06:29:56-07:00"),
       ArriveDest: ms("2026-03-13T06:29:56-07:00"),
@@ -179,7 +209,7 @@ describe("computeVesselTripsRows", () => {
     const detectTripEventsMod = await import("../lifecycle");
     const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
-    const buildTripSpy = spyOn(buildTripMod, "buildTripRowsForPing");
+    const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
 
     detectSpy.mockImplementation(() => completedEvents);
     buildTripSpy.mockImplementation(async () => ({
@@ -188,28 +218,23 @@ describe("computeVesselTripsRows", () => {
     }));
 
     try {
-      const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsRows"
-      );
-      const result = await computeVesselTripsRows({
-        vesselLocations: [makeLocation({ AtDock: true, LeftDock: undefined })],
-        existingActiveTrips: [completedExisting],
-        scheduleAccess: createScheduleContinuityAccessFromSnapshot(
-          emptyScheduleSnapshot,
-          testSailingDay
-        ),
+      const { updateVesselTrip } = await import("../updateVesselTrip");
+      const result = await updateVesselTrip({
+        vesselLocation: makeLocation({ AtDock: true, LeftDock: undefined }),
+        existingActiveTrip: existingTrip,
+        scheduleAccess: scheduleTables,
       });
 
-      expect(result.completedTrips).toEqual([completedTrip]);
-      expect(result.activeTrips).toEqual([replacementTrip]);
-      expect("tripComputations" in result).toBe(false);
+      expect(result.vesselAbbrev).toBe(replacementTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toEqual(replacementTrip);
+      expect(result.completedVesselTripUpdate).toEqual(completedTrip);
     } finally {
       detectSpy.mockRestore();
       buildTripSpy.mockRestore();
     }
   });
 
-  it("falls back to the existing active trip when a per-vessel update fails", async () => {
+  it("emits no write intents when domain trip update fails", async () => {
     const existingTrip = makeTrip();
     const detectTripEventsMod = await import("../lifecycle");
     const tripFieldsMod = await import("../tripFields");
@@ -222,20 +247,16 @@ describe("computeVesselTripsRows", () => {
     });
 
     try {
-      const { computeVesselTripsRows } = await import(
-        "../computeVesselTripsRows"
-      );
-      const result = await computeVesselTripsRows({
-        vesselLocations: [makeLocation()],
-        existingActiveTrips: [existingTrip],
-        scheduleAccess: createScheduleContinuityAccessFromSnapshot(
-          emptyScheduleSnapshot,
-          testSailingDay
-        ),
+      const { updateVesselTrip } = await import("../updateVesselTrip");
+      const result = await updateVesselTrip({
+        vesselLocation: makeLocation(),
+        existingActiveTrip: existingTrip,
+        scheduleAccess: scheduleTables,
       });
 
-      expect(result.completedTrips).toEqual([]);
-      expect(result.activeTrips).toEqual([existingTrip]);
+      expect(result.vesselAbbrev).toBe(existingTrip.VesselAbbrev);
+      expect(result.activeVesselTripUpdate).toBeUndefined();
+      expect(result.completedVesselTripUpdate).toBeUndefined();
     } finally {
       detectSpy.mockRestore();
       tripFieldsSpy.mockRestore();
