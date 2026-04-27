@@ -6,7 +6,7 @@
 import type { QueryCtx } from "_generated/server";
 import { loadActualDockEventsForVesselSailingDay } from "functions/events/eventsActual/queries";
 import { loadPredictedDockEventsForVesselSailingDay } from "functions/events/eventsPredicted/queries";
-import { loadScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
+import { queryScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import { buildTimelineBackbone } from "../../../domain/timelineBackbone";
 import { stripConvexMeta } from "../../../shared/stripConvexMeta";
 
@@ -27,7 +27,7 @@ export const loadVesselTimelineBackbone = async (
     sailingDay: args.SailingDay,
   };
   const [scheduledDocs, actualDocs, predictedDocs] = await Promise.all([
-    loadScheduledDockEventsForVesselSailingDay(ctx, scope),
+    queryScheduledDockEventsForVesselSailingDay(ctx, scope),
     loadActualDockEventsForVesselSailingDay(ctx, scope),
     loadPredictedDockEventsForVesselSailingDay(ctx, scope),
   ]);

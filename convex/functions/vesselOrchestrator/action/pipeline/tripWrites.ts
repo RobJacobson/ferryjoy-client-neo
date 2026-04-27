@@ -65,7 +65,7 @@ export const buildTripWritesForVessel = (
       completedTripWrite: {
         existingTrip: existing,
         tripToComplete: completed,
-        events: completionTripEvents(existing, completed),
+        events: buildCompletionTripEvents(existing, completed),
         scheduleTrip: active,
       },
     };
@@ -110,7 +110,7 @@ export const buildTripWritesForVessel = (
  * @param completedTrip - Completed trip row produced this ping
  * @returns Completion event flags for downstream persistence
  */
-const completionTripEvents = (
+export const buildCompletionTripEvents = (
   existingTrip: ConvexVesselTrip,
   completedTrip: ConvexVesselTrip
 ): TripLifecycleEventFlags => ({

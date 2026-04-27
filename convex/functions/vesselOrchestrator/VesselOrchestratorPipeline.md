@@ -17,6 +17,7 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Function: `loadOrchestratorSnapshot`
    - Reads: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips`
    - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
+   - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
 2. **Fetch and normalize live locations**
    - Function: `loadVesselLocationUpdates`
@@ -41,7 +42,7 @@ hot path in `convex/functions/vesselOrchestrator`.
      1. `computeTripStageForLocation` computes trip diff (`updateVesselTrips`)
      2. skip vessel when no trip rows changed
      3. `runPredictionStage` computes prediction rows and ML overlays
-    4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays
+    4. action computes timeline projection (`updateTimeline`) from trip-write handoff + ML overlays (`toTimelineHandoffFromTripWrites`)
     5. mutation `persistPerVesselOrchestratorWrites` writes in order:
         - trip writes (`persistVesselTripWrites`)
         - prediction upserts (`batchUpsertProposalsInDb`)

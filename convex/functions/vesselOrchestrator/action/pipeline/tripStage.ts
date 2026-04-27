@@ -13,6 +13,7 @@ import type { VesselTripPredictionProposal } from "functions/vesselTripPredictio
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { runPredictionStage } from "./prediction";
 import {
+  buildCompletionTripEvents,
   buildTripWritesForVessel,
   type VesselTripWrites,
 } from "./tripWrites";
@@ -73,20 +74,10 @@ export const computeTripStageForLocation = async (
         : {
             existingTrip: existingActiveTrip,
             tripToComplete: tripUpdate.completedVesselTripUpdate,
-            events: {
-              isFirstTrip: false,
-              isTripStartReady: true,
-              isCompletedTrip: true,
-              didJustArriveAtDock:
-                tripUpdate.completedVesselTripUpdate.ArrivedNextActual !==
-                  undefined &&
-                existingActiveTrip.ArrivedNextActual !==
-                  tripUpdate.completedVesselTripUpdate.ArrivedNextActual,
-              didJustLeaveDock: false,
-              scheduleKeyChanged:
-                existingActiveTrip.ScheduleKey !==
-                tripUpdate.completedVesselTripUpdate.ScheduleKey,
-            },
+            events: buildCompletionTripEvents(
+              existingActiveTrip,
+              tripUpdate.completedVesselTripUpdate
+            ),
             scheduleTrip: tripUpdate.activeVesselTripUpdate,
           },
   });

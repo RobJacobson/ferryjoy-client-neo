@@ -3,39 +3,14 @@
  */
 
 import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
+import { buildCompletedHandoffKey } from "domain/vesselOrchestration/shared";
 import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
-import type {
-  ConvexVesselTrip,
-  ConvexVesselTripWithML,
-} from "functions/vesselTrips/schemas";
+import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import { buildDockWritesFromTripHandoff } from "./buildDockWritesFromTripHandoff";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
-
-/**
- * Builds the stable key for matching completed handoff facts to completed
- * branch ML overlays.
- *
- * @param vesselAbbrev - Vessel abbreviation for the completed handoff
- * @param completedTrip - Completed trip row from persistence output
- * @param activeTrip - Replacement schedule trip row from persistence output
- * @returns Stable vessel+schedule identity key
- */
-const buildCompletedHandoffKey = (
-  vesselAbbrev: string,
-  completedTrip: ConvexVesselTrip | undefined,
-  activeTrip: ConvexVesselTrip | undefined
-): string => {
-  const scheduleIdentity =
-    completedTrip?.ScheduleKey ??
-    completedTrip?.TripKey ??
-    activeTrip?.ScheduleKey ??
-    activeTrip?.TripKey ??
-    "";
-  return `${vesselAbbrev}::${scheduleIdentity}`;
-};
 
 const buildCurrentMlByVessel = (
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>

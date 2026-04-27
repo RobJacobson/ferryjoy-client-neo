@@ -3,7 +3,7 @@
  * points plus peer concern namespaces.
  *
  * Post-fetch DB writes for one pass are sequenced in Convex
- * `functions/vesselOrchestrator/actions.ts` (`updateVesselOrchestrator`), using
+ * `functions/vesselOrchestrator/action/actions.ts` (`updateVesselOrchestrator`), using
  * the one-vessel trip update seam for the guarded hot path. The orchestrator
  * still owns a wall-clock anchor for predictions and timeline (`pingStartedAt`)
  * plus targeted schedule-continuity access.

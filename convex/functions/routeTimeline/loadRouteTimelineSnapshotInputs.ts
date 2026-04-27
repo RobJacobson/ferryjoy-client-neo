@@ -13,7 +13,7 @@ import { loadActualDockEventsForVesselSailingDay } from "functions/events/events
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { loadPredictedDockEventsForVesselSailingDay } from "functions/events/eventsPredicted/queries";
 import type { ConvexPredictedDockEvent } from "functions/events/eventsPredicted/schemas";
-import { loadScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
+import { queryScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
@@ -84,7 +84,7 @@ export const loadRouteTimelineSnapshotInputs = async (
   const perVessel = await Promise.all(
     vesselAbbrevs.map(async (vesselAbbrev) => {
       const [scheduled, actual, predicted] = await Promise.all([
-        loadScheduledDockEventsForVesselSailingDay(ctx, {
+        queryScheduledDockEventsForVesselSailingDay(ctx, {
           vesselAbbrev,
           sailingDay: args.SailingDay,
         }),

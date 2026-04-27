@@ -58,13 +58,16 @@ export const updateVesselOrchestrator = internalAction({
 const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   // Load one baseline snapshot so all stages run against a consistent read model.
   const snapshot = await loadOrchestratorSnapshot(ctx);
+
   // Stamp the ping once so downstream timeline rows share the same tick time.
   const pingStartedAt = Date.now();
+
   // Normalize the raw WSF batch before any mutation-side dedupe/write decisions.
   const locationUpdates = await loadVesselLocationUpdates({
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });
+
   // Persist locations first and only process vessels whose rows actually changed.
   const dedupedLocationUpdates = await ctx.runMutation(
     api.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
@@ -72,8 +75,10 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       locations: Array.from(locationUpdates),
     }
   );
+
   // Reuse one memoized schedule adapter for all per-vessel trip continuity reads.
   const scheduleAccess = createScheduleContinuityAccess(ctx);
+
   // Index active trips once to avoid repeated linear scans inside the hot loop.
   const activeTripsByVesselAbbrev = new Map(
     snapshot.activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
@@ -85,6 +90,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const existingActiveTrip = activeTripsByVesselAbbrev.get(
         vesselLocation.VesselAbbrev
       );
+
       // Compute sparse trip/prediction writes from this location change only.
       const tripStageResult = await computeTripStageForLocation(
         ctx,
@@ -92,6 +98,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         existingActiveTrip,
         scheduleAccess
       );
+
       // Skip persistence entirely when the trip stage produced no durable changes.
       if (tripStageResult === null) {
         continue;
@@ -105,6 +112,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         ),
         mlTimelineOverlays: tripStageResult.mlTimelineOverlays,
       });
+
       // Apply trip, prediction, and timeline rows together through one mutation.
       await ctx.runMutation(
         internal.functions.vesselOrchestrator.mutation.mutations
