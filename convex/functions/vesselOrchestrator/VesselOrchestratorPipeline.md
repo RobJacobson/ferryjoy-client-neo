@@ -53,8 +53,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 - One WSF fetch per ping.
 - One baseline orchestrator read-model query per ping.
-- One locations mutation per ping plus sparse per-vessel mutation calls only for
-  changed trip rows.
+- One locations mutation per ping plus one sparse `persistPerVesselOrchestratorWrites`
+  call per changed vessel whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and memoized per ping.
 - Prediction model loading is gated per vessel by changed durable trip facts.

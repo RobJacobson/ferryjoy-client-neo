@@ -77,6 +77,15 @@ const updateMinutePersistenceTotals = async (
   await upsertByKey(ctx, key, JSON.stringify(next));
 };
 
+/** Explicit numeric fields so logs always include zeros (temporary debug telemetry). */
+const minuteTotalsForLog = (totals: MinutePersistenceTotals): MinutePersistenceTotals => ({
+  calls: totals.calls,
+  tripWriteIntentCount: totals.tripWriteIntentCount,
+  predictionRowCount: totals.predictionRowCount,
+  actualEventRowCount: totals.actualEventRowCount,
+  predictedEventRowCount: totals.predictedEventRowCount,
+});
+
 const maybeLogCurrentMinuteTotals = async (
   ctx: MutationCtx,
   minute: string
@@ -97,8 +106,10 @@ const maybeLogCurrentMinuteTotals = async (
     ctx,
     `${ORCHESTRATOR_PERSIST_MINUTE_KEY_PREFIX}${minute}`
   );
-  const totals = parseMinuteTotals(
-    typeof totalsEntry?.value === "string" ? totalsEntry.value : null
+  const totals = minuteTotalsForLog(
+    parseMinuteTotals(
+      typeof totalsEntry?.value === "string" ? totalsEntry.value : null
+    )
   );
   console.log("[persistPerVesselOrchestratorWrites] minute write totals", {
     minute,

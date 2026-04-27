@@ -102,7 +102,7 @@ Notes:
 - only passenger-terminal locations are forwarded into trip processing
 - passenger-terminal trip eligibility is intentionally simple set membership on departing and optional arriving terminal abbreviations
 
-On failure, `updateVesselOrchestrator` logs and **rethrows** (the handler returns `void`).
+**Ping-level failures** (empty identity tables, WSF fetch/conversion failures, snapshot load, location stage before the per-vessel loop, or any throw outside the per-vessel `try` / `catch`) are logged and **rethrown**, so the rest of that ping does not run. **Per-vessel failures** inside the loop are logged and **do not** abort other vessels (intentional blast-radius limiting).
 
 ### 2. Vessel Location Storage (`vesselLocation/`)
 
@@ -212,7 +212,12 @@ Frontend VesselTimeline
 
 ## Error isolation
 
-`updateVesselOrchestrator` runs **sequentially**. A failure in any step aborts the rest of the ping (after logging). Fetch/conversion failure stops the ping first.
+Runs are **sequentially ordered**, but failure boundaries differ by stage:
+
+- **Shared stages** (baseline snapshot, WSF fetch + normalization, `bulkUpsertVesselLocations`, and anything else outside the per-vessel loop): on failure the handler logs and **rethrows**; the remainder of that ping is skipped.
+- **Per-vessel pipeline** (`updateVesselTrip` through `persistPerVesselOrchestratorWrites`): failures are caught **per vessel**, logged, and processing **continues** for the other changed vessels in the same ping. This limits blast radius when one branch misbehaves.
+
+Within **`bulkUpsertVesselLocations`**, a write failure for one vessel is logged and remaining rows in that batch still attempt.
 
 Same-ping ML overlays are merged in domain **`updateTimeline`** with the handoff derived from **`VesselTripUpdate`** before **`persistPerVesselOrchestratorWrites`** applies durable rows; the public timeline query does not depend on `vesselLocations` reads.
 
@@ -226,6 +231,8 @@ The orchestrator keeps external API usage efficient:
 - one converted location batch for write payload; trip compute consumes the mutation-returned changed subset
 
 Trip compute, predictions, and timeline projection run in the action’s per-vessel loop before **`persistPerVesselOrchestratorWrites`**; mutation handlers are write-only apply steps.
+
+At current fleet size (~21 vessels), this sequential loop is not a practical bottleneck.
 
 Current hot-path implementation notes:
 
@@ -266,6 +273,7 @@ The timeline overlay path is designed to stay lightweight:
 - richer trip lifecycle models
 - support trip state tracking, predictions, and other operational features
 - intentionally exclude non-passenger marine-location rows
+- **Active trips:** the product invariant is at most one active trip row per vessel. Convex does not provide SQL-style `UNIQUE` constraints; writers and trip lifecycle code enforce this. The orchestrator indexes `activeTrips` by `VesselAbbrev` for the ping snapshot (last row wins if the table were ever inconsistent—see `schema.ts` comment on `activeVesselTrips`).
 
 `vesselTimeline` event tables
 
@@ -293,7 +301,7 @@ The timeline overlay path is designed to stay lightweight:
 
 ## Tests
 
-Trip sequencing (location upsert → plan/apply → predictions → timeline) for this module is covered by focused tests under `tests/` as they are added (see e.g. `updateVesselLocations.test.ts`).
+Under `tests/`: location-stage coverage (`updateVesselLocations.test.ts`), domain policy helpers (`tripStagePolicy.test.ts`, `predictionStagePolicy.test.ts`), persistence (`persistVesselTripWriteSet.test.ts`), and **`orchestratorPing.integration.test.ts`** (mocked domain branches wiring `bulkUpsertVesselLocations` → `persistPerVesselOrchestratorWrites` and per-vessel failure isolation).
 
 Canonical vessel and terminal table refreshes from WSF basics are implemented in `convex/functions/vessels/actions.ts` (`syncBackendVessels` internal action, `runSyncBackendVessels` public action, `syncBackendVesselTable` helper) and `convex/functions/terminals/actions.ts` (`syncBackendTerminals`, `runSyncBackendTerminals`, `syncBackendTerminalTable`). Hourly cron entries for those internal actions live in `convex/crons.ts`.
 
