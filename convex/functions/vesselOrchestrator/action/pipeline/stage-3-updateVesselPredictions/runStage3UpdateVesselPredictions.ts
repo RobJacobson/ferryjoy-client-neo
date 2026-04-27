@@ -1,5 +1,5 @@
 /**
- * Prediction-stage helpers for the vessel orchestrator.
+ * Stage #3: update vessel predictions for changed trip facts.
  */
 
 import { internal } from "_generated/api";
@@ -18,34 +18,27 @@ import {
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-type PredictionStageInputs = {
+export type RunStage3UpdateVesselPredictionsInput = {
   activeTrip?: ConvexVesselTrip;
   completedHandoff?: CompletedArrivalHandoff;
 };
 
-type PredictionStageResult = {
+export type RunStage3UpdateVesselPredictionsResult = {
   predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
 /**
- * Runs prediction logic for changed trip facts in the current vessel branch.
- *
- * This stage sits between trip lifecycle compute and timeline projection so
- * prediction work only runs when durable trip facts changed. It shields the
- * action shell from ML context-loading details and keeps the contract to later
- * stages intentionally small: prediction rows plus ML timeline overlays. By
- * colocating gating and model-context assembly here, the orchestrator can keep
- * branch-level flow simple while preserving demand-driven prediction reads.
+ * Runs stage #3 for the current vessel branch.
  *
  * @param ctx - Convex action context used to load prediction model payloads
  * @param predictionInputs - Changed active trip plus optional completion handoff
  * @returns Prediction rows and ML timeline overlays for mutation persistence
  */
-export const runPredictionStage = async (
+export const runStage3UpdateVesselPredictions = async (
   ctx: ActionCtx,
-  predictionInputs: PredictionStageInputs
-): Promise<PredictionStageResult> => {
+  predictionInputs: RunStage3UpdateVesselPredictionsInput
+): Promise<RunStage3UpdateVesselPredictionsResult> => {
   if (
     predictionInputs.activeTrip === undefined &&
     predictionInputs.completedHandoff === undefined

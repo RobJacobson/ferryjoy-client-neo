@@ -67,8 +67,10 @@ const updateMinutePersistenceTotals = async (
     calls: current.calls + increment.calls,
     tripWriteIntentCount:
       current.tripWriteIntentCount + increment.tripWriteIntentCount,
-    predictionRowCount: current.predictionRowCount + increment.predictionRowCount,
-    actualEventRowCount: current.actualEventRowCount + increment.actualEventRowCount,
+    predictionRowCount:
+      current.predictionRowCount + increment.predictionRowCount,
+    actualEventRowCount:
+      current.actualEventRowCount + increment.actualEventRowCount,
     predictedEventRowCount:
       current.predictedEventRowCount + increment.predictedEventRowCount,
   };

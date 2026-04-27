@@ -1,10 +1,9 @@
-import { describe, expect, it, mock, spyOn } from "bun:test";
-import type { ActionCtx } from "_generated/server";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { computeTripStageForLocation } from "../action/pipeline/tripStage";
+import { runStage2UpdateVesselTrip } from "../action/pipeline/stage-2-updateVesselTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -83,18 +82,14 @@ describe("trip stage schedule-inference gating", () => {
       getScheduledDeparturesForVesselAndSailingDay: async () => [],
       getScheduledSegmentByKey: async () => null,
     };
-    const ctx = {
-      runQuery: mock(async () => ({})),
-    } as unknown as ActionCtx;
-    const tripStage = await computeTripStageForLocation(
-      ctx,
+    const tripStage = await runStage2UpdateVesselTrip(
       makeLocationUpdate("CHE"),
       makeTrip("CHE"),
       scheduleAccess
     );
 
     expect(tripStage).not.toBeNull();
-    expect(tripStage?.tripWrites.activeTripUpsert).toBeDefined();
+    expect(tripStage?.updatedTrips.activeVesselTrip).toBeDefined();
   });
 
   it("returns null when a vessel trip update emits no writes", async () => {
@@ -109,10 +104,6 @@ describe("trip stage schedule-inference gating", () => {
       getScheduledDeparturesForVesselAndSailingDay: async () => [],
       getScheduledSegmentByKey: async () => null,
     };
-    const ctx = {
-      runQuery: mock(async () => ({})),
-    } as unknown as ActionCtx;
-
     computeTripSpy.mockImplementation(
       async (input: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]) => {
         return {
@@ -127,8 +118,7 @@ describe("trip stage schedule-inference gating", () => {
     );
 
     try {
-      const tripStage = await computeTripStageForLocation(
-        ctx,
+      const tripStage = await runStage2UpdateVesselTrip(
         makeLocationUpdate("CHE"),
         makeTrip("CHE"),
         scheduleAccess

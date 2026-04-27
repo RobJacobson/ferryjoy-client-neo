@@ -2,16 +2,16 @@
  * Vessel orchestrator actions.
  */
 
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { createScheduleContinuityAccess } from "./pipeline/scheduleContinuity";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
-import { toTimelineHandoffFromTripWrites } from "./pipeline/timelineHandoff";
-import { computeTripStageForLocation } from "./pipeline/tripStage";
-import { updateVesselLocations } from "./pipeline/updateVesselLocations";
+import { runStage1UpdateVesselLocations } from "./pipeline/stage-1-updateVesselLocations";
+import { runStage2UpdateVesselTrip } from "./pipeline/stage-2-updateVesselTrip";
+import { runStage3UpdateVesselPredictions } from "./pipeline/stage-3-updateVesselPredictions";
+import { runStage4UpdateTimeline } from "./pipeline/stage-4-updateTimeline";
+import { runStage5PersistOrchestratorWrites } from "./pipeline/stage-5-persistOrchestratorWrites";
 
 /**
  * Runs one orchestrator tick from location ingest through per-vessel writes.
@@ -42,68 +42,6 @@ export const updateVesselOrchestrator = internalAction({
   },
 });
 
-type ComparableTrip = Record<string, unknown>;
-
-const toComparableTrip = (
-  trip: Record<string, unknown> | undefined
-): ComparableTrip | null => {
-  if (trip === undefined) {
-    return null;
-  }
-  const comparable: ComparableTrip = {};
-  for (const [key, value] of Object.entries(trip)) {
-    if (key === "TimeStamp") {
-      continue;
-    }
-    // Normalize missing vs undefined by excluding undefined keys.
-    if (value !== undefined) {
-      comparable[key] = value;
-    }
-  }
-  return comparable;
-};
-
-const changedComparableTripKeys = (
-  previousTrip: Record<string, unknown> | undefined,
-  nextTrip: Record<string, unknown>
-): Array<string> => {
-  const previousComparable = toComparableTrip(previousTrip) ?? {};
-  const nextComparable = toComparableTrip(nextTrip) ?? {};
-  const keys = new Set([
-    ...Object.keys(previousComparable),
-    ...Object.keys(nextComparable),
-  ]);
-  return [...keys]
-    .filter(
-      (key) =>
-        JSON.stringify(previousComparable[key]) !==
-        JSON.stringify(nextComparable[key])
-    )
-    .sort();
-};
-
-const changedComparableTripValues = (
-  previousTrip: Record<string, unknown> | undefined,
-  nextTrip: Record<string, unknown>
-): Record<string, unknown> => {
-  const previousComparable = toComparableTrip(previousTrip) ?? {};
-  const nextComparable = toComparableTrip(nextTrip) ?? {};
-  const changedValues: Record<string, unknown> = {};
-  const keys = new Set([
-    ...Object.keys(previousComparable),
-    ...Object.keys(nextComparable),
-  ]);
-  for (const key of [...keys].sort()) {
-    if (
-      JSON.stringify(previousComparable[key]) !== JSON.stringify(nextComparable[key])
-    ) {
-      // Per request, emit the current (next) value for changed fields.
-      changedValues[key] = nextComparable[key];
-    }
-  }
-  return changedValues;
-};
-
 /**
  * Executes one ping pipeline after the action shell handles top-level errors.
  *
@@ -125,7 +63,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   const pingStartedAt = Date.now();
 
   // Update location rows: fetch, normalize, augment, persist, and dedupe.
-  const dedupedLocationUpdates = await updateVesselLocations(ctx, {
+  const dedupedLocationUpdates = await runStage1UpdateVesselLocations(ctx, {
     terminalsIdentity: snapshot.terminalsIdentity,
     vesselsIdentity: snapshot.vesselsIdentity,
   });
@@ -146,8 +84,7 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       );
 
       // Compute sparse trip/prediction writes from this location change only.
-      const tripStageResult = await computeTripStageForLocation(
-        ctx,
+      const tripStageResult = await runStage2UpdateVesselTrip(
         vesselLocation,
         existingActiveTrip,
         scheduleAccess
@@ -158,48 +95,38 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         continue;
       }
 
-      // Project timeline rows in-memory from same-ping trip facts and ML overlays.
-      const timelineRows = updateTimeline({
+      const predictionStageResult = await runStage3UpdateVesselPredictions(
+        ctx,
+        tripStageResult.predictionInputs
+      );
+
+      const timelineRows = runStage4UpdateTimeline({
         pingStartedAt,
-        tripHandoffForTimeline: toTimelineHandoffFromTripWrites(
-          tripStageResult.tripWrites
-        ),
-        mlTimelineOverlays: tripStageResult.mlTimelineOverlays,
+        updatedTrips: tripStageResult.updatedTrips,
+        mlTimelineOverlays: predictionStageResult.mlTimelineOverlays,
       });
-      const persistedActiveTrip =
-        tripStageResult.tripWrites.activeTripUpsert ??
-        tripStageResult.tripWrites.completedTripWrite?.scheduleTrip;
-      if (persistedActiveTrip !== undefined) {
-        const writePath =
-          tripStageResult.tripWrites.activeTripUpsert !== undefined
-            ? "activeTripUpsert"
-            : "completedTripWrite.scheduleTrip";
-        console.log("[updateVesselOrchestrator] persisting active trip", {
+
+      const { activeVesselTrip, completedVesselTrip } = tripStageResult.updatedTrips;
+
+      if (activeVesselTrip !== undefined) {
+        console.log("[updateVesselOrchestrator] updated active vessel trip", {
           vesselAbbrev: vesselLocation.VesselAbbrev,
-          writePath,
-          changedComparableKeys: changedComparableTripKeys(
-            existingActiveTrip,
-            persistedActiveTrip
-          ),
-          changedComparableValues: changedComparableTripValues(
-            existingActiveTrip,
-            persistedActiveTrip
-          ),
           previousActiveTrip: existingActiveTrip ?? null,
-          nextActiveTrip: persistedActiveTrip,
+          nextActiveTrip: activeVesselTrip,
         });
       }
-      // Apply trip, prediction, and timeline rows together through one mutation.
-      await ctx.runMutation(
-        internal.functions.vesselOrchestrator.mutation.mutations
-          .persistPerVesselOrchestratorWrites,
-        {
-          tripWrites: tripStageResult.tripWrites,
-          predictionRows: Array.from(tripStageResult.predictionRows),
-          actualEvents: timelineRows.actualEvents,
-          predictedEvents: timelineRows.predictedEvents,
-        }
-      );
+      if (completedVesselTrip !== undefined) {
+        console.log("[updateVesselOrchestrator] updated completed vessel trip", {
+          vesselAbbrev: vesselLocation.VesselAbbrev,
+          previousActiveTrip: existingActiveTrip ?? null,
+          completedVesselTrip,
+        });
+      }
+      await runStage5PersistOrchestratorWrites(ctx, {
+        updatedTrips: tripStageResult.updatedTrips,
+        predictionRows: predictionStageResult.predictionRows,
+        timelineRows,
+      });
     } catch (error) {
       // Log and continue so one vessel failure does not block other vessel branches.
       const err = error instanceof Error ? error : new Error(String(error));

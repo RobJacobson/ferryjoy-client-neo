@@ -9,14 +9,14 @@ import {
 } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-export type VesselTripWrites = {
-  completedTripWrite?: {
+export type UpdatedTrips = {
+  completedVesselTrip?: {
     existingTrip: ConvexVesselTrip;
     tripToComplete: ConvexVesselTrip;
     events: TripLifecycleEventFlags;
     scheduleTrip: ConvexVesselTrip;
   };
-  activeTripUpsert?: ConvexVesselTrip;
+  activeVesselTrip?: ConvexVesselTrip;
   actualDockWrite?: {
     events: TripLifecycleEventFlags;
     scheduleTrip: ConvexVesselTrip;
@@ -31,38 +31,30 @@ export type VesselTripWrites = {
 
 type PerVesselTripUpdateInput = {
   existingActiveTrip?: ConvexVesselTrip;
-  activeTripUpdate?: ConvexVesselTrip;
-  completedTripUpdate?: ConvexVesselTrip;
+  activeVesselTrip?: ConvexVesselTrip;
+  completedVesselTrip?: ConvexVesselTrip;
 };
 
 /**
  * Builds sparse trip-write intents for one vessel branch update.
  *
- * This builder keeps branch write-shaping rules out of the action loop and out
- * of mutation handlers, so both layers stay simpler and more focused. It
- * encodes lifecycle precedence (completion branch first), strips non-storage
- * prediction fields, and emits only write intents that materially change
- * storage rows. The resulting payload is the handoff contract shared by
- * mutation persistence and timeline projection stages.
- *
  * @param tripUpdate - Existing trip plus active/completed update candidates
  * @returns Write-set payload consumed by orchestrator persistence
  */
-export const buildTripWritesForVessel = (
+export const buildUpdatedTripsForVessel = (
   tripUpdate: PerVesselTripUpdateInput
-): VesselTripWrites => {
+): UpdatedTrips => {
   const existing = tripUpdate.existingActiveTrip;
-  const active = tripUpdate.activeTripUpdate;
-  const completed = tripUpdate.completedTripUpdate;
+  const active = tripUpdate.activeVesselTrip;
+  const completed = tripUpdate.completedVesselTrip;
 
-  // Prefer completion branch when rollover evidence exists; this encodes lifecycle order.
   if (
     completed !== undefined &&
     existing !== undefined &&
     active !== undefined
   ) {
     return {
-      completedTripWrite: {
+      completedVesselTrip: {
         existingTrip: existing,
         tripToComplete: completed,
         events: buildCompletionTripEvents(existing, completed),
@@ -71,22 +63,18 @@ export const buildTripWritesForVessel = (
     };
   }
 
-  // No active candidate means no write intent for this vessel branch.
   if (active === undefined) {
     return {};
   }
 
-  // Strip prediction-only fields before comparing/persisting storage-native trip rows.
   const activeUpsert = stripTripPredictionsForStorage(active);
-  // Skip write set generation when storage row is unchanged.
   if (areTripStorageRowsEqual(existing, activeUpsert)) {
     return {};
   }
 
-  // Derive lifecycle event flags once so all downstream write intents share semantics.
   const events = currentTripEvents(existing, activeUpsert);
   return {
-    activeTripUpsert: activeUpsert,
+    activeVesselTrip: activeUpsert,
     actualDockWrite:
       events.didJustLeaveDock || events.didJustArriveAtDock
         ? {
