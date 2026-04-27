@@ -71,15 +71,3 @@ hot path in `convex/functions/vesselOrchestrator`.
   not stop the whole ping.
 - Per-vessel location upsert failures remain isolated inside
   `performBulkUpsertVesselLocations`.
-
-## Optional sanity instrumentation
-
-Two toggles in `constants.ts` control temporary low-noise instrumentation:
-
-- `ENABLE_ORCHESTRATOR_SANITY_METRICS`
-- `ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS`
-
-When both are enabled, one summary log per ping may be emitted for:
-
-- schedule continuity access metrics
-- location dedupe metrics

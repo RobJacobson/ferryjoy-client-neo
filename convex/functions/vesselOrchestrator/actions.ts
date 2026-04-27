@@ -27,18 +27,10 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import {
-  ENABLE_ORCHESTRATOR_SANITY_METRICS,
-  ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS,
-  ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT,
-} from "./constants";
 import { loadVesselLocationUpdates } from "./locationUpdates";
 import type { VesselTripWrites } from "./persistVesselTripWriteSet";
 import { runPredictionStage } from "./predictionStage";
-import {
-  createScheduleContinuityAccess,
-  type ScheduleContinuityMetricsSummary,
-} from "./scheduleContinuityAccess";
+import { createScheduleContinuityAccess } from "./scheduleContinuityAccess";
 
 type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
@@ -138,10 +130,6 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     }
   }
 
-  logScheduleContinuitySanitySummary(
-    pingStartedAt,
-    scheduleAccess.getMetricsSummary()
-  );
 };
 
 /**
@@ -341,20 +329,3 @@ const currentTripEvents = (
   scheduleKeyChanged: existingTrip?.ScheduleKey !== nextTrip.ScheduleKey,
 });
 
-const logScheduleContinuitySanitySummary = (
-  pingStartedAt: number,
-  summary: ScheduleContinuityMetricsSummary | null
-): void => {
-  if (
-    !ENABLE_ORCHESTRATOR_SANITY_METRICS ||
-    !ENABLE_ORCHESTRATOR_SANITY_SUMMARY_LOGS ||
-    summary === null
-  ) {
-    return;
-  }
-
-  console.info(ORCHESTRATOR_SANITY_SCHEDULE_LOG_EVENT, {
-    pingStartedAt,
-    ...summary,
-  });
-};
