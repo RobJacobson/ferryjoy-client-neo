@@ -226,6 +226,15 @@ The orchestrator keeps external API usage efficient:
 
 Trip compute and timeline projection both run in the action’s per-vessel loop (`updateVesselTrip` + `updateTimeline`); mutation handlers are write-only apply steps.
 
+Current hot-path implementation notes:
+
+- `updateVesselLocations` now keeps a short-lived in-memory cache of existing
+  location rows for `AtDockObserved` continuity and falls back to DB reads when
+  the cache is empty or stale.
+- Trip persistence gating uses deterministic key-by-key storage comparison in
+  `areTripStorageRowsEqual` (ignoring `TimeStamp`), which avoids false writes
+  from object key-order differences.
+
 ### Schedule access rule (do not add parallel seams)
 
 Trip-field and continuity code must depend only on **`ScheduleContinuityAccess`**:

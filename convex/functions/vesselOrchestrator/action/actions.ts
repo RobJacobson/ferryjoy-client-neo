@@ -42,6 +42,68 @@ export const updateVesselOrchestrator = internalAction({
   },
 });
 
+type ComparableTrip = Record<string, unknown>;
+
+const toComparableTrip = (
+  trip: Record<string, unknown> | undefined
+): ComparableTrip | null => {
+  if (trip === undefined) {
+    return null;
+  }
+  const comparable: ComparableTrip = {};
+  for (const [key, value] of Object.entries(trip)) {
+    if (key === "TimeStamp") {
+      continue;
+    }
+    // Normalize missing vs undefined by excluding undefined keys.
+    if (value !== undefined) {
+      comparable[key] = value;
+    }
+  }
+  return comparable;
+};
+
+const changedComparableTripKeys = (
+  previousTrip: Record<string, unknown> | undefined,
+  nextTrip: Record<string, unknown>
+): Array<string> => {
+  const previousComparable = toComparableTrip(previousTrip) ?? {};
+  const nextComparable = toComparableTrip(nextTrip) ?? {};
+  const keys = new Set([
+    ...Object.keys(previousComparable),
+    ...Object.keys(nextComparable),
+  ]);
+  return [...keys]
+    .filter(
+      (key) =>
+        JSON.stringify(previousComparable[key]) !==
+        JSON.stringify(nextComparable[key])
+    )
+    .sort();
+};
+
+const changedComparableTripValues = (
+  previousTrip: Record<string, unknown> | undefined,
+  nextTrip: Record<string, unknown>
+): Record<string, unknown> => {
+  const previousComparable = toComparableTrip(previousTrip) ?? {};
+  const nextComparable = toComparableTrip(nextTrip) ?? {};
+  const changedValues: Record<string, unknown> = {};
+  const keys = new Set([
+    ...Object.keys(previousComparable),
+    ...Object.keys(nextComparable),
+  ]);
+  for (const key of [...keys].sort()) {
+    if (
+      JSON.stringify(previousComparable[key]) !== JSON.stringify(nextComparable[key])
+    ) {
+      // Per request, emit the current (next) value for changed fields.
+      changedValues[key] = nextComparable[key];
+    }
+  }
+  return changedValues;
+};
+
 /**
  * Executes one ping pipeline after the action shell handles top-level errors.
  *
@@ -104,7 +166,29 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         ),
         mlTimelineOverlays: tripStageResult.mlTimelineOverlays,
       });
-
+      const persistedActiveTrip =
+        tripStageResult.tripWrites.activeTripUpsert ??
+        tripStageResult.tripWrites.completedTripWrite?.scheduleTrip;
+      if (persistedActiveTrip !== undefined) {
+        const writePath =
+          tripStageResult.tripWrites.activeTripUpsert !== undefined
+            ? "activeTripUpsert"
+            : "completedTripWrite.scheduleTrip";
+        console.log("[updateVesselOrchestrator] persisting active trip", {
+          vesselAbbrev: vesselLocation.VesselAbbrev,
+          writePath,
+          changedComparableKeys: changedComparableTripKeys(
+            existingActiveTrip,
+            persistedActiveTrip
+          ),
+          changedComparableValues: changedComparableTripValues(
+            existingActiveTrip,
+            persistedActiveTrip
+          ),
+          previousActiveTrip: existingActiveTrip ?? null,
+          nextActiveTrip: persistedActiveTrip,
+        });
+      }
       // Apply trip, prediction, and timeline rows together through one mutation.
       await ctx.runMutation(
         internal.functions.vesselOrchestrator.mutation.mutations

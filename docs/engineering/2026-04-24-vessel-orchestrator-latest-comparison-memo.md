@@ -1,6 +1,7 @@
 # Vessel Orchestrator Latest Before/After Engineering Memo
 
 **Current code (authoritative):** The shipped orchestrator entrypoint is [`convex/functions/vesselOrchestrator/action/actions.ts`](../../convex/functions/vesselOrchestrator/action/actions.ts) (`updateVesselOrchestrator`). Per changed vessel it runs **`updateTimeline`** in the action, then persists trip rows, prediction proposals, and timeline dock rows together via **`persistPerVesselOrchestratorWrites`** ([`mutation/mutations.ts`](../../convex/functions/vesselOrchestrator/mutation/mutations.ts)). Schedule continuity is **`action/pipeline/scheduleContinuity.ts`**. See [`../../convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md). The sections below are a **dated** before/after record; filenames and mutation names in the narrative may not match today’s tree.
+**Historical note:** treat the section details below as snapshot analysis from the date above, not as a living runtime contract.
 
 **Date:** 2026-04-25 (revised; first published 2026-04-24; updated 2026-04-25 PM)  
 **Audience:** Engineers working in `convex/functions/vesselOrchestrator`, `convex/domain/vesselOrchestration`, `convex/functions/vesselTrips`, `convex/functions/vesselLocation`, `convex/functions/events`, and adjacent modules.  
