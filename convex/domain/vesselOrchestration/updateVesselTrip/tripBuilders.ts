@@ -194,7 +194,7 @@ const buildBaseTrip = ({
       ArriveDest: undefined,
       AtDockActual: startTime,
       TripStart: startTime,
-      AtDock: currLocation.AtDock,
+      AtDock: currLocation.AtDockObserved,
       AtDockDuration: undefined,
       ScheduledDeparture: identity.scheduledDeparture,
       LeftDock: undefined,
@@ -249,7 +249,7 @@ const buildBaseTrip = ({
     ArriveDest: arriveDestTime,
     AtDockActual: arriveOriginTime,
     TripStart: startTime,
-    AtDock: currLocation.AtDock,
+    AtDock: currLocation.AtDockObserved,
     AtDockDuration: calculateTimeDelta(
       arriveDestTime ?? existingTrip?.EndTime ?? startTime,
       events.leftDockTime

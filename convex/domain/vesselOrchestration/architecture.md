@@ -37,6 +37,7 @@ Use this as the canonical timestamp vocabulary for trip, timeline, and client re
 
 - Coverage interval: `StartTime` and `EndTime` describe when a trip row exists in storage. `EndTime` can be a synthetic close.
 - Physical boundaries: `ArrivedCurrActual`, `LeftDockActual`, `ArrivedNextActual` are the canonical physical boundary facts.
+- Phase state: trip `AtDock` is sourced from location `AtDockObserved` (stabilized observed phase), not directly from raw WSF `AtDock`.
 - Legacy mirrors/fallbacks: `TripStart`, `TripEnd`, `ArriveDest`, `LeftDock`, `AtDockActual` remain for compatibility and display fallback chains.
 
 ### Key rule

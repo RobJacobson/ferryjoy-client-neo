@@ -69,7 +69,7 @@ const isSameDockWindowReuseCandidate = (
   existingTrip: ConvexVesselTrip | undefined
 ): boolean =>
   Boolean(
-    location.AtDock &&
+    location.AtDockObserved &&
       location.LeftDock === undefined &&
       existingTrip?.AtDock &&
       existingTrip.LeftDock === undefined &&

@@ -66,6 +66,11 @@ is:
 
 ## Contracts
 
+Physical phase contract:
+
+- Trip-row `AtDock` is persisted from location `AtDockObserved` (stabilized
+  dock/sea phase), not directly from raw feed `AtDock`.
+
 Orchestrator change bundle:
 
 - `VesselTripUpdate`

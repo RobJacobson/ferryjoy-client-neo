@@ -23,6 +23,8 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Function: `updateVesselLocations`
    - External input: WSF vessel locations
    - Output: changed `ConvexVesselLocation[]` rows after dedupe
+   - Phase contract: this stage derives `AtDockObserved`; downstream trip
+     `AtDock` is persisted from that observed phase
    - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
    - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch

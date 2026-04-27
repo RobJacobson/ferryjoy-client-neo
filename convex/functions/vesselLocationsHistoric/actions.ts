@@ -6,9 +6,14 @@ import { internal } from "_generated/api";
 import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
 import { v } from "convex/values";
-import { updateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import {
+  updateVesselLocations,
+  withAtDockObserved,
+} from "domain/vesselOrchestration/updateVesselLocations";
 import { loadTerminalIdentities } from "functions/terminals/actions";
-import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
+import type {
+  ConvexVesselLocation,
+} from "functions/vesselLocation/schemas";
 import type { ConvexHistoricVesselLocation } from "functions/vesselLocationsHistoric/schemas";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { getSailingDay } from "shared/time";
@@ -45,9 +50,17 @@ export const captureHistoricVesselLocations = internalAction({
       vesselsIdentity: vesselIdentities,
       terminalsIdentity: terminalIdentities,
     });
+    const existingLocations = await ctx.runQuery(
+      internal.functions.vesselOrchestrator.query.queries
+        .getCurrentVesselLocationsForIngest
+    );
+    const locationsWithObserved = withAtDockObserved(
+      existingLocations,
+      convexLocations
+    );
 
     const locations: ConvexHistoricVesselLocation[] =
-      convexLocations.map(addSailingDay);
+      locationsWithObserved.map(addSailingDay);
 
     const result: HistoricSnapshotResult = await ctx.runMutation(
       internal.functions.vesselLocationsHistoric.mutations.insertSnapshotBatch,
@@ -116,10 +129,9 @@ export const cleanupHistoricVesselLocations = internalAction({
  * @returns Historic snapshot row including `SailingDay`
  */
 const addSailingDay = (
-  location: ConvexVesselLocationIncoming
+  location: ConvexVesselLocation
 ): ConvexHistoricVesselLocation => ({
   ...location,
-  AtDockObserved: location.AtDock,
   SailingDay: getSailingDay(new Date(location.TimeStamp)),
 });
 

@@ -1,8 +1,8 @@
 /**
  * Physical lifecycle detection for one vessel ping.
  *
- * This module owns the feed-driven dock/sea debounce rules and the derived
- * event bundle consumed by the trip builders.
+ * This module owns the feed-driven lifecycle rules and the derived event bundle
+ * consumed by the trip builders.
  */
 
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
@@ -66,10 +66,10 @@ const getPhysicalDepartureStamp = (
  * Checks whether the raw ping still describes a docked vessel.
  *
  * @param location - Incoming vessel location ping
- * @returns True when vessel is at dock and not moving materially
+ * @returns True when vessel is observed as docked
  */
 const rawPingSuggestsDocked = (location: ConvexVesselLocation): boolean =>
-  location.AtDock && !(location.Speed > 1);
+  location.AtDockObserved === true;
 
 /**
  * Detects contradictory departure evidence in the same ping.
@@ -88,16 +88,6 @@ const rawDepartureIsContradictory = (
       currLocation.LeftDock !== undefined &&
       rawPingSuggestsDocked(currLocation)
   );
-
-/**
- * Detects contradictory arrival evidence where at-dock and speed disagree.
- *
- * @param currLocation - Incoming vessel location ping
- * @returns True when arrival appears noisy/contradictory
- */
-const rawArrivalIsContradictory = (
-  currLocation: ConvexVesselLocation
-): boolean => Boolean(currLocation.AtDock && currLocation.Speed > 1);
 
 /**
  * Detects a raw leave-dock transition before contradiction filtering.
@@ -140,7 +130,7 @@ const rawDidJustArriveAtDock = (
     return false;
   }
 
-  if (!currLocation.AtDock) {
+  if (!currLocation.AtDockObserved) {
     return false;
   }
 
@@ -172,8 +162,7 @@ const resolvePhysicalState = (
     !rawDepartureIsContradictory(existingTrip, currLocation);
 
   let didJustArriveAtDock =
-    rawDidJustArriveAtDock(existingTrip, currLocation) &&
-    !rawArrivalIsContradictory(currLocation);
+    rawDidJustArriveAtDock(existingTrip, currLocation);
 
   if (didJustLeaveDock && didJustArriveAtDock) {
     // Drop impossible simultaneous transition events from noisy pings.
@@ -227,7 +216,7 @@ const getRawLifecycleScheduleKey = (
       existingTrip.LeftDock === undefined &&
       existingTrip.DepartingTerminalAbbrev ===
         currLocation.DepartingTerminalAbbrev &&
-      ((currLocation.AtDock && currLocation.LeftDock === undefined) ||
+      ((currLocation.AtDockObserved && currLocation.LeftDock === undefined) ||
         currLocation.LeftDock !== undefined)
   );
 

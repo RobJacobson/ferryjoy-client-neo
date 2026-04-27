@@ -132,6 +132,10 @@ The active-trip lifecycle now follows the vessel's physical state more directly:
 - `at-dock`
 - `at-sea`
 
+Trip-row `AtDock` now uses the stabilized location-phase signal
+`AtDockObserved` (not raw WSF `AtDock`) so lifecycle and prediction phase
+routing share the same observed contract.
+
 When a vessel arrives at dock, the previous trip completes immediately and the next trip starts immediately. If the live feed lags on next-trip fields such as `ScheduledDeparture` or `ArrivingTerminalAbbrev`, the trip pipeline infers the next trip deterministically from the scheduled-trip backbone instead of holding the vessel in a separate waiting state.
 
 Those provisional trip fields are observable, but not warnings by default. The trip pipeline logs only meaningful transitions: when schedule evidence starts or updates provisional trip fields, when partial WSF values conflict with the inferred result, and when authoritative WSF trip fields replace prior values. It intentionally does not log every benign reuse of unchanged provisional trip fields.
