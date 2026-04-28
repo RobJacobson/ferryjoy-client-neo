@@ -9,7 +9,7 @@
  * DB; ML overlay application runs in `updateTimeline` after
  * `updateVesselPredictions`.
  *
- * @see `functions/vesselOrchestrator/action/actions` — `updateVesselOrchestrator` / `updateTimeline` caller
+ * @see `functions/vesselOrchestrator/actions` — `updateVesselOrchestrator` / `updateTimeline` caller
  *
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
  */

@@ -4,7 +4,7 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   type PerVesselTripPersistInput,
   persistVesselTripWrites,
-} from "../mutation/persistence/tripWrites";
+} from "../pipeline/updateVesselTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

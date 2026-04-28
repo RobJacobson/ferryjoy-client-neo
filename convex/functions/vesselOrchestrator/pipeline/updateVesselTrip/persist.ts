@@ -36,13 +36,6 @@ const defaultDeps: TripPersistenceDeps = {
 /**
  * Persists one vessel's trip-table writes for the current ping branch.
  *
- * This function is the mutation-layer adapter between orchestrator write
- * intents and lower-level vessel-trip table mutations. It exists to keep the
- * top-level mutation focused on phase ordering while this helper handles trip
- * lifecycle details and follow-up leave-dock actualization rules. By consuming
- * sparse intents, it avoids unnecessary writes and preserves clear ownership of
- * trip-specific persistence behavior inside the mutation/persistence module.
- *
  * @param ctx - Convex mutation context for trip lifecycle writes
  * @param input - Existing and updated trip rows for this vessel branch
  * @returns Resolves when trip writes and follow-up intents are applied

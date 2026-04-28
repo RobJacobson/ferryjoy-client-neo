@@ -18,13 +18,6 @@ const orchestratorModelDataSchema = v.object({
 /**
  * Loads the baseline orchestrator read model in one query transaction.
  *
- * This query is intentionally narrow and storage-native so the action layer can
- * build one consistent ping snapshot without joining prediction overlays or
- * other derived views. Centralizing these reads behind one function reduces
- * round trips and gives the action pipeline a single dependency for baseline
- * state. It also cleanly separates read-model assembly concerns from action
- * sequencing and mutation-side persistence concerns.
- *
  * @param ctx - Convex query context for database reads
  * @returns Identity rows and storage-native active trip rows
  */

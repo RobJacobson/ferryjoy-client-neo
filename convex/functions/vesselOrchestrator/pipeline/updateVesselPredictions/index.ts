@@ -1,9 +1,5 @@
 /**
- * Action-level loader for the prediction model context preload.
- *
- * Survives at the action layer because it issues a Convex query; the pure
- * derivation of which model load requests to issue lives in the predictions
- * domain.
+ * Stage-level loaders and persistence helpers for update-vessel-predictions.
  */
 
 import { internal } from "_generated/api";
@@ -13,6 +9,8 @@ import {
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+
+export { persistVesselPredictions } from "./persist";
 
 /**
  * Loads production prediction context for the current ping branch.

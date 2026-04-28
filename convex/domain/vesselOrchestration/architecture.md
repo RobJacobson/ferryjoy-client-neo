@@ -106,7 +106,7 @@ Owns cross-module contracts that should not leak from `updateVesselTrip`, such a
 
 ### Schedule continuity (production vs tests)
 
-- **Production:** trip-field code depends only on `ScheduleContinuityAccess`, wired from `functions/vesselOrchestrator/action/pipeline/scheduleContinuity.ts` (`createScheduleContinuityAccess`) with memoized internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
+- **Production:** trip-field code depends only on `ScheduleDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts` (`createScheduleDbAccess`) with targeted internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** `shared/scheduleSnapshot/` builds the same interface from an in-memory `ScheduleSnapshot` fixture (see that folder’s README). Do not treat that fixture as documentation of production persistence.
 
 ## Contracts between stages
@@ -119,13 +119,11 @@ Prediction inputs are derived inside **`updateVesselPredictions`** from **`Vesse
 
 ## Current ownership
 
-- `functions/vesselOrchestrator/action/actions.ts`
+- `functions/vesselOrchestrator/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
-- `functions/vesselOrchestrator/action/pipeline/*`
-  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule continuity (**`scheduleContinuity.ts`**), locations stage (**`updateVesselLocations`**)
-- `functions/vesselOrchestrator/action/predictionContextLoader.ts`
-  - Convex query wrapper for production model preload (**`loadPredictionContext`**); pure request derivation lives in **`updateVesselPredictions/predictionContextRequests.ts`**
-- `functions/vesselOrchestrator/mutation/mutations.ts` (`persistPerVesselOrchestratorWrites`)
+- `functions/vesselOrchestrator/pipeline/*`
+  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/scheduleDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
+- `functions/vesselOrchestrator/mutations.ts` (`persistPerVesselOrchestratorWrites`)
   - ordered trip + prediction + timeline persistence per vessel
 - `domain/vesselOrchestration/updateVesselTrip/`
   - trip compute only
@@ -137,7 +135,7 @@ Prediction inputs are derived inside **`updateVesselPredictions`** from **`Vesse
 ## Key design rules
 
 - Trip compute stays prediction-free.
-- Schedule continuity in production uses only **`ScheduleContinuityAccess`** (see `functions/vesselOrchestrator/action/pipeline/scheduleContinuity.ts`); do not add a parallel schedule seam for trip-field code.
+- Schedule reads in production use only **`ScheduleDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
 - Shared downstream contracts are owned in `shared/`, not in `updateVesselTrip`.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
 - `tripFields/` remains isolated because schedule identity policy changes for different reasons than physical lifecycle logic.

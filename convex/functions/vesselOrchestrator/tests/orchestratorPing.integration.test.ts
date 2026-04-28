@@ -20,7 +20,7 @@ import * as updateVesselTripModule from "domain/vesselOrchestration/updateVessel
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { updateVesselOrchestrator } from "../action";
+import { updateVesselOrchestrator } from "../actions";
 
 type InternalActionHandler = (
   ctx: ActionCtx,

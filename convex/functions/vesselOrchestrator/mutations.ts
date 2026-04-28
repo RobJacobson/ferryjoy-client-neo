@@ -6,10 +6,10 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { fetchEntryByKey, upsertByKey } from "functions/keyValueStore/helpers";
-import { persistVesselPredictions } from "./persistence/predictionWrites";
-import { persistVesselTimelineWrites } from "./persistence/timelineWrites";
-import { persistVesselTripWrites } from "./persistence/tripWrites";
-import { persistPerVesselOrchestratorWritesSchema } from "./schemas";
+import { persistPerVesselOrchestratorWritesSchema } from "./pipeline/persistPerVesselOrchestratorWrites";
+import { persistVesselPredictions } from "./pipeline/updateVesselPredictions";
+import { persistVesselTimelineWrites } from "./pipeline/updateTimeline";
+import { persistVesselTripWrites } from "./pipeline/updateVesselTrip";
 
 type MinutePersistenceTotals = {
   calls: number;
@@ -77,7 +77,6 @@ const updateMinutePersistenceTotals = async (
   await upsertByKey(ctx, key, JSON.stringify(next));
 };
 
-/** Explicit numeric fields so logs always include zeros (temporary debug telemetry). */
 const minuteTotalsForLog = (
   totals: MinutePersistenceTotals
 ): MinutePersistenceTotals => ({
@@ -123,13 +122,6 @@ const maybeLogCurrentMinuteTotals = async (
 /**
  * Persists trip, prediction, and timeline rows for one vessel pipeline branch.
  *
- * This mutation is the write boundary for orchestrator per-vessel persistence.
- * It exists so action-side compute can remain pure(ish) and precompute rows in
- * memory, while mutation code applies writes in a deterministic order. The
- * ordering reflects data dependencies across modules: trip lifecycle first,
- * then prediction proposals, then timeline projection rows. Wrapping all three
- * phases here keeps write semantics centralized and easier to reason about.
- *
  * @param ctx - Convex mutation context used for all write operations
  * @param args - Precomputed sparse writes produced in action memory
  * @returns `null` after all write phases apply successfully
@@ -144,16 +136,13 @@ export const persistPerVesselOrchestratorWrites = internalMutation({
         Number(args.completedVesselTrip !== undefined) +
         Number(args.activeVesselTrip !== undefined);
 
-      // Persist trip lifecycle first so prediction/timeline writes see latest trip state.
       await persistVesselTripWrites(ctx, {
         vesselAbbrev: args.vesselAbbrev,
         existingActiveTrip: args.existingActiveTrip,
         activeVesselTrip: args.activeVesselTrip,
         completedVesselTrip: args.completedVesselTrip,
       });
-      // Apply prediction proposals before timeline rows consume predicted values.
       await persistVesselPredictions(ctx, args.predictionRows);
-      // Persist final timeline rows last because they are projection outputs.
       await persistVesselTimelineWrites(ctx, {
         actualEvents: args.actualEvents,
         predictedEvents: args.predictedEvents,
@@ -168,7 +157,6 @@ export const persistPerVesselOrchestratorWrites = internalMutation({
       await maybeLogCurrentMinuteTotals(ctx, currentMinuteKey);
       return null;
     } catch (error) {
-      // Wrap lower-level failures with mutation identity for clearer orchestrator logs.
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `[persistPerVesselOrchestratorWrites] persistence failed: ${message}`
