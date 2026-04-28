@@ -3,7 +3,7 @@
  */
 
 import { areTripStorageRowsEqual } from "domain/vesselOrchestration/shared";
-import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
+import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { detectTripEvents } from "./lifecycle";
@@ -14,7 +14,7 @@ import type { VesselTripUpdate } from "./types";
 type UpdateVesselTripInput = {
   vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
-  scheduleAccess: ScheduleContinuityAccess;
+  scheduleAccess: ScheduleDbAccess;
   /**
    * Optional observability hook after current-trip fields resolve (before
    * next-leg attachment). Wired from the orchestrator for diagnostics; schedule

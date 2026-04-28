@@ -50,7 +50,8 @@ describe("resolveTripFieldsForTripRow", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment, rolloverSegment],
@@ -122,6 +123,8 @@ describe("resolveTripFieldsForTripRow", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
@@ -147,7 +150,8 @@ describe("resolveTripFieldsForTripRow", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: undefined,
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],

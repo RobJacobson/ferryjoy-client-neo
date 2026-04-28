@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
+import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -78,9 +78,9 @@ const makeLocationUpdate = (
 
 describe("updateVesselTrip stage-2 policy", () => {
   it("returns sparse writes for one changed location update", async () => {
-    const scheduleAccess: ScheduleContinuityAccess = {
-      getScheduledDeparturesForVesselAndSailingDay: async () => [],
-      getScheduledSegmentByKey: async () => null,
+    const scheduleAccess: ScheduleDbAccess = {
+      getScheduledDockEvents: async () => [],
+      getScheduledDepartureEvent: async () => null,
     };
     const tripStage = await updateVesselTrip({
       vesselLocation: makeLocationUpdate("CHE"),
@@ -101,9 +101,9 @@ describe("updateVesselTrip stage-2 policy", () => {
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
-    const scheduleAccess: ScheduleContinuityAccess = {
-      getScheduledDeparturesForVesselAndSailingDay: async () => [],
-      getScheduledSegmentByKey: async () => null,
+    const scheduleAccess: ScheduleDbAccess = {
+      getScheduledDockEvents: async () => [],
+      getScheduledDepartureEvent: async () => null,
     };
     computeTripSpy.mockImplementation(
       async (input: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]) => {

@@ -6,7 +6,7 @@
  */
 
 import type {
-  ScheduleContinuityAccess,
+  ScheduleDbAccess,
   TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
 import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
@@ -72,7 +72,7 @@ type ResolvedTripIdentity = {
  */
 export const buildUpdatedVesselRows = async (
   update: TripBuildInput,
-  scheduleAccess: ScheduleContinuityAccess,
+  scheduleAccess: ScheduleDbAccess,
   onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
 ): Promise<TripRowOutcome> => {
   // Finalize and immediately seed the next active trip when arrival completes.
@@ -334,7 +334,7 @@ const buildActiveTripForUpdate = async (
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripBuildEvents,
-  scheduleAccess: ScheduleContinuityAccess,
+  scheduleAccess: ScheduleDbAccess,
   onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
 ): Promise<ConvexVesselTrip> =>
   resolveTripFieldsForTripRow({
@@ -388,7 +388,7 @@ const buildActiveTripForUpdate = async (
  */
 const tripRowsWhenCompleting = async (
   update: CompletedTripUpdate,
-  scheduleAccess: ScheduleContinuityAccess,
+  scheduleAccess: ScheduleDbAccess,
   onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
 ): Promise<TripRowOutcome> => {
   try {
@@ -415,7 +415,7 @@ const tripRowsWhenCompleting = async (
       error
     );
 
-    return { activeVesselTrip: update.existingActiveTrip };
+    return {};
   }
 };
 
@@ -428,7 +428,7 @@ const tripRowsWhenCompleting = async (
  */
 const tripRowsWhenContinuing = async (
   update: TripBuildInput,
-  scheduleAccess: ScheduleContinuityAccess,
+  scheduleAccess: ScheduleDbAccess,
   onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
 ): Promise<TripRowOutcome> => {
   try {
@@ -449,8 +449,6 @@ const tripRowsWhenContinuing = async (
       error
     );
 
-    return update.existingActiveTrip !== undefined
-      ? { activeVesselTrip: update.existingActiveTrip }
-      : {};
+    return {};
   }
 };

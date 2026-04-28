@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type {
-  ScheduleContinuityAccess,
+  ScheduleDbAccess,
   TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -9,9 +9,9 @@ import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const scheduleTables: ScheduleContinuityAccess = {
-  getScheduledSegmentByKey: async () => null,
-  getScheduledDeparturesForVesselAndSailingDay: async () => [],
+const scheduleTables: ScheduleDbAccess = {
+  getScheduledDepartureEvent: async () => null,
+  getScheduledDockEvents: async () => [],
 };
 
 const makeTrip = (

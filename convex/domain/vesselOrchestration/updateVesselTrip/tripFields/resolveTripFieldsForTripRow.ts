@@ -1,25 +1,35 @@
 /**
  * Trip-field resolution and schedule attachment for one trip row.
  */
-import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
+
+import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
+import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { getFallbackTripFields } from "./getFallbackTripFields";
-import { getNextScheduledTripFromExistingTrip } from "./getNextScheduledTripFromExistingTrip";
-import { getRolledOverScheduledTrip } from "./getRolledOverScheduledTrip";
+import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
+import { deriveTripIdentity } from "shared/tripIdentity";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
 import type { TripFieldInferenceInput } from "./tripFieldDiagnostics";
-import type { ResolvedCurrentTripFields, ScheduledTripMatch } from "./types";
+import type { ResolvedCurrentTripFields } from "./types";
 
 type ResolveTripFieldsForTripRowInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleAccess: ScheduleContinuityAccess;
+  scheduleAccess: ScheduleDbAccess;
   buildTrip: (
     resolvedCurrentTripFields: ResolvedCurrentTripFields
   ) => ConvexVesselTrip;
   onTripFieldsResolved?: (args: TripFieldInferenceInput) => void;
+};
+
+type ResolvedTripFields = {
+  resolvedCurrentTripFields: ResolvedCurrentTripFields;
+  inferredNext?: {
+    NextScheduleKey?: string;
+    NextScheduledDeparture?: number;
+  };
 };
 
 /**
@@ -35,11 +45,12 @@ export const resolveTripFieldsForTripRow = async ({
   buildTrip,
   onTripFieldsResolved,
 }: ResolveTripFieldsForTripRowInput): Promise<ConvexVesselTrip> => {
-  const resolvedCurrentTripFields = await resolveCurrentTripFields({
-    location,
-    existingTrip,
-    scheduleAccess,
-  });
+  const { resolvedCurrentTripFields, inferredNext } =
+    await resolveCurrentTripFields({
+      location,
+      existingTrip,
+      scheduleAccess,
+    });
   const inferenceInput = {
     location,
     existingTrip,
@@ -53,7 +64,7 @@ export const resolveTripFieldsForTripRow = async ({
   return attachNextScheduledTripFields({
     baseTrip: buildTrip(resolvedCurrentTripFields),
     existingTrip,
-    scheduleAccess,
+    inferredNext,
   });
 };
 
@@ -70,51 +81,265 @@ const resolveCurrentTripFields = async ({
 }: Omit<
   ResolveTripFieldsForTripRowInput,
   "buildTrip" | "onTripFieldsResolved"
->): Promise<ResolvedCurrentTripFields> => {
+>): Promise<ResolvedTripFields> => {
   if (hasWsfTripFields(location)) {
-    return getTripFieldsFromWsf(location);
+    return { resolvedCurrentTripFields: getTripFieldsFromWsf(location) };
   }
 
-  // Prefer explicit next-segment continuity before rollover lookup.
-  const nextScheduledTrip = await getNextScheduledTripFromExistingTrip({
+  const carriedArrivingTerminalAbbrev =
+    location.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+  const carriedScheduledDeparture =
+    location.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+  const carriedIdentity = deriveTripIdentity({
+    vesselAbbrev: location.VesselAbbrev,
+    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: carriedArrivingTerminalAbbrev,
+    scheduledDepartureMs: carriedScheduledDeparture,
+  });
+
+  // Skip schedule reads when we already have enough fields to derive identity.
+  if (
+    carriedArrivingTerminalAbbrev !== undefined &&
+    carriedScheduledDeparture !== undefined
+  ) {
+    return {
+      resolvedCurrentTripFields: {
+        ArrivingTerminalAbbrev: carriedArrivingTerminalAbbrev,
+        ScheduledDeparture: carriedScheduledDeparture,
+        ScheduleKey:
+          location.ScheduleKey ??
+          existingTrip?.ScheduleKey ??
+          carriedIdentity.ScheduleKey,
+        SailingDay: carriedIdentity.SailingDay ?? existingTrip?.SailingDay,
+        tripFieldDataSource: "inferred",
+      },
+    };
+  }
+
+  const scheduleMatch = await inferScheduleMatch({
     location,
     existingTrip,
     scheduleAccess,
   });
-  const scheduleMatch =
-    nextScheduledTrip ??
-    (await getRolledOverScheduledTrip({
-      location,
-      existingTrip,
-      scheduleAccess,
-    }));
 
   if (scheduleMatch) {
-    return resolvedFieldsFromScheduleMatch(scheduleMatch);
+    return {
+      resolvedCurrentTripFields: {
+        ArrivingTerminalAbbrev: scheduleMatch.ArrivingTerminalAbbrev,
+        ScheduledDeparture: scheduleMatch.DepartingTime,
+        ScheduleKey: scheduleMatch.Key,
+        SailingDay: scheduleMatch.SailingDay,
+        tripFieldDataSource: "inferred",
+        tripFieldInferenceMethod: scheduleMatch.tripFieldInferenceMethod,
+      },
+      inferredNext: {
+        NextScheduleKey: scheduleMatch.NextKey,
+        NextScheduledDeparture: scheduleMatch.NextDepartingTime,
+      },
+    };
   }
 
-  return getFallbackTripFields({
-    location,
-    existingTrip,
+  const fallbackArrivingTerminalAbbrev =
+    location.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+  const fallbackScheduledDeparture =
+    location.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+  const fallbackIdentity = deriveTripIdentity({
+    vesselAbbrev: location.VesselAbbrev,
+    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: fallbackArrivingTerminalAbbrev,
+    scheduledDepartureMs: fallbackScheduledDeparture,
   });
+  console.warn("[TripFields] schedule inference unavailable", {
+    vesselAbbrev: location.VesselAbbrev,
+    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+    timeStamp: location.TimeStamp,
+    existingScheduleKey: existingTrip?.ScheduleKey,
+    existingNextScheduleKey: existingTrip?.NextScheduleKey,
+  });
+  return {
+    resolvedCurrentTripFields: {
+      ArrivingTerminalAbbrev: fallbackArrivingTerminalAbbrev,
+      ScheduledDeparture: fallbackScheduledDeparture,
+      ScheduleKey:
+        location.ScheduleKey ??
+        existingTrip?.ScheduleKey ??
+        fallbackIdentity.ScheduleKey,
+      SailingDay: fallbackIdentity.SailingDay ?? existingTrip?.SailingDay,
+      tripFieldDataSource: "inferred",
+    },
+  };
 };
 
 /**
- * Converts a matched scheduled segment into resolved current-trip fields.
+ * Resolves schedule evidence from next key or same-day/next-day departures.
  *
- * @param match - Scheduled segment match and inference method
- * @returns Resolved fields marked as inferred from schedule evidence
+ * @param args - Location, prior trip, and schedule hooks
+ * @returns Matching segment enriched with inference method, or `null`
  */
-const resolvedFieldsFromScheduleMatch = (
-  match: ScheduledTripMatch
-): ResolvedCurrentTripFields => ({
-  ArrivingTerminalAbbrev: match.segment.ArrivingTerminalAbbrev,
-  ScheduledDeparture: match.segment.DepartingTime,
-  ScheduleKey: match.segment.Key,
-  SailingDay: match.segment.SailingDay,
-  tripFieldDataSource: "inferred",
-  tripFieldInferenceMethod: match.tripFieldInferenceMethod,
-});
+const inferScheduleMatch = async ({
+  location,
+  existingTrip,
+  scheduleAccess,
+}: {
+  location: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
+  scheduleAccess: ScheduleDbAccess;
+}) => {
+  const nextScheduleKey = existingTrip?.NextScheduleKey;
+  if (nextScheduleKey) {
+    const nextDepartureRow =
+      await scheduleAccess.getScheduledDepartureEvent(nextScheduleKey);
+    const nextSegment = nextDepartureRow
+      ? await inferSegmentFromDepartureRow(scheduleAccess, nextDepartureRow)
+      : null;
+    if (
+      nextSegment &&
+      nextSegment.DepartingTerminalAbbrev === location.DepartingTerminalAbbrev
+    ) {
+      return {
+        ...nextSegment,
+        tripFieldInferenceMethod: "next_scheduled_trip" as const,
+      };
+    }
+  }
+
+  const currentSailingDay = getSailingDay(new Date(location.TimeStamp));
+  const sameDayEvents = await scheduleAccess.getScheduledDockEvents(
+    location.VesselAbbrev,
+    currentSailingDay
+  );
+  const sameDayDepartures = sortDepartureRows(sameDayEvents);
+  const nextSameDayDeparture = findNextDepartureForTerminal(
+    sameDayDepartures,
+    location.DepartingTerminalAbbrev,
+    location.TimeStamp
+  );
+
+  const nextDeparture =
+    nextSameDayDeparture ??
+    (await findNextDayDeparture({
+      scheduleAccess,
+      vesselAbbrev: location.VesselAbbrev,
+      departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+      currentSailingDay,
+    }));
+
+  if (!nextDeparture) {
+    return null;
+  }
+
+  const rolledSegment = await inferSegmentFromDepartureRow(
+    scheduleAccess,
+    nextDeparture
+  );
+  if (!rolledSegment) {
+    return null;
+  }
+
+  return {
+    ...rolledSegment,
+    tripFieldInferenceMethod: "schedule_rollover" as const,
+  };
+};
+
+/**
+ * Finds the first valid same-terminal departure after a timestamp.
+ *
+ * @param departures - Candidate departure rows
+ * @param departingTerminalAbbrev - Current departing terminal abbreviation
+ * @param minDepartureMs - Minimum departure timestamp cutoff
+ * @returns First matching row, if any
+ */
+const findNextDepartureForTerminal = (
+  departures: ReadonlyArray<ConvexScheduledDockEvent>,
+  departingTerminalAbbrev: string,
+  minDepartureMs: number
+) =>
+  departures.find(
+    (departure) =>
+      departure.TerminalAbbrev === departingTerminalAbbrev &&
+      departure.ScheduledDeparture > minDepartureMs
+  );
+
+/**
+ * Loads next-day departures only when same-day departures do not provide one.
+ *
+ * @param args - Schedule hooks and vessel/day scope
+ * @returns First matching departure from next day, or `undefined`
+ */
+const findNextDayDeparture = async ({
+  scheduleAccess,
+  vesselAbbrev,
+  departingTerminalAbbrev,
+  currentSailingDay,
+}: {
+  scheduleAccess: ScheduleDbAccess;
+  vesselAbbrev: string;
+  departingTerminalAbbrev: string;
+  currentSailingDay: string;
+}) => {
+  const nextSailingDay = addDaysToYyyyMmDd(currentSailingDay, 1);
+  const nextDayEvents = await scheduleAccess.getScheduledDockEvents(
+    vesselAbbrev,
+    nextSailingDay
+  );
+  const nextDayDepartures = sortDepartureRows(nextDayEvents);
+  return nextDayDepartures.find(
+    (departure) => departure.TerminalAbbrev === departingTerminalAbbrev
+  );
+};
+
+/**
+ * Builds one inferred segment from a scheduled departure row.
+ *
+ * @param scheduleAccess - Scheduled-event DB helper
+ * @param departureRow - Scheduled departure dock row
+ * @returns Inferred segment with optional next-leg continuity fields
+ */
+const inferSegmentFromDepartureRow = async (
+  scheduleAccess: ScheduleDbAccess,
+  departureRow: ConvexScheduledDockEvent
+) => {
+  const sameDayEvents = await scheduleAccess.getScheduledDockEvents(
+    departureRow.VesselAbbrev,
+    departureRow.SailingDay
+  );
+  const departures = sortDepartureRows(sameDayEvents);
+  const departureIndex = departures.findIndex(
+    (departure) => departure.Key === departureRow.Key
+  );
+  const nextDeparture =
+    departureIndex >= 0 ? departures[departureIndex + 1] : undefined;
+
+  return {
+    Key: getSegmentKeyFromBoundaryKey(departureRow.Key),
+    SailingDay: departureRow.SailingDay,
+    DepartingTerminalAbbrev: departureRow.TerminalAbbrev,
+    ArrivingTerminalAbbrev: departureRow.NextTerminalAbbrev,
+    DepartingTime: departureRow.ScheduledDeparture,
+    NextKey: nextDeparture
+      ? getSegmentKeyFromBoundaryKey(nextDeparture.Key)
+      : undefined,
+    NextDepartingTime: nextDeparture?.ScheduledDeparture,
+  };
+};
+
+/**
+ * Filters and sorts scheduled events into departure rows.
+ *
+ * @param events - Scheduled dock events for one vessel/day scope
+ * @returns Sorted departure-only rows
+ */
+const sortDepartureRows = (
+  events: ReadonlyArray<ConvexScheduledDockEvent>
+): ReadonlyArray<ConvexScheduledDockEvent> =>
+  events
+    .filter((event) => event.EventType === "dep-dock")
+    .sort(
+      (left, right) =>
+        left.ScheduledDeparture - right.ScheduledDeparture ||
+        left.TerminalAbbrev.localeCompare(right.TerminalAbbrev)
+    );
 
 /**
  * Attaches next scheduled segment fields while preserving continuity when possible.
@@ -125,15 +350,28 @@ const resolvedFieldsFromScheduleMatch = (
 const attachNextScheduledTripFields = async ({
   baseTrip,
   existingTrip,
-  scheduleAccess,
+  inferredNext,
 }: {
   baseTrip: ConvexVesselTrip;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleAccess: ScheduleContinuityAccess;
+  inferredNext:
+    | {
+        NextScheduleKey?: string;
+        NextScheduledDeparture?: number;
+      }
+    | undefined;
 }): Promise<ConvexVesselTrip> => {
   const segmentKey = baseTrip.ScheduleKey;
   if (!segmentKey) {
     return baseTrip;
+  }
+
+  if (inferredNext) {
+    return {
+      ...baseTrip,
+      NextScheduleKey: inferredNext.NextScheduleKey,
+      NextScheduledDeparture: inferredNext.NextScheduledDeparture,
+    };
   }
 
   if (existingTrip?.ScheduleKey === segmentKey) {
@@ -145,20 +383,9 @@ const attachNextScheduledTripFields = async ({
     };
   }
 
-  const scheduledSegment =
-    await scheduleAccess.getScheduledSegmentByKey(segmentKey);
-  if (!scheduledSegment) {
-    return {
-      ...baseTrip,
-      NextScheduleKey: undefined,
-      NextScheduledDeparture: undefined,
-    };
-  }
-
   return {
     ...baseTrip,
-    NextScheduleKey: scheduledSegment.NextKey ?? baseTrip.NextScheduleKey,
-    NextScheduledDeparture:
-      scheduledSegment.NextDepartingTime ?? baseTrip.NextScheduledDeparture,
+    NextScheduleKey: undefined,
+    NextScheduledDeparture: undefined,
   };
 };

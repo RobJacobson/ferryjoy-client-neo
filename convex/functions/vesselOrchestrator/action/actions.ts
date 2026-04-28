@@ -12,7 +12,7 @@ import {
   type TripFieldInferenceInput,
   updateVesselTrip,
 } from "domain/vesselOrchestration/updateVesselTrip";
-import { createScheduleContinuityAccess } from "./pipeline/scheduleContinuity";
+import { createScheduleDbAccess } from "./pipeline/createScheduleDbAccess";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
 import { runUpdateVesselLocations } from "./pipeline/updateVesselLocations";
 import { loadPredictionContext } from "./predictionContextLoader";
@@ -82,9 +82,9 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     vesselsIdentity: snapshot.vesselsIdentity,
   });
 
-  // Schedule reads (createScheduleContinuityAccess) are only used in Stage 2
+  // Schedule reads (createScheduleDbAccess) are only used in Stage 2
   // (updateVesselTrip). Stages 3–5 do not use this adapter.
-  const scheduleAccess = createScheduleContinuityAccess(ctx);
+  const scheduleAccess = createScheduleDbAccess(ctx);
 
   // Index active trips once to avoid repeated linear scans inside the hot loop.
   const activeTripsByVesselAbbrev = new Map(

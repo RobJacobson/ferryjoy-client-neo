@@ -2,33 +2,30 @@
  * Shared schedule-backed lookup contract for trip-field continuity.
  */
 
-import type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledDockEvent,
-} from "domain/events/scheduled/schemas";
+import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
 
 /**
- * Narrow schedule access used by trip-field continuity.
- *
- * Implementations may load from targeted Convex queries or in-test fixtures,
- * but callers only ask for the schedule evidence they need.
+ * Minimal database access contract for scheduled dock events.
  */
-export type ScheduleContinuityAccess = {
+export type ScheduleDbAccess = {
   /**
-   * Loads one inferred segment by `ScheduleKey`.
+   * Loads scheduled dock rows for one vessel on one sailing day.
    *
-   * The returned segment should already include any next-leg continuity fields
-   * that can be inferred for that departure.
+   * @param vesselAbbrev - Vessel abbreviation
+   * @param sailingDay - Sailing day string (`YYYY-MM-DD`)
+   * @returns Scheduled dock event rows for that vessel/day scope
    */
-  getScheduledSegmentByKey: (
-    scheduleKey: string
-  ) => Promise<ConvexInferredScheduledSegment | null>;
-  /**
-   * Loads same-vessel scheduled departures for one sailing day in ascending
-   * departure order.
-   */
-  getScheduledDeparturesForVesselAndSailingDay: (
+  getScheduledDockEvents: (
     vesselAbbrev: string,
     sailingDay: string
   ) => Promise<ReadonlyArray<ConvexScheduledDockEvent>>;
+  /**
+   * Loads one scheduled departure dock row by composite segment key.
+   *
+   * @param scheduleKey - Canonical segment key
+   * @returns Matching departure dock row, or `null`
+   */
+  getScheduledDepartureEvent: (
+    scheduleKey: string
+  ) => Promise<ConvexScheduledDockEvent | null>;
 };

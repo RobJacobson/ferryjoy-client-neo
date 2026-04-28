@@ -16,7 +16,7 @@ export type {
   PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
 } from "./pingHandshake/types";
-export type { ScheduleContinuityAccess } from "./scheduleAccess";
+export type { ScheduleDbAccess } from "./scheduleAccess";
 export {
   buildCompletionTripEvents,
   currentTripEvents,
