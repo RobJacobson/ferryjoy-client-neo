@@ -65,7 +65,7 @@ is:
 - `tripEvidence.ts`
   - Shared trip-evidence checks used by lifecycle and row construction
 - `tripFields/`
-  - Schedule inference policy and next-leg attachment
+  - Schedule inference policy
 - `storage.ts`
   - Pipeline-local failure logging
 

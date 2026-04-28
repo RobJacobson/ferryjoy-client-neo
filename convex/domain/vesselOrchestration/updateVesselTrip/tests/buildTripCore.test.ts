@@ -5,9 +5,9 @@ import {
   buildUpdatedVesselRows,
 } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
 import {
-  attachNextScheduledTripFields,
   resolveTripScheduleFields,
 } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
+import { attachNextScheduledTripFields } from "domain/vesselOrchestration/updateVesselTrip/scheduleEnrichment";
 import {
   makeLocation,
   makeScheduledSegment,

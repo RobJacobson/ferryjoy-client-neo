@@ -10,16 +10,14 @@ are related but not the same problem.
 
 ## Public seam
 
-The subfolder intentionally exposes data-first schedule resolution helpers:
+The subfolder intentionally exposes one data-first schedule resolution helper:
 
 - `resolveTripScheduleFields(...)`
-- `attachNextScheduledTripFields(...)`
 
-Those helpers own:
+That helper owns:
 
 1. Resolving current-trip fields from WSF, schedule evidence, or safe fallback
 2. Emitting transient inference observability
-3. Attaching or clearing next-leg schedule fields on an already-built trip row
 
 The helper files in this folder support that policy, but they are not the
 intended external seams.
@@ -71,6 +69,6 @@ The private helper files in this folder fall into three buckets:
 
 - WSF authority checks
 - schedule lookup strategies
-- safe fallback reuse
+- safe fallback resolution
 
 They exist to keep the policy readable, not to create a second public API.

@@ -4,7 +4,6 @@
 
 import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
 import {
-  attachNextScheduledTripFields,
   resolveTripScheduleFields,
   type ResolvedTripScheduleFields,
 } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
@@ -109,4 +108,53 @@ export const enrichActiveTripWithSchedule = async (
     events,
     resolution,
   });
+};
+
+/**
+ * Attaches next scheduled segment fields while preserving continuity when possible.
+ *
+ * @param args - Built trip row, prior trip row, and inferred next schedule fields
+ * @returns Trip row with next schedule key/departure fields populated or cleared
+ */
+export const attachNextScheduledTripFields = ({
+  baseTrip,
+  existingTrip,
+  inferredNext,
+}: {
+  baseTrip: ConvexVesselTrip;
+  existingTrip: ConvexVesselTrip | undefined;
+  inferredNext:
+    | {
+        NextScheduleKey?: string;
+        NextScheduledDeparture?: number;
+      }
+    | undefined;
+}): ConvexVesselTrip => {
+  const segmentKey = baseTrip.ScheduleKey;
+  if (!segmentKey) {
+    return baseTrip;
+  }
+
+  if (inferredNext) {
+    return {
+      ...baseTrip,
+      NextScheduleKey: inferredNext.NextScheduleKey,
+      NextScheduledDeparture: inferredNext.NextScheduledDeparture,
+    };
+  }
+
+  if (existingTrip?.ScheduleKey === segmentKey) {
+    return {
+      ...baseTrip,
+      NextScheduleKey: baseTrip.NextScheduleKey ?? existingTrip.NextScheduleKey,
+      NextScheduledDeparture:
+        baseTrip.NextScheduledDeparture ?? existingTrip.NextScheduledDeparture,
+    };
+  }
+
+  return {
+    ...baseTrip,
+    NextScheduleKey: undefined,
+    NextScheduledDeparture: undefined,
+  };
 };

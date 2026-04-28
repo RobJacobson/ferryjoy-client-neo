@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
-  attachNextScheduledTripFields,
   getTripFieldInferenceLog,
   resolveTripScheduleFields,
 } from "..";
+import { attachNextScheduledTripFields } from "domain/vesselOrchestration/updateVesselTrip/scheduleEnrichment";
 import {
   makeLocation,
   makeScheduledSegment,

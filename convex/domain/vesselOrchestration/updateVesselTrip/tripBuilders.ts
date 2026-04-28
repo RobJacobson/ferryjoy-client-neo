@@ -22,7 +22,7 @@ export const buildUpdatedVesselRows = async (
   update: TripBuildInput,
   scheduleAccess: ScheduleDbAccess
 ): Promise<TripRowOutcome> => {
-  const basicRows = buildBasicUpdatedVesselRows(update);
+  const basicRows = buildBasicRowsForUpdate(update);
   if (basicRows.activeVesselTrip === undefined) {
     return basicRows;
   }
@@ -54,3 +54,19 @@ export const buildUpdatedVesselRows = async (
 };
 
 export { buildBasicUpdatedVesselRows } from "./basicTripRows";
+
+const buildBasicRowsForUpdate = (update: TripBuildInput): TripRowOutcome => {
+  try {
+    return buildBasicUpdatedVesselRows(update);
+  } catch (error) {
+    logTripPipelineFailure(
+      update.vesselLocation.VesselAbbrev,
+      update.events.isCompletedTrip
+        ? "finalizing completed trip"
+        : "updating active trip",
+      error
+    );
+
+    return {};
+  }
+};

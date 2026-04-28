@@ -8,7 +8,6 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { deriveTripIdentity } from "shared/tripIdentity";
-import { logTripPipelineFailure } from "./storage";
 import { hasTripEvidence } from "./tripEvidence";
 
 export type TripBuildEvents = TripLifecycleEventFlags & {
@@ -30,30 +29,11 @@ type CompletedTripUpdate = TripBuildInput & {
   existingActiveTrip: ConvexVesselTrip;
 };
 
-type TripBuildLifecycleEvidence = {
-  didJustLeaveDock: boolean;
-  leftDockTime: number | undefined;
-};
-
-type TripBuildContext = {
-  currLocation: ConvexVesselLocation;
-  existingTrip: ConvexVesselTrip | undefined;
-  tripStart: boolean;
-  resolvedCurrentTripFields: {
-    ArrivingTerminalAbbrev?: string;
-    ScheduledDeparture?: number;
-    ScheduleKey?: string;
-    SailingDay?: string;
-  };
-  events: TripBuildLifecycleEvidence;
-};
-
-type ResolvedTripIdentity = {
+type BasicTripIdentity = {
   arrivingTerminalAbbrev: string | undefined;
   scheduledDeparture: number | undefined;
   scheduleKey: string | undefined;
   sailingDay: string | undefined;
-  previousCompletedTrip: ConvexVesselTrip | undefined;
 };
 
 /**
@@ -65,122 +45,118 @@ type ResolvedTripIdentity = {
 export const buildBasicUpdatedVesselRows = (
   update: TripBuildInput
 ): TripRowOutcome => {
-  // Finalize and immediately seed the next active trip when arrival completes.
   if (
     update.events.isCompletedTrip &&
     update.existingActiveTrip !== undefined
   ) {
-    return basicRowsWhenCompleting(update as CompletedTripUpdate);
+    return buildBasicRowsWhenCompleting(update as CompletedTripUpdate);
   }
 
-  // Ignore impossible completion events when no prior active trip exists.
   if (update.events.isCompletedTrip) {
     return {};
   }
 
-  return basicRowsWhenContinuing(update);
-};
-
-const resolveTripIdentity = (
-  existingTrip: ConvexVesselTrip | undefined,
-  currLocation: ConvexVesselLocation,
-  resolvedCurrentTripFields: TripBuildContext["resolvedCurrentTripFields"]
-): ResolvedTripIdentity => {
-  const arrivingTerminalAbbrev =
-    resolvedCurrentTripFields.ArrivingTerminalAbbrev ??
-    currLocation.ArrivingTerminalAbbrev;
-  const scheduledDeparture =
-    resolvedCurrentTripFields.ScheduledDeparture ??
-    currLocation.ScheduledDeparture;
-  const identity = deriveTripIdentity({
-    vesselAbbrev: currLocation.VesselAbbrev,
-    departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev,
-    scheduledDepartureMs: scheduledDeparture,
-  });
-
   return {
-    arrivingTerminalAbbrev,
-    scheduledDeparture,
-    scheduleKey:
-      resolvedCurrentTripFields.ScheduleKey ??
-      currLocation.ScheduleKey ??
-      identity.ScheduleKey,
-    sailingDay: resolvedCurrentTripFields.SailingDay ?? identity.SailingDay,
-    previousCompletedTrip: hasTripEvidence(existingTrip)
-      ? existingTrip
-      : undefined,
+    activeVesselTrip: buildContinuingActiveTrip({
+      vesselLocation: update.vesselLocation,
+      existingTrip: update.existingActiveTrip,
+      events: update.events,
+    }),
   };
 };
 
-const buildBaseTrip = ({
-  currLocation,
-  existingTrip,
-  tripStart,
-  resolvedCurrentTripFields,
-  events,
-}: TripBuildContext): ConvexVesselTrip => {
-  const identity = resolveTripIdentity(
-    existingTrip,
-    currLocation,
-    resolvedCurrentTripFields
+const buildBasicRowsWhenCompleting = (
+  update: CompletedTripUpdate
+): TripRowOutcome => {
+  const completedVesselTrip = buildCompletedTrip(
+    update.existingActiveTrip,
+    update.vesselLocation,
+    update.events.didJustArriveAtDock
   );
+  const activeVesselTrip = buildStartedActiveTrip({
+    vesselLocation: update.vesselLocation,
+    previousTrip: completedVesselTrip,
+  });
 
-  if (tripStart) {
-    const startTime = currLocation.TimeStamp;
-    const tripKey = generateTripKey(
-      currLocation.VesselAbbrev,
-      currLocation.TimeStamp
-    );
-    const prevCompleted = identity.previousCompletedTrip;
+  return { completedVesselTrip, activeVesselTrip };
+};
 
-    return {
-      VesselAbbrev: currLocation.VesselAbbrev,
-      DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
-      ArrivingTerminalAbbrev: identity.arrivingTerminalAbbrev,
-      RouteAbbrev: currLocation.RouteAbbrev,
-      TripKey: tripKey,
-      ScheduleKey: identity.scheduleKey,
-      SailingDay: identity.sailingDay,
-      PrevTerminalAbbrev: prevCompleted?.DepartingTerminalAbbrev,
-      PrevScheduledDeparture: prevCompleted?.ScheduledDeparture,
-      PrevLeftDock: prevCompleted?.LeftDockActual ?? prevCompleted?.LeftDock,
-      ArrivedCurrActual: startTime,
-      ArrivedNextActual: undefined,
-      StartTime: startTime,
-      EndTime: undefined,
-      ArriveDest: undefined,
-      AtDockActual: startTime,
-      TripStart: startTime,
-      AtDock: currLocation.AtDockObserved,
-      AtDockDuration: undefined,
-      ScheduledDeparture: identity.scheduledDeparture,
-      LeftDock: undefined,
-      TripDelay: undefined,
-      Eta: undefined,
-      NextScheduleKey: undefined,
-      NextScheduledDeparture: undefined,
-      TripEnd: undefined,
-      AtSeaDuration: undefined,
-      TotalDuration: undefined,
-      InService: currLocation.InService,
-      TimeStamp: currLocation.TimeStamp,
-    };
-  }
+const resolveBasicTripIdentity = (
+  currLocation: ConvexVesselLocation
+): BasicTripIdentity => {
+  const identity = deriveTripIdentity({
+    vesselAbbrev: currLocation.VesselAbbrev,
+    departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
+    scheduledDepartureMs: currLocation.ScheduledDeparture,
+  });
 
-  const startTime =
-    existingTrip === undefined
-      ? currLocation.TimeStamp
-      : existingTrip.StartTime;
-  const arriveOriginTime = existingTrip?.ArrivedCurrActual;
-  const arriveDestTime = existingTrip?.ArrivedNextActual;
-  const departOriginTime =
-    existingTrip?.LeftDockActual ??
-    (events.didJustLeaveDock ? currLocation.TimeStamp : undefined);
-  const tripKey =
-    existingTrip?.TripKey ??
-    generateTripKey(currLocation.VesselAbbrev, currLocation.TimeStamp);
+  return {
+    arrivingTerminalAbbrev: currLocation.ArrivingTerminalAbbrev,
+    scheduledDeparture: currLocation.ScheduledDeparture,
+    scheduleKey: currLocation.ScheduleKey ?? identity.ScheduleKey,
+    sailingDay: identity.SailingDay,
+  };
+};
 
+const buildStartedActiveTrip = ({
+  vesselLocation,
+  previousTrip,
+}: {
+  vesselLocation: ConvexVesselLocation;
+  previousTrip: ConvexVesselTrip | undefined;
+}): ConvexVesselTrip => {
+  const identity = resolveBasicTripIdentity(vesselLocation);
+  const startTime = vesselLocation.TimeStamp;
+  const tripKey = generateTripKey(
+    vesselLocation.VesselAbbrev,
+    vesselLocation.TimeStamp
+  );
+  const prevCompleted = hasTripEvidence(previousTrip) ? previousTrip : undefined;
+
+  return {
+    VesselAbbrev: vesselLocation.VesselAbbrev,
+    DepartingTerminalAbbrev: vesselLocation.DepartingTerminalAbbrev,
+    ArrivingTerminalAbbrev: identity.arrivingTerminalAbbrev,
+    RouteAbbrev: vesselLocation.RouteAbbrev,
+    TripKey: tripKey,
+    ScheduleKey: identity.scheduleKey,
+    SailingDay: identity.sailingDay,
+    PrevTerminalAbbrev: prevCompleted?.DepartingTerminalAbbrev,
+    PrevScheduledDeparture: prevCompleted?.ScheduledDeparture,
+    PrevLeftDock: prevCompleted?.LeftDockActual ?? prevCompleted?.LeftDock,
+    ArrivedCurrActual: startTime,
+    ArrivedNextActual: undefined,
+    StartTime: startTime,
+    EndTime: undefined,
+    ArriveDest: undefined,
+    AtDockActual: startTime,
+    TripStart: startTime,
+    AtDock: vesselLocation.AtDockObserved,
+    AtDockDuration: undefined,
+    ScheduledDeparture: identity.scheduledDeparture,
+    LeftDock: undefined,
+    TripDelay: undefined,
+    Eta: undefined,
+    NextScheduleKey: undefined,
+    NextScheduledDeparture: undefined,
+    TripEnd: undefined,
+    AtSeaDuration: undefined,
+    TotalDuration: undefined,
+    InService: vesselLocation.InService,
+    TimeStamp: vesselLocation.TimeStamp,
+  };
+};
+
+const buildContinuingActiveTrip = ({
+  vesselLocation,
+  existingTrip,
+  events,
+}: {
+  vesselLocation: ConvexVesselLocation;
+  existingTrip: ConvexVesselTrip | undefined;
+  events: TripBuildEvents;
+}): ConvexVesselTrip => {
   if (existingTrip !== undefined && existingTrip.TripKey === undefined) {
     throw new Error(
       "Continuing vessel trip is missing TripKey. Post-cutover data must " +
@@ -188,11 +164,28 @@ const buildBaseTrip = ({
     );
   }
 
+  const identity = resolveBasicTripIdentity(vesselLocation);
+  const startTime =
+    existingTrip === undefined
+      ? vesselLocation.TimeStamp
+      : existingTrip.StartTime;
+  const arriveOriginTime = existingTrip?.ArrivedCurrActual;
+  const arriveDestTime = existingTrip?.ArrivedNextActual;
+  const departOriginTime =
+    existingTrip?.LeftDockActual ??
+    (events.didJustLeaveDock ? vesselLocation.TimeStamp : undefined);
+  const tripKey =
+    existingTrip?.TripKey ??
+    generateTripKey(vesselLocation.VesselAbbrev, vesselLocation.TimeStamp);
+  const arriveDest =
+    arriveDestTime ??
+    (events.didJustArriveAtDock ? vesselLocation.TimeStamp : undefined);
+
   return {
-    VesselAbbrev: currLocation.VesselAbbrev,
-    DepartingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+    VesselAbbrev: vesselLocation.VesselAbbrev,
+    DepartingTerminalAbbrev: vesselLocation.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: identity.arrivingTerminalAbbrev,
-    RouteAbbrev: currLocation.RouteAbbrev,
+    RouteAbbrev: vesselLocation.RouteAbbrev,
     TripKey: tripKey,
     ScheduleKey: identity.scheduleKey,
     SailingDay: identity.sailingDay,
@@ -204,10 +197,10 @@ const buildBaseTrip = ({
     LeftDockActual: departOriginTime,
     StartTime: startTime,
     EndTime: existingTrip?.EndTime,
-    ArriveDest: arriveDestTime,
+    ArriveDest: arriveDest,
     AtDockActual: arriveOriginTime,
     TripStart: startTime,
-    AtDock: currLocation.AtDockObserved,
+    AtDock: vesselLocation.AtDockObserved,
     AtDockDuration: calculateTimeDelta(
       arriveDestTime ?? existingTrip?.EndTime ?? startTime,
       events.leftDockTime
@@ -218,14 +211,14 @@ const buildBaseTrip = ({
       identity.scheduledDeparture,
       events.leftDockTime
     ),
-    Eta: currLocation.Eta ?? existingTrip?.Eta,
+    Eta: vesselLocation.Eta ?? existingTrip?.Eta,
     NextScheduleKey: existingTrip?.NextScheduleKey,
     NextScheduledDeparture: existingTrip?.NextScheduledDeparture,
     TripEnd: existingTrip?.EndTime,
     AtSeaDuration: existingTrip?.AtSeaDuration,
     TotalDuration: existingTrip?.TotalDuration,
-    InService: currLocation.InService,
-    TimeStamp: currLocation.TimeStamp,
+    InService: vesselLocation.InService,
+    TimeStamp: vesselLocation.TimeStamp,
   };
 };
 
@@ -264,78 +257,4 @@ const buildCompletedTrip = (
     AtDockActual: withTripEnd.ArrivedCurrActual ?? withTripEnd.AtDockActual,
     LeftDockActual: withTripEnd.LeftDockActual ?? withTripEnd.LeftDock,
   };
-};
-
-const buildBasicActiveTripForUpdate = (
-  vesselLocation: ConvexVesselLocation,
-  existingTrip: ConvexVesselTrip | undefined,
-  tripStart: boolean,
-  events: TripBuildEvents
-): ConvexVesselTrip => {
-  const baseTrip = buildBaseTrip({
-    currLocation: vesselLocation,
-    existingTrip,
-    tripStart,
-    resolvedCurrentTripFields: {},
-    events,
-  });
-  return {
-    ...baseTrip,
-    // Seal arrival timestamp on the transition ping when needed.
-    ArriveDest:
-      baseTrip.ArriveDest ??
-      (!tripStart && events.didJustArriveAtDock
-        ? vesselLocation.TimeStamp
-        : undefined),
-  };
-};
-
-const basicRowsWhenCompleting = (
-  update: CompletedTripUpdate
-): TripRowOutcome => {
-  try {
-    // Snapshot completed row before constructing the next active leg.
-    const completedVesselTrip = buildCompletedTrip(
-      update.existingActiveTrip,
-      update.vesselLocation,
-      update.events.didJustArriveAtDock
-    );
-    const activeVesselTrip = buildBasicActiveTripForUpdate(
-      update.vesselLocation,
-      completedVesselTrip,
-      true,
-      update.events
-    );
-
-    return { completedVesselTrip, activeVesselTrip };
-  } catch (error) {
-    logTripPipelineFailure(
-      update.vesselLocation.VesselAbbrev,
-      "finalizing completed trip",
-      error
-    );
-
-    return {};
-  }
-};
-
-const basicRowsWhenContinuing = (update: TripBuildInput): TripRowOutcome => {
-  try {
-    return {
-      activeVesselTrip: buildBasicActiveTripForUpdate(
-        update.vesselLocation,
-        update.existingActiveTrip,
-        false,
-        update.events
-      ),
-    };
-  } catch (error) {
-    logTripPipelineFailure(
-      update.vesselLocation.VesselAbbrev,
-      "updating active trip",
-      error
-    );
-
-    return {};
-  }
 };
