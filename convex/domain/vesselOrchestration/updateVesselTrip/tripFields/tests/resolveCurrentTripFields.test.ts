@@ -71,6 +71,8 @@ describe("resolveTripFieldsForTripRow", () => {
   });
 
   it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", async () => {
+    let scheduleReadCount = 0;
+    const scheduleAccess = makeScheduledTables();
     const trip = await buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: "MUK",
@@ -80,18 +82,66 @@ describe("resolveTripFieldsForTripRow", () => {
       existingTrip: makeTrip({
         NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
-      scheduleAccess: makeScheduledTables(),
+      scheduleAccess: {
+        getScheduledDepartureEvent: async (scheduleKey) => {
+          scheduleReadCount += 1;
+          return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
+        },
+        getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
+          scheduleReadCount += 1;
+          return scheduleAccess.getScheduledDockEvents(vesselAbbrev, sailingDay);
+        },
+      },
     });
 
     expect(trip.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
+    expect(scheduleReadCount).toBe(0);
+  });
+
+  it("uses existing trip fields without schedule reads when WSF is incomplete", async () => {
+    let scheduleReadCount = 0;
+    const existingTrip = makeTrip({
+      ArrivingTerminalAbbrev: "MUK",
+      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+    });
+    const scheduleAccess = makeScheduledTables();
+
+    const trip = await buildTripFromResolvedFields({
+      location: makeLocation({
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      existingTrip,
+      scheduleAccess: {
+        getScheduledDepartureEvent: async (scheduleKey) => {
+          scheduleReadCount += 1;
+          return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
+        },
+        getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
+          scheduleReadCount += 1;
+          return scheduleAccess.getScheduledDockEvents(vesselAbbrev, sailingDay);
+        },
+      },
+    });
+
+    expect(trip.ArrivingTerminalAbbrev).toBe(existingTrip.ArrivingTerminalAbbrev);
+    expect(trip.ScheduledDeparture).toBe(existingTrip.ScheduledDeparture);
+    expect(trip.ScheduleKey).toBe(existingTrip.ScheduleKey);
+    expect(scheduleReadCount).toBe(0);
   });
 
   it("infers trip fields from the next scheduled trip when WSF is incomplete", async () => {
+    let scheduleReadCount = 0;
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
       NextKey: "CHE--2026-03-13--14:00--MUK-CLI",
       NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
+    });
+    const scheduleAccess = makeScheduledTables({
+      segments: [nextSegment],
     });
 
     const trip = await buildTripFromResolvedFields({
@@ -105,14 +155,22 @@ describe("resolveTripFieldsForTripRow", () => {
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
       }),
-      scheduleAccess: makeScheduledTables({
-        segments: [nextSegment],
-      }),
+      scheduleAccess: {
+        getScheduledDepartureEvent: async (scheduleKey) => {
+          scheduleReadCount += 1;
+          return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
+        },
+        getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
+          scheduleReadCount += 1;
+          return scheduleAccess.getScheduledDockEvents(vesselAbbrev, sailingDay);
+        },
+      },
     });
 
     expect(trip.ScheduleKey).toBe(nextSegment.Key);
     expect(trip.NextScheduleKey).toBe(nextSegment.NextKey);
     expect(trip.NextScheduledDeparture).toBe(nextSegment.NextDepartingTime);
+    expect(scheduleReadCount).toBeGreaterThan(0);
   });
 
   it("infers trip fields by schedule rollover when the next scheduled trip is unavailable", async () => {

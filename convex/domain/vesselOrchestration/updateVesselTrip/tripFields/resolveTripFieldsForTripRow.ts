@@ -22,7 +22,7 @@ type ResolveTripFieldsForTripRowInput = {
   ) => ConvexVesselTrip;
 };
 
-type ResolvedTripFields = {
+export type ResolvedTripScheduleFields = {
   resolvedCurrentTripFields: ResolvedCurrentTripFields;
   inferredNext?: {
     NextScheduleKey?: string;
@@ -42,17 +42,16 @@ export const resolveTripFieldsForTripRow = async ({
   scheduleAccess,
   buildTrip,
 }: ResolveTripFieldsForTripRowInput): Promise<ConvexVesselTrip> => {
-  const { resolvedCurrentTripFields, inferredNext } =
-    await resolveCurrentTripFields({
-      location,
-      existingTrip,
-      scheduleAccess,
-    });
+  const resolution = await resolveTripScheduleFields({
+    location,
+    existingTrip,
+    scheduleAccess,
+  });
 
   return attachNextScheduledTripFields({
-    baseTrip: buildTrip(resolvedCurrentTripFields),
+    baseTrip: buildTrip(resolution.resolvedCurrentTripFields),
     existingTrip,
-    inferredNext,
+    inferredNext: resolution.inferredNext,
   });
 };
 
@@ -62,22 +61,22 @@ export const resolveTripFieldsForTripRow = async ({
  * @param input - Location, prior trip, and schedule lookup tables
  * @returns Resolved current-trip fields with data-source metadata
  */
-const resolveCurrentTripFields = async ({
+export const resolveTripScheduleFields = async ({
   location,
   existingTrip,
   scheduleAccess,
 }: Omit<
   ResolveTripFieldsForTripRowInput,
   "buildTrip"
->): Promise<ResolvedTripFields> => {
+>): Promise<ResolvedTripScheduleFields> => {
   if (hasWsfTripFields(location)) {
     return { resolvedCurrentTripFields: getTripFieldsFromWsf(location) };
   }
 
   const carriedArrivingTerminalAbbrev =
-    location.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+    existingTrip?.ArrivingTerminalAbbrev ?? location.ArrivingTerminalAbbrev;
   const carriedScheduledDeparture =
-    location.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+    existingTrip?.ScheduledDeparture ?? location.ScheduledDeparture;
   const carriedIdentity = deriveTripIdentity({
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
@@ -128,9 +127,9 @@ const resolveCurrentTripFields = async ({
   }
 
   const fallbackArrivingTerminalAbbrev =
-    location.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+    existingTrip?.ArrivingTerminalAbbrev ?? location.ArrivingTerminalAbbrev;
   const fallbackScheduledDeparture =
-    location.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+    existingTrip?.ScheduledDeparture ?? location.ScheduledDeparture;
   const fallbackIdentity = deriveTripIdentity({
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
@@ -335,7 +334,7 @@ const sortDepartureRows = (
  * @param args - Built trip row, prior trip row, and schedule lookup tables
  * @returns Trip row with next schedule key/departure fields populated or cleared
  */
-const attachNextScheduledTripFields = async ({
+export const attachNextScheduledTripFields = ({
   baseTrip,
   existingTrip,
   inferredNext,
@@ -348,7 +347,7 @@ const attachNextScheduledTripFields = async ({
         NextScheduledDeparture?: number;
       }
     | undefined;
-}): Promise<ConvexVesselTrip> => {
+}): ConvexVesselTrip => {
   const segmentKey = baseTrip.ScheduleKey;
   if (!segmentKey) {
     return baseTrip;

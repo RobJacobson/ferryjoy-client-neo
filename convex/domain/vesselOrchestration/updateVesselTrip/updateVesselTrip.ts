@@ -41,7 +41,7 @@ export const updateVesselTrip = async (
       input.scheduleAccess
     );
     const activeTripCandidate = tripRows.activeVesselTrip;
-    const shouldWriteActiveTrip = !areTripStorageRowsEqual(
+    const shouldWriteActiveTrip = isUpdatedVesselTrip(
       input.existingActiveTrip,
       activeTripCandidate
     );
@@ -75,3 +75,15 @@ export const updateVesselTrip = async (
     return null;
   }
 };
+
+/**
+ * Checks whether an active trip candidate has a meaningful storage change.
+ *
+ * @param existingActiveTrip - Current active trip row, if present
+ * @param activeTripCandidate - Candidate active trip row from domain compute
+ * @returns True when the active row should be persisted
+ */
+export const isUpdatedVesselTrip = (
+  existingActiveTrip: ConvexVesselTrip | undefined,
+  activeTripCandidate: ConvexVesselTrip | undefined
+): boolean => !areTripStorageRowsEqual(existingActiveTrip, activeTripCandidate);

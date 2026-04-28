@@ -229,10 +229,10 @@ describe("updateVesselTrip", () => {
     const detectTripEventsMod = await import("../lifecycle");
     const tripFieldsMod = await import("../tripFields");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
-    const tripFieldsSpy = spyOn(tripFieldsMod, "resolveTripFieldsForTripRow");
+    const tripFieldsSpy = spyOn(tripFieldsMod, "resolveTripScheduleFields");
 
     detectSpy.mockImplementation(() => defaultEvents);
-    tripFieldsSpy.mockImplementation(() => {
+    tripFieldsSpy.mockImplementation(async () => {
       throw new Error("boom");
     });
 
@@ -249,5 +249,28 @@ describe("updateVesselTrip", () => {
       detectSpy.mockRestore();
       tripFieldsSpy.mockRestore();
     }
+  });
+
+  it("detects meaningful active vessel trip changes explicitly", async () => {
+    const { isUpdatedVesselTrip } = await import("../updateVesselTrip");
+    const existingTrip = makeTrip();
+
+    expect(isUpdatedVesselTrip(existingTrip, existingTrip)).toBe(false);
+    expect(
+      isUpdatedVesselTrip(
+        existingTrip,
+        makeTrip({
+          TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+        })
+      )
+    ).toBe(false);
+    expect(
+      isUpdatedVesselTrip(
+        existingTrip,
+        makeTrip({
+          Eta: ms("2026-03-13T06:52:00-07:00"),
+        })
+      )
+    ).toBe(true);
   });
 });

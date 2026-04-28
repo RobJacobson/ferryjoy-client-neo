@@ -10,15 +10,17 @@ are related but not the same problem.
 
 ## Public seam
 
-The subfolder intentionally exposes one outward entrypoint:
+The subfolder intentionally exposes data-first schedule resolution helpers:
 
-- `resolveTripFieldsForTripRow(...)`
+- `resolveTripScheduleFields(...)`
+- `attachNextScheduledTripFields(...)`
+- `resolveTripFieldsForTripRow(...)` remains as a compatibility wrapper for tests and legacy callers
 
-That function owns:
+Those helpers own:
 
 1. Resolving current-trip fields from WSF, schedule evidence, or safe fallback
 2. Emitting transient inference observability
-3. Attaching or clearing next-leg schedule fields on the built trip row
+3. Attaching or clearing next-leg schedule fields on an already-built trip row
 
 The helper files in this folder support that policy, but they are not the
 intended external seams.
@@ -28,9 +30,10 @@ intended external seams.
 Current-trip field precedence is:
 
 1. Authoritative WSF destination + scheduled departure
-2. Existing trip `NextScheduleKey`
-3. Schedule rollover from the prior scheduled departure
-4. Safe fallback / same-dock reuse
+2. Existing trip fields when they already provide enough identity
+3. Existing trip `NextScheduleKey`
+4. Schedule rollover from the prior scheduled departure
+5. Safe fallback / same-dock reuse
 
 That produces these durable fields for the current trip row:
 
@@ -46,9 +49,10 @@ The inference method remains transient:
 
 ## Relationship to row building
 
-`tripFields/` does not own lifecycle detection or trip completion. Instead,
-`tripBuilders.ts` delegates schedule policy to `resolveTripFieldsForTripRow`,
-then keeps ownership of:
+`tripFields/` does not own lifecycle detection, row construction, or trip
+completion. Instead, `tripBuilders.ts` builds basic rows first, delegates
+schedule policy to `resolveTripScheduleFields`, then applies the resulting
+fields while keeping ownership of:
 
 - base row shaping
 - completion shaping
@@ -58,8 +62,9 @@ That keeps the boundary simple:
 
 ```text
 tripBuilders.ts
-  -> resolveTripFieldsForTripRow(...)
-  -> receive fully schedule-enriched trip row
+  -> build basic active row
+  -> resolveTripScheduleFields(...)
+  -> apply resolved fields to the active row
 ```
 
 ## Internal helpers
