@@ -2,5 +2,5 @@
  * Public entry for **updateVesselTrip**.
  */
 
-export type { VesselTripUpdate } from "./types";
+export type { ScheduleDbAccess, VesselTripUpdate } from "./types";
 export { updateVesselTrip } from "./updateVesselTrip";

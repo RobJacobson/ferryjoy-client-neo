@@ -2,14 +2,14 @@
  * Trip row orchestration for one vessel ping.
  */
 
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
 import {
-  buildBasicUpdatedVesselRows,
   type BuiltTripRows,
+  buildBasicUpdatedVesselRows,
   type TripRowBuildInput,
 } from "./basicTripRows";
 import { enrichActiveTripWithSchedule } from "./scheduleEnrichment";
 import { logTripPipelineFailure } from "./storage";
+import type { ScheduleDbAccess } from "./types";
 
 /**
  * Builds completed/active trip rows for one vessel ping.

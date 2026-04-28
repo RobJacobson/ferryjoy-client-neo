@@ -3,8 +3,8 @@
  * This module normalizes rows by excluding non-persistent or volatile fields
  * before deciding whether a trip has materially changed.
  */
+import { stripVesselTripPredictions } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { stripVesselTripPredictions } from "./orchestratorPersist";
 
 type VesselTripComparable = Omit<ConvexVesselTrip, "TimeStamp">;
 

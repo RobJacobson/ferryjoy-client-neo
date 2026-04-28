@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
+import type { ScheduleDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";

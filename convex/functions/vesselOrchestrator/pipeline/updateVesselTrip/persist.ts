@@ -5,7 +5,7 @@
 import type { MutationCtx } from "_generated/server";
 import {
   currentTripEvents,
-  stripTripPredictionsForStorage,
+  stripVesselTripPredictions,
 } from "domain/vesselOrchestration/shared";
 import {
   completeAndStartNewTripInDb,
@@ -48,11 +48,11 @@ export const persistVesselTripWrites = async (
   const completedTrip =
     input.completedVesselTrip === undefined
       ? undefined
-      : stripTripPredictionsForStorage(input.completedVesselTrip);
+      : stripVesselTripPredictions(input.completedVesselTrip);
   const activeTrip =
     input.activeVesselTrip === undefined
       ? undefined
-      : stripTripPredictionsForStorage(input.activeVesselTrip);
+      : stripVesselTripPredictions(input.activeVesselTrip);
   if (completedTrip !== undefined && activeTrip !== undefined) {
     await deps.completeAndStartNewTripInDb(ctx, completedTrip, activeTrip);
   } else if (activeTrip !== undefined) {

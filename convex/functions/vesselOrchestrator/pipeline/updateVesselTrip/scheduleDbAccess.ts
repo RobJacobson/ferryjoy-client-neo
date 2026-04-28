@@ -5,7 +5,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
+import type { ScheduleDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
 
 /**
  * Builds a minimal scheduled-events database accessor.

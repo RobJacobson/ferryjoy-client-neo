@@ -2,7 +2,6 @@
  * Schedule enrichment for already-built active trip rows.
  */
 
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
 import {
   type ResolvedTripScheduleFields,
   resolveTripScheduleFields,
@@ -11,6 +10,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import type { TripBuildEvents } from "./basicTripRows";
+import type { ScheduleDbAccess } from "./types";
 
 /**
  * Applies resolved schedule-facing fields to an already-built active trip.

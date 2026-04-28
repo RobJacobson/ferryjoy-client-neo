@@ -16,8 +16,6 @@ export type {
   PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
 } from "./pingHandshake/types";
-export type { ScheduleDbAccess } from "./scheduleAccess";
-export { isSameVesselTrip } from "./tripComparison";
 export {
   buildCompletionTripEvents,
   currentTripEvents,

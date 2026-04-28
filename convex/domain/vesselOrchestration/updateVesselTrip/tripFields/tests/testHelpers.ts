@@ -1,9 +1,9 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import type { ScheduleDbAccess } from "../../types";
 
 export const ms = (iso: string) => new Date(iso).getTime();
 

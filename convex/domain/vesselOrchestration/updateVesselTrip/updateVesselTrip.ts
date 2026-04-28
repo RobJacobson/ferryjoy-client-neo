@@ -2,13 +2,12 @@
  * Per-vessel trip update computation from one location ping.
  */
 
-import { isSameVesselTrip } from "domain/vesselOrchestration/shared";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildUpdatedVesselRows } from "./tripBuilders";
+import { isSameVesselTrip } from "./tripComparison";
 import { detectTripEvents } from "./tripEvents";
-import type { VesselTripUpdate } from "./types";
+import type { ScheduleDbAccess, VesselTripUpdate } from "./types";
 
 /**
  * Computes storage and lifecycle changes for one vessel ping.
@@ -37,6 +36,11 @@ const updateVesselTrip = async (
         },
         scheduleAccess
       );
+
+    // Enrichment (or other downstream) failure can drop all rows; nothing to persist.
+    if (activeVesselTrip === undefined && completedVesselTrip === undefined) {
+      return null;
+    }
 
     // Check if the active vessel trip has meaningfully changed.
     const isActiveVesselTripUnchanged = isSameVesselTrip(

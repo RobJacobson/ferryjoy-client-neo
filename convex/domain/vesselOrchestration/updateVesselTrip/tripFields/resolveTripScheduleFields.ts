@@ -3,12 +3,12 @@
  */
 
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import { deriveTripIdentity } from "shared/tripIdentity";
+import type { ScheduleDbAccess } from "../types";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
 import type { ResolvedCurrentTripFields } from "./types";

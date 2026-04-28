@@ -236,8 +236,8 @@ describe("updateVesselOrchestrator ping integration", () => {
     ]);
 
     spyOn(updateVesselTripModule, "updateVesselTrip").mockImplementation(
-      async (input) => {
-        if (input.vesselLocation.VesselAbbrev === "CHE") {
+      async (vesselLocation) => {
+        if (vesselLocation.VesselAbbrev === "CHE") {
           throw new Error("simulated CHE branch failure");
         }
         return {
