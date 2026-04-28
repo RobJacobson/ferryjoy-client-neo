@@ -22,7 +22,7 @@ type UpdateVesselTripInput = {
  * @param input - Vessel location, optional active trip, and schedule lookup tables
  * @returns Trip update when substantive changes exist, otherwise `null`
  */
-export const updateVesselTrip = async (
+const updateVesselTrip = async (
   input: UpdateVesselTripInput
 ): Promise<VesselTripUpdate | null> => {
   try {
@@ -87,3 +87,5 @@ export const isUpdatedVesselTrip = (
   existingActiveTrip: ConvexVesselTrip | undefined,
   activeTripCandidate: ConvexVesselTrip | undefined
 ): boolean => !areTripStorageRowsEqual(existingActiveTrip, activeTripCandidate);
+
+export { updateVesselTrip };
