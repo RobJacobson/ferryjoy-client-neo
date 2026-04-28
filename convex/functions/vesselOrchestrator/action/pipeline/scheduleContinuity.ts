@@ -12,14 +12,12 @@ import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegme
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
 
 /**
- * Creates ping-scoped memoized access for schedule continuity lookups.
+ * Creates schedule continuity access backed by live queries.
  *
  * This function provides the production implementation of the
  * `ScheduleContinuityAccess` interface consumed by trip-field inference in the
  * domain layer. It exists so trip logic can depend on a narrow schedule seam
- * while query policy and caching stay in the orchestrator function layer.
- * Memoization is scoped to one ping to avoid duplicate internal query work for
- * repeated vessel/day and segment-key lookups during the per-vessel loop.
+ * while query policy stays in the orchestrator function layer.
  *
  * @param ctx - Convex action context used for internal schedule queries
  * @returns Schedule access adapter consumed by trip-stage logic
@@ -27,14 +25,8 @@ import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared
 export const createScheduleContinuityAccess = (
   ctx: ActionCtx
 ): ScheduleContinuityAccess => {
-  const segmentCache = new Map<string, ConvexInferredScheduledSegment | null>();
-  const departureCache = new Map<
-    string,
-    ReadonlyArray<ConvexScheduledDockEvent>
-  >();
-
   /**
-   * Loads and caches departure rows for one vessel and sailing day.
+   * Loads departure rows for one vessel and sailing day.
    *
    * @param vesselAbbrev - Vessel abbreviation for schedule scope
    * @param sailingDay - Sailing day in backend canonical day format
@@ -44,12 +36,6 @@ export const createScheduleContinuityAccess = (
     vesselAbbrev: string,
     sailingDay: string
   ): Promise<ReadonlyArray<ConvexScheduledDockEvent>> => {
-    const cacheKey = `${vesselAbbrev}:${sailingDay}`;
-    const cached = departureCache.get(cacheKey);
-    if (cached !== undefined) {
-      return cached;
-    }
-
     const rows = await ctx.runQuery(
       internal.functions.events.eventsScheduled.queries
         .getScheduledDockEventsForSailingDay,
@@ -58,13 +44,11 @@ export const createScheduleContinuityAccess = (
         sailingDay,
       }
     );
-    const departures = departuresFromScheduledRows(rows);
-    departureCache.set(cacheKey, departures);
-    return departures;
+    return departuresFromScheduledRows(rows);
   };
 
   /**
-   * Loads and caches one scheduled segment plus optional successor metadata.
+   * Loads one scheduled segment plus optional successor metadata.
    *
    * @param scheduleKey - Segment key derived from timeline boundary identity
    * @returns Inferred scheduled segment, or `null` when the key is unknown
@@ -72,11 +56,6 @@ export const createScheduleContinuityAccess = (
   const getScheduledSegmentByKey = async (
     scheduleKey: string
   ): Promise<ConvexInferredScheduledSegment | null> => {
-    const cached = segmentCache.get(scheduleKey);
-    if (cached !== undefined) {
-      return cached;
-    }
-
     const departureRow = await ctx.runQuery(
       internal.functions.events.eventsScheduled.queries
         .getScheduledDepartureEventBySegmentKey,
@@ -84,7 +63,6 @@ export const createScheduleContinuityAccess = (
     );
 
     if (!departureRow) {
-      segmentCache.set(scheduleKey, null);
       return null;
     }
 
@@ -98,7 +76,7 @@ export const createScheduleContinuityAccess = (
     const nextDeparture =
       departureIndex >= 0 ? departures[departureIndex + 1] : undefined;
 
-    const segment: ConvexInferredScheduledSegment = {
+    return {
       Key: scheduleKey,
       SailingDay: departureRow.SailingDay,
       DepartingTerminalAbbrev: departureRow.TerminalAbbrev,
@@ -109,8 +87,6 @@ export const createScheduleContinuityAccess = (
         : undefined,
       NextDepartingTime: nextDeparture?.ScheduledDeparture,
     };
-    segmentCache.set(scheduleKey, segment);
-    return segment;
   };
 
   return {
