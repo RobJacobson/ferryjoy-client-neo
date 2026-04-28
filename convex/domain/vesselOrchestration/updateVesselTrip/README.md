@@ -9,7 +9,7 @@
 
 Root exports are intentionally small:
 
-- `updateVesselTrip(input) -> VesselTripUpdate | null` (null when no substantive durable change; errors are caught and return null)
+- `updateVesselTrip(vesselLocation, existingActiveTrip, scheduleAccess) -> VesselTripUpdate | null` (null when no substantive durable change; errors are caught and return null)
 - `VesselTripUpdate`
 
 The production orchestrator hot path calls `updateVesselTrip` inside its

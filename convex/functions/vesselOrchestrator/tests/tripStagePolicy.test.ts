@@ -82,11 +82,11 @@ describe("updateVesselTrip stage-2 policy", () => {
       getScheduledDockEvents: async () => [],
       getScheduledDepartureEvent: async () => null,
     };
-    const tripStage = await updateVesselTrip({
-      vesselLocation: makeLocationUpdate("CHE"),
-      existingActiveTrip: makeTrip("CHE"),
-      scheduleAccess,
-    });
+    const tripStage = await updateVesselTrip(
+      makeLocationUpdate("CHE"),
+      makeTrip("CHE"),
+      scheduleAccess
+    );
 
     expect(tripStage).not.toBeNull();
     expect(tripStage?.existingActiveTrip).toBeDefined();
@@ -106,8 +106,10 @@ describe("updateVesselTrip stage-2 policy", () => {
       getScheduledDepartureEvent: async () => null,
     };
     computeTripSpy.mockImplementation(
-      async (input: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]) => {
-        if (input.vesselLocation.VesselAbbrev === "CHE") {
+      async (
+        vesselLocation: Parameters<typeof tripUpdateMod.updateVesselTrip>[0]
+      ) => {
+        if (vesselLocation.VesselAbbrev === "CHE") {
           return null;
         }
         return {
@@ -119,11 +121,11 @@ describe("updateVesselTrip stage-2 policy", () => {
     );
 
     try {
-      const tripStage = await updateVesselTrip({
-        vesselLocation: makeLocationUpdate("CHE"),
-        existingActiveTrip: makeTrip("CHE"),
-        scheduleAccess,
-      });
+      const tripStage = await updateVesselTrip(
+        makeLocationUpdate("CHE"),
+        makeTrip("CHE"),
+        scheduleAccess
+      );
 
       expect(tripStage).toBeNull();
     } finally {

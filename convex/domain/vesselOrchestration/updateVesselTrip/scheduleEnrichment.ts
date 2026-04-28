@@ -4,8 +4,8 @@
 
 import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
 import {
-  resolveTripScheduleFields,
   type ResolvedTripScheduleFields,
+  resolveTripScheduleFields,
 } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -36,11 +36,9 @@ export const applyResolvedTripScheduleFields = ({
   const withCurrentScheduleFields = {
     ...activeTrip,
     ArrivingTerminalAbbrev:
-      current.ArrivingTerminalAbbrev ??
-      activeTrip.ArrivingTerminalAbbrev,
+      current.ArrivingTerminalAbbrev ?? activeTrip.ArrivingTerminalAbbrev,
     ScheduledDeparture:
-      current.ScheduledDeparture ??
-      activeTrip.ScheduledDeparture,
+      current.ScheduledDeparture ?? activeTrip.ScheduledDeparture,
     ScheduleKey: current.ScheduleKey ?? activeTrip.ScheduleKey,
     SailingDay: current.SailingDay ?? activeTrip.SailingDay,
   };

@@ -3,7 +3,7 @@ import type {
   ScheduleDbAccess,
   TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
-import { isUpdatedTrip } from "domain/vesselOrchestration/shared";
+import { isSameVesselTrip } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -101,11 +101,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result).toBeNull();
     } finally {
@@ -131,11 +131,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result).toBeNull();
     } finally {
@@ -163,11 +163,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result?.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
       expect(result?.activeVesselTripUpdate).toEqual(updatedTrip);
@@ -208,11 +208,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation({ AtDock: true, LeftDock: undefined }),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation({ AtDock: true, LeftDock: undefined }),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result?.vesselAbbrev).toBe(replacementTrip.VesselAbbrev);
       expect(result?.activeVesselTripUpdate).toEqual(replacementTrip);
@@ -237,11 +237,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result).toBeNull();
     } finally {
@@ -250,25 +250,25 @@ describe("updateVesselTrip", () => {
     }
   });
 
-  it("detects meaningful active vessel trip changes explicitly", () => {
+  it("detects active vessel trip equality explicitly", () => {
     const existingTrip = makeTrip();
 
-    expect(isUpdatedTrip(existingTrip, existingTrip)).toBe(false);
+    expect(isSameVesselTrip(existingTrip, existingTrip)).toBe(true);
     expect(
-      isUpdatedTrip(
+      isSameVesselTrip(
         existingTrip,
         makeTrip({
           TimeStamp: ms("2026-03-13T06:35:00-07:00"),
         })
       )
-    ).toBe(false);
+    ).toBe(true);
     expect(
-      isUpdatedTrip(
+      isSameVesselTrip(
         existingTrip,
         makeTrip({
           Eta: ms("2026-03-13T06:52:00-07:00"),
         })
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 });

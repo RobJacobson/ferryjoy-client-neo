@@ -35,11 +35,11 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const existingActiveTrip = activeTripsByVesselAbbrev.get(
         vesselLocation.VesselAbbrev
       );
-      const tripUpdate = await updateVesselTrip({
+      const tripUpdate = await updateVesselTrip(
         vesselLocation,
         existingActiveTrip,
-        scheduleAccess,
-      });
+        scheduleAccess
+      );
       if (tripUpdate === null) {
         continue;
       }

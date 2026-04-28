@@ -10,42 +10,37 @@ import { buildUpdatedVesselRows } from "./tripBuilders";
 import { detectTripEvents } from "./tripEvents";
 import type { VesselTripUpdate } from "./types";
 
-type UpdateVesselTripInput = {
-  vesselLocation: ConvexVesselLocation;
-  existingActiveTrip?: ConvexVesselTrip;
-  scheduleAccess: ScheduleDbAccess;
-};
-
 /**
  * Computes storage and lifecycle changes for one vessel ping.
  *
- * @param input - Vessel location, optional active trip, and schedule lookup tables
+ * @param vesselLocation - Latest location ping for one vessel
+ * @param existingActiveTrip - Existing active trip row for that vessel, when present
+ * @param scheduleAccess - Schedule lookup tables used to enrich trip fields
  * @returns Trip update when substantive changes exist, otherwise `null`
  */
 const updateVesselTrip = async (
-  input: UpdateVesselTripInput
+  vesselLocation: ConvexVesselLocation,
+  existingActiveTrip: ConvexVesselTrip | undefined,
+  scheduleAccess: ScheduleDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
     // Detect lifecycle transitions before mutating trip rows.
-    const events = detectTripEvents(
-      input.existingActiveTrip,
-      input.vesselLocation
-    );
+    const events = detectTripEvents(existingActiveTrip, vesselLocation);
 
     // Build candidate rows from lifecycle and schedule evidence.
     const { activeVesselTrip, completedVesselTrip } =
       await buildUpdatedVesselRows(
         {
-          vesselLocation: input.vesselLocation,
-          existingActiveTrip: input.existingActiveTrip,
+          vesselLocation,
+          existingActiveTrip,
           events,
         },
-        input.scheduleAccess
+        scheduleAccess
       );
 
     // Check if the active vessel trip has meaningfully changed.
     const isActiveVesselTripUnchanged = isSameVesselTrip(
-      input.existingActiveTrip,
+      existingActiveTrip,
       activeVesselTrip
     );
 
@@ -56,18 +51,18 @@ const updateVesselTrip = async (
 
     // Return the completed vessel trip update (if any) and the active vessel trip update (if any).
     return {
-      vesselAbbrev: input.vesselLocation.VesselAbbrev,
-      existingActiveTrip: input.existingActiveTrip,
+      vesselAbbrev: vesselLocation.VesselAbbrev,
+      existingActiveTrip,
       activeVesselTripUpdate: activeVesselTrip,
       completedVesselTripUpdate: completedVesselTrip,
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("[updateVesselTrip] failed trip update", {
-      vesselAbbrev: input.vesselLocation.VesselAbbrev,
-      locationTimeStamp: input.vesselLocation.TimeStamp,
-      existingTripKey: input.existingActiveTrip?.TripKey,
-      existingScheduleKey: input.existingActiveTrip?.ScheduleKey,
+      vesselAbbrev: vesselLocation.VesselAbbrev,
+      locationTimeStamp: vesselLocation.TimeStamp,
+      existingTripKey: existingActiveTrip?.TripKey,
+      existingScheduleKey: existingActiveTrip?.ScheduleKey,
       message: err.message,
       stack: err.stack,
     });
