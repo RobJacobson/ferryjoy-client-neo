@@ -36,8 +36,8 @@ For one vessel, the pipeline is intentionally linear:
 updateVesselTrip
   -> detectTripEvents
   -> buildUpdatedVesselRows
-     -> build basic completed/active rows from lifecycle state
-     -> enrich the active row with schedule fields when needed
+     -> basicTripRows
+     -> scheduleEnrichment
   -> isUpdatedVesselTrip
 ```
 
@@ -58,6 +58,12 @@ is:
   - Feed-driven lifecycle facts for one ping
 - `tripBuilders.ts`
   - Single exported row-construction seam: `buildUpdatedVesselRows`
+- `basicTripRows.ts`
+  - Schedule-free completed and active row construction
+- `scheduleEnrichment.ts`
+  - Current and next schedule-field application for active rows
+- `tripEvidence.ts`
+  - Shared trip-evidence checks used by lifecycle and row construction
 - `tripFields/`
   - Schedule inference policy and next-leg attachment
 - `storage.ts`

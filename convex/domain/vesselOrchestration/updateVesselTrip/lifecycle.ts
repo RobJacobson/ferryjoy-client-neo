@@ -9,6 +9,7 @@ import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared"
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
+import { hasTripEvidence } from "./tripEvidence";
 
 type DetectedTripEvents = TripLifecycleEventFlags & {
   leftDockTime: number | undefined;
@@ -180,23 +181,6 @@ const resolvePhysicalState = (
     leftDockTime,
   };
 };
-
-/**
- * Checks whether a trip has enough evidence to count as an actual trip.
- *
- * @param existingTrip - Current active trip row, if present
- * @returns True when any meaningful lifecycle timestamp exists
- */
-const hasTripEvidence = (
-  existingTrip: ConvexVesselTrip | undefined
-): existingTrip is ConvexVesselTrip =>
-  Boolean(
-    existingTrip &&
-      (existingTrip.LeftDockActual !== undefined ||
-        existingTrip.ArrivedNextActual !== undefined ||
-        existingTrip.LeftDock !== undefined ||
-        existingTrip.ArriveDest !== undefined)
-  );
 
 /**
  * Chooses the schedule key for lifecycle continuity decisions.

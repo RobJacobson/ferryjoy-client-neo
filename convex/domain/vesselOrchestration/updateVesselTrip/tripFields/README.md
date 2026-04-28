@@ -14,7 +14,6 @@ The subfolder intentionally exposes data-first schedule resolution helpers:
 
 - `resolveTripScheduleFields(...)`
 - `attachNextScheduledTripFields(...)`
-- `resolveTripFieldsForTripRow(...)` remains as a compatibility wrapper for tests and legacy callers
 
 Those helpers own:
 
@@ -50,21 +49,20 @@ The inference method remains transient:
 ## Relationship to row building
 
 `tripFields/` does not own lifecycle detection, row construction, or trip
-completion. Instead, `tripBuilders.ts` builds basic rows first, delegates
-schedule policy to `resolveTripScheduleFields`, then applies the resulting
-fields while keeping ownership of:
+completion. Instead, `basicTripRows.ts` builds rows first, `tripBuilders.ts`
+delegates schedule policy to `scheduleEnrichment.ts`, and the enrichment step
+applies the resulting fields while keeping ownership of:
 
-- base row shaping
-- completion shaping
 - stale next-leg clearing when identity changes
 
 That keeps the boundary simple:
 
 ```text
 tripBuilders.ts
-  -> build basic active row
-  -> resolveTripScheduleFields(...)
-  -> apply resolved fields to the active row
+  -> basicTripRows.ts
+  -> scheduleEnrichment.ts
+     -> resolveTripScheduleFields(...)
+     -> apply resolved fields to the active row
 ```
 
 ## Internal helpers

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
-import { buildUpdatedVesselRows } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
-import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
+import {
+  buildBasicUpdatedVesselRows,
+  buildUpdatedVesselRows,
+} from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
+import {
+  attachNextScheduledTripFields,
+  resolveTripScheduleFields,
+} from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -52,6 +58,56 @@ const buildActiveTrip = ({
   ).then((result) => result.activeVesselTrip);
 
 describe("buildUpdatedVesselRows", () => {
+  it("builds a basic active trip row without schedule access", () => {
+    const existingTrip = makeTrip({
+      NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+    });
+
+    const tripRows = buildBasicUpdatedVesselRows({
+      vesselLocation: makeLocation({
+        TimeStamp: ms("2026-03-13T11:12:00-07:00"),
+      }),
+      existingActiveTrip: existingTrip,
+      events: continuingEvents(),
+    });
+
+    expect(tripRows.completedVesselTrip).toBeUndefined();
+    expect(tripRows.activeVesselTrip?.TripKey).toBe(existingTrip.TripKey);
+    expect(tripRows.activeVesselTrip?.NextScheduleKey).toBe(
+      existingTrip.NextScheduleKey
+    );
+  });
+
+  it("builds basic completed and replacement active rows without schedule access", () => {
+    const existingTrip = makeTrip({
+      AtDock: false,
+      LeftDock: ms("2026-03-13T11:02:00-07:00"),
+      LeftDockActual: ms("2026-03-13T11:02:00-07:00"),
+    });
+
+    const tripRows = buildBasicUpdatedVesselRows({
+      vesselLocation: makeLocation({
+        AtDock: true,
+        DepartingTerminalAbbrev: "MUK",
+        TimeStamp: ms("2026-03-13T11:28:00-07:00"),
+      }),
+      existingActiveTrip: existingTrip,
+      events: continuingEvents({
+        isCompletedTrip: true,
+        didJustArriveAtDock: true,
+      }),
+    });
+
+    expect(tripRows.completedVesselTrip?.TripEnd).toBe(
+      ms("2026-03-13T11:28:00-07:00")
+    );
+    expect(tripRows.activeVesselTrip?.DepartingTerminalAbbrev).toBe("MUK");
+    expect(tripRows.activeVesselTrip?.ArrivedCurrActual).toBe(
+      ms("2026-03-13T11:28:00-07:00")
+    );
+  });
+
   it("keeps inferred trip fields stable while WSF remains incomplete", async () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: "MUK",
@@ -205,30 +261,36 @@ describe("buildUpdatedVesselRows", () => {
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
 
-    const trip = await resolveTripFieldsForTripRow({
-      location: makeLocation({
+    const location = makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
         ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
+      });
+    const existingTrip = makeTrip({
         NextScheduleKey: nextSegment.Key,
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
-      }),
+      });
+    const resolution = await resolveTripScheduleFields({
+      location,
+      existingTrip,
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
       }),
-      buildTrip: (resolvedCurrentTripFields) =>
-        makeTrip({
-          ArrivingTerminalAbbrev:
-            resolvedCurrentTripFields.ArrivingTerminalAbbrev,
-          ScheduledDeparture: resolvedCurrentTripFields.ScheduledDeparture,
-          ScheduleKey: resolvedCurrentTripFields.ScheduleKey,
-          SailingDay: resolvedCurrentTripFields.SailingDay,
-          NextScheduleKey: undefined,
-          NextScheduledDeparture: undefined,
-        }),
+    });
+    const trip = attachNextScheduledTripFields({
+      baseTrip: makeTrip({
+        ArrivingTerminalAbbrev:
+          resolution.resolvedCurrentTripFields.ArrivingTerminalAbbrev,
+        ScheduledDeparture:
+          resolution.resolvedCurrentTripFields.ScheduledDeparture,
+        ScheduleKey: resolution.resolvedCurrentTripFields.ScheduleKey,
+        SailingDay: resolution.resolvedCurrentTripFields.SailingDay,
+        NextScheduleKey: undefined,
+        NextScheduledDeparture: undefined,
+      }),
+      existingTrip,
+      inferredNext: resolution.inferredNext,
     });
 
     expect(trip.ScheduleKey).toBe(nextSegment.Key);

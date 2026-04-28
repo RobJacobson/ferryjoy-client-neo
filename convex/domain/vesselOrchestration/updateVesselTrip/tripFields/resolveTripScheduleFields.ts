@@ -13,13 +13,10 @@ import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
 import type { ResolvedCurrentTripFields } from "./types";
 
-type ResolveTripFieldsForTripRowInput = {
+type ResolveTripScheduleFieldsInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   scheduleAccess: ScheduleDbAccess;
-  buildTrip: (
-    resolvedCurrentTripFields: ResolvedCurrentTripFields
-  ) => ConvexVesselTrip;
 };
 
 export type ResolvedTripScheduleFields = {
@@ -28,31 +25,6 @@ export type ResolvedTripScheduleFields = {
     NextScheduleKey?: string;
     NextScheduledDeparture?: number;
   };
-};
-
-/**
- * Resolves trip fields, emits inference diagnostics, and attaches next-leg fields.
- *
- * @param input - Location, prior trip, schedule tables, and trip builder callback
- * @returns Built trip row with resolved current and next schedule fields
- */
-export const resolveTripFieldsForTripRow = async ({
-  location,
-  existingTrip,
-  scheduleAccess,
-  buildTrip,
-}: ResolveTripFieldsForTripRowInput): Promise<ConvexVesselTrip> => {
-  const resolution = await resolveTripScheduleFields({
-    location,
-    existingTrip,
-    scheduleAccess,
-  });
-
-  return attachNextScheduledTripFields({
-    baseTrip: buildTrip(resolution.resolvedCurrentTripFields),
-    existingTrip,
-    inferredNext: resolution.inferredNext,
-  });
 };
 
 /**
@@ -65,10 +37,7 @@ export const resolveTripScheduleFields = async ({
   location,
   existingTrip,
   scheduleAccess,
-}: Omit<
-  ResolveTripFieldsForTripRowInput,
-  "buildTrip"
->): Promise<ResolvedTripScheduleFields> => {
+}: ResolveTripScheduleFieldsInput): Promise<ResolvedTripScheduleFields> => {
   if (hasWsfTripFields(location)) {
     return { resolvedCurrentTripFields: getTripFieldsFromWsf(location) };
   }

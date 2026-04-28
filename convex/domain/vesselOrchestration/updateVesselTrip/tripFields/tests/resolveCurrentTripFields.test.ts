@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { getTripFieldInferenceLog, resolveTripFieldsForTripRow } from "..";
+import {
+  attachNextScheduledTripFields,
+  getTripFieldInferenceLog,
+  resolveTripScheduleFields,
+} from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -9,23 +13,26 @@ import {
 } from "./testHelpers";
 
 const buildTripFromResolvedFields = (
-  input: Omit<Parameters<typeof resolveTripFieldsForTripRow>[0], "buildTrip">
+  input: Parameters<typeof resolveTripScheduleFields>[0]
 ) =>
-  resolveTripFieldsForTripRow({
-    ...input,
-    buildTrip: (resolvedCurrentTripFields) =>
-      makeTrip({
+  resolveTripScheduleFields(input).then((resolution) =>
+    attachNextScheduledTripFields({
+      baseTrip: makeTrip({
         ArrivingTerminalAbbrev:
-          resolvedCurrentTripFields.ArrivingTerminalAbbrev,
-        ScheduledDeparture: resolvedCurrentTripFields.ScheduledDeparture,
-        ScheduleKey: resolvedCurrentTripFields.ScheduleKey,
-        SailingDay: resolvedCurrentTripFields.SailingDay,
+          resolution.resolvedCurrentTripFields.ArrivingTerminalAbbrev,
+        ScheduledDeparture:
+          resolution.resolvedCurrentTripFields.ScheduledDeparture,
+        ScheduleKey: resolution.resolvedCurrentTripFields.ScheduleKey,
+        SailingDay: resolution.resolvedCurrentTripFields.SailingDay,
         NextScheduleKey: undefined,
         NextScheduledDeparture: undefined,
       }),
-  });
+      existingTrip: input.existingTrip,
+      inferredNext: resolution.inferredNext,
+    })
+  );
 
-describe("resolveTripFieldsForTripRow", () => {
+describe("resolveTripScheduleFields", () => {
   it("prefers next scheduled segment over rollover when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",

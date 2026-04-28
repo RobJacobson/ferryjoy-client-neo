@@ -1,9 +1,8 @@
 export {
   attachNextScheduledTripFields,
-  resolveTripFieldsForTripRow,
   resolveTripScheduleFields,
-} from "./resolveTripFieldsForTripRow";
-export type { ResolvedTripScheduleFields } from "./resolveTripFieldsForTripRow";
+} from "./resolveTripScheduleFields";
+export type { ResolvedTripScheduleFields } from "./resolveTripScheduleFields";
 export type {
   TripFieldInferenceLogContext,
 } from "./tripFieldDiagnostics";
