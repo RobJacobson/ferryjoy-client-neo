@@ -110,8 +110,8 @@ describe("buildUpdatedVesselRows", () => {
       AtDock: true,
       LeftDock: ms("2026-03-13T10:00:00-07:00"),
       LeftDockActual: ms("2026-03-13T10:00:00-07:00"),
-      ArrivingTerminalAbbrev: "MUK",
-      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
       NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
       NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
     });
@@ -165,7 +165,8 @@ describe("buildUpdatedVesselRows", () => {
       StartTime: ms("2026-03-13T10:30:00-07:00"),
       TripStart: ms("2026-03-13T10:30:00-07:00"),
       DepartingTerminalAbbrev: "CLI",
-      ArrivingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
       NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
       NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
     });
@@ -217,6 +218,8 @@ describe("buildUpdatedVesselRows", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
@@ -260,6 +263,8 @@ describe("buildUpdatedVesselRows", () => {
       }),
       existingActiveTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleTables: makeScheduledTables({
         segments: [nextSegment],

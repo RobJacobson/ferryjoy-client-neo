@@ -78,7 +78,9 @@ const updateMinutePersistenceTotals = async (
 };
 
 /** Explicit numeric fields so logs always include zeros (temporary debug telemetry). */
-const minuteTotalsForLog = (totals: MinutePersistenceTotals): MinutePersistenceTotals => ({
+const minuteTotalsForLog = (
+  totals: MinutePersistenceTotals
+): MinutePersistenceTotals => ({
   calls: totals.calls,
   tripWriteIntentCount: totals.tripWriteIntentCount,
   predictionRowCount: totals.predictionRowCount,

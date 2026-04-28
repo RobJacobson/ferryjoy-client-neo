@@ -50,7 +50,8 @@ describe("resolveTripFieldsForTripRow", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment, rolloverSegment],
@@ -58,8 +59,13 @@ describe("resolveTripFieldsForTripRow", () => {
           CHE: [
             {
               Key: `${rolloverSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
               ScheduledDeparture: rolloverSegment.DepartingTime,
               TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
             },
           ],
         },
@@ -117,6 +123,8 @@ describe("resolveTripFieldsForTripRow", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: nextSegment.Key,
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
@@ -142,7 +150,8 @@ describe("resolveTripFieldsForTripRow", () => {
       }),
       existingTrip: makeTrip({
         NextScheduleKey: undefined,
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
@@ -150,8 +159,13 @@ describe("resolveTripFieldsForTripRow", () => {
           CHE: [
             {
               Key: `${nextSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
               ScheduledDeparture: nextSegment.DepartingTime,
               TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
             },
           ],
         },

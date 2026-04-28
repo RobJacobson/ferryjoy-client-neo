@@ -95,11 +95,7 @@ import type * as domain_vesselOrchestration_shared_orchestratorPersist_stripTrip
 import type * as domain_vesselOrchestration_shared_pingHandshake_completedHandoffKey from "../domain/vesselOrchestration/shared/pingHandshake/completedHandoffKey.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_projectionWire from "../domain/vesselOrchestration/shared/pingHandshake/projectionWire.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_types from "../domain/vesselOrchestration/shared/pingHandshake/types.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay from "../domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_index from "../domain/vesselOrchestration/shared/scheduleContinuity/index.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_types from "../domain/vesselOrchestration/shared/scheduleContinuity/types.js";
-import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createScheduleContinuityAccessFromSnapshot from "../domain/vesselOrchestration/shared/scheduleSnapshot/createScheduleContinuityAccessFromSnapshot.js";
-import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.js";
+import type * as domain_vesselOrchestration_shared_scheduleAccess from "../domain/vesselOrchestration/shared/scheduleAccess.js";
 import type * as domain_vesselOrchestration_shared_tripLifecycle from "../domain/vesselOrchestration/shared/tripLifecycle.js";
 import type * as domain_vesselOrchestration_shared_tripStorage from "../domain/vesselOrchestration/shared/tripStorage.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
@@ -128,8 +124,6 @@ import type * as domain_vesselOrchestration_updateVesselTrip_lifecycle from "../
 import type * as domain_vesselOrchestration_updateVesselTrip_storage from "../domain/vesselOrchestration/updateVesselTrip/storage.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripBuilders from "../domain/vesselOrchestration/updateVesselTrip/tripBuilders.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_getFallbackTripFields from "../domain/vesselOrchestration/updateVesselTrip/tripFields/getFallbackTripFields.js";
-import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_getNextScheduledTripFromExistingTrip from "../domain/vesselOrchestration/updateVesselTrip/tripFields/getNextScheduledTripFromExistingTrip.js";
-import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_getRolledOverScheduledTrip from "../domain/vesselOrchestration/updateVesselTrip/tripFields/getRolledOverScheduledTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_getTripFieldsFromWsf from "../domain/vesselOrchestration/updateVesselTrip/tripFields/getTripFieldsFromWsf.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_hasWsfTripFields from "../domain/vesselOrchestration/updateVesselTrip/tripFields/hasWsfTripFields.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_index from "../domain/vesselOrchestration/updateVesselTrip/tripFields/index.js";
@@ -196,7 +190,7 @@ import type * as functions_vesselLocationsHistoric_queries from "../functions/ve
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_action_actions from "../functions/vesselOrchestrator/action/actions.js";
 import type * as functions_vesselOrchestrator_action_index from "../functions/vesselOrchestrator/action/index.js";
-import type * as functions_vesselOrchestrator_action_pipeline_scheduleContinuity from "../functions/vesselOrchestrator/action/pipeline/scheduleContinuity.js";
+import type * as functions_vesselOrchestrator_action_pipeline_createScheduleDbAccess from "../functions/vesselOrchestrator/action/pipeline/createScheduleDbAccess.js";
 import type * as functions_vesselOrchestrator_action_pipeline_snapshot from "../functions/vesselOrchestrator/action/pipeline/snapshot.js";
 import type * as functions_vesselOrchestrator_action_pipeline_updateVesselLocations_index from "../functions/vesselOrchestrator/action/pipeline/updateVesselLocations/index.js";
 import type * as functions_vesselOrchestrator_action_pipeline_updateVesselLocations_persistVesselLocations from "../functions/vesselOrchestrator/action/pipeline/updateVesselLocations/persistVesselLocations.js";
@@ -353,11 +347,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/pingHandshake/completedHandoffKey": typeof domain_vesselOrchestration_shared_pingHandshake_completedHandoffKey;
   "domain/vesselOrchestration/shared/pingHandshake/projectionWire": typeof domain_vesselOrchestration_shared_pingHandshake_projectionWire;
   "domain/vesselOrchestration/shared/pingHandshake/types": typeof domain_vesselOrchestration_shared_pingHandshake_types;
-  "domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay": typeof domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay;
-  "domain/vesselOrchestration/shared/scheduleContinuity/index": typeof domain_vesselOrchestration_shared_scheduleContinuity_index;
-  "domain/vesselOrchestration/shared/scheduleContinuity/types": typeof domain_vesselOrchestration_shared_scheduleContinuity_types;
-  "domain/vesselOrchestration/shared/scheduleSnapshot/createScheduleContinuityAccessFromSnapshot": typeof domain_vesselOrchestration_shared_scheduleSnapshot_createScheduleContinuityAccessFromSnapshot;
-  "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes;
+  "domain/vesselOrchestration/shared/scheduleAccess": typeof domain_vesselOrchestration_shared_scheduleAccess;
   "domain/vesselOrchestration/shared/tripLifecycle": typeof domain_vesselOrchestration_shared_tripLifecycle;
   "domain/vesselOrchestration/shared/tripStorage": typeof domain_vesselOrchestration_shared_tripStorage;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
@@ -386,8 +376,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrip/storage": typeof domain_vesselOrchestration_updateVesselTrip_storage;
   "domain/vesselOrchestration/updateVesselTrip/tripBuilders": typeof domain_vesselOrchestration_updateVesselTrip_tripBuilders;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/getFallbackTripFields": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_getFallbackTripFields;
-  "domain/vesselOrchestration/updateVesselTrip/tripFields/getNextScheduledTripFromExistingTrip": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_getNextScheduledTripFromExistingTrip;
-  "domain/vesselOrchestration/updateVesselTrip/tripFields/getRolledOverScheduledTrip": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_getRolledOverScheduledTrip;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/getTripFieldsFromWsf": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_getTripFieldsFromWsf;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/hasWsfTripFields": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_hasWsfTripFields;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/index": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_index;
@@ -454,7 +442,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/action/actions": typeof functions_vesselOrchestrator_action_actions;
   "functions/vesselOrchestrator/action/index": typeof functions_vesselOrchestrator_action_index;
-  "functions/vesselOrchestrator/action/pipeline/scheduleContinuity": typeof functions_vesselOrchestrator_action_pipeline_scheduleContinuity;
+  "functions/vesselOrchestrator/action/pipeline/createScheduleDbAccess": typeof functions_vesselOrchestrator_action_pipeline_createScheduleDbAccess;
   "functions/vesselOrchestrator/action/pipeline/snapshot": typeof functions_vesselOrchestrator_action_pipeline_snapshot;
   "functions/vesselOrchestrator/action/pipeline/updateVesselLocations/index": typeof functions_vesselOrchestrator_action_pipeline_updateVesselLocations_index;
   "functions/vesselOrchestrator/action/pipeline/updateVesselLocations/persistVesselLocations": typeof functions_vesselOrchestrator_action_pipeline_updateVesselLocations_persistVesselLocations;

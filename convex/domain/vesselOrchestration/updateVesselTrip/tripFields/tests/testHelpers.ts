@@ -1,5 +1,6 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -89,22 +90,67 @@ export const makeScheduledTables = (
     segments?: ConvexInferredScheduledSegment[];
     scheduledDeparturesByVesselAbbrev?: Record<
       string,
-      ReadonlyArray<{
-        Key: string;
-        ScheduledDeparture: number;
-        TerminalAbbrev: string;
-      }>
+      ReadonlyArray<ConvexScheduledDockEvent>
     >;
   } = {}
-): ScheduleContinuityAccess => ({
-  getScheduledSegmentByKey: async (scheduleKey) =>
-    (options.segments ?? []).find((segment) => segment.Key === scheduleKey) ??
-    null,
-  getScheduledDeparturesForVesselAndSailingDay: async (
-    vesselAbbrev,
-    sailingDay
-  ) =>
+): ScheduleDbAccess => ({
+  getScheduledDepartureEvent: async (scheduleKey) => {
+    const segment = (options.segments ?? []).find(
+      (candidate) => candidate.Key === scheduleKey
+    );
+    if (!segment) {
+      return null;
+    }
+    return scheduledDepartureRowFromSegment(segment, "CHE");
+  },
+  getScheduledDockEvents: async (vesselAbbrev, sailingDay) =>
     sailingDay !== (options.sailingDay ?? "2026-03-13")
       ? []
-      : (options.scheduledDeparturesByVesselAbbrev?.[vesselAbbrev] ?? []),
+      : (options.scheduledDeparturesByVesselAbbrev?.[vesselAbbrev] ??
+        (options.segments ?? [])
+          .filter((segment) => segment.SailingDay === sailingDay)
+          .flatMap((segment) => {
+            const rows: ConvexScheduledDockEvent[] = [
+              scheduledDepartureRowFromSegment(segment, vesselAbbrev),
+            ];
+
+            if (segment.NextKey && segment.NextDepartingTime) {
+              const [nextDepartingTerminalAbbrev, nextArrivingTerminalAbbrev] =
+                parseRouteTerminalsFromSegmentKey(segment.NextKey);
+              rows.push({
+                Key: `${segment.NextKey}--dep-dock`,
+                VesselAbbrev: vesselAbbrev,
+                SailingDay: segment.SailingDay,
+                UpdatedAt: 1,
+                ScheduledDeparture: segment.NextDepartingTime,
+                TerminalAbbrev: nextDepartingTerminalAbbrev ?? "UNK",
+                NextTerminalAbbrev: nextArrivingTerminalAbbrev ?? "UNK",
+                EventType: "dep-dock",
+              });
+            }
+
+            return rows;
+          })),
 });
+
+const scheduledDepartureRowFromSegment = (
+  segment: ConvexInferredScheduledSegment,
+  vesselAbbrev: string
+): ConvexScheduledDockEvent => ({
+  Key: `${segment.Key}--dep-dock`,
+  VesselAbbrev: vesselAbbrev,
+  SailingDay: segment.SailingDay,
+  UpdatedAt: 1,
+  ScheduledDeparture: segment.DepartingTime,
+  TerminalAbbrev: segment.DepartingTerminalAbbrev,
+  NextTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+  EventType: "dep-dock",
+});
+
+const parseRouteTerminalsFromSegmentKey = (
+  segmentKey: string
+): [string | undefined, string | undefined] => {
+  const [_vessel, _date, _time, route] = segmentKey.split("--");
+  const [departingTerminal, arrivingTerminal] = (route ?? "").split("-");
+  return [departingTerminal, arrivingTerminal];
+};
