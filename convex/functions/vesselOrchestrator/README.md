@@ -240,7 +240,7 @@ Current hot-path implementation notes:
   location rows for `AtDockObserved` continuity and falls back to DB reads when
   the cache is empty or stale.
 - Trip persistence gating uses deterministic key-by-key storage comparison in
-  `areTripStorageRowsEqual` (ignoring `TimeStamp`), which avoids false writes
+  `isUpdatedTrip` (ignoring `TimeStamp`), which avoids false writes
   from object key-order differences.
 
 ### Schedule access rule (do not add parallel seams)

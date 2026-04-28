@@ -10,7 +10,6 @@
 Root exports are intentionally small:
 
 - `updateVesselTrip(input) -> VesselTripUpdate | null` (null when no substantive durable change; errors are caught and return null)
-- `isUpdatedVesselTrip(existingActiveTrip, activeTripCandidate) -> boolean`
 - `VesselTripUpdate`
 
 The production orchestrator hot path calls `updateVesselTrip` inside its
@@ -38,7 +37,6 @@ updateVesselTrip
   -> buildUpdatedVesselRows
      -> basicTripRows
      -> scheduleEnrichment
-  -> isUpdatedVesselTrip
 ```
 
 `buildUpdatedVesselRows` is the single row-construction seam. Its internal order
@@ -54,7 +52,7 @@ is:
 
 - `updateVesselTrip.ts`
   - One-vessel orchestration and meaningful-change classification
-- `lifecycle.ts`
+- `tripEvents.ts`
   - Feed-driven lifecycle facts for one ping
 - `tripBuilders.ts`
   - Single exported row-construction seam: `buildUpdatedVesselRows`
@@ -86,3 +84,10 @@ Orchestrator change bundle:
 
 Shared cross-module contracts such as trip lifecycle event flags and storage
 equality live in `domain/vesselOrchestration/shared`, not in this folder.
+
+Current lifecycle flags consumed by row builders and downstream orchestration:
+
+- `isCompletedTrip`
+- `didJustArriveAtDock`
+- `didJustLeaveDock`
+- `scheduleKeyChanged`

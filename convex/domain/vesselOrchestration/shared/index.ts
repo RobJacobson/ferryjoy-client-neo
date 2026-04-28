@@ -2,7 +2,7 @@ export {
   DEPART_NEXT_ML_PREDICTION_TYPES,
   resolveDepartNextLegContext,
 } from "./eventsPredicted";
-export { stripTripPredictionsForStorage } from "./orchestratorPersist";
+export { stripVesselTripPredictions } from "./orchestratorPersist";
 export { buildCompletedHandoffKey } from "./pingHandshake/completedHandoffKey";
 export {
   mergePingEventWrites,
@@ -17,9 +17,9 @@ export type {
   PredictedDockWriteIntent,
 } from "./pingHandshake/types";
 export type { ScheduleDbAccess } from "./scheduleAccess";
+export { isSameVesselTrip } from "./tripComparison";
 export {
   buildCompletionTripEvents,
   currentTripEvents,
   type TripLifecycleEventFlags,
 } from "./tripLifecycle";
-export { areTripStorageRowsEqual } from "./tripStorage";

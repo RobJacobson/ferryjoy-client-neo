@@ -97,7 +97,7 @@ import type * as domain_vesselOrchestration_shared_pingHandshake_projectionWire 
 import type * as domain_vesselOrchestration_shared_pingHandshake_types from "../domain/vesselOrchestration/shared/pingHandshake/types.js";
 import type * as domain_vesselOrchestration_shared_scheduleAccess from "../domain/vesselOrchestration/shared/scheduleAccess.js";
 import type * as domain_vesselOrchestration_shared_tripLifecycle from "../domain/vesselOrchestration/shared/tripLifecycle.js";
-import type * as domain_vesselOrchestration_shared_tripStorage from "../domain/vesselOrchestration/shared/tripStorage.js";
+import type * as domain_vesselOrchestration_shared_tripStorage from "../domain/vesselOrchestration/shared/tripComparison.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff from "../domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff.js";
 import type * as domain_vesselOrchestration_updateTimeline_contracts from "../domain/vesselOrchestration/updateTimeline/contracts.js";
@@ -120,7 +120,7 @@ import type * as domain_vesselOrchestration_updateVesselPredictions_predictionPo
 import type * as domain_vesselOrchestration_updateVesselPredictions_updateVesselPredictions from "../domain/vesselOrchestration/updateVesselPredictions/updateVesselPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_index from "../domain/vesselOrchestration/updateVesselTrip/index.js";
-import type * as domain_vesselOrchestration_updateVesselTrip_lifecycle from "../domain/vesselOrchestration/updateVesselTrip/lifecycle.js";
+import type * as domain_vesselOrchestration_updateVesselTrip_lifecycle from "../domain/vesselOrchestration/updateVesselTrip/tripEvents.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_storage from "../domain/vesselOrchestration/updateVesselTrip/storage.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripBuilders from "../domain/vesselOrchestration/updateVesselTrip/tripBuilders.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_getFallbackTripFields from "../domain/vesselOrchestration/updateVesselTrip/tripFields/getFallbackTripFields.js";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrip/lifecycle";
+import { detectTripEvents } from "domain/vesselOrchestration/updateVesselTrip/tripEvents";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -105,7 +105,6 @@ describe("detectTripEvents", () => {
 
     const events = detectTripEvents(existingTrip, currLocation);
 
-    expect(events.isTripStartReady).toBe(false);
     expect(events.didJustArriveAtDock).toBe(true);
     expect(events.isCompletedTrip).toBe(true);
   });
@@ -129,7 +128,7 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(false);
   });
 
-  it("does not become trip-start-ready from persisted inferred trip fields", () => {
+  it("preserves schedule identity continuity from the dock window", () => {
     const existingTrip = makeTrip({
       ArrivingTerminalAbbrev: "ORI",
       ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
@@ -147,7 +146,6 @@ describe("detectTripEvents", () => {
 
     const events = detectTripEvents(existingTrip, currLocation);
 
-    expect(events.isTripStartReady).toBe(false);
     expect(events.scheduleKeyChanged).toBe(false);
   });
 

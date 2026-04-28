@@ -15,8 +15,6 @@ type DetectedTripEvents = TripLifecycleEventFlags & {
 const completionEvents = (
   overrides: Partial<DetectedTripEvents> = {}
 ): DetectedTripEvents => ({
-  isFirstTrip: false,
-  isTripStartReady: true,
   isCompletedTrip: true,
   didJustArriveAtDock: true,
   didJustLeaveDock: false,

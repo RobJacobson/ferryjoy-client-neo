@@ -13,7 +13,7 @@ import type {
  *
  * @param trip - Trip possibly carrying ML or joined prediction payloads
  */
-export const stripTripPredictionsForStorage = (
+export const stripVesselTripPredictions = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTrip => {
   const {

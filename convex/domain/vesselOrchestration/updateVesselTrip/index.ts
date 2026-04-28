@@ -3,4 +3,4 @@
  */
 
 export type { VesselTripUpdate } from "./types";
-export { isUpdatedVesselTrip, updateVesselTrip } from "./updateVesselTrip";
+export { updateVesselTrip } from "./updateVesselTrip";

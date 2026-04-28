@@ -1,1 +1,1 @@
-export { stripTripPredictionsForStorage } from "./stripTripPredictionsForStorage";
+export { stripVesselTripPredictions } from "./stripTripPredictionsForStorage";

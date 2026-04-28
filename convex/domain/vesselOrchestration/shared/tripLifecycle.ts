@@ -1,8 +1,6 @@
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type TripLifecycleEventFlags = {
-  isFirstTrip: boolean;
-  isTripStartReady: boolean;
   isCompletedTrip: boolean;
   didJustArriveAtDock: boolean;
   didJustLeaveDock: boolean;
@@ -20,8 +18,6 @@ export const buildCompletionTripEvents = (
   existingTrip: ConvexVesselTrip,
   completedTrip: ConvexVesselTrip
 ): TripLifecycleEventFlags => ({
-  isFirstTrip: false,
-  isTripStartReady: true,
   isCompletedTrip: true,
   didJustArriveAtDock:
     completedTrip.ArrivedNextActual !== undefined &&
@@ -41,11 +37,6 @@ export const currentTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip
 ): TripLifecycleEventFlags => ({
-  isFirstTrip: existingTrip === undefined,
-  isTripStartReady:
-    nextTrip.DepartingTerminalAbbrev !== undefined &&
-    nextTrip.ArrivingTerminalAbbrev !== undefined &&
-    nextTrip.ScheduledDeparture !== undefined,
   isCompletedTrip: false,
   didJustArriveAtDock:
     existingTrip?.AtDock !== true &&

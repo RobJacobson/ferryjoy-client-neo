@@ -101,7 +101,11 @@ That seam resolves current-trip fields, emits transient inference observability,
 Owns cross-module contracts that should not leak from `updateVesselTrip`, such as:
 
 - `TripLifecycleEventFlags`
-- `areTripStorageRowsEqual`
+  - `isCompletedTrip`
+  - `didJustArriveAtDock`
+  - `didJustLeaveDock`
+  - `scheduleKeyChanged`
+- `isUpdatedTrip`
 - ping-handshake DTOs shared by persistence, predictions, and timeline code
 
 ### Schedule continuity (production vs tests)
