@@ -95,11 +95,7 @@ import type * as domain_vesselOrchestration_shared_orchestratorPersist_stripTrip
 import type * as domain_vesselOrchestration_shared_pingHandshake_completedHandoffKey from "../domain/vesselOrchestration/shared/pingHandshake/completedHandoffKey.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_projectionWire from "../domain/vesselOrchestration/shared/pingHandshake/projectionWire.js";
 import type * as domain_vesselOrchestration_shared_pingHandshake_types from "../domain/vesselOrchestration/shared/pingHandshake/types.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay from "../domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_index from "../domain/vesselOrchestration/shared/scheduleContinuity/index.js";
-import type * as domain_vesselOrchestration_shared_scheduleContinuity_types from "../domain/vesselOrchestration/shared/scheduleContinuity/types.js";
-import type * as domain_vesselOrchestration_shared_scheduleSnapshot_createScheduleContinuityAccessFromSnapshot from "../domain/vesselOrchestration/shared/scheduleSnapshot/createScheduleContinuityAccessFromSnapshot.js";
-import type * as domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes from "../domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes.js";
+import type * as domain_vesselOrchestration_shared_scheduleAccess from "../domain/vesselOrchestration/shared/scheduleAccess.js";
 import type * as domain_vesselOrchestration_shared_tripLifecycle from "../domain/vesselOrchestration/shared/tripLifecycle.js";
 import type * as domain_vesselOrchestration_shared_tripStorage from "../domain/vesselOrchestration/shared/tripStorage.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
@@ -353,11 +349,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/shared/pingHandshake/completedHandoffKey": typeof domain_vesselOrchestration_shared_pingHandshake_completedHandoffKey;
   "domain/vesselOrchestration/shared/pingHandshake/projectionWire": typeof domain_vesselOrchestration_shared_pingHandshake_projectionWire;
   "domain/vesselOrchestration/shared/pingHandshake/types": typeof domain_vesselOrchestration_shared_pingHandshake_types;
-  "domain/vesselOrchestration/shared/scheduleContinuity/getScheduledDeparturesForVesselAndSailingDay": typeof domain_vesselOrchestration_shared_scheduleContinuity_getScheduledDeparturesForVesselAndSailingDay;
-  "domain/vesselOrchestration/shared/scheduleContinuity/index": typeof domain_vesselOrchestration_shared_scheduleContinuity_index;
-  "domain/vesselOrchestration/shared/scheduleContinuity/types": typeof domain_vesselOrchestration_shared_scheduleContinuity_types;
-  "domain/vesselOrchestration/shared/scheduleSnapshot/createScheduleContinuityAccessFromSnapshot": typeof domain_vesselOrchestration_shared_scheduleSnapshot_createScheduleContinuityAccessFromSnapshot;
-  "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes": typeof domain_vesselOrchestration_shared_scheduleSnapshot_scheduleSnapshotTypes;
+  "domain/vesselOrchestration/shared/scheduleAccess": typeof domain_vesselOrchestration_shared_scheduleAccess;
   "domain/vesselOrchestration/shared/tripLifecycle": typeof domain_vesselOrchestration_shared_tripLifecycle;
   "domain/vesselOrchestration/shared/tripStorage": typeof domain_vesselOrchestration_shared_tripStorage;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;

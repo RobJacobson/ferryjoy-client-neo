@@ -29,8 +29,13 @@ describe("getRolledOverScheduledTrip", () => {
           CHE: [
             {
               Key: `${nextSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
               ScheduledDeparture: nextSegment.DepartingTime,
               TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
             },
           ],
         },
@@ -77,8 +82,13 @@ describe("getRolledOverScheduledTrip", () => {
           CHE: [
             {
               Key: `${nextDaySegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-14",
+              UpdatedAt: 1,
               ScheduledDeparture: nextDaySegment.DepartingTime,
               TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
             },
           ],
         },

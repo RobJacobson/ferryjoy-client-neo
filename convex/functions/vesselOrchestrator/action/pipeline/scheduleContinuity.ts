@@ -10,7 +10,6 @@ import type {
 } from "domain/events/scheduled";
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared";
-import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/shared/scheduleSnapshot/scheduleSnapshotTypes";
 
 /**
  * Creates ping-scoped memoized access for schedule continuity lookups.
@@ -31,11 +30,11 @@ export const createScheduleContinuityAccess = (
   const segmentCache = new Map<string, ConvexInferredScheduledSegment | null>();
   const departureCache = new Map<
     string,
-    ReadonlyArray<CompactScheduledDepartureEvent>
+    ReadonlyArray<ConvexScheduledDockEvent>
   >();
 
   /**
-   * Loads and caches compact departure rows for one vessel and sailing day.
+   * Loads and caches departure rows for one vessel and sailing day.
    *
    * @param vesselAbbrev - Vessel abbreviation for schedule scope
    * @param sailingDay - Sailing day in backend canonical day format
@@ -44,7 +43,7 @@ export const createScheduleContinuityAccess = (
   const getScheduledDeparturesForVesselAndSailingDay = async (
     vesselAbbrev: string,
     sailingDay: string
-  ): Promise<ReadonlyArray<CompactScheduledDepartureEvent>> => {
+  ): Promise<ReadonlyArray<ConvexScheduledDockEvent>> => {
     const cacheKey = `${vesselAbbrev}:${sailingDay}`;
     const cached = departureCache.get(cacheKey);
     if (cached !== undefined) {
@@ -59,7 +58,7 @@ export const createScheduleContinuityAccess = (
         sailingDay,
       }
     );
-    const departures = compactDeparturesFromScheduledRows(rows);
+    const departures = departuresFromScheduledRows(rows);
     departureCache.set(cacheKey, departures);
     return departures;
   };
@@ -121,14 +120,14 @@ export const createScheduleContinuityAccess = (
 };
 
 /**
- * Converts schedule dock rows into sorted compact departure rows.
+ * Returns sorted departure rows for continuity lookups.
  *
  * @param rows - Scheduled dock rows for one vessel and sailing day
- * @returns Departure-only rows ordered for continuity lookups
+ * @returns Departure rows ordered for continuity lookups
  */
-const compactDeparturesFromScheduledRows = (
+const departuresFromScheduledRows = (
   rows: ReadonlyArray<ConvexScheduledDockEvent>
-): ReadonlyArray<CompactScheduledDepartureEvent> =>
+): ReadonlyArray<ConvexScheduledDockEvent> =>
   rows
     // Keep departure boundaries only; arrivals are not continuity anchors here.
     .filter((row) => row.EventType === "dep-dock")
@@ -137,10 +136,4 @@ const compactDeparturesFromScheduledRows = (
       (left, right) =>
         left.ScheduledDeparture - right.ScheduledDeparture ||
         left.TerminalAbbrev.localeCompare(right.TerminalAbbrev)
-    )
-    // Shrink row shape to the minimum fields continuity consumers require.
-    .map((row) => ({
-      Key: row.Key,
-      ScheduledDeparture: row.ScheduledDeparture,
-      TerminalAbbrev: row.TerminalAbbrev,
-    }));
+    );

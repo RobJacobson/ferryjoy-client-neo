@@ -58,8 +58,13 @@ describe("resolveTripFieldsForTripRow", () => {
           CHE: [
             {
               Key: `${rolloverSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
               ScheduledDeparture: rolloverSegment.DepartingTime,
               TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
             },
           ],
         },
@@ -150,8 +155,13 @@ describe("resolveTripFieldsForTripRow", () => {
           CHE: [
             {
               Key: `${nextSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
               ScheduledDeparture: nextSegment.DepartingTime,
               TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
             },
           ],
         },

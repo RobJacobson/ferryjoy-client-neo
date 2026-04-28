@@ -1,5 +1,6 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleContinuity";
+import type { ScheduleContinuityAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -89,11 +90,7 @@ export const makeScheduledTables = (
     segments?: ConvexInferredScheduledSegment[];
     scheduledDeparturesByVesselAbbrev?: Record<
       string,
-      ReadonlyArray<{
-        Key: string;
-        ScheduledDeparture: number;
-        TerminalAbbrev: string;
-      }>
+      ReadonlyArray<ConvexScheduledDockEvent>
     >;
   } = {}
 ): ScheduleContinuityAccess => ({

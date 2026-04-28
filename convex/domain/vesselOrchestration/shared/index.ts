@@ -16,12 +16,7 @@ export type {
   PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
 } from "./pingHandshake/types";
-export type { ScheduleContinuityAccess } from "./scheduleContinuity";
-export { createScheduleContinuityAccessFromSnapshot } from "./scheduleSnapshot/createScheduleContinuityAccessFromSnapshot";
-export type {
-  CompactScheduledDepartureEvent,
-  ScheduleSnapshot,
-} from "./scheduleSnapshot/scheduleSnapshotTypes";
+export type { ScheduleContinuityAccess } from "./scheduleAccess";
 export {
   buildCompletionTripEvents,
   currentTripEvents,
