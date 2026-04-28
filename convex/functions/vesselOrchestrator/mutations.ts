@@ -7,8 +7,8 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { fetchEntryByKey, upsertByKey } from "functions/keyValueStore/helpers";
 import { persistPerVesselOrchestratorWritesSchema } from "./pipeline/persistPerVesselOrchestratorWrites";
-import { persistVesselPredictions } from "./pipeline/updateVesselPredictions";
 import { persistVesselTimelineWrites } from "./pipeline/updateTimeline";
+import { persistVesselPredictions } from "./pipeline/updateVesselPredictions";
 import { persistVesselTripWrites } from "./pipeline/updateVesselTrip";
 
 type MinutePersistenceTotals = {

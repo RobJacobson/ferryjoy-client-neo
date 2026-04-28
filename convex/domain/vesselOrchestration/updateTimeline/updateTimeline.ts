@@ -2,15 +2,17 @@
  * Same-ping timeline projection from Stage C/D handoffs.
  */
 
-import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
-import { buildCompletedHandoffKey } from "domain/vesselOrchestration/shared";
-import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import { buildDockWritesFromTripHandoff } from "./buildDockWritesFromTripHandoff";
+import { buildCompletedHandoffKey } from "./completedHandoffKey";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
+import type {
+  MlTimelineOverlay,
+  PersistedTripTimelineHandoff,
+} from "./handoffTypes";
 import { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";
 
 const buildCurrentMlByVessel = (

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  getTripFieldInferenceLog,
-  resolveTripScheduleFields,
-} from "..";
+import { getTripFieldInferenceLog, resolveTripScheduleFields } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -79,7 +76,10 @@ describe("resolveTripScheduleFields", () => {
         },
         getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDockEvents(vesselAbbrev, sailingDay);
+          return scheduleAccess.getScheduledDockEvents(
+            vesselAbbrev,
+            sailingDay
+          );
         },
       },
     });
@@ -113,7 +113,10 @@ describe("resolveTripScheduleFields", () => {
         },
         getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDockEvents(vesselAbbrev, sailingDay);
+          return scheduleAccess.getScheduledDockEvents(
+            vesselAbbrev,
+            sailingDay
+          );
         },
       },
     });
@@ -158,7 +161,10 @@ describe("resolveTripScheduleFields", () => {
         },
         getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDockEvents(vesselAbbrev, sailingDay);
+          return scheduleAccess.getScheduledDockEvents(
+            vesselAbbrev,
+            sailingDay
+          );
         },
       },
     });

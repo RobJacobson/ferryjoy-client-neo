@@ -1,7 +1,6 @@
 /**
  * Wire shapes for sparse `eventsActual` / `eventsPredicted` table updates per
- * orchestrator ping. Shared by trip compute and `updateTimeline` without
- * coupling the trip tree to timeline internals.
+ * orchestrator ping.
  */
 
 import type { ConvexActualDockEvent } from "domain/events/actual/schemas";

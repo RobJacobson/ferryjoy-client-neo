@@ -5,12 +5,12 @@
  * own input derivation from upstream trip rows.
  */
 
+import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import {
   buildCompletionTripEvents,
   currentTripEvents,
-  type PersistedTripTimelineHandoff,
-} from "domain/vesselOrchestration/shared";
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+} from "domain/vesselOrchestration/updateVesselTrip";
+import type { PersistedTripTimelineHandoff } from "./handoffTypes";
 
 /**
  * Builds the timeline handoff input from existing and updated trip rows.

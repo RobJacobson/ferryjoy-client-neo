@@ -1,9 +1,9 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { isSameVesselTrip } from "../tripComparison";
+import type { TripLifecycleEventFlags } from "../tripLifecycle";
 import type { ScheduleDbAccess } from "../types";
 
 const ms = (iso: string) => new Date(iso).getTime();

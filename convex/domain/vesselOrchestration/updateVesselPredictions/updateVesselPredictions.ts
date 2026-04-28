@@ -7,8 +7,8 @@ import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesse
 import type {
   CompletedArrivalHandoff,
   MlTimelineOverlay,
-} from "domain/vesselOrchestration/shared";
-import { buildCompletedHandoffKey } from "domain/vesselOrchestration/shared";
+} from "domain/vesselOrchestration/updateTimeline";
+import { buildCompletedHandoffKey } from "domain/vesselOrchestration/updateTimeline";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyVesselPredictions } from "./applyVesselPredictions";
 import type {

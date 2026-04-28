@@ -1,13 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
+import { attachNextScheduledTripFields } from "domain/vesselOrchestration/updateVesselTrip/scheduleEnrichment";
 import {
   buildBasicUpdatedVesselRows,
   buildUpdatedVesselRows,
 } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
-import {
-  resolveTripScheduleFields,
-} from "domain/vesselOrchestration/updateVesselTrip/tripFields";
-import { attachNextScheduledTripFields } from "domain/vesselOrchestration/updateVesselTrip/scheduleEnrichment";
+import { resolveTripScheduleFields } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
+import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/updateVesselTrip/tripLifecycle";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -260,15 +258,15 @@ describe("buildUpdatedVesselRows", () => {
     });
 
     const location = makeLocation({
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      });
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+    });
     const existingTrip = makeTrip({
-        NextScheduleKey: nextSegment.Key,
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-      });
+      NextScheduleKey: nextSegment.Key,
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+    });
     const resolution = await resolveTripScheduleFields({
       location,
       existingTrip,
@@ -278,8 +276,7 @@ describe("buildUpdatedVesselRows", () => {
     });
     const trip = attachNextScheduledTripFields({
       baseTrip: makeTrip({
-        ArrivingTerminalAbbrev:
-          resolution.current.ArrivingTerminalAbbrev,
+        ArrivingTerminalAbbrev: resolution.current.ArrivingTerminalAbbrev,
         ScheduledDeparture: resolution.current.ScheduledDeparture,
         ScheduleKey: resolution.current.ScheduleKey,
         SailingDay: resolution.current.SailingDay,

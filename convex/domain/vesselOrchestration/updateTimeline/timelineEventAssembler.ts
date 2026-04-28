@@ -12,15 +12,6 @@ import {
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,
 } from "domain/timelineRows";
-import {
-  mergePingEventWrites,
-  type PingEventWrites,
-} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
-import type {
-  ActualDockWriteIntent,
-  CompletedArrivalHandoff,
-  PredictedDockWriteIntent,
-} from "domain/vesselOrchestration/shared/pingHandshake/types";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,
@@ -29,6 +20,12 @@ import {
   buildArrivalActualDockWriteForTrip,
   buildDepartureActualDockWriteForTrip,
 } from "./actualDockWritesFromTrip";
+import type {
+  ActualDockWriteIntent,
+  CompletedArrivalHandoff,
+  PredictedDockWriteIntent,
+} from "./handoffTypes";
+import { mergePingEventWrites, type PingEventWrites } from "./projectionWire";
 
 /**
  * Replacement row for predicted timeline writes after **updateVesselPredictions**.

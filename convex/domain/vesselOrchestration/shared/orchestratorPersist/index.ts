@@ -1,1 +1,0 @@
-export { stripVesselTripPredictions } from "./stripTripPredictionsForStorage";

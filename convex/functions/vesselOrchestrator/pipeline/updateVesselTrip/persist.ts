@@ -6,7 +6,7 @@ import type { MutationCtx } from "_generated/server";
 import {
   currentTripEvents,
   stripVesselTripPredictions,
-} from "domain/vesselOrchestration/shared";
+} from "domain/vesselOrchestration/updateVesselTrip";
 import {
   completeAndStartNewTripInDb,
   setDepartNextActualsForMostRecentCompletedTripInDb,

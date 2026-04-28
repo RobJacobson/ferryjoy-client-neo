@@ -14,11 +14,8 @@
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
  */
 
-import {
-  mergePingEventWrites,
-  type PingEventWrites,
-} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
-import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
+import type { PersistedTripTimelineHandoff } from "./handoffTypes";
+import { mergePingEventWrites, type PingEventWrites } from "./projectionWire";
 import {
   buildPingEventWritesFromCompletedFacts,
   buildPingEventWritesFromCurrentMessages,

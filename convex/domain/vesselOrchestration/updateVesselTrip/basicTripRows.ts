@@ -2,13 +2,13 @@
  * Basic trip-row construction from lifecycle state only.
  */
 
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import { hasTripEvidence } from "./tripEvidence";
+import type { TripLifecycleEventFlags } from "./tripLifecycle";
 
 export type TripBuildEvents = TripLifecycleEventFlags & {
   leftDockTime: number | undefined;
@@ -143,7 +143,9 @@ const buildStartedActiveTrip = ({
     vesselLocation.VesselAbbrev,
     vesselLocation.TimeStamp
   );
-  const prevCompleted = hasTripEvidence(previousTrip) ? previousTrip : undefined;
+  const prevCompleted = hasTripEvidence(previousTrip)
+    ? previousTrip
+    : undefined;
 
   return {
     ...sharedFields,

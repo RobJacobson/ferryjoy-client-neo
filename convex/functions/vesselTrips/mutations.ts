@@ -9,7 +9,7 @@ import type { Id } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { resolveDepartNextLegContext } from "domain/vesselOrchestration/shared";
+import { resolveDepartNextLegContext } from "domain/events/predicted/departNextActualization";
 import { actualizeDepartNextMlPredictions } from "functions/events/eventsPredicted/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";

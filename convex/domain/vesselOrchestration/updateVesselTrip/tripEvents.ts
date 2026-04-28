@@ -5,10 +5,10 @@
  * consumed by the trip builders.
  */
 
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { hasTripEvidence } from "./tripEvidence";
+import type { TripLifecycleEventFlags } from "./tripLifecycle";
 
 type DetectedTripEvents = TripLifecycleEventFlags & {
   leftDockTime: number | undefined;
