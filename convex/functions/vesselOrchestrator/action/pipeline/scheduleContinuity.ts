@@ -28,15 +28,10 @@ import type { CompactScheduledDepartureEvent } from "domain/vesselOrchestration/
 export const createScheduleContinuityAccess = (
   ctx: ActionCtx
 ): ScheduleContinuityAccess => {
-  // Cache by segment key so repeated continuity lookups stay O(1) after first fetch.
-  const segmentCache = new Map<
-    string,
-    Promise<ConvexInferredScheduledSegment | null>
-  >();
-  // Cache departures by vessel/day so successor lookup can reuse the same batch.
+  const segmentCache = new Map<string, ConvexInferredScheduledSegment | null>();
   const departureCache = new Map<
     string,
-    Promise<ReadonlyArray<CompactScheduledDepartureEvent>>
+    ReadonlyArray<CompactScheduledDepartureEvent>
   >();
 
   /**
@@ -51,26 +46,22 @@ export const createScheduleContinuityAccess = (
     sailingDay: string
   ): Promise<ReadonlyArray<CompactScheduledDepartureEvent>> => {
     const cacheKey = `${vesselAbbrev}:${sailingDay}`;
-    // Return the in-flight promise so concurrent callers share one query.
     const cached = departureCache.get(cacheKey);
-    if (cached) {
+    if (cached !== undefined) {
       return cached;
     }
 
-    // Query full dock rows once, then narrow to sorted departure rows for continuity logic.
-    const promise = ctx
-      .runQuery(
-        internal.functions.events.eventsScheduled.queries
-          .getScheduledDockEventsForSailingDay,
-        {
-          vesselAbbrev,
-          sailingDay,
-        }
-      )
-      .then(compactDeparturesFromScheduledRows);
-    // Store promise immediately to dedupe same-key requests in the same tick.
-    departureCache.set(cacheKey, promise);
-    return promise;
+    const rows = await ctx.runQuery(
+      internal.functions.events.eventsScheduled.queries
+        .getScheduledDockEventsForSailingDay,
+      {
+        vesselAbbrev,
+        sailingDay,
+      }
+    );
+    const departures = compactDeparturesFromScheduledRows(rows);
+    departureCache.set(cacheKey, departures);
+    return departures;
   };
 
   /**
@@ -82,52 +73,45 @@ export const createScheduleContinuityAccess = (
   const getScheduledSegmentByKey = async (
     scheduleKey: string
   ): Promise<ConvexInferredScheduledSegment | null> => {
-    // Return the in-flight promise so repeated segment-key lookups collapse.
     const cached = segmentCache.get(scheduleKey);
-    if (cached) {
+    if (cached !== undefined) {
       return cached;
     }
 
-    // Resolve the departure boundary row, then infer segment successor metadata.
-    const promise = ctx
-      .runQuery(
-        internal.functions.events.eventsScheduled.queries
-          .getScheduledDepartureEventBySegmentKey,
-        { segmentKey: scheduleKey }
-      )
-      .then(async (departureRow) => {
-        // Missing departure row means this schedule key has no continuity evidence.
-        if (!departureRow) {
-          return null;
-        }
+    const departureRow = await ctx.runQuery(
+      internal.functions.events.eventsScheduled.queries
+        .getScheduledDepartureEventBySegmentKey,
+      { segmentKey: scheduleKey }
+    );
 
-        // Reuse compact departures to derive the "next segment" pointer deterministically.
-        const departures = await getScheduledDeparturesForVesselAndSailingDay(
-          departureRow.VesselAbbrev,
-          departureRow.SailingDay
-        );
-        const departureIndex = departures.findIndex(
-          (departure) => departure.Key === departureRow.Key
-        );
-        const nextDeparture =
-          departureIndex >= 0 ? departures[departureIndex + 1] : undefined;
+    if (!departureRow) {
+      segmentCache.set(scheduleKey, null);
+      return null;
+    }
 
-        // Return only the continuity fields trip logic needs, not the full event row.
-        return {
-          Key: scheduleKey,
-          SailingDay: departureRow.SailingDay,
-          DepartingTerminalAbbrev: departureRow.TerminalAbbrev,
-          ArrivingTerminalAbbrev: departureRow.NextTerminalAbbrev,
-          DepartingTime: departureRow.ScheduledDeparture,
-          NextKey: nextDeparture
-            ? getSegmentKeyFromBoundaryKey(nextDeparture.Key)
-            : undefined,
-          NextDepartingTime: nextDeparture?.ScheduledDeparture,
-        };
-      });
-    // Store promise immediately so concurrent reads for this key share one fetch.
-    segmentCache.set(scheduleKey, promise);
-    return promise;
+    const departures = await getScheduledDeparturesForVesselAndSailingDay(
+      departureRow.VesselAbbrev,
+      departureRow.SailingDay
+    );
+    const departureIndex = departures.findIndex(
+      (departure) => departure.Key === departureRow.Key
+    );
+    const nextDeparture =
+      departureIndex >= 0 ? departures[departureIndex + 1] : undefined;
+
+    const segment: ConvexInferredScheduledSegment = {
+      Key: scheduleKey,
+      SailingDay: departureRow.SailingDay,
+      DepartingTerminalAbbrev: departureRow.TerminalAbbrev,
+      ArrivingTerminalAbbrev: departureRow.NextTerminalAbbrev,
+      DepartingTime: departureRow.ScheduledDeparture,
+      NextKey: nextDeparture
+        ? getSegmentKeyFromBoundaryKey(nextDeparture.Key)
+        : undefined,
+      NextDepartingTime: nextDeparture?.ScheduledDeparture,
+    };
+    segmentCache.set(scheduleKey, segment);
+    return segment;
   };
 
   return {
