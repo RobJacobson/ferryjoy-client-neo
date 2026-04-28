@@ -9,7 +9,6 @@ import type {
   ScheduleDbAccess,
   TripLifecycleEventFlags,
 } from "domain/vesselOrchestration/shared";
-import type { TripFieldInferenceInput } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -72,8 +71,7 @@ type ResolvedTripIdentity = {
  */
 export const buildUpdatedVesselRows = async (
   update: TripBuildInput,
-  scheduleAccess: ScheduleDbAccess,
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
+  scheduleAccess: ScheduleDbAccess
 ): Promise<TripRowOutcome> => {
   // Finalize and immediately seed the next active trip when arrival completes.
   if (
@@ -82,8 +80,7 @@ export const buildUpdatedVesselRows = async (
   ) {
     return tripRowsWhenCompleting(
       update as CompletedTripUpdate,
-      scheduleAccess,
-      onTripFieldsResolved
+      scheduleAccess
     );
   }
 
@@ -92,7 +89,7 @@ export const buildUpdatedVesselRows = async (
     return {};
   }
 
-  return tripRowsWhenContinuing(update, scheduleAccess, onTripFieldsResolved);
+  return tripRowsWhenContinuing(update, scheduleAccess);
 };
 
 /**
@@ -334,14 +331,12 @@ const buildActiveTripForUpdate = async (
   existingTrip: ConvexVesselTrip | undefined,
   tripStart: boolean,
   events: TripBuildEvents,
-  scheduleAccess: ScheduleDbAccess,
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
+  scheduleAccess: ScheduleDbAccess
 ): Promise<ConvexVesselTrip> =>
   resolveTripFieldsForTripRow({
     location: vesselLocation,
     existingTrip,
     scheduleAccess,
-    onTripFieldsResolved,
     buildTrip: (resolvedCurrentTripFields) => {
       const baseTrip = buildBaseTrip({
         currLocation: vesselLocation,
@@ -388,8 +383,7 @@ const buildActiveTripForUpdate = async (
  */
 const tripRowsWhenCompleting = async (
   update: CompletedTripUpdate,
-  scheduleAccess: ScheduleDbAccess,
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
+  scheduleAccess: ScheduleDbAccess
 ): Promise<TripRowOutcome> => {
   try {
     // Snapshot completed row before constructing the next active leg.
@@ -403,8 +397,7 @@ const tripRowsWhenCompleting = async (
       completedVesselTrip,
       true,
       update.events,
-      scheduleAccess,
-      onTripFieldsResolved
+      scheduleAccess
     );
 
     return { completedVesselTrip, activeVesselTrip };
@@ -428,8 +421,7 @@ const tripRowsWhenCompleting = async (
  */
 const tripRowsWhenContinuing = async (
   update: TripBuildInput,
-  scheduleAccess: ScheduleDbAccess,
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void
+  scheduleAccess: ScheduleDbAccess
 ): Promise<TripRowOutcome> => {
   try {
     return {
@@ -438,8 +430,7 @@ const tripRowsWhenContinuing = async (
         update.existingActiveTrip,
         false,
         update.events,
-        scheduleAccess,
-        onTripFieldsResolved
+        scheduleAccess
       ),
     };
   } catch (error) {

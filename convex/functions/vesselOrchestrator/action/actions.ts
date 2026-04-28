@@ -8,10 +8,7 @@ import { internalAction } from "_generated/server";
 import { v } from "convex/values";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
-import {
-  type TripFieldInferenceInput,
-  updateVesselTrip,
-} from "domain/vesselOrchestration/updateVesselTrip";
+import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import { createScheduleDbAccess } from "./pipeline/createScheduleDbAccess";
 import { loadOrchestratorSnapshot } from "./pipeline/snapshot";
 import { runUpdateVesselLocations } from "./pipeline/updateVesselLocations";
@@ -111,7 +108,6 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         vesselLocation,
         existingActiveTrip,
         scheduleAccess,
-        onTripFieldsResolved: logInferredTripFieldsForSanity,
       });
 
       // Skip persistence entirely when there are no vessel-trip updates.
@@ -205,20 +201,3 @@ const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   }
 };
 
-/**
- * Sanity hook for Stage 2 (`updateVesselTrip`): logs when current-trip fields
- * are provisional schedule inference (`tripFieldDataSource === "inferred"`).
- * Happy path is authoritative WSF fields — those are skipped here.
- */
-const logInferredTripFieldsForSanity = (
-  args: TripFieldInferenceInput
-): void => {
-  if (args.resolvedCurrentTripFields.tripFieldDataSource !== "inferred") {
-    return;
-  }
-  console.info("[updateVesselOrchestrator] schedule-backed trip fields", {
-    vesselAbbrev: args.location.VesselAbbrev,
-    inferenceMethod:
-      args.resolvedCurrentTripFields.tripFieldInferenceMethod ?? null,
-  });
-};

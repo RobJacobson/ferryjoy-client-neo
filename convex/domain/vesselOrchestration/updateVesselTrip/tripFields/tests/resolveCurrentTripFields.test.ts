@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { getTripFieldInferenceLog, resolveTripFieldsForTripRow } from "..";
 import {
   makeLocation,
@@ -7,10 +7,6 @@ import {
   makeTrip,
   ms,
 } from "./testHelpers";
-
-type TripFieldsResolvedHook = NonNullable<
-  Parameters<typeof resolveTripFieldsForTripRow>[0]["onTripFieldsResolved"]
->;
 
 const buildTripFromResolvedFields = (
   input: Omit<Parameters<typeof resolveTripFieldsForTripRow>[0], "buildTrip">
@@ -31,7 +27,6 @@ const buildTripFromResolvedFields = (
 
 describe("resolveTripFieldsForTripRow", () => {
   it("prefers next scheduled segment over rollover when both are available", async () => {
-    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -70,19 +65,12 @@ describe("resolveTripFieldsForTripRow", () => {
           ],
         },
       }),
-      onTripFieldsResolved,
     });
 
     expect(trip.ScheduleKey).toBe(nextSegment.Key);
-    expect(
-      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
-        .tripFieldInferenceMethod
-    ).toBe("next_scheduled_trip");
   });
 
   it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", async () => {
-    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
-
     const trip = await buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: "MUK",
@@ -93,18 +81,9 @@ describe("resolveTripFieldsForTripRow", () => {
         NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
       scheduleAccess: makeScheduledTables(),
-      onTripFieldsResolved,
     });
 
     expect(trip.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
-    expect(
-      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
-        .tripFieldDataSource
-    ).toBe("wsf");
-    expect(
-      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
-        .tripFieldInferenceMethod
-    ).toBeUndefined();
   });
 
   it("infers trip fields from the next scheduled trip when WSF is incomplete", async () => {
@@ -217,10 +196,8 @@ describe("resolveTripFieldsForTripRow", () => {
     );
   });
 
-  it("logs partial WSF conflicts against inferred trip fields through the resolved hook", async () => {
-    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
-
-    await buildTripFromResolvedFields({
+  it("falls back to inferred fields for partial WSF conflicts", async () => {
+    const trip = await buildTripFromResolvedFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: "SHI",
         ScheduledDeparture: undefined,
@@ -232,16 +209,14 @@ describe("resolveTripFieldsForTripRow", () => {
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
       }),
       scheduleAccess: makeScheduledTables(),
-      onTripFieldsResolved,
     });
 
-    expect(
-      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
-        .tripFieldDataSource
-    ).toBe("inferred");
+    expect(trip.ScheduleKey).toBe("CHE--2026-03-13--11:00--CLI-MUK");
+    expect(trip.ArrivingTerminalAbbrev).toBe("MUK");
+    expect(trip.ScheduledDeparture).toBe(ms("2026-03-13T11:00:00-07:00"));
   });
 
-  it("builds inference diagnostics only when a caller explicitly requests them", async () => {
+  it("builds inference diagnostics from inferred metadata", async () => {
     const inferenceInput = {
       location: makeLocation({
         ArrivingTerminalAbbrev: "SHI",

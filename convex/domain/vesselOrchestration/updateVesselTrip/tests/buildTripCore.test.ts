@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import { buildUpdatedVesselRows } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
 import { resolveTripFieldsForTripRow } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
@@ -13,10 +13,6 @@ import {
 type DetectedTripEvents = TripLifecycleEventFlags & {
   leftDockTime: number | undefined;
 };
-
-type TripFieldsResolvedHook = NonNullable<
-  Parameters<typeof resolveTripFieldsForTripRow>[0]["onTripFieldsResolved"]
->;
 
 const continuingEvents = (
   overrides: Partial<DetectedTripEvents> = {}
@@ -203,8 +199,7 @@ describe("buildUpdatedVesselRows", () => {
     expect(trip?.ArriveDest).toBe(ms("2026-03-13T11:28:00-07:00"));
   });
 
-  it("keeps tripFieldInferenceMethod transient while still exposing it to observability hooks", async () => {
-    const onTripFieldsResolved = mock<TripFieldsResolvedHook>(() => {});
+  it("keeps tripFieldInferenceMethod transient on persisted trip rows", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -234,17 +229,9 @@ describe("buildUpdatedVesselRows", () => {
           NextScheduleKey: undefined,
           NextScheduledDeparture: undefined,
         }),
-      onTripFieldsResolved,
     });
 
-    expect(onTripFieldsResolved).toHaveBeenCalledTimes(1);
-    expect(
-      onTripFieldsResolved.mock.calls[0]?.[0]?.resolvedCurrentTripFields
-    ).toMatchObject({
-      tripFieldDataSource: "inferred",
-      tripFieldInferenceMethod: "next_scheduled_trip",
-      ScheduleKey: nextSegment.Key,
-    });
+    expect(trip.ScheduleKey).toBe(nextSegment.Key);
     expect("tripFieldInferenceMethod" in trip).toBe(false);
   });
 

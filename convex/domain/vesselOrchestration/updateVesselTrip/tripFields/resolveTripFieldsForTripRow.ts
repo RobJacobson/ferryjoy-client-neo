@@ -11,7 +11,6 @@ import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
-import type { TripFieldInferenceInput } from "./tripFieldDiagnostics";
 import type { ResolvedCurrentTripFields } from "./types";
 
 type ResolveTripFieldsForTripRowInput = {
@@ -21,7 +20,6 @@ type ResolveTripFieldsForTripRowInput = {
   buildTrip: (
     resolvedCurrentTripFields: ResolvedCurrentTripFields
   ) => ConvexVesselTrip;
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void;
 };
 
 type ResolvedTripFields = {
@@ -43,7 +41,6 @@ export const resolveTripFieldsForTripRow = async ({
   existingTrip,
   scheduleAccess,
   buildTrip,
-  onTripFieldsResolved,
 }: ResolveTripFieldsForTripRowInput): Promise<ConvexVesselTrip> => {
   const { resolvedCurrentTripFields, inferredNext } =
     await resolveCurrentTripFields({
@@ -51,15 +48,6 @@ export const resolveTripFieldsForTripRow = async ({
       existingTrip,
       scheduleAccess,
     });
-  const inferenceInput = {
-    location,
-    existingTrip,
-    resolvedCurrentTripFields,
-  };
-
-  if (onTripFieldsResolved !== undefined) {
-    onTripFieldsResolved(inferenceInput);
-  }
 
   return attachNextScheduledTripFields({
     baseTrip: buildTrip(resolvedCurrentTripFields),
@@ -80,7 +68,7 @@ const resolveCurrentTripFields = async ({
   scheduleAccess,
 }: Omit<
   ResolveTripFieldsForTripRowInput,
-  "buildTrip" | "onTripFieldsResolved"
+  "buildTrip"
 >): Promise<ResolvedTripFields> => {
   if (hasWsfTripFields(location)) {
     return { resolvedCurrentTripFields: getTripFieldsFromWsf(location) };

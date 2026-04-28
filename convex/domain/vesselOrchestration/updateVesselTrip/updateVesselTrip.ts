@@ -8,19 +8,12 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { detectTripEvents } from "./lifecycle";
 import { buildUpdatedVesselRows } from "./tripBuilders";
-import type { TripFieldInferenceInput } from "./tripFields";
 import type { VesselTripUpdate } from "./types";
 
 type UpdateVesselTripInput = {
   vesselLocation: ConvexVesselLocation;
   existingActiveTrip?: ConvexVesselTrip;
   scheduleAccess: ScheduleDbAccess;
-  /**
-   * Optional observability hook after current-trip fields resolve (before
-   * next-leg attachment). Wired from the orchestrator for diagnostics; schedule
-   * continuity behavior is unchanged when omitted.
-   */
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void;
 };
 
 /**
@@ -45,8 +38,7 @@ export const updateVesselTrip = async (
         existingActiveTrip: input.existingActiveTrip,
         events,
       },
-      input.scheduleAccess,
-      input.onTripFieldsResolved
+      input.scheduleAccess
     );
     const activeTripCandidate = tripRows.activeVesselTrip;
     const shouldWriteActiveTrip = !areTripStorageRowsEqual(
