@@ -32,19 +32,17 @@ export const applyResolvedTripScheduleFields = ({
   events: TripBuildEvents;
   resolution: ResolvedTripScheduleFields;
 }): ConvexVesselTrip => {
-  const { resolvedCurrentTripFields } = resolution;
+  const { current } = resolution;
   const withCurrentScheduleFields = {
     ...activeTrip,
     ArrivingTerminalAbbrev:
-      resolvedCurrentTripFields.ArrivingTerminalAbbrev ??
+      current.ArrivingTerminalAbbrev ??
       activeTrip.ArrivingTerminalAbbrev,
     ScheduledDeparture:
-      resolvedCurrentTripFields.ScheduledDeparture ??
+      current.ScheduledDeparture ??
       activeTrip.ScheduledDeparture,
-    ScheduleKey:
-      resolvedCurrentTripFields.ScheduleKey ?? activeTrip.ScheduleKey,
-    SailingDay:
-      resolvedCurrentTripFields.SailingDay ?? activeTrip.SailingDay,
+    ScheduleKey: current.ScheduleKey ?? activeTrip.ScheduleKey,
+    SailingDay: current.SailingDay ?? activeTrip.SailingDay,
   };
   const withDerivedScheduleFields = {
     ...withCurrentScheduleFields,
@@ -75,7 +73,7 @@ export const applyResolvedTripScheduleFields = ({
   return attachNextScheduledTripFields({
     baseTrip: scheduleSafeTrip,
     existingTrip,
-    inferredNext: resolution.inferredNext,
+    next: resolution.next,
   });
 };
 
@@ -113,17 +111,17 @@ export const enrichActiveTripWithSchedule = async (
 /**
  * Attaches next scheduled segment fields while preserving continuity when possible.
  *
- * @param args - Built trip row, prior trip row, and inferred next schedule fields
+ * @param args - Built trip row, prior trip row, and resolved next schedule fields
  * @returns Trip row with next schedule key/departure fields populated or cleared
  */
 export const attachNextScheduledTripFields = ({
   baseTrip,
   existingTrip,
-  inferredNext,
+  next,
 }: {
   baseTrip: ConvexVesselTrip;
   existingTrip: ConvexVesselTrip | undefined;
-  inferredNext:
+  next:
     | {
         NextScheduleKey?: string;
         NextScheduledDeparture?: number;
@@ -135,11 +133,11 @@ export const attachNextScheduledTripFields = ({
     return baseTrip;
   }
 
-  if (inferredNext) {
+  if (next) {
     return {
       ...baseTrip,
-      NextScheduleKey: inferredNext.NextScheduleKey,
-      NextScheduledDeparture: inferredNext.NextScheduledDeparture,
+      NextScheduleKey: next.NextScheduleKey,
+      NextScheduledDeparture: next.NextScheduledDeparture,
     };
   }
 

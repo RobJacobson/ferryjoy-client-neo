@@ -281,16 +281,15 @@ describe("buildUpdatedVesselRows", () => {
     const trip = attachNextScheduledTripFields({
       baseTrip: makeTrip({
         ArrivingTerminalAbbrev:
-          resolution.resolvedCurrentTripFields.ArrivingTerminalAbbrev,
-        ScheduledDeparture:
-          resolution.resolvedCurrentTripFields.ScheduledDeparture,
-        ScheduleKey: resolution.resolvedCurrentTripFields.ScheduleKey,
-        SailingDay: resolution.resolvedCurrentTripFields.SailingDay,
+          resolution.current.ArrivingTerminalAbbrev,
+        ScheduledDeparture: resolution.current.ScheduledDeparture,
+        ScheduleKey: resolution.current.ScheduleKey,
+        SailingDay: resolution.current.SailingDay,
         NextScheduleKey: undefined,
         NextScheduledDeparture: undefined,
       }),
       existingTrip,
-      inferredNext: resolution.inferredNext,
+      next: resolution.next,
     });
 
     expect(trip.ScheduleKey).toBe(nextSegment.Key);

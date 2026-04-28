@@ -5,8 +5,8 @@
 import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared";
 import {
   buildBasicUpdatedVesselRows,
-  type TripBuildInput,
-  type TripRowOutcome,
+  type BuiltTripRows,
+  type TripRowBuildInput,
 } from "./basicTripRows";
 import { enrichActiveTripWithSchedule } from "./scheduleEnrichment";
 import { logTripPipelineFailure } from "./storage";
@@ -19,10 +19,10 @@ import { logTripPipelineFailure } from "./storage";
  * @returns Completed and/or active trip rows derived from lifecycle state
  */
 export const buildUpdatedVesselRows = async (
-  update: TripBuildInput,
+  update: TripRowBuildInput,
   scheduleAccess: ScheduleDbAccess
-): Promise<TripRowOutcome> => {
-  const basicRows = buildBasicRowsForUpdate(update);
+): Promise<BuiltTripRows> => {
+  const basicRows = buildBasicRowsOrEmpty(update);
   if (basicRows.activeVesselTrip === undefined) {
     return basicRows;
   }
@@ -55,7 +55,9 @@ export const buildUpdatedVesselRows = async (
 
 export { buildBasicUpdatedVesselRows } from "./basicTripRows";
 
-const buildBasicRowsForUpdate = (update: TripBuildInput): TripRowOutcome => {
+// Basic construction failures drop the whole row update; enrichment failures
+// keep a completed row when one was already built so completion can persist.
+const buildBasicRowsOrEmpty = (update: TripRowBuildInput): BuiltTripRows => {
   try {
     return buildBasicUpdatedVesselRows(update);
   } catch (error) {

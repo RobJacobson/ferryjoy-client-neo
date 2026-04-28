@@ -8,7 +8,7 @@ import type { ResolvedCurrentTripFields } from "./types";
 export type TripFieldInferenceInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  resolvedCurrentTripFields: ResolvedCurrentTripFields;
+  current: ResolvedCurrentTripFields;
 };
 
 export type TripFieldInferenceLogContext = {
@@ -88,13 +88,13 @@ const hasPartialWsfConflict = (
 const getTripFieldInferenceLogContext = ({
   location,
   existingTrip,
-  resolvedCurrentTripFields,
+  current,
 }: TripFieldInferenceInput): TripFieldInferenceLogContext | undefined => {
   const previousTripFields =
     existingTrip === undefined
       ? undefined
       : tripFieldSnapshotFrom(existingTrip);
-  const resolvedTripFields = tripFieldSnapshotFrom(resolvedCurrentTripFields);
+  const resolvedTripFields = tripFieldSnapshotFrom(current);
   const rawWsfTripFields = tripFieldSnapshotFrom(location);
   const tripFieldsChanged = !areTripFieldsEqual(
     previousTripFields,
@@ -103,15 +103,14 @@ const getTripFieldInferenceLogContext = ({
 
   const shared = {
     vesselAbbrev: location.VesselAbbrev,
-    tripFieldDataSource: resolvedCurrentTripFields.tripFieldDataSource,
-    tripFieldInferenceMethod:
-      resolvedCurrentTripFields.tripFieldInferenceMethod,
+    tripFieldDataSource: current.tripFieldDataSource,
+    tripFieldInferenceMethod: current.tripFieldInferenceMethod,
     previousTripFields,
     resolvedTripFields,
     rawWsfTripFields,
   };
 
-  if (resolvedCurrentTripFields.tripFieldDataSource === "inferred") {
+  if (current.tripFieldDataSource === "inferred") {
     const reason = hasPartialWsfConflict(location, resolvedTripFields)
       ? "partial_wsf_conflict_with_inference"
       : existingTrip === undefined

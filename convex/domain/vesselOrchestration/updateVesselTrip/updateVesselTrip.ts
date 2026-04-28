@@ -32,28 +32,27 @@ const updateVesselTrip = async (
       input.vesselLocation
     );
     // Build candidate rows from lifecycle and schedule evidence.
-    const tripRows = await buildUpdatedVesselRows(
-      {
-        vesselLocation: input.vesselLocation,
-        existingActiveTrip: input.existingActiveTrip,
-        events,
-      },
-      input.scheduleAccess
-    );
-    const activeTripCandidate = tripRows.activeVesselTrip;
+    const { activeVesselTrip, completedVesselTrip } =
+      await buildUpdatedVesselRows(
+        {
+          vesselLocation: input.vesselLocation,
+          existingActiveTrip: input.existingActiveTrip,
+          events,
+        },
+        input.scheduleAccess
+      );
     const shouldWriteActiveTrip = isUpdatedVesselTrip(
       input.existingActiveTrip,
-      activeTripCandidate
+      activeVesselTrip
     );
 
     const result: VesselTripUpdate = {
       vesselAbbrev: input.vesselLocation.VesselAbbrev,
       existingActiveTrip: input.existingActiveTrip,
-      activeVesselTripUpdate:
-        shouldWriteActiveTrip && activeTripCandidate !== undefined
-          ? activeTripCandidate
-          : undefined,
-      completedVesselTripUpdate: tripRows.completedVesselTrip,
+      activeVesselTripUpdate: shouldWriteActiveTrip
+        ? activeVesselTrip
+        : undefined,
+      completedVesselTripUpdate: completedVesselTrip,
     };
     if (
       result.activeVesselTripUpdate === undefined &&

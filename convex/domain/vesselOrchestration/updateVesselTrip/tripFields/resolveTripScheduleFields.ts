@@ -1,5 +1,5 @@
 /**
- * Trip-field resolution and schedule attachment for one trip row.
+ * Trip-field schedule resolution for one trip row.
  */
 
 import { getSegmentKeyFromBoundaryKey } from "domain/timelineRows/scheduledSegmentResolvers";
@@ -20,8 +20,8 @@ type ResolveTripScheduleFieldsInput = {
 };
 
 export type ResolvedTripScheduleFields = {
-  resolvedCurrentTripFields: ResolvedCurrentTripFields;
-  inferredNext?: {
+  current: ResolvedCurrentTripFields;
+  next?: {
     NextScheduleKey?: string;
     NextScheduledDeparture?: number;
   };
@@ -31,7 +31,7 @@ export type ResolvedTripScheduleFields = {
  * Resolves current-trip fields from WSF, schedule evidence, or fallback logic.
  *
  * @param input - Location, prior trip, and schedule lookup tables
- * @returns Resolved current-trip fields with data-source metadata
+ * @returns Resolved current-trip and next-leg schedule facts
  */
 export const resolveTripScheduleFields = async ({
   location,
@@ -39,7 +39,7 @@ export const resolveTripScheduleFields = async ({
   scheduleAccess,
 }: ResolveTripScheduleFieldsInput): Promise<ResolvedTripScheduleFields> => {
   if (hasWsfTripFields(location)) {
-    return { resolvedCurrentTripFields: getTripFieldsFromWsf(location) };
+    return { current: getTripFieldsFromWsf(location) };
   }
 
   const carriedArrivingTerminalAbbrev =
@@ -59,7 +59,7 @@ export const resolveTripScheduleFields = async ({
     carriedScheduledDeparture !== undefined
   ) {
     return {
-      resolvedCurrentTripFields: {
+      current: {
         ArrivingTerminalAbbrev: carriedArrivingTerminalAbbrev,
         ScheduledDeparture: carriedScheduledDeparture,
         ScheduleKey:
@@ -80,7 +80,7 @@ export const resolveTripScheduleFields = async ({
 
   if (scheduleMatch) {
     return {
-      resolvedCurrentTripFields: {
+      current: {
         ArrivingTerminalAbbrev: scheduleMatch.ArrivingTerminalAbbrev,
         ScheduledDeparture: scheduleMatch.DepartingTime,
         ScheduleKey: scheduleMatch.Key,
@@ -88,7 +88,7 @@ export const resolveTripScheduleFields = async ({
         tripFieldDataSource: "inferred",
         tripFieldInferenceMethod: scheduleMatch.tripFieldInferenceMethod,
       },
-      inferredNext: {
+      next: {
         NextScheduleKey: scheduleMatch.NextKey,
         NextScheduledDeparture: scheduleMatch.NextDepartingTime,
       },
@@ -113,7 +113,7 @@ export const resolveTripScheduleFields = async ({
     existingNextScheduleKey: existingTrip?.NextScheduleKey,
   });
   return {
-    resolvedCurrentTripFields: {
+    current: {
       ArrivingTerminalAbbrev: fallbackArrivingTerminalAbbrev,
       ScheduledDeparture: fallbackScheduledDeparture,
       ScheduleKey:
