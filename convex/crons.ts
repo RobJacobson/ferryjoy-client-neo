@@ -93,11 +93,11 @@ crons.cron(
   {}
 );
 
-// Hourly cleanup of old vessel pings.
+// Cleanup of old vessel pings every 15 minutes.
 // Deletes VesselPings records older than the configured threshold (default: 1 hour).
-crons.cron(
+crons.interval(
   "cleanup old vessel pings",
-  "0 * * * *", // every hour at minute 0 UTC
+  { minutes: 15 },
   internal.functions.vesselPings.actions.cleanupOldPings
 );
 

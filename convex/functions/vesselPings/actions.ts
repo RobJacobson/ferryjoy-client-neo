@@ -7,6 +7,8 @@ import { internalAction } from "_generated/server";
 import { fetchWsfVesselPings } from "adapters";
 import type { VesselIdentity } from "functions/vessels/schemas";
 
+const CLEANUP_OLD_PINGS_BATCH_SIZE = 200;
+
 /**
  * Internal action for fetching and storing vessel pings from the WSF API.
  *
@@ -46,14 +48,46 @@ export const fetchAndStoreVesselPings = internalAction({
  * Internal action for pruning old vessel ping collection rows.
  *
  * @param ctx - Convex internal action context
- * @returns `undefined` after the cleanup mutation completes
+ * @returns Total rows deleted across cleanup batches
  */
 export const cleanupOldPings = internalAction({
   args: {},
   handler: async (ctx) => {
-    await ctx.runMutation(
-      internal.functions.vesselPings.mutations.cleanupOldPingsMutation
-    );
+    const cutoffMs = Date.now() - 60 * 60 * 1_000;
+    let totalDeleted = 0;
+    let batchCount = 0;
+
+    while (true) {
+      const result = await ctx.runMutation(
+        internal.functions.vesselPings.mutations.cleanupOldPingsMutation,
+        {
+          cutoffMs,
+          limit: CLEANUP_OLD_PINGS_BATCH_SIZE,
+        }
+      );
+
+      batchCount += 1;
+      totalDeleted += result.deleted;
+
+      console.log("[vesselPings.cleanupOldPings] batch processed", {
+        batchCount,
+        batchDeleted: result.deleted,
+        totalDeleted,
+        hasMore: result.hasMore,
+      });
+
+      if (!result.hasMore) {
+        break;
+      }
+    }
+
+    console.log("[vesselPings.cleanupOldPings] run complete", {
+      batchCount,
+      totalDeleted,
+      cutoffMs,
+    });
+
+    return totalDeleted;
   },
 });
 
