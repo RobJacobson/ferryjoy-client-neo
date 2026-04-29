@@ -4,11 +4,12 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
-import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import type { UpdateVesselTripDbAccess } from "../types";
 import { buildActiveTrip } from "../buildActiveTrip";
 import { completeTrip } from "../completeTrip";
@@ -96,24 +97,19 @@ const makeDepartureEvent = (
 });
 
 const makeDbAccess = (options: {
-  terminalIdentityByAbbrev?: Record<string, TerminalIdentity | null>;
-  scheduledDepartureByKey?: Record<string, ConvexScheduledDockEvent | null>;
+  scheduledSegmentByKey?: Record<string, ConvexInferredScheduledSegment | null>;
   scheduledDockEventsBySailingDay?: Record<string, ConvexScheduledDockEvent[]>;
   throwOnAnyCall?: boolean;
-  /** Fails if `getScheduledDepartureEvent` or `getScheduledDockEvents` run. */
-  forbidScheduledEventReads?: boolean;
 } = {}): {
   dbAccess: UpdateVesselTripDbAccess;
   counters: {
-    getTerminalIdentity: number;
-    getScheduledDepartureEvent: number;
-    getScheduledDockEvents: number;
+    getScheduledSegmentByScheduleKey: number;
+    getScheduleRolloverDockEvents: number;
   };
 } => {
   const counters = {
-    getTerminalIdentity: 0,
-    getScheduledDepartureEvent: 0,
-    getScheduledDockEvents: 0,
+    getScheduledSegmentByScheduleKey: 0,
+    getScheduleRolloverDockEvents: 0,
   };
 
   const failIfGuarded = (name: keyof typeof counters) => {
@@ -122,47 +118,43 @@ const makeDbAccess = (options: {
     }
   };
 
-  const defaultTerminal = (terminalAbbrev: string): TerminalIdentity => ({
-    TerminalID: 1,
-    TerminalName: terminalAbbrev,
-    TerminalAbbrev: terminalAbbrev,
-    IsPassengerTerminal: true,
-    Latitude: 47,
-    Longitude: -122,
-    UpdatedAt: 1,
-  });
-
   const dbAccess: UpdateVesselTripDbAccess = {
-    getTerminalIdentity: async (terminalAbbrev) => {
-      counters.getTerminalIdentity += 1;
-      failIfGuarded("getTerminalIdentity");
-      const terminal = options.terminalIdentityByAbbrev?.[terminalAbbrev];
-      return terminal === undefined ? defaultTerminal(terminalAbbrev) : terminal;
+    getScheduledSegmentByScheduleKey: async (scheduleKey) => {
+      counters.getScheduledSegmentByScheduleKey += 1;
+      failIfGuarded("getScheduledSegmentByScheduleKey");
+      return options.scheduledSegmentByKey?.[scheduleKey] ?? null;
     },
-    getScheduledDepartureEvent: async (scheduleKey) => {
-      counters.getScheduledDepartureEvent += 1;
-      if (options.forbidScheduledEventReads) {
-        throw new Error("getScheduledDepartureEvent should not be called");
-      }
-      failIfGuarded("getScheduledDepartureEvent");
-      if (options.scheduledDepartureByKey?.[scheduleKey] !== undefined) {
-        return options.scheduledDepartureByKey[scheduleKey] ?? null;
-      }
-      const boundaryKey = `${scheduleKey}--dep-dock`;
-      return options.scheduledDepartureByKey?.[boundaryKey] ?? null;
-    },
-    getScheduledDockEvents: async (_vesselAbbrev, sailingDay) => {
-      counters.getScheduledDockEvents += 1;
-      if (options.forbidScheduledEventReads) {
-        throw new Error("getScheduledDockEvents should not be called");
-      }
-      failIfGuarded("getScheduledDockEvents");
-      return options.scheduledDockEventsBySailingDay?.[sailingDay] ?? [];
+    getScheduleRolloverDockEvents: async ({ timestamp }) => {
+      counters.getScheduleRolloverDockEvents += 1;
+      failIfGuarded("getScheduleRolloverDockEvents");
+      const currentSailingDay = getSailingDay(new Date(timestamp));
+      const nextSailingDay = addDaysToYyyyMmDd(currentSailingDay, 1);
+      return {
+        currentSailingDay,
+        currentDayEvents:
+          options.scheduledDockEventsBySailingDay?.[currentSailingDay] ?? [],
+        nextSailingDay,
+        nextDayEvents:
+          options.scheduledDockEventsBySailingDay?.[nextSailingDay] ?? [],
+      };
     },
   };
 
   return { dbAccess, counters };
 };
+
+const makeScheduledSegment = (
+  overrides: Partial<ConvexInferredScheduledSegment> = {}
+): ConvexInferredScheduledSegment => ({
+  Key: "CHE--2026-03-13--07:00--ORI-LOP",
+  SailingDay: "2026-03-13",
+  DepartingTerminalAbbrev: "ORI",
+  ArrivingTerminalAbbrev: "LOP",
+  DepartingTime: ms("2026-03-13T07:00:00-07:00"),
+  NextKey: undefined,
+  NextDepartingTime: undefined,
+  ...overrides,
+});
 
 describe("stage-2 pipeline modules", () => {
   it("reports lifecycle transitions and left-dock precedence", () => {
@@ -289,9 +281,8 @@ describe("stage-2 pipeline modules", () => {
     });
 
     expect(scheduledTrip.ScheduleKey).toBe(activeTrip.ScheduleKey);
-    expect(counters.getTerminalIdentity).toBe(0);
-    expect(counters.getScheduledDepartureEvent).toBe(0);
-    expect(counters.getScheduledDockEvents).toBe(0);
+    expect(counters.getScheduledSegmentByScheduleKey).toBe(0);
+    expect(counters.getScheduleRolloverDockEvents).toBe(0);
   });
 
   it("infers schedule for replacement trip with incomplete WSF", async () => {
@@ -313,26 +304,13 @@ describe("stage-2 pipeline modules", () => {
       location,
       isNewTrip: true,
     });
-    const primaryDeparture = makeDepartureEvent({
-      Key: "CHE--2026-03-13--07:00--ORI-LOP--dep-dock",
-      ScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
-      TerminalAbbrev: "ORI",
-      NextTerminalAbbrev: "LOP",
-      SailingDay: "2026-03-13",
-    });
-    const nextDeparture = makeDepartureEvent({
-      Key: "CHE--2026-03-13--08:00--LOP-SHW--dep-dock",
-      ScheduledDeparture: ms("2026-03-13T08:00:00-07:00"),
-      TerminalAbbrev: "LOP",
-      NextTerminalAbbrev: "SHW",
-      SailingDay: "2026-03-13",
+    const primarySegment = makeScheduledSegment({
+      NextKey: "CHE--2026-03-13--08:00--LOP-SHW",
+      NextDepartingTime: ms("2026-03-13T08:00:00-07:00"),
     });
     const { dbAccess, counters } = makeDbAccess({
-      scheduledDepartureByKey: {
-        "CHE--2026-03-13--07:00--ORI-LOP": primaryDeparture,
-      },
-      scheduledDockEventsBySailingDay: {
-        "2026-03-13": [primaryDeparture, nextDeparture],
+      scheduledSegmentByKey: {
+        [primarySegment.Key]: primarySegment,
       },
     });
 
@@ -346,58 +324,55 @@ describe("stage-2 pipeline modules", () => {
     });
 
     expect(scheduledTrip.ArrivingTerminalAbbrev).toBe("LOP");
-    expect(scheduledTrip.ScheduledDeparture).toBe(primaryDeparture.ScheduledDeparture);
+    expect(scheduledTrip.ScheduledDeparture).toBe(primarySegment.DepartingTime);
     expect(scheduledTrip.ScheduleKey).toBe("CHE--2026-03-13--07:00--ORI-LOP");
     expect(scheduledTrip.SailingDay).toBe("2026-03-13");
     expect(scheduledTrip.NextScheduleKey).toBe("CHE--2026-03-13--08:00--LOP-SHW");
     expect(scheduledTrip.NextScheduledDeparture).toBe(
-      nextDeparture.ScheduledDeparture
+      primarySegment.NextDepartingTime
     );
-    expect(counters.getTerminalIdentity).toBe(1);
-    expect(counters.getScheduledDepartureEvent).toBeGreaterThan(0);
-    expect(counters.getScheduledDockEvents).toBeGreaterThan(0);
+    expect(counters.getScheduledSegmentByScheduleKey).toBe(1);
+    expect(counters.getScheduleRolloverDockEvents).toBe(0);
   });
 
-  it(
-    "skips schedule inference when terminal identity is null for replacement incomplete WSF",
-    async () => {
-      const previousTrip = makeTrip({
-        DepartingTerminalAbbrev: "ANA",
-        ArrivingTerminalAbbrev: undefined,
-        NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
-      });
-      const location = makeLocation({
-        DepartingTerminalAbbrev: "ORI",
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-        TimeStamp: ms("2026-03-13T06:47:00-07:00"),
-        InService: true,
-      });
-      const activeTrip = buildActiveTrip({
-        previousTrip,
-        completedTrip: undefined,
-        location,
-        isNewTrip: true,
-      });
-      const { dbAccess, counters } = makeDbAccess({
-        terminalIdentityByAbbrev: { ORI: null },
-        forbidScheduledEventReads: true,
-      });
+  it("falls back to rollover when replacement has no usable NextScheduleKey", async () => {
+    const previousTrip = makeTrip({
+      DepartingTerminalAbbrev: "ANA",
+      ArrivingTerminalAbbrev: undefined,
+      NextScheduleKey: undefined,
+    });
+    const location = makeLocation({
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      TimeStamp: ms("2026-03-13T06:47:00-07:00"),
+      InService: true,
+    });
+    const activeTrip = buildActiveTrip({
+      previousTrip,
+      completedTrip: undefined,
+      location,
+      isNewTrip: true,
+    });
+    const rolloverDeparture = makeDepartureEvent();
+    const { dbAccess, counters } = makeDbAccess({
+      scheduledDockEventsBySailingDay: {
+        "2026-03-13": [rolloverDeparture],
+      },
+    });
 
-      const scheduledTrip = await applyScheduleForActiveTrip({
-        activeTrip,
-        previousTrip,
-        completedTrip: undefined,
-        location,
-        isNewTrip: true,
-        dbAccess,
-      });
+    const scheduledTrip = await applyScheduleForActiveTrip({
+      activeTrip,
+      previousTrip,
+      completedTrip: undefined,
+      location,
+      isNewTrip: true,
+      dbAccess,
+    });
 
-      expect(scheduledTrip).toEqual(activeTrip);
-      expect(counters.getTerminalIdentity).toBe(1);
-      expect(counters.getScheduledDepartureEvent).toBe(0);
-      expect(counters.getScheduledDockEvents).toBe(0);
-    }
-  );
+    expect(scheduledTrip.ScheduleKey).toBe("CHE--2026-03-13--07:00--ORI-LOP");
+    expect(counters.getScheduledSegmentByScheduleKey).toBe(0);
+    expect(counters.getScheduleRolloverDockEvents).toBe(1);
+  });
 });

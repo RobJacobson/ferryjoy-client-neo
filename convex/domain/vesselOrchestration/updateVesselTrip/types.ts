@@ -2,8 +2,10 @@
  * Shared contracts for the pure `updateVesselTrip` pipeline.
  */
 
-import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
-import type { TerminalIdentity } from "functions/terminals/schemas";
+import type {
+  ConvexInferredScheduledSegment,
+  ConvexScheduledDockEvent,
+} from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -22,37 +24,34 @@ export type VesselTripUpdate = {
   completedVesselTripUpdate?: ConvexVesselTrip;
 };
 
+export type GetScheduleRolloverDockEventsArgs = {
+  vesselAbbrev: string;
+  timestamp: number;
+};
+
+export type ScheduleRolloverDockEvents = {
+  currentSailingDay: string;
+  currentDayEvents: ReadonlyArray<ConvexScheduledDockEvent>;
+  nextSailingDay: string;
+  nextDayEvents: ReadonlyArray<ConvexScheduledDockEvent>;
+};
+
 /**
- * Minimal database access contract for update-vessel-trip enrichment reads.
+ * Minimal database access contract for update-vessel-trip schedule enrichment.
  */
 export type UpdateVesselTripDbAccess = {
   /**
-   * Loads one terminal identity by abbreviation.
-   *
-   * @param terminalAbbrev - Terminal abbreviation from the live location row
-   * @returns Matching terminal identity row, or `null`
+   * Primary continuity lookup: load one inferred scheduled segment by stable
+   * segment key, including the following same-day segment hint when available.
    */
-  getTerminalIdentity: (
-    terminalAbbrev: string
-  ) => Promise<TerminalIdentity | null>;
-  /**
-   * Loads scheduled dock rows for one vessel on one sailing day.
-   *
-   * @param vesselAbbrev - Vessel abbreviation
-   * @param sailingDay - Sailing day string (`YYYY-MM-DD`)
-   * @returns Scheduled dock event rows for that vessel/day scope
-   */
-  getScheduledDockEvents: (
-    vesselAbbrev: string,
-    sailingDay: string
-  ) => Promise<ReadonlyArray<ConvexScheduledDockEvent>>;
-  /**
-   * Loads one scheduled departure dock row by composite segment key.
-   *
-   * @param scheduleKey - Canonical segment key
-   * @returns Matching departure dock row, or `null`
-   */
-  getScheduledDepartureEvent: (
+  getScheduledSegmentByScheduleKey: (
     scheduleKey: string
-  ) => Promise<ConvexScheduledDockEvent | null>;
+  ) => Promise<ConvexInferredScheduledSegment | null>;
+  /**
+   * Fallback rollover lookup: load current and next sailing-day dock rows for
+   * one vessel/timestamp scope.
+   */
+  getScheduleRolloverDockEvents: (
+    args: GetScheduleRolloverDockEventsArgs
+  ) => Promise<ScheduleRolloverDockEvents>;
 };

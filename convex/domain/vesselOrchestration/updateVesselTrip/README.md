@@ -11,6 +11,7 @@ Root exports are intentionally small:
 
 - `updateVesselTrip(vesselLocation, existingActiveTrip, dbAccess) -> VesselTripUpdate | null`
 - `VesselTripUpdate`
+- `UpdateVesselTripDbAccess`
 
 `null` means there is no durable change worth persisting (for example,
 timestamp-only churn).
@@ -37,8 +38,8 @@ isolated.
   `previous.DepartingTerminalAbbrev !== current.DepartingTerminalAbbrev`.
 - Trip-row `AtDock` persists from `AtDockObserved` (stabilized phase), not raw
   feed `AtDock`.
-- New/replacement trips may use schedule inference when WSF fields are
-  incomplete.
+- New/replacement trips may use key-first schedule resolution when WSF fields
+  are incomplete and the vessel is in service.
 - Continuing trips with incomplete WSF fields carry existing schedule fields and
   must not read schedule every tick.
 - Completed+replacement rollover returns both rows in one `VesselTripUpdate`.

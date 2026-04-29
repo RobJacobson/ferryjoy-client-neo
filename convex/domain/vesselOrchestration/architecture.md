@@ -108,7 +108,7 @@ Cross-module contracts are owned by the domain modules that consume them:
 
 ### Schedule continuity (production vs tests)
 
-- **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts` (`createUpdateVesselTripDbAccess`) with targeted internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
+- **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` (`createUpdateVesselTripDbAccess`) with key-first internal queries against `eventsScheduled`. The domain tries `NextScheduleKey` continuity before rollover fallback. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** schedule-resolution fixtures/helpers live under
   `updateVesselTrip/tripFields/tests/`, and public behavior/module tests live
   under `updateVesselTrip/tests/`.
@@ -130,7 +130,7 @@ is derived inside **`updateTimeline`** from the same shape
 - `functions/vesselOrchestrator/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/pipeline/*`
-  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/scheduleDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
+  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
 - `functions/vesselOrchestrator/mutations.ts`
   - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`
@@ -143,7 +143,7 @@ is derived inside **`updateTimeline`** from the same shape
 ## Key design rules
 
 - Trip compute stays prediction-free.
-- Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
+- Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
 - Downstream contracts are owned by their module boundaries
   (`updateVesselTrip/tripLifecycle.ts` and `updateTimeline/*`), not a shared
   cross-folder contract package.

@@ -61,23 +61,12 @@ export const applyScheduleForActiveTrip = async ({
     return activeTrip;
   }
 
-  const terminalIdentity = await dbAccess.getTerminalIdentity(
-    location.DepartingTerminalAbbrev
-  );
-  // Replacement/new inference requires a known passenger terminal; missing
-  // identity must not fall through to scheduled-event reads.
-  if (
-    terminalIdentity === null ||
-    terminalIdentity.IsPassengerTerminal === false
-  ) {
-    return activeTrip;
-  }
-
   const continuityTrip = previousTrip ?? completedTrip;
   const resolution = await resolveTripScheduleFields({
     location,
     existingTrip: continuityTrip,
     scheduleAccess: dbAccess,
+    allowCarriedCurrentFields: !isNewTrip,
   });
 
   return applyResolvedTripScheduleFields({

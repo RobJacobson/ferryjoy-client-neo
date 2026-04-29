@@ -135,8 +135,7 @@ Schedule lookups:
 - Continuing trips may use complete authoritative WSF trip fields when present,
   otherwise carry existing trip schedule fields.
 - New/replacement trips should use complete WSF fields first, then schedule
-  inference if WSF is incomplete and the vessel is in service at a passenger
-  terminal.
+  resolution if WSF is incomplete and the vessel is in service.
 
 Change suppression:
 
@@ -282,45 +281,27 @@ const updateVesselTrip = async (location, previousTrip, dbAccess) => {
 Exact implementation may differ, but this should remain the review standard:
 linear, data-oriented, and easy to read in one screen.
 
-## Schedule Access Follow-Up
+## Schedule Access (Stage 6)
 
-Current `UpdateVesselTripDbAccess` performs separate targeted reads:
+Current `UpdateVesselTripDbAccess` exposes two targeted reads:
 
-- `getTerminalIdentity`
-- `getScheduledDepartureEvent`
-- `getScheduledDockEvents`
+- `getScheduledSegmentByScheduleKey(scheduleKey)`
+- `getScheduleRolloverDockEvents({ vesselAbbrev, timestamp })`
 
-For new-trip enrichment, consider replacing multiple action `runQuery` calls
-with one internal query, not a mutation unless it writes:
+The domain resolver uses them in order: `NextScheduleKey` continuity first, then
+schedule rollover as fallback. The fallback read only runs when the key lookup is
+absent, missing, or terminal-mismatched. `InService` is the schedule-read gate;
+there is no passenger-terminal check in this path.
 
-```ts
-getNewTripScheduleEvidence({
-  vesselAbbrev,
-  departingTerminalAbbrev,
-  timestamp,
-  nextScheduleKey,
-})
-```
-
-Possible return:
-
-```ts
-{
-  departingTerminal?: TerminalIdentity | null;
-  nextDeparture?: ConvexScheduledDockEvent | null;
-  sameDayDockEvents?: ConvexScheduledDockEvent[];
-  nextDayDockEvents?: ConvexScheduledDockEvent[];
-}
-```
-
-Keep this as a second-stage optimization unless it makes the rewrite simpler.
-The first priority is simplifying the domain pipeline.
+Both reads are implemented as internal Convex queries under
+`functions/vesselOrchestrator/pipeline/updateVesselTrip/queries.ts`, while the
+domain remains Convex-free.
 
 ## Staged Implementation Plan
 
 Current handoff note:
 
-- Stage 5: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-5-handoff.md`
+- Stage 6: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-6-handoff.md`
 
 Completed handoff notes:
 
@@ -328,6 +309,7 @@ Completed handoff notes:
 - Stage 2: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-2-handoff.md`
 - Stage 3: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-3-handoff.md`
 - Stage 4: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-4-handoff.md`
+- Stage 5: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-5-handoff.md`
 
 ### Stage 1: Public Behavior Test Net
 
@@ -352,7 +334,7 @@ Minimum behavior cases:
 - Continuing incomplete WSF fields do not schedule-read.
 - Replacement incomplete WSF fields may schedule-read and infer current/next
   schedule fields.
-- Out-of-service and non-passenger replacement trips skip schedule lookup.
+- Out-of-service replacement trips skip schedule lookup.
 
 Review checkpoint:
 
@@ -445,17 +427,16 @@ Review checkpoint:
 - Docs explain when schedule lookup happens and why continuing-trip fallback is
   intentionally omitted.
 
-### Stage 6: Optional Schedule Evidence Query
+### Stage 6: Key-First Schedule Resolution
 
-Goal: reduce new-trip schedule inference round trips without changing domain
-ownership.
+Goal: make `NextScheduleKey` continuity the primary new-trip schedule path, with
+rollover search as an explicit fallback.
 
 Worker scope:
 
-- Add one internal query in the functions layer if useful.
-- Adapt `UpdateVesselTripDbAccess` only if the simplified domain pipeline
-  benefits.
-- Keep all production schedule reads targeted and new-trip-gated.
+- Add one internal query for key-backed segment lookup.
+- Add one internal query for rollover current/next-day dock rows.
+- Keep fallback reads replacement/new-trip-gated and `InService`-gated.
 
 Review checkpoint:
 

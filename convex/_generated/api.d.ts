@@ -200,6 +200,7 @@ import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_per
 import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_run from "../functions/vesselOrchestrator/pipeline/updateVesselLocations/run.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselPredictions_index from "../functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_index from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/index.js";
+import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_queries from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/queries.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_updateVesselTripDbAccess from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
@@ -449,6 +450,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/pipeline/updateVesselLocations/run": typeof functions_vesselOrchestrator_pipeline_updateVesselLocations_run;
   "functions/vesselOrchestrator/pipeline/updateVesselPredictions/index": typeof functions_vesselOrchestrator_pipeline_updateVesselPredictions_index;
   "functions/vesselOrchestrator/pipeline/updateVesselTrip/index": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_index;
+  "functions/vesselOrchestrator/pipeline/updateVesselTrip/queries": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_queries;
   "functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_updateVesselTripDbAccess;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
