@@ -3,34 +3,24 @@
  *
  * The hot path keeps one baseline snapshot query, one WSF fetch, a per-vessel
  * trip loop over the normalized feed for this tick, one locations-only
- * mutation, and ordered stage-level persistence mutations per changed vessel.
+ * mutation, and one atomic persistence mutation per changed vessel.
  *
  * The public Convex action entry is `updateVesselOrchestrator` in `../actions.ts`.
  */
 
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
-import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
+import {
+  stripVesselTripPredictions,
+  updateVesselTrip,
+} from "domain/vesselOrchestration/updateVesselTrip";
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
-import {
-  persistActualTimelineEvents,
-  persistPredictedTimelineEvents,
-} from "./updateTimeline";
-import {
-  deriveVesselTripActualizationIntent,
-  persistVesselTripActualizationIntent,
-} from "./updateVesselActualizations";
+import { deriveVesselTripActualizationIntent } from "./updateVesselActualizations";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
-import {
-  loadPredictionContext,
-  persistPredictionRows,
-} from "./updateVesselPredictions";
-import {
-  createUpdateVesselTripDbAccess,
-  persistActiveVesselTrip,
-  persistCompletedVesselTrip,
-} from "./updateVesselTrip";
+import { loadPredictionContext } from "./updateVesselPredictions";
+import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
 
 /**
  * Executes one ping pipeline after the action shell handles top-level errors.
@@ -145,35 +135,35 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       });
 
       /**
-       * Stage 5: per-stage persistence
+       * Stage 5: atomic per-vessel persistence
        *
-       * Persist each concern through its own thin persistence helper while
-       * preserving explicit write ordering for this vessel branch.
+       * Persist trip, prediction, timeline, and optional depart-next
+       * actualization rows in one mutation transaction. If any write fails, this
+       * vessel branch rolls back as a unit and the next tick can retry from the
+       * latest durable state.
        */
-      if (tripUpdate.completedVesselTripUpdate !== undefined) {
-        await persistCompletedVesselTrip(
-          ctx,
-          tripUpdate.completedVesselTripUpdate
-        );
-      }
-      await persistActiveVesselTrip(ctx, tripUpdate.activeVesselTripUpdate);
-      await persistPredictionRows(ctx, Array.from(predictionRows));
-      await persistActualTimelineEvents(ctx, timelineRows.actualEvents);
-      await persistPredictedTimelineEvents(ctx, timelineRows.predictedEvents);
-
-      /**
-       * Stage 6: updateVesselActualizations (persist)
-       *
-       * Apply explicit depart-next actualization after timeline persistence so
-       * this ping's final predicted-row write for the boundary keeps `Actual`
-       * / `DeltaTotal` fields intact.
-       */
-      if (tripActualizationIntent !== null) {
-        await persistVesselTripActualizationIntent(
-          ctx,
-          tripActualizationIntent
-        );
-      }
+      await ctx.runMutation(
+        internal.functions.vesselOrchestrator.mutations.persistVesselUpdates,
+        {
+          vesselAbbrev: tripUpdate.vesselAbbrev,
+          activeVesselTrip: stripVesselTripPredictions(
+            tripUpdate.activeVesselTripUpdate
+          ),
+          completedVesselTrip:
+            tripUpdate.completedVesselTripUpdate === undefined
+              ? undefined
+              : stripVesselTripPredictions(
+                  tripUpdate.completedVesselTripUpdate
+                ),
+          predictionRows: Array.from(predictionRows),
+          actualEvents: Array.from(timelineRows.actualEvents),
+          predictedEvents: Array.from(timelineRows.predictedEvents),
+          departNextActualization:
+            tripActualizationIntent === null
+              ? undefined
+              : tripActualizationIntent,
+        }
+      );
     } catch (error) {
       // Log and continue so one vessel failure does not block other vessel branches.
       const err = error instanceof Error ? error : new Error(String(error));

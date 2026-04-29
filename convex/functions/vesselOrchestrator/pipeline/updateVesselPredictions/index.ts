@@ -1,5 +1,5 @@
 /**
- * Stage-level loaders and persistence helpers for update-vessel-predictions.
+ * Stage-level loaders for update-vessel-predictions.
  */
 
 import { internal } from "_generated/api";
@@ -9,8 +9,6 @@ import {
   type VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
-
-export { persistPredictionRows } from "./persist";
 
 /**
  * Loads production prediction context for the current ping branch.

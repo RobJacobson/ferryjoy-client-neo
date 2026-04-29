@@ -26,10 +26,10 @@ export const batchUpsertProposals = internalMutation({
     inserted: v.number(),
     replaced: v.number(),
   }),
-  handler: async (ctx, args) => batchUpsertProposalsInDb(ctx, args.proposals),
+  handler: async (ctx, args) => upsertPredictionProposals(ctx, args.proposals),
 });
 
-export const batchUpsertProposalsInDb = async (
+export const upsertPredictionProposals = async (
   ctx: MutationCtx,
   proposals: ReadonlyArray<VesselTripPredictionProposal>
 ): Promise<{

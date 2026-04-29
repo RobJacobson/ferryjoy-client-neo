@@ -3,4 +3,3 @@
  */
 
 export { deriveVesselTripActualizationIntent } from "./deriveVesselTripActualizationIntent";
-export { persistVesselTripActualizationIntent } from "./persistVesselTripActualizationIntent";

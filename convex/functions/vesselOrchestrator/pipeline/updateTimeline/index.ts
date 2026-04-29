@@ -1,8 +1,3 @@
 /**
- * Public entrypoint for update-timeline stage persistence helpers.
+ * Public entrypoint for update-timeline stage helpers.
  */
-
-export {
-  persistActualTimelineEvents,
-  persistPredictedTimelineEvents,
-} from "./persist";

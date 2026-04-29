@@ -32,12 +32,12 @@ export const projectPredictedDockWriteBatches = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await projectPredictedDockWriteBatchesInDb(ctx, args.Batches);
+    await upsertPredictedDockBatches(ctx, args.Batches);
     return null;
   },
 });
 
-export const projectPredictedDockWriteBatchesInDb = async (
+export const upsertPredictedDockBatches = async (
   ctx: MutationCtx,
   batches: ReadonlyArray<{
     VesselAbbrev: string;
@@ -168,9 +168,7 @@ const predictedRowsEqual = (
   left.Actual === right.Actual &&
   left.DeltaTotal === right.DeltaTotal;
 
-const shouldPreserveDepartNextMlRow = (
-  row: Doc<"eventsPredicted">
-): boolean =>
+const shouldPreserveDepartNextMlRow = (row: Doc<"eventsPredicted">): boolean =>
   row.PredictionSource === "ml" &&
   DEPART_NEXT_ML_PREDICTION_TYPES.includes(
     row.PredictionType as (typeof DEPART_NEXT_ML_PREDICTION_TYPES)[number]
