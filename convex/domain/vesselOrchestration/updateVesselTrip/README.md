@@ -9,23 +9,11 @@
 
 Root exports are intentionally small:
 
-- `updateVesselTrip(vesselLocation, existingActiveTrip, scheduleAccess) -> VesselTripUpdate | null` (null when no substantive durable change; errors are caught and return null)
+- `updateVesselTrip(vesselLocation, existingActiveTrip, dbAccess) -> VesselTripUpdate | null`
 - `VesselTripUpdate`
 
-The production orchestrator hot path calls `updateVesselTrip` inside its
-per-vessel loop so one failed vessel can be isolated without stopping the
-fleet ping.
-
-## What this folder owns
-
-- Feed-driven lifecycle detection for one vessel ping
-- Building storage-shaped active and completed trip rows
-- Schedule-backed trip-field enrichment through `tripFields/`
-- Per-vessel meaningful-change classification
-- Batch merging of changed actives with unchanged carry-forward actives
-
-It does not own location persistence, ML prediction attachment, or timeline
-storage.
+`null` means there is no durable change worth persisting (for example,
+timestamp-only churn).
 
 ## One-vessel flow
 
@@ -33,61 +21,47 @@ For one vessel, the pipeline is intentionally linear:
 
 ```text
 updateVesselTrip
-  -> detectTripEvents
-  -> buildUpdatedVesselRows
-     -> basicTripRows
-     -> scheduleEnrichment
+  -> isNewTrip
+  -> completeTrip? (only when replacement/new trip signal)
+  -> buildActiveTrip
+  -> applyScheduleForActiveTrip
+  -> isSameVesselTrip
 ```
 
-`buildUpdatedVesselRows` is the single row-construction seam. Its internal order
-is:
+The orchestrator calls this per vessel inside its ping loop so failures stay
+isolated.
 
-1. Build the completed row, if the ping completed a trip
-2. Build the basic active or replacement row from lifecycle state
-3. Resolve schedule-facing trip fields through `tripFields/`
-4. Apply current and next schedule fields to the active row
-5. Return the completed row and/or the active row for this ping
+## Contracts this module enforces
+
+- Terminal-abbreviation transition is the authoritative new-trip signal:
+  `previous.DepartingTerminalAbbrev !== current.DepartingTerminalAbbrev`.
+- Trip-row `AtDock` persists from `AtDockObserved` (stabilized phase), not raw
+  feed `AtDock`.
+- New/replacement trips may use schedule inference when WSF fields are
+  incomplete.
+- Continuing trips with incomplete WSF fields carry existing schedule fields and
+  must not read schedule every tick.
+- Completed+replacement rollover returns both rows in one `VesselTripUpdate`.
+- Continuing-trip updates that differ only by `TimeStamp` return `null`.
 
 ## Module map
 
 - `updateVesselTrip.ts`
-  - One-vessel orchestration and meaningful-change classification
-- `tripEvents.ts`
-  - Feed-driven lifecycle facts for one ping
-- `tripBuilders.ts`
-  - Single exported row-construction seam: `buildUpdatedVesselRows`
-- `basicTripRows.ts`
-  - Schedule-free completed and active row construction
-- `scheduleEnrichment.ts`
-  - Current and next schedule-field application for active rows
-- `tripEvidence.ts`
-  - Shared trip-evidence checks used by lifecycle and row construction
-- `tripFields/`
-  - Schedule inference policy
-- `storage.ts`
-  - Pipeline-local failure logging
+  - orchestration for one ping and meaningful-change suppression
+- `lifecycleSignals.ts`
+  - physical lifecycle/new-trip signal helpers
+- `completeTrip.ts`
+  - completed-row shaping for rollover
+- `buildActiveTrip.ts`
+  - active row shaping before schedule enrichment
+- `scheduleForActiveTrip.ts`
+  - schedule-facing field policy for active rows
+- `tripComparison.ts`
+  - durable equality checks
+- `tripLifecycle.ts`
+  - compatibility helpers used by downstream row-diff consumers only
 
-## Contracts
+## Non-ownership
 
-Physical phase contract:
-
-- Trip-row `AtDock` is persisted from location `AtDockObserved` (stabilized
-  dock/sea phase), not directly from raw feed `AtDock`.
-
-Orchestrator change bundle:
-
-- `VesselTripUpdate` (see `types.ts`)
-  - `vesselAbbrev`
-  - `existingActiveTrip?` — prior row for this vessel (debug + downstream derivation)
-  - `activeVesselTripUpdate?` — active row to upsert when it changed substantively
-  - `completedVesselTripUpdate?` — completed row when a leg finished this ping
-
-Shared cross-module contracts such as trip lifecycle event flags and storage
-equality live in `domain/vesselOrchestration/shared`, not in this folder.
-
-Current lifecycle flags consumed by row builders and downstream orchestration:
-
-- `isCompletedTrip`
-- `didJustArriveAtDock`
-- `didJustLeaveDock`
-- `scheduleKeyChanged`
+This folder does not own location persistence, prediction computation,
+timeline projection, or orchestrator persistence transactions.
