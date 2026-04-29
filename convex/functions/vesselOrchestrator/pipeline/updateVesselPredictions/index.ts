@@ -10,7 +10,7 @@ import {
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 
-export { persistVesselPredictions } from "./persist";
+export { persistPredictionRows } from "./persist";
 
 /**
  * Loads production prediction context for the current ping branch.

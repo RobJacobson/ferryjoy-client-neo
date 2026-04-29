@@ -2,37 +2,41 @@
  * Orchestrator trip writes: optional completion + active upsert only.
  */
 
-import type { MutationCtx } from "_generated/server";
+import { internal } from "_generated/api";
+import type { ActionCtx } from "_generated/server";
 import { stripVesselTripPredictions } from "domain/vesselOrchestration/updateVesselTrip";
-import {
-  insertCompletedVesselTripInDb,
-  upsertActiveVesselTrip,
-} from "functions/vesselTrips/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-export type PerVesselTripPersistInput = {
-  activeVesselTrip: ConvexVesselTrip;
-  completedVesselTrip?: ConvexVesselTrip;
+/**
+ * Persists one completed vessel trip row.
+ *
+ * @param ctx - Mutation context
+ * @param completedVesselTrip - Completed trip row for archival table
+ */
+export const persistCompletedVesselTrip = async (
+  ctx: ActionCtx,
+  completedVesselTrip: ConvexVesselTrip
+): Promise<void> => {
+  const completedTrip = stripVesselTripPredictions(completedVesselTrip);
+  await ctx.runMutation(
+    internal.functions.vesselTrips.mutations.insertCompletedVesselTripRow,
+    { completedTrip }
+  );
 };
 
 /**
+ * Persists one active vessel trip row.
+ *
  * @param ctx - Mutation context
- * @param input - Active row and optional completed leg for this branch
+ * @param activeVesselTrip - Active trip row for active table upsert
  */
-export const persistVesselTripWrites = async (
-  ctx: MutationCtx,
-  input: PerVesselTripPersistInput
+export const persistActiveVesselTrip = async (
+  ctx: ActionCtx,
+  activeVesselTrip: ConvexVesselTrip
 ): Promise<void> => {
-  const activeTrip = stripVesselTripPredictions(input.activeVesselTrip);
-  const completedTrip =
-    input.completedVesselTrip === undefined
-      ? undefined
-      : stripVesselTripPredictions(input.completedVesselTrip);
-
-  if (completedTrip !== undefined) {
-    await insertCompletedVesselTripInDb(ctx, completedTrip);
-    await upsertActiveVesselTrip(ctx, activeTrip);
-  } else {
-    await upsertActiveVesselTrip(ctx, activeTrip);
-  }
+  const activeTrip = stripVesselTripPredictions(activeVesselTrip);
+  await ctx.runMutation(
+    internal.functions.vesselTrips.mutations.upsertActiveVesselTripRow,
+    { activeTrip }
+  );
 };

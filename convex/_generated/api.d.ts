@@ -191,7 +191,6 @@ import type * as functions_vesselLocationsHistoric_queries from "../functions/ve
 import type * as functions_vesselLocationsHistoric_schemas from "../functions/vesselLocationsHistoric/schemas.js";
 import type * as functions_vesselOrchestrator_actions from "../functions/vesselOrchestrator/actions.js";
 import type * as functions_vesselOrchestrator_index from "../functions/vesselOrchestrator/index.js";
-import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_pipeline_loadSnapshot_index from "../functions/vesselOrchestrator/pipeline/loadSnapshot/index.js";
 import type * as functions_vesselOrchestrator_pipeline_persistPerVesselOrchestratorWrites_index from "../functions/vesselOrchestrator/pipeline/persistPerVesselOrchestratorWrites/index.js";
 import type * as functions_vesselOrchestrator_pipeline_runOrchestratorPing from "../functions/vesselOrchestrator/pipeline/runOrchestratorPing.js";
@@ -447,7 +446,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselLocationsHistoric/schemas": typeof functions_vesselLocationsHistoric_schemas;
   "functions/vesselOrchestrator/actions": typeof functions_vesselOrchestrator_actions;
   "functions/vesselOrchestrator/index": typeof functions_vesselOrchestrator_index;
-  "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/pipeline/loadSnapshot/index": typeof functions_vesselOrchestrator_pipeline_loadSnapshot_index;
   "functions/vesselOrchestrator/pipeline/persistPerVesselOrchestratorWrites/index": typeof functions_vesselOrchestrator_pipeline_persistPerVesselOrchestratorWrites_index;
   "functions/vesselOrchestrator/pipeline/runOrchestratorPing": typeof functions_vesselOrchestrator_pipeline_runOrchestratorPing;

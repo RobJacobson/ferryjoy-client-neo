@@ -3,25 +3,34 @@
  *
  * The hot path keeps one baseline snapshot query, one WSF fetch, a per-vessel
  * trip loop over the normalized feed for this tick, one locations-only
- * mutation, and one trip/prediction/timeline persistence mutation per changed
- * vessel.
+ * mutation, and ordered stage-level persistence mutations per changed vessel.
  *
  * The public Convex action entry is `updateVesselOrchestrator` in `../actions.ts`.
  */
 
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
-import { runUpdateVesselLocations } from "./updateVesselLocations";
-import { loadPredictionContext } from "./updateVesselPredictions";
-import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
+import {
+  persistActualTimelineEvents,
+  persistPredictedTimelineEvents,
+} from "./updateTimeline";
 import {
   deriveVesselTripActualizationIntent,
   persistVesselTripActualizationIntent,
 } from "./updateVesselActualizations";
+import { runUpdateVesselLocations } from "./updateVesselLocations";
+import {
+  loadPredictionContext,
+  persistPredictionRows,
+} from "./updateVesselPredictions";
+import {
+  createUpdateVesselTripDbAccess,
+  persistActiveVesselTrip,
+  persistCompletedVesselTrip,
+} from "./updateVesselTrip";
 
 /**
  * Executes one ping pipeline after the action shell handles top-level errors.
@@ -136,27 +145,21 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       });
 
       /**
-       * Stage 5: persistPerVesselOrchestratorWrites
+       * Stage 5: per-stage persistence
        *
-       * Persist all per-vessel outputs from this ping in one ordered mutation:
-       * trip rows, prediction rows, then timeline rows.
-       *
-       * Why: one mutation keeps side effects for this vessel consistent and
-       * makes partial ordering explicitc at the write boundary.
+       * Persist each concern through its own thin persistence helper while
+       * preserving explicit write ordering for this vessel branch.
        */
-      await ctx.runMutation(
-        internal.functions.vesselOrchestrator.mutations
-          .persistPerVesselOrchestratorWrites,
-        {
-          vesselAbbrev: tripUpdate.vesselAbbrev,
-          existingActiveTrip: tripUpdate.existingActiveTrip,
-          activeVesselTrip: tripUpdate.activeVesselTripUpdate,
-          completedVesselTrip: tripUpdate.completedVesselTripUpdate,
-          predictionRows: Array.from(predictionRows),
-          actualEvents: timelineRows.actualEvents,
-          predictedEvents: timelineRows.predictedEvents,
-        }
-      );
+      if (tripUpdate.completedVesselTripUpdate !== undefined) {
+        await persistCompletedVesselTrip(
+          ctx,
+          tripUpdate.completedVesselTripUpdate
+        );
+      }
+      await persistActiveVesselTrip(ctx, tripUpdate.activeVesselTripUpdate);
+      await persistPredictionRows(ctx, Array.from(predictionRows));
+      await persistActualTimelineEvents(ctx, timelineRows.actualEvents);
+      await persistPredictedTimelineEvents(ctx, timelineRows.predictedEvents);
 
       /**
        * Stage 6: updateVesselActualizations (persist)
@@ -171,24 +174,6 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
           tripActualizationIntent
         );
       }
-
-      // if (tripUpdate.activeVesselTripUpdate !== undefined) {
-      //   console.log("[updateVesselOrchestrator] persisted active vessel trip", {
-      //     vesselAbbrev: vesselLocation.VesselAbbrev,
-      //     previousActiveTrip: existingActiveTrip ?? null,
-      //     nextActiveTrip: tripUpdate.activeVesselTripUpdate,
-      //   });
-      // }
-      // if (tripUpdate.completedVesselTripUpdate !== undefined) {
-      //   console.log(
-      //     "[updateVesselOrchestrator] persisted completed vessel trip",
-      //     {
-      //       vesselAbbrev: vesselLocation.VesselAbbrev,
-      //       previousActiveTrip: existingActiveTrip ?? null,
-      //       completedVesselTrip: tripUpdate.completedVesselTripUpdate,
-      //     }
-      //   );
-      // }
     } catch (error) {
       // Log and continue so one vessel failure does not block other vessel branches.
       const err = error instanceof Error ? error : new Error(String(error));

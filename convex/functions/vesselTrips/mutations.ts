@@ -75,6 +75,42 @@ export const upsertVesselTripsBatch = internalMutation({
     upsertVesselTripsBatchInDb(ctx, args.activeUpserts),
 });
 
+/**
+ * Inserts one completed trip row.
+ *
+ * @param ctx - Convex mutation context
+ * @param args.completedTrip - Completed trip row for archival table
+ * @returns `null`
+ */
+export const insertCompletedVesselTripRow = internalMutation({
+  args: {
+    completedTrip: vesselTripStoredSchema,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await insertCompletedVesselTrip(ctx, args.completedTrip);
+    return null;
+  },
+});
+
+/**
+ * Upserts one active trip row by vessel abbreviation.
+ *
+ * @param ctx - Convex mutation context
+ * @param args.activeTrip - Active trip row for replacement/insert
+ * @returns `null`
+ */
+export const upsertActiveVesselTripRow = internalMutation({
+  args: {
+    activeTrip: vesselTripStoredSchema,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await upsertActiveVesselTrip(ctx, args.activeTrip);
+    return null;
+  },
+});
+
 export const upsertVesselTripsBatchInDb = async (
   ctx: MutationCtx,
   activeUpserts: ConvexVesselTrip[]
@@ -124,7 +160,7 @@ export const upsertVesselTripsBatchInDb = async (
  * @param ctx - Mutation context
  * @param completedTrip - Completed trip document to archive
  */
-export const insertCompletedVesselTripInDb = async (
+export const insertCompletedVesselTrip = async (
   ctx: MutationCtx,
   completedTrip: ConvexVesselTrip
 ): Promise<void> => {
@@ -169,7 +205,7 @@ export const rolloverCompletedAndActiveInDb = async (
   completedTrip: ConvexVesselTrip,
   activeTrip: ConvexVesselTrip
 ): Promise<void> => {
-  await insertCompletedVesselTripInDb(ctx, completedTrip);
+  await insertCompletedVesselTrip(ctx, completedTrip);
   await upsertActiveVesselTrip(ctx, activeTrip);
 };
 

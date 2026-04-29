@@ -2,4 +2,7 @@
  * Public entrypoint for update-timeline stage persistence helpers.
  */
 
-export { persistVesselTimelineWrites } from "./persist";
+export {
+  persistActualTimelineEvents,
+  persistPredictedTimelineEvents,
+} from "./persist";

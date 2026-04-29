@@ -1,10 +1,10 @@
-import { describe, expect, it, spyOn } from "bun:test";
-import * as vesselTripWrites from "functions/vesselTrips/mutations";
+import { describe, expect, it } from "bun:test";
+import type { ActionCtx } from "_generated/server";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
-  type PerVesselTripPersistInput,
-  persistVesselTripWrites,
+  persistActiveVesselTrip,
+  persistCompletedVesselTrip,
 } from "../pipeline/updateVesselTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -47,71 +47,36 @@ const makeTrip = (
   ...overrides,
 });
 
-describe("persistVesselTripWrites", () => {
-  it("writes active only", async () => {
-    const updatedTac = makeTrip("TAC", {
-      AtDock: true,
-      LeftDockActual: undefined,
-      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
-    });
-    const input: PerVesselTripPersistInput = {
-      activeVesselTrip: updatedTac,
-      completedVesselTrip: undefined,
-    };
-    const writeActive = spyOn(
-      vesselTripWrites,
-      "upsertActiveVesselTrip"
-    ).mockResolvedValue(undefined);
-    const insertCompleted = spyOn(
-      vesselTripWrites,
-      "insertCompletedVesselTripInDb"
-    ).mockResolvedValue(undefined);
+describe("split trip persistence helpers", () => {
+  it("persists one completed row", async () => {
+    const completedChe = makeTrip("CHE");
+    const mutationCalls: unknown[] = [];
+    const ctx = {
+      runMutation: async (_mutation: unknown, args: unknown) => {
+        mutationCalls.push(args);
+        return null;
+      },
+    } as unknown as ActionCtx;
 
-    await persistVesselTripWrites({} as never, input);
+    await persistCompletedVesselTrip(ctx, completedChe);
 
-    expect(writeActive).toHaveBeenCalledWith({} as never, updatedTac);
-    expect(insertCompleted).toHaveBeenCalledTimes(0);
-
-    writeActive.mockRestore();
-    insertCompleted.mockRestore();
+    expect(mutationCalls).toHaveLength(1);
+    expect(mutationCalls[0]).toEqual({ completedTrip: completedChe });
   });
 
-  it("rollover when completed and active are both present", async () => {
-    const completedChe = makeTrip("CHE", {
-      TripEnd: ms("2026-03-13T06:45:00-07:00"),
-      ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
-      ArriveDest: ms("2026-03-13T06:45:00-07:00"),
-    });
-    const replacementChe = makeTrip("CHE", {
-      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
-      DepartingTerminalAbbrev: "ORI",
-      ArrivingTerminalAbbrev: "LOP",
-      ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
-      AtDock: true,
-      LeftDock: undefined,
-      LeftDockActual: undefined,
-      ArrivedCurrActual: ms("2026-03-13T06:46:00-07:00"),
-      ArrivedNextActual: undefined,
-    });
-    const input: PerVesselTripPersistInput = {
-      activeVesselTrip: replacementChe,
-      completedVesselTrip: completedChe,
-    };
+  it("persists one active row", async () => {
+    const activeTac = makeTrip("TAC");
+    const mutationCalls: unknown[] = [];
+    const ctx = {
+      runMutation: async (_mutation: unknown, args: unknown) => {
+        mutationCalls.push(args);
+        return null;
+      },
+    } as unknown as ActionCtx;
 
-    const writeActive = spyOn(
-      vesselTripWrites,
-      "upsertActiveVesselTrip"
-    ).mockResolvedValue(undefined);
-    const insertCompleted = spyOn(
-      vesselTripWrites,
-      "insertCompletedVesselTripInDb"
-    ).mockResolvedValue(undefined);
-    await persistVesselTripWrites({} as never, input);
+    await persistActiveVesselTrip(ctx, activeTac);
 
-    expect(insertCompleted).toHaveBeenCalledWith({} as never, completedChe);
-    expect(writeActive).toHaveBeenCalledWith({} as never, replacementChe);
-
-    writeActive.mockRestore();
-    insertCompleted.mockRestore();
+    expect(mutationCalls).toHaveLength(1);
+    expect(mutationCalls[0]).toEqual({ activeTrip: activeTac });
   });
 });
