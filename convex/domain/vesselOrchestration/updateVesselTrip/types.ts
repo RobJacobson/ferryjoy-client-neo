@@ -3,6 +3,7 @@
  */
 
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -20,9 +21,18 @@ export type VesselTripUpdate = {
 };
 
 /**
- * Minimal database access contract for scheduled dock events.
+ * Minimal database access contract for update-vessel-trip enrichment reads.
  */
-export type ScheduleDbAccess = {
+export type UpdateVesselTripDbAccess = {
+  /**
+   * Loads one terminal identity by abbreviation.
+   *
+   * @param terminalAbbrev - Terminal abbreviation from the live location row
+   * @returns Matching terminal identity row, or `null`
+   */
+  getTerminalIdentity: (
+    terminalAbbrev: string
+  ) => Promise<TerminalIdentity | null>;
   /**
    * Loads scheduled dock rows for one vessel on one sailing day.
    *

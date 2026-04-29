@@ -11,7 +11,7 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions.ts)
   -> load identities + active trips (getOrchestratorModelData via loadOrchestratorSnapshot; fail fast if identity tables empty)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
   -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
-  -> createScheduleDbAccess for the ping (targeted eventsScheduled reads via ctx.runQuery)
+  -> createUpdateVesselTripDbAccess for the ping (targeted updateVesselTrip reads via ctx.runQuery)
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
        loadPredictionContext (Convex query when model preload applies)
@@ -110,7 +110,7 @@ Owns cross-module contracts that should not leak from `updateVesselTrip`, such a
 
 ### Schedule continuity (production vs tests)
 
-- **Production:** trip-field code depends only on `ScheduleDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts` (`createScheduleDbAccess`) with targeted internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
+- **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts` (`createUpdateVesselTripDbAccess`) with targeted internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** `shared/scheduleSnapshot/` builds the same interface from an in-memory `ScheduleSnapshot` fixture (see that folder’s README). Do not treat that fixture as documentation of production persistence.
 
 ## Contracts between stages
@@ -139,7 +139,7 @@ Prediction inputs are derived inside **`updateVesselPredictions`** from **`Vesse
 ## Key design rules
 
 - Trip compute stays prediction-free.
-- Schedule reads in production use only **`ScheduleDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
+- Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
 - Shared downstream contracts are owned in `shared/`, not in `updateVesselTrip`.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
 - `tripFields/` remains isolated because schedule identity policy changes for different reasons than physical lifecycle logic.

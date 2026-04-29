@@ -17,7 +17,7 @@ import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
 import { loadPredictionContext } from "./updateVesselPredictions";
-import { createScheduleDbAccess } from "./updateVesselTrip";
+import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
 
 /**
  * Executes one ping pipeline after the action shell handles top-level errors.
@@ -54,9 +54,9 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     vesselsIdentity: snapshot.vesselsIdentity,
   });
 
-  // Schedule reads (`createScheduleDbAccess`) are only used in Stage 2
+  // Trip enrichment reads are only used in Stage 2
   // (`updateVesselTrip`). Stages 3–5 do not use this adapter.
-  const scheduleAccess = createScheduleDbAccess(ctx);
+  const tripDbAccess = createUpdateVesselTripDbAccess(ctx);
 
   // Index active trips once to avoid repeated linear scans inside the hot loop.
   const activeTripsByVesselAbbrev = new Map(
@@ -82,7 +82,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const tripUpdate = await updateVesselTrip(
         vesselLocation,
         existingActiveTrip,
-        scheduleAccess
+        tripDbAccess
       );
 
       // Skip persistence entirely when there are no vessel-trip updates.

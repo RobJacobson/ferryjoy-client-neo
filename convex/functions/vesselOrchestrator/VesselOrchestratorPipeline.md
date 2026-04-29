@@ -30,9 +30,9 @@ hot path in `convex/functions/vesselOrchestrator`.
      writes for other vessels in the same batch
 
 3. **Build schedule continuity access**
-  - Function: `createScheduleDbAccess` (`pipeline/updateVesselTrip`)
+  - Function: `createUpdateVesselTripDbAccess` (`pipeline/updateVesselTrip`)
   - Behavior: targeted schedule lookups for this ping
-  - Output: `ScheduleDbAccess`
+  - Output: `UpdateVesselTripDbAccess`
 
 4. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
@@ -56,7 +56,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - One locations mutation per ping plus one sparse `persistPerVesselOrchestratorWrites`
   call per changed vessel whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
-- Schedule continuity reads are targeted per ping (each lookup runs its own Convex query; there is no in-process cache on `ScheduleDbAccess`).
+- Schedule continuity reads are targeted per ping (each lookup runs its own Convex query; there is no in-process cache on `UpdateVesselTripDbAccess`).
 - Prediction model loading is gated per vessel by changed durable trip facts.
 - Timeline projection runs in action memory using same-ping ML overlays, and
   timeline mutations only apply supplied rows.

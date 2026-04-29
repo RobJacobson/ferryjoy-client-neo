@@ -7,7 +7,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildUpdatedVesselRows } from "./tripBuilders";
 import { isSameVesselTrip } from "./tripComparison";
 import { detectTripEvents } from "./tripEvents";
-import type { ScheduleDbAccess, VesselTripUpdate } from "./types";
+import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**
  * Computes storage and lifecycle changes for one vessel ping.
@@ -20,7 +20,7 @@ import type { ScheduleDbAccess, VesselTripUpdate } from "./types";
 const updateVesselTrip = async (
   vesselLocation: ConvexVesselLocation,
   existingActiveTrip: ConvexVesselTrip | undefined,
-  scheduleAccess: ScheduleDbAccess
+  dbAccess: UpdateVesselTripDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
     // Detect lifecycle transitions before mutating trip rows.
@@ -34,7 +34,7 @@ const updateVesselTrip = async (
           existingActiveTrip,
           events,
         },
-        scheduleAccess
+        dbAccess
       );
 
     // Enrichment (or other downstream) failure can drop all rows; nothing to persist.

@@ -8,7 +8,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import { deriveTripIdentity } from "shared/tripIdentity";
-import type { ScheduleDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../types";
 import { getTripFieldsFromWsf } from "./getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./hasWsfTripFields";
 import type { ResolvedCurrentTripFields } from "./types";
@@ -16,7 +16,7 @@ import type { ResolvedCurrentTripFields } from "./types";
 type ResolveTripScheduleFieldsInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleAccess: ScheduleDbAccess;
+  scheduleAccess: UpdateVesselTripDbAccess;
 };
 
 export type ResolvedTripScheduleFields = {
@@ -128,7 +128,7 @@ const inferScheduleMatch = async ({
 }: {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleAccess: ScheduleDbAccess;
+  scheduleAccess: UpdateVesselTripDbAccess;
 }) => {
   const nextScheduleKey = existingTrip?.NextScheduleKey;
   if (nextScheduleKey) {
@@ -218,7 +218,7 @@ const findNextDayDeparture = async ({
   departingTerminalAbbrev,
   currentSailingDay,
 }: {
-  scheduleAccess: ScheduleDbAccess;
+  scheduleAccess: UpdateVesselTripDbAccess;
   vesselAbbrev: string;
   departingTerminalAbbrev: string;
   currentSailingDay: string;
@@ -242,7 +242,7 @@ const findNextDayDeparture = async ({
  * @returns Inferred segment with optional next-leg continuity fields
  */
 const inferSegmentFromDepartureRow = async (
-  scheduleAccess: ScheduleDbAccess,
+  scheduleAccess: UpdateVesselTripDbAccess,
   departureRow: ConvexScheduledDockEvent
 ) => {
   const sameDayEvents = await scheduleAccess.getScheduledDockEvents(

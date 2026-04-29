@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
+import type { UpdateVesselTripDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -78,7 +78,13 @@ const makeLocationUpdate = (
 
 describe("updateVesselTrip stage-2 policy", () => {
   it("returns sparse writes for one changed location update", async () => {
-    const scheduleAccess: ScheduleDbAccess = {
+    const scheduleAccess: UpdateVesselTripDbAccess = {
+      getTerminalIdentity: async (terminalAbbrev) => ({
+        TerminalID: 1,
+        TerminalName: terminalAbbrev,
+        TerminalAbbrev: terminalAbbrev,
+        IsPassengerTerminal: true,
+      }),
       getScheduledDockEvents: async () => [],
       getScheduledDepartureEvent: async () => null,
     };
@@ -101,7 +107,13 @@ describe("updateVesselTrip stage-2 policy", () => {
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
-    const scheduleAccess: ScheduleDbAccess = {
+    const scheduleAccess: UpdateVesselTripDbAccess = {
+      getTerminalIdentity: async (terminalAbbrev) => ({
+        TerminalID: 1,
+        TerminalName: terminalAbbrev,
+        TerminalAbbrev: terminalAbbrev,
+        IsPassengerTerminal: true,
+      }),
       getScheduledDockEvents: async () => [],
       getScheduledDepartureEvent: async () => null,
     };

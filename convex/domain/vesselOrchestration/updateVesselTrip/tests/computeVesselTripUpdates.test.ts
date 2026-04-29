@@ -4,11 +4,17 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { isSameVesselTrip } from "../tripComparison";
 import type { TripLifecycleEventFlags } from "../tripLifecycle";
-import type { ScheduleDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../types";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const scheduleTables: ScheduleDbAccess = {
+const scheduleTables: UpdateVesselTripDbAccess = {
+  getTerminalIdentity: async (terminalAbbrev) => ({
+    TerminalID: 1,
+    TerminalName: terminalAbbrev,
+    TerminalAbbrev: terminalAbbrev,
+    IsPassengerTerminal: true,
+  }),
   getScheduledDepartureEvent: async () => null,
   getScheduledDockEvents: async () => [],
 };
@@ -224,12 +230,12 @@ describe("updateVesselTrip", () => {
   it("emits no write intents when domain trip update fails", async () => {
     const existingTrip = makeTrip();
     const detectTripEventsMod = await import("../tripEvents");
-    const tripFieldsMod = await import("../tripFields");
+    const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
-    const tripFieldsSpy = spyOn(tripFieldsMod, "resolveTripScheduleFields");
+    const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
 
     detectSpy.mockImplementation(() => defaultEvents);
-    tripFieldsSpy.mockImplementation(async () => {
+    buildTripSpy.mockImplementation(async () => {
       throw new Error("boom");
     });
 
@@ -244,7 +250,7 @@ describe("updateVesselTrip", () => {
       expect(result).toBeNull();
     } finally {
       detectSpy.mockRestore();
-      tripFieldsSpy.mockRestore();
+      buildTripSpy.mockRestore();
     }
   });
 

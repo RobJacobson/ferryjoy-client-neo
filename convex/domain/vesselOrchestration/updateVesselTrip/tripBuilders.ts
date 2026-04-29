@@ -9,7 +9,7 @@ import {
 } from "./basicTripRows";
 import { enrichActiveTripWithSchedule } from "./scheduleEnrichment";
 import { logTripPipelineFailure } from "./storage";
-import type { ScheduleDbAccess } from "./types";
+import type { UpdateVesselTripDbAccess } from "./types";
 
 /**
  * Builds completed/active trip rows for one vessel ping.
@@ -20,27 +20,30 @@ import type { ScheduleDbAccess } from "./types";
  */
 export const buildUpdatedVesselRows = async (
   update: TripRowBuildInput,
-  scheduleAccess: ScheduleDbAccess
+  dbAccess: UpdateVesselTripDbAccess
 ): Promise<BuiltTripRows> => {
   const basicRows = buildBasicRowsOrEmpty(update);
   if (basicRows.activeVesselTrip === undefined) {
     return basicRows;
   }
 
+  if (basicRows.completedVesselTrip === undefined) {
+    return basicRows;
+  }
+
   try {
-    const scheduleContinuityTrip =
-      basicRows.completedVesselTrip === undefined
-        ? update.existingActiveTrip
-        : tripScheduleContinuityAfterCompletion(basicRows.completedVesselTrip);
+    if (!(await shouldLookupScheduleForNewTrip(update, dbAccess))) {
+      return basicRows;
+    }
 
     return {
       ...basicRows,
       activeVesselTrip: await enrichActiveTripWithSchedule(
         basicRows.activeVesselTrip,
-        scheduleContinuityTrip,
+        tripScheduleContinuityAfterCompletion(basicRows.completedVesselTrip),
         update.vesselLocation,
         update.events,
-        scheduleAccess
+        dbAccess
       ),
     };
   } catch (error) {
@@ -87,3 +90,20 @@ const tripScheduleContinuityAfterCompletion = (
   ScheduleKey: undefined,
   SailingDay: undefined,
 });
+
+const shouldLookupScheduleForNewTrip = async (
+  update: TripRowBuildInput,
+  dbAccess: UpdateVesselTripDbAccess
+): Promise<boolean> => {
+  if (!update.vesselLocation.InService) {
+    return false;
+  }
+
+  const departingTerminal = await dbAccess.getTerminalIdentity(
+    update.vesselLocation.DepartingTerminalAbbrev
+  );
+
+  return Boolean(
+    departingTerminal && departingTerminal.IsPassengerTerminal !== false
+  );
+};

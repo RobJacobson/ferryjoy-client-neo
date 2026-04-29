@@ -8,5 +8,5 @@ export {
   currentTripEvents,
   type TripLifecycleEventFlags,
 } from "./tripLifecycle";
-export type { ScheduleDbAccess, VesselTripUpdate } from "./types";
+export type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 export { updateVesselTrip } from "./updateVesselTrip";

@@ -70,6 +70,7 @@ describe("resolveTripScheduleFields", () => {
         NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
       scheduleAccess: {
+        getTerminalIdentity: scheduleAccess.getTerminalIdentity,
         getScheduledDepartureEvent: async (scheduleKey) => {
           scheduleReadCount += 1;
           return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
@@ -107,6 +108,7 @@ describe("resolveTripScheduleFields", () => {
       }),
       existingTrip,
       scheduleAccess: {
+        getTerminalIdentity: scheduleAccess.getTerminalIdentity,
         getScheduledDepartureEvent: async (scheduleKey) => {
           scheduleReadCount += 1;
           return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
@@ -155,6 +157,7 @@ describe("resolveTripScheduleFields", () => {
         ScheduledDeparture: undefined,
       }),
       scheduleAccess: {
+        getTerminalIdentity: scheduleAccess.getTerminalIdentity,
         getScheduledDepartureEvent: async (scheduleKey) => {
           scheduleReadCount += 1;
           return scheduleAccess.getScheduledDepartureEvent(scheduleKey);

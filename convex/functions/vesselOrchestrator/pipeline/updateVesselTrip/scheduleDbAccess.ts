@@ -5,7 +5,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexScheduledDockEvent } from "domain/events/scheduled";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
+import type { UpdateVesselTripDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
 
 /**
  * Builds a minimal scheduled-events database accessor.
@@ -15,7 +15,18 @@ import type { ScheduleDbAccess } from "domain/vesselOrchestration/updateVesselTr
  * @param ctx - Convex action context used for internal schedule queries
  * @returns Scheduled-event read functions
  */
-export const createScheduleDbAccess = (ctx: ActionCtx): ScheduleDbAccess => {
+export const createUpdateVesselTripDbAccess = (
+  ctx: ActionCtx
+): UpdateVesselTripDbAccess => {
+  const getTerminalIdentity: UpdateVesselTripDbAccess["getTerminalIdentity"] =
+    async (terminalAbbrev) =>
+      ctx.runQuery(
+        internal.functions.terminals.queries.getBackendTerminalByAbbrevInternal,
+        {
+          terminalAbbrev,
+        }
+      );
+
   const getScheduledDockEvents = async (
     vesselAbbrev: string,
     sailingDay: string
@@ -40,6 +51,7 @@ export const createScheduleDbAccess = (ctx: ActionCtx): ScheduleDbAccess => {
     );
 
   return {
+    getTerminalIdentity,
     getScheduledDockEvents,
     getScheduledDepartureEvent,
   };

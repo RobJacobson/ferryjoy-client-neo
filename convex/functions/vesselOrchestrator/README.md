@@ -245,7 +245,7 @@ Current hot-path implementation notes:
 
 ### Schedule access rule (do not add parallel seams)
 
-Trip-field and continuity code must depend only on **`ScheduleDbAccess`**:
+Trip-field and continuity code must depend only on **`UpdateVesselTripDbAccess`**:
 
 - **Production:** `pipeline/updateVesselTrip/scheduleDbAccess.ts` — targeted `eventsScheduled` internal queries.
 - **Tests:** in-memory implementations live under `domain/vesselOrchestration/shared/scheduleSnapshot/` (fixture data only; not a production schedule read path).

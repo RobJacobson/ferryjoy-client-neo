@@ -4,4 +4,4 @@
 
 export type { PerVesselTripPersistInput } from "./persist";
 export { persistVesselTripWrites } from "./persist";
-export { createScheduleDbAccess } from "./scheduleDbAccess";
+export { createUpdateVesselTripDbAccess } from "./scheduleDbAccess";

@@ -10,7 +10,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import type { TripBuildEvents } from "./basicTripRows";
-import type { ScheduleDbAccess } from "./types";
+import type { UpdateVesselTripDbAccess } from "./types";
 
 /**
  * Applies resolved schedule-facing fields to an already-built active trip.
@@ -90,7 +90,7 @@ export const enrichActiveTripWithSchedule = async (
   existingTrip: ConvexVesselTrip | undefined,
   vesselLocation: ConvexVesselLocation,
   events: TripBuildEvents,
-  scheduleAccess: ScheduleDbAccess
+  scheduleAccess: UpdateVesselTripDbAccess
 ): Promise<ConvexVesselTrip> => {
   const resolution = await resolveTripScheduleFields({
     location: vesselLocation,

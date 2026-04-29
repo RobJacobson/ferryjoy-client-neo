@@ -377,7 +377,7 @@ it does **not** load `vesselLocations`), then runs
 normalize the feed, apply location dedupe/write via public
 [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts), run
 trip compute for changed location rows in the action (with
-**`ScheduleDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts` for targeted
+**`UpdateVesselTripDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts` for targeted
 `eventsScheduled` continuity), then **`loadPredictionContext`** (when domain preload
 requests apply) and domain **`updateVesselPredictions`** (`{ tripUpdate, predictionContext }`).
 Domain **`updateTimeline`** runs in action memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived inside **`timelineHandoffFromTripUpdate`**); then
@@ -391,7 +391,7 @@ driven by the per-vessel loop in `functions/vesselOrchestrator/pipeline/runOrche
 
 On each orchestrator tick, trip build attaches schedule-backed fields using **segment keys** and targeted `eventsScheduled` continuity lookups:
 
-- `resolveTripFieldsForTripRow` resolves authoritative WSF fields first, then uses the orchestrator's `ScheduleDbAccess` for next-leg and rollover inference so `ScheduleKey`, `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
+- `resolveTripFieldsForTripRow` resolves authoritative WSF fields first, then uses the orchestrator's `UpdateVesselTripDbAccess` for next-leg and rollover inference so `ScheduleKey`, `NextScheduleKey`, and `NextScheduledDeparture` stay aligned with the backbone.
 - **Safety / clearing**: Physical trip change, loss of schedule attachment, or `scheduleKeyChanged` on certain boundaries clears carried schedule-derived state in `buildUpdatedVesselRows` so identities do not mix.
 - **Display / API**: Public vessel-trip queries may still **enrich** a full `ScheduledTrip` by joining `scheduledTrips` by `ScheduleKey` (e.g. `getActiveTripsWithScheduledTrip` in `convex/functions/vesselTrips/queries.ts`); inference uses the schedule fields merged on the trip during build.
 

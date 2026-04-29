@@ -65,13 +65,11 @@ export const buildBasicUpdatedVesselRows = (
   };
 };
 
-const buildBasicRowsWhenCompleting = (
-  update: {
-    vesselLocation: ConvexVesselLocation;
-    existingActiveTrip: ConvexVesselTrip;
-    events: TripBuildEvents;
-  }
-): BuiltTripRows => {
+const buildBasicRowsWhenCompleting = (update: {
+  vesselLocation: ConvexVesselLocation;
+  existingActiveTrip: ConvexVesselTrip;
+  events: TripBuildEvents;
+}): BuiltTripRows => {
   const completedVesselTrip = buildCompletedTrip(
     update.existingActiveTrip,
     update.vesselLocation,
@@ -193,6 +191,10 @@ const buildContinuingActiveTrip = ({
   }
 
   const sharedFields = buildSharedActiveTripFields(vesselLocation);
+  const scheduleFields = resolveContinuingTripScheduleFields(
+    sharedFields,
+    existingTrip
+  );
   const startTime =
     existingTrip === undefined
       ? vesselLocation.TimeStamp
@@ -211,6 +213,7 @@ const buildContinuingActiveTrip = ({
 
   return {
     ...sharedFields,
+    ...scheduleFields,
     TripKey: tripKey,
     PrevTerminalAbbrev: existingTrip?.PrevTerminalAbbrev,
     PrevScheduledDeparture: existingTrip?.PrevScheduledDeparture,
@@ -229,7 +232,7 @@ const buildContinuingActiveTrip = ({
     ),
     LeftDock: events.leftDockTime,
     TripDelay: calculateTimeDelta(
-      sharedFields.ScheduledDeparture,
+      scheduleFields.ScheduledDeparture,
       events.leftDockTime
     ),
     Eta: vesselLocation.Eta ?? existingTrip?.Eta,
@@ -238,6 +241,35 @@ const buildContinuingActiveTrip = ({
     TripEnd: existingTrip?.EndTime,
     AtSeaDuration: existingTrip?.AtSeaDuration,
     TotalDuration: existingTrip?.TotalDuration,
+  };
+};
+
+const resolveContinuingTripScheduleFields = (
+  sharedFields: ReturnType<typeof buildSharedActiveTripFields>,
+  existingTrip: ConvexVesselTrip | undefined
+): Pick<
+  ConvexVesselTrip,
+  "ArrivingTerminalAbbrev" | "ScheduledDeparture" | "ScheduleKey" | "SailingDay"
+> => {
+  const arrivingTerminalAbbrev =
+    sharedFields.ArrivingTerminalAbbrev ?? existingTrip?.ArrivingTerminalAbbrev;
+  const scheduledDeparture =
+    sharedFields.ScheduledDeparture ?? existingTrip?.ScheduledDeparture;
+  const identity = deriveTripIdentity({
+    vesselAbbrev: sharedFields.VesselAbbrev,
+    departingTerminalAbbrev: sharedFields.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev,
+    scheduledDepartureMs: scheduledDeparture,
+  });
+
+  return {
+    ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    ScheduledDeparture: scheduledDeparture,
+    ScheduleKey:
+      sharedFields.ScheduleKey ??
+      existingTrip?.ScheduleKey ??
+      identity.ScheduleKey,
+    SailingDay: identity.SailingDay ?? existingTrip?.SailingDay,
   };
 };
 
