@@ -56,7 +56,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - One locations mutation per ping plus one sparse `persistPerVesselOrchestratorWrites`
   call per changed vessel whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
-- Schedule continuity reads are targeted and memoized per ping.
+- Schedule continuity reads are targeted per ping (each lookup runs its own Convex query; there is no in-process cache on `ScheduleDbAccess`).
 - Prediction model loading is gated per vessel by changed durable trip facts.
 - Timeline projection runs in action memory using same-ping ML overlays, and
   timeline mutations only apply supplied rows.

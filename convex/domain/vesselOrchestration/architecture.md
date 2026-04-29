@@ -7,11 +7,11 @@ This document describes the current shipped trip orchestration path, with the fo
 Each orchestrator ping runs in this order:
 
 ```text
-updateVesselOrchestrator (action/actions.ts)
+updateVesselOrchestrator (functions/vesselOrchestrator/actions.ts)
   -> load identities + active trips (getOrchestratorModelData via loadOrchestratorSnapshot; fail fast if identity tables empty)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
   -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
-  -> createScheduleContinuityAccess for the ping (memoized eventsScheduled reads)
+  -> createScheduleDbAccess for the ping (targeted eventsScheduled reads via ctx.runQuery)
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
        loadPredictionContext (Convex query when model preload applies)

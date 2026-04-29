@@ -28,11 +28,16 @@ export const buildUpdatedVesselRows = async (
   }
 
   try {
+    const scheduleContinuityTrip =
+      basicRows.completedVesselTrip === undefined
+        ? update.existingActiveTrip
+        : tripScheduleContinuityAfterCompletion(basicRows.completedVesselTrip);
+
     return {
       ...basicRows,
       activeVesselTrip: await enrichActiveTripWithSchedule(
         basicRows.activeVesselTrip,
-        basicRows.completedVesselTrip ?? update.existingActiveTrip,
+        scheduleContinuityTrip,
         update.vesselLocation,
         update.events,
         scheduleAccess
@@ -72,3 +77,13 @@ const buildBasicRowsOrEmpty = (update: TripRowBuildInput): BuiltTripRows => {
     return {};
   }
 };
+
+const tripScheduleContinuityAfterCompletion = (
+  completedTrip: NonNullable<BuiltTripRows["completedVesselTrip"]>
+) => ({
+  ...completedTrip,
+  ArrivingTerminalAbbrev: undefined,
+  ScheduledDeparture: undefined,
+  ScheduleKey: undefined,
+  SailingDay: undefined,
+});

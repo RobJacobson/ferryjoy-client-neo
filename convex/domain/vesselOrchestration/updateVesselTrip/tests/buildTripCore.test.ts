@@ -203,6 +203,57 @@ describe("buildUpdatedVesselRows", () => {
     );
   });
 
+  it("does not reuse the completed leg schedule fields for a replacement trip", async () => {
+    const completedTrip = makeTrip({
+      AtDock: true,
+      LeftDock: ms("2026-03-13T10:00:00-07:00"),
+      LeftDockActual: ms("2026-03-13T10:00:00-07:00"),
+      ArrivingTerminalAbbrev: "MUK",
+      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
+      ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+      NextScheduleKey: "CHE--2026-03-13--12:30--MUK-CLI",
+      NextScheduledDeparture: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const nextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--MUK-CLI",
+      DepartingTerminalAbbrev: "MUK",
+      ArrivingTerminalAbbrev: "CLI",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+      NextKey: "CHE--2026-03-13--14:00--CLI-MUK",
+      NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
+    });
+
+    const tripRows = await buildUpdatedVesselRows(
+      {
+        vesselLocation: makeLocation({
+          DepartingTerminalAbbrev: "MUK",
+          DepartingTerminalName: "Mukilteo",
+          ArrivingTerminalAbbrev: undefined,
+          ScheduledDeparture: undefined,
+          ScheduleKey: undefined,
+        }),
+        existingActiveTrip: completedTrip,
+        events: continuingEvents({
+          isCompletedTrip: true,
+          didJustArriveAtDock: true,
+          scheduleKeyChanged: true,
+        }),
+      },
+      makeScheduledTables({
+        segments: [nextSegment],
+      })
+    );
+
+    expect(tripRows.completedVesselTrip?.ScheduleKey).toBe(
+      completedTrip.ScheduleKey
+    );
+    expect(tripRows.activeVesselTrip?.ArrivingTerminalAbbrev).toBe("CLI");
+    expect(tripRows.activeVesselTrip?.ScheduledDeparture).toBe(
+      nextSegment.DepartingTime
+    );
+    expect(tripRows.activeVesselTrip?.ScheduleKey).toBe(nextSegment.Key);
+  });
+
   it("keeps physical arrival behavior while trip fields are inferred", async () => {
     const existingTrip = makeTrip({
       AtDock: false,
