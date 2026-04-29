@@ -7,7 +7,6 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { hasTripEvidence } from "./tripEvidence";
 import type { TripLifecycleEventFlags } from "./tripLifecycle";
 
 type DetectedTripEvents = TripLifecycleEventFlags & {
@@ -25,59 +24,38 @@ export const detectTripEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   currLocation: ConvexVesselLocation
 ): DetectedTripEvents => {
+  if (!existingTrip) {
+    return {
+      isCompletedTrip: false,
+      didJustArriveAtDock: false,
+      didJustLeaveDock: false,
+      leftDockTime: currLocation.LeftDock,
+      scheduleKeyChanged: false,
+    };
+  }
+
   const persistedDeparture =
-    existingTrip?.LeftDockActual ?? existingTrip?.LeftDock;
-  const hasNotDeparted = persistedDeparture === undefined;
-  const feedReportsDeparture = currLocation.LeftDock !== undefined;
-  const feedStillLooksDocked = currLocation.AtDockObserved === true;
-  const hasNotArrived =
-    existingTrip?.ArrivedNextActual === undefined &&
-    existingTrip?.ArriveDest === undefined;
-
-  const departureContradictsDockState = Boolean(
-    existingTrip &&
-      hasNotDeparted &&
-      feedReportsDeparture &&
-      feedStillLooksDocked
-  );
-  const departureDetected = Boolean(
-    existingTrip &&
-      hasNotDeparted &&
-      feedReportsDeparture &&
-      !departureContradictsDockState
-  );
-  const arrivalDetected = Boolean(
-    existingTrip &&
-      persistedDeparture !== undefined &&
-      hasNotArrived &&
-      feedStillLooksDocked &&
-      currLocation.DepartingTerminalAbbrev !==
-        existingTrip.DepartingTerminalAbbrev
-  );
-  const hasImpossibleSimultaneousTransition =
-    departureDetected && arrivalDetected;
-  const didJustLeaveDock =
-    departureDetected && !hasImpossibleSimultaneousTransition;
+    existingTrip.LeftDockActual ?? existingTrip.LeftDock;
+  const didJustLeaveDock = existingTrip.AtDock && !currLocation.AtDockObserved;
   const didJustArriveAtDock =
-    arrivalDetected && !hasImpossibleSimultaneousTransition;
+    existingTrip.DepartingTerminalAbbrev !==
+    currLocation.DepartingTerminalAbbrev;
 
-  const leftDockTime = departureContradictsDockState
-    ? persistedDeparture
-    : (currLocation.LeftDock ?? persistedDeparture);
+  const leftDockTime = didJustLeaveDock
+    ? (currLocation.LeftDock ?? currLocation.TimeStamp)
+    : persistedDeparture;
   const continuingScheduleKey = getRawLifecycleScheduleKey(
     existingTrip,
     currLocation
   );
 
   return {
-    isCompletedTrip: Boolean(
-      hasTripEvidence(existingTrip) && didJustArriveAtDock
-    ),
+    isCompletedTrip: didJustArriveAtDock,
     didJustArriveAtDock,
     didJustLeaveDock,
     leftDockTime,
     // Flag schedule transitions so downstream builders can clear stale next-leg data.
-    scheduleKeyChanged: existingTrip?.ScheduleKey !== continuingScheduleKey,
+    scheduleKeyChanged: existingTrip.ScheduleKey !== continuingScheduleKey,
   };
 };
 
