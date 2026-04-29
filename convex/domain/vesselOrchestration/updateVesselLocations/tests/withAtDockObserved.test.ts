@@ -4,7 +4,6 @@
 
 import { describe, expect, it } from "bun:test";
 import type {
-  ConvexVesselLocation,
   ConvexVesselLocationIncoming,
 } from "functions/vesselLocation/schemas";
 import { addAtDockObserved } from "../addAtDockObserved";
@@ -12,7 +11,7 @@ import { addAtDockObserved } from "../addAtDockObserved";
 describe("withAtDockObserved", () => {
   it("sets true when docked-oriented vote wins 2-of-3", () => {
     const incoming = [makeIncomingLocation({ AtDock: true, Speed: 0.2 })];
-    const result = addAtDockObserved([], incoming);
+    const result = addAtDockObserved(incoming);
     expect(result[0]?.AtDockObserved).toBe(true);
   });
 
@@ -20,11 +19,11 @@ describe("withAtDockObserved", () => {
     const incoming = [
       makeIncomingLocation({ AtDock: false, Speed: 10, LeftDock: 12345 }),
     ];
-    const result = addAtDockObserved([], incoming);
+    const result = addAtDockObserved(incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 
-  it("holds previous value when vote is indeterminate", () => {
+  it("sets false when only one docked-oriented vote is true", () => {
     const incoming = [
       makeIncomingLocation({
         AtDock: true,
@@ -32,25 +31,23 @@ describe("withAtDockObserved", () => {
         LeftDock: 12345,
       }),
     ];
-    const existing = [makeExistingLocation({ AtDockObserved: false })];
-    const result = addAtDockObserved(existing, incoming);
+    const result = addAtDockObserved(incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 
-  it("defaults to false when first-seen vote is indeterminate", () => {
+  it("sets true when only one sea-oriented vote is true", () => {
     const incoming = [
       makeIncomingLocation({
         AtDock: true,
-        Speed: Number.NaN,
+        Speed: 0.2,
         LeftDock: 12345,
       }),
     ];
-    const result = addAtDockObserved([], incoming);
-    expect(result[0]?.AtDockObserved).toBe(false);
+    const result = addAtDockObserved(incoming);
+    expect(result[0]?.AtDockObserved).toBe(true);
   });
 
-  it("stabilizes flicker by using speed and left-dock signals", () => {
-    const existing = [makeExistingLocation({ AtDockObserved: false })];
+  it("uses speed and left-dock signals to override AtDock", () => {
     const incoming = [
       makeIncomingLocation({
         AtDock: true,
@@ -58,7 +55,7 @@ describe("withAtDockObserved", () => {
         LeftDock: 12345,
       }),
     ];
-    const result = addAtDockObserved(existing, incoming);
+    const result = addAtDockObserved(incoming);
     expect(result[0]?.AtDockObserved).toBe(false);
   });
 });
@@ -90,13 +87,5 @@ const makeIncomingLocation = (
   ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   DepartingDistance: 0.1,
   ArrivingDistance: 10.2,
-  ...overrides,
-});
-
-const makeExistingLocation = (
-  overrides: Partial<ConvexVesselLocation> = {}
-): ConvexVesselLocation => ({
-  ...makeIncomingLocation(),
-  AtDockObserved: false,
   ...overrides,
 });
