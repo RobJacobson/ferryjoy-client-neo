@@ -318,7 +318,11 @@ The first priority is simplifying the domain pipeline.
 
 ## Staged Implementation Plan
 
-Active handoff note:
+Current handoff note:
+
+- Stage 2: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-2-handoff.md`
+
+Completed handoff notes:
 
 - Stage 1: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-1-handoff.md`
 
