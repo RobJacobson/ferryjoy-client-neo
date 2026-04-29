@@ -5,15 +5,15 @@
  * domain owns its own input derivation from upstream trip rows.
  */
 
+import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/updateTimeline";
 import {
   buildCompletionTripEvents,
-  type CompletedArrivalHandoff,
-} from "domain/vesselOrchestration/shared";
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+  type VesselTripUpdate,
+} from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type PredictionInputsFromTripUpdate = {
-  activeTrip?: ConvexVesselTrip;
+  activeTrip: ConvexVesselTrip;
   completedHandoff?: CompletedArrivalHandoff;
 };
 
@@ -41,7 +41,7 @@ export const predictionInputsFromTripUpdate = (
       existingTrip: existingActiveTrip,
       tripToComplete: completedTrip,
       events: buildCompletionTripEvents(existingActiveTrip, completedTrip),
-      scheduleTrip: activeTrip ?? completedTrip,
+      scheduleTrip: activeTrip,
     },
   };
 };

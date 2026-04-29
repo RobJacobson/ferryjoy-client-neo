@@ -20,7 +20,7 @@ import * as updateVesselTripModule from "domain/vesselOrchestration/updateVessel
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { updateVesselOrchestrator } from "../action";
+import { updateVesselOrchestrator } from "../actions";
 
 type InternalActionHandler = (
   ctx: ActionCtx,
@@ -236,8 +236,8 @@ describe("updateVesselOrchestrator ping integration", () => {
     ]);
 
     spyOn(updateVesselTripModule, "updateVesselTrip").mockImplementation(
-      async (input) => {
-        if (input.vesselLocation.VesselAbbrev === "CHE") {
+      async (vesselLocation) => {
+        if (vesselLocation.VesselAbbrev === "CHE") {
           throw new Error("simulated CHE branch failure");
         }
         return {

@@ -98,23 +98,35 @@ describe("updateVesselPredictions", () => {
       ArrivedNextActual: ms("2026-03-13T10:05:00-07:00"),
       TripEnd: ms("2026-03-13T10:05:00-07:00"),
     });
+    const replacementTrip = makeTrip({
+      TripKey: generateTripKey("CHE", ms("2026-03-13T10:06:00-07:00")),
+      ScheduleKey: "CHE--2026-03-13--10:10--ORI-LOP",
+      AtDock: true,
+      LeftDockActual: undefined,
+    });
 
     const output = await updateVesselPredictions({
       tripUpdate: {
         vesselAbbrev: trip.VesselAbbrev,
         existingActiveTrip: trip,
-        activeVesselTripUpdate: undefined,
+        activeVesselTripUpdate: replacementTrip,
         completedVesselTripUpdate: completedTrip,
       },
       predictionContext: richContext,
     });
 
-    expect(output.mlTimelineOverlays).toHaveLength(1);
-    expect(output.mlTimelineOverlays[0]?.branch).toBe("completed");
-    expect(output.mlTimelineOverlays[0]?.completedHandoffKey).toBe(
+    expect(output.mlTimelineOverlays).toHaveLength(2);
+    const completedOverlay = output.mlTimelineOverlays.find(
+      (entry) => entry.branch === "completed"
+    );
+    const currentOverlay = output.mlTimelineOverlays.find(
+      (entry) => entry.branch === "current"
+    );
+    expect(completedOverlay?.completedHandoffKey).toBe(
       `${completedTrip.VesselAbbrev}::${completedTrip.ScheduleKey}`
     );
-    expect(output.mlTimelineOverlays[0]?.finalPredictedTrip).toBeDefined();
+    expect(completedOverlay?.finalPredictedTrip).toBeDefined();
+    expect(currentOverlay?.finalPredictedTrip).toBeDefined();
   });
 
   it("returns no prediction rows when the preload has no models", async () => {

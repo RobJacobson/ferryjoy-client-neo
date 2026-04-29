@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/shared";
 import { buildUpdatedVesselRows } from "domain/vesselOrchestration/updateVesselTrip/tripBuilders";
+import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/updateVesselTrip/tripLifecycle";
 import {
   makeLocation,
   makeScheduledTables,
@@ -15,8 +15,6 @@ type DetectedTripEvents = TripLifecycleEventFlags & {
 const completionEvents = (
   overrides: Partial<DetectedTripEvents> = {}
 ): DetectedTripEvents => ({
-  isFirstTrip: false,
-  isTripStartReady: true,
   isCompletedTrip: true,
   didJustArriveAtDock: true,
   didJustLeaveDock: false,

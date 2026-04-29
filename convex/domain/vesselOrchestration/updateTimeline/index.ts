@@ -5,13 +5,19 @@
  *
  * Stage A contracts: `contracts.ts`. Canonical domain entry is
  * {@link updateTimeline} (`RunUpdateVesselTimelineFromAssemblyInput` → output).
- * Ping write types and `mergePingEventWrites` live in
- * `domain/vesselOrchestration/shared/pingHandshake/projectionWire`; handshake DTOs
- * live in `shared/pingHandshake/types`.
+ * Ping write types and handoff DTOs live in this folder.
  * Tests may import `updateTimeline` internals directly.
  */
 
-export type { PingEventWrites } from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
+export {
+  type BuildDockWritesFromTripHandoffArgs,
+  buildDockWritesFromTripHandoff,
+} from "./buildDockWritesFromTripHandoff";
+export { buildCompletedHandoffKey } from "./completedHandoffKey";
+export type {
+  RunUpdateVesselTimelineFromAssemblyInput,
+  RunUpdateVesselTimelineOutput,
+} from "./contracts";
 export type {
   ActiveTripWriteOutcome,
   ActualDockWriteIntent,
@@ -19,14 +25,6 @@ export type {
   MlTimelineOverlay,
   PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
-} from "domain/vesselOrchestration/shared/pingHandshake/types";
-export {
-  type BuildDockWritesFromTripHandoffArgs,
-  buildDockWritesFromTripHandoff,
-} from "./buildDockWritesFromTripHandoff";
-export type {
-  RunUpdateVesselTimelineFromAssemblyInput,
-  RunUpdateVesselTimelineOutput,
-} from "./contracts";
+} from "./handoffTypes";
 export { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";
 export { updateTimeline } from "./updateTimeline";

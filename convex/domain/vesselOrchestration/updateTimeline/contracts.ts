@@ -4,8 +4,8 @@
 
 import type { ConvexActualDockEvent } from "domain/events/actual";
 import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted";
-import type { MlTimelineOverlay } from "domain/vesselOrchestration/shared";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+import type { MlTimelineOverlay } from "./handoffTypes";
 
 /**
  * Direct same-ping timeline projection from upstream trip rows plus ML overlay.

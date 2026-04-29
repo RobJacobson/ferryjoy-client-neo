@@ -9,16 +9,13 @@
  * DB; ML overlay application runs in `updateTimeline` after
  * `updateVesselPredictions`.
  *
- * @see `functions/vesselOrchestrator/action/actions` — `updateVesselOrchestrator` / `updateTimeline` caller
+ * @see `functions/vesselOrchestrator/actions` — `updateVesselOrchestrator` / `updateTimeline` caller
  *
  * Canonical home: `domain/vesselOrchestration/updateTimeline` (this file).
  */
 
-import {
-  mergePingEventWrites,
-  type PingEventWrites,
-} from "domain/vesselOrchestration/shared/pingHandshake/projectionWire";
-import type { PersistedTripTimelineHandoff } from "domain/vesselOrchestration/shared/pingHandshake/types";
+import type { PersistedTripTimelineHandoff } from "./handoffTypes";
+import { mergePingEventWrites, type PingEventWrites } from "./projectionWire";
 import {
   buildPingEventWritesFromCompletedFacts,
   buildPingEventWritesFromCurrentMessages,

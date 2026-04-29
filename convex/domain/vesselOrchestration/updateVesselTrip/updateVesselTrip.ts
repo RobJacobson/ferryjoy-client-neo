@@ -2,84 +2,81 @@
  * Per-vessel trip update computation from one location ping.
  */
 
-import { areTripStorageRowsEqual } from "domain/vesselOrchestration/shared";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { detectTripEvents } from "./lifecycle";
 import { buildUpdatedVesselRows } from "./tripBuilders";
-import type { TripFieldInferenceInput } from "./tripFields";
-import type { VesselTripUpdate } from "./types";
-
-type UpdateVesselTripInput = {
-  vesselLocation: ConvexVesselLocation;
-  existingActiveTrip?: ConvexVesselTrip;
-  scheduleAccess: ScheduleDbAccess;
-  /**
-   * Optional observability hook after current-trip fields resolve (before
-   * next-leg attachment). Wired from the orchestrator for diagnostics; schedule
-   * continuity behavior is unchanged when omitted.
-   */
-  onTripFieldsResolved?: (args: TripFieldInferenceInput) => void;
-};
+import { isSameVesselTrip } from "./tripComparison";
+import { detectTripEvents } from "./tripEvents";
+import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**
  * Computes storage and lifecycle changes for one vessel ping.
  *
- * @param input - Vessel location, optional active trip, and schedule lookup tables
+ * @param vesselLocation - Latest location ping for one vessel
+ * @param existingActiveTrip - Existing active trip row for that vessel, when present
+ * @param scheduleAccess - Schedule lookup tables used to enrich trip fields
  * @returns Trip update when substantive changes exist, otherwise `null`
  */
-export const updateVesselTrip = async (
-  input: UpdateVesselTripInput
+const updateVesselTrip = async (
+  vesselLocation: ConvexVesselLocation,
+  existingActiveTrip: ConvexVesselTrip | undefined,
+  dbAccess: UpdateVesselTripDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
     // Detect lifecycle transitions before mutating trip rows.
-    const events = detectTripEvents(
-      input.existingActiveTrip,
-      input.vesselLocation
-    );
-    // Build candidate rows from lifecycle and schedule evidence.
-    const tripRows = await buildUpdatedVesselRows(
-      {
-        vesselLocation: input.vesselLocation,
-        existingActiveTrip: input.existingActiveTrip,
-        events,
-      },
-      input.scheduleAccess,
-      input.onTripFieldsResolved
-    );
-    const activeTripCandidate = tripRows.activeVesselTrip;
-    const shouldWriteActiveTrip = !areTripStorageRowsEqual(
-      input.existingActiveTrip,
-      activeTripCandidate
-    );
+    const events = detectTripEvents(existingActiveTrip, vesselLocation);
 
-    const result: VesselTripUpdate = {
-      vesselAbbrev: input.vesselLocation.VesselAbbrev,
-      existingActiveTrip: input.existingActiveTrip,
-      activeVesselTripUpdate:
-        shouldWriteActiveTrip && activeTripCandidate !== undefined
-          ? activeTripCandidate
-          : undefined,
-      completedVesselTripUpdate: tripRows.completedVesselTrip,
-    };
-    if (
-      result.activeVesselTripUpdate === undefined &&
-      result.completedVesselTripUpdate === undefined
-    ) {
+    // Build candidate rows from lifecycle and schedule evidence.
+    const { activeVesselTrip, completedVesselTrip } =
+      await buildUpdatedVesselRows(
+        {
+          vesselLocation,
+          existingActiveTrip,
+          events,
+        },
+        dbAccess
+      );
+
+    // Enrichment (or other downstream) failure can drop all rows; nothing to persist.
+    if (activeVesselTrip === undefined && completedVesselTrip === undefined) {
       return null;
     }
-    return result;
+
+    // Persist layer requires an active row every time we emit a trip update.
+    if (activeVesselTrip === undefined) {
+      return null;
+    }
+
+    // Check if the active vessel trip has meaningfully changed.
+    const isActiveVesselTripUnchanged = isSameVesselTrip(
+      existingActiveTrip,
+      activeVesselTrip
+    );
+
+    // If the active vessel trip is unchanged, return null.
+    if (isActiveVesselTripUnchanged) {
+      return null;
+    }
+
+    // Return the completed vessel trip update (if any) and the active vessel trip update (if any).
+    return {
+      vesselAbbrev: vesselLocation.VesselAbbrev,
+      existingActiveTrip,
+      activeVesselTripUpdate: activeVesselTrip,
+      completedVesselTripUpdate: completedVesselTrip,
+    };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("[updateVesselTrip] failed trip update", {
-      vesselAbbrev: input.vesselLocation.VesselAbbrev,
-      locationTimeStamp: input.vesselLocation.TimeStamp,
-      existingTripKey: input.existingActiveTrip?.TripKey,
-      existingScheduleKey: input.existingActiveTrip?.ScheduleKey,
+      vesselAbbrev: vesselLocation.VesselAbbrev,
+      locationTimeStamp: vesselLocation.TimeStamp,
+      existingTripKey: existingActiveTrip?.TripKey,
+      existingScheduleKey: existingActiveTrip?.ScheduleKey,
       message: err.message,
       stack: err.stack,
     });
     return null;
   }
 };
+
+export { updateVesselTrip };

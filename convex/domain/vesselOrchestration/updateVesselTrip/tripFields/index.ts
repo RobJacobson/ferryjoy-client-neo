@@ -1,8 +1,6 @@
-export { resolveTripFieldsForTripRow } from "./resolveTripFieldsForTripRow";
-export type {
-  TripFieldInferenceInput,
-  TripFieldInferenceLogContext,
-} from "./tripFieldDiagnostics";
+export type { ResolvedTripScheduleFields } from "./resolveTripScheduleFields";
+export { resolveTripScheduleFields } from "./resolveTripScheduleFields";
+export type { TripFieldInferenceLogContext } from "./tripFieldDiagnostics";
 export {
   buildTripFieldInferenceMessage,
   getTripFieldInferenceLog,

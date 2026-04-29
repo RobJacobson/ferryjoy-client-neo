@@ -23,6 +23,29 @@ export const getAllBackendTerminalsInternal = internalQuery({
 });
 
 /**
+ * Fetch one backend terminal row by abbreviation.
+ *
+ * @param args.terminalAbbrev - Terminal abbreviation to resolve
+ * @returns Backend terminal row without Convex metadata, or `null`
+ */
+export const getBackendTerminalByAbbrevInternal = internalQuery({
+  args: {
+    terminalAbbrev: v.string(),
+  },
+  returns: v.union(terminalIdentitySchema, v.null()),
+  handler: async (ctx, args) => {
+    const terminal = await ctx.db
+      .query("terminalsIdentity")
+      .withIndex("by_terminal_abbrev", (q) =>
+        q.eq("TerminalAbbrev", args.terminalAbbrev)
+      )
+      .unique();
+
+    return terminal ? stripConvexMeta(terminal) : null;
+  },
+});
+
+/**
  * Public frontend snapshot query for canonical terminal identity data.
  *
  * @param ctx - Convex public query context

@@ -55,8 +55,6 @@ describe("projectTimelineFromHandoff", () => {
       currentBranch: {
         pendingActualWrite: {
           events: {
-            isFirstTrip: false,
-            isTripStartReady: true,
             isCompletedTrip: false,
             didJustArriveAtDock: false,
             didJustLeaveDock: true,

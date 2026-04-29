@@ -1,15 +1,20 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type {
-  ScheduleDbAccess,
-  TripLifecycleEventFlags,
-} from "domain/vesselOrchestration/shared";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import { isSameVesselTrip } from "../tripComparison";
+import type { TripLifecycleEventFlags } from "../tripLifecycle";
+import type { UpdateVesselTripDbAccess } from "../types";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const scheduleTables: ScheduleDbAccess = {
+const scheduleTables: UpdateVesselTripDbAccess = {
+  getTerminalIdentity: async (terminalAbbrev) => ({
+    TerminalID: 1,
+    TerminalName: terminalAbbrev,
+    TerminalAbbrev: terminalAbbrev,
+    IsPassengerTerminal: true,
+  }),
   getScheduledDepartureEvent: async () => null,
   getScheduledDockEvents: async () => [],
 };
@@ -50,8 +55,6 @@ type DetectedTripEvents = TripLifecycleEventFlags & {
 };
 
 const defaultEvents: DetectedTripEvents = {
-  isFirstTrip: false,
-  isTripStartReady: false,
   isCompletedTrip: false,
   didJustArriveAtDock: false,
   didJustLeaveDock: false,
@@ -90,7 +93,7 @@ const makeLocation = (
 describe("updateVesselTrip", () => {
   it("emits no write intents for an unchanged vessel", async () => {
     const existingTrip = makeTrip();
-    const detectTripEventsMod = await import("../lifecycle");
+    const detectTripEventsMod = await import("../tripEvents");
     const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
@@ -102,11 +105,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result).toBeNull();
     } finally {
@@ -120,7 +123,7 @@ describe("updateVesselTrip", () => {
     const updatedTrip = makeTrip({
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
-    const detectTripEventsMod = await import("../lifecycle");
+    const detectTripEventsMod = await import("../tripEvents");
     const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
@@ -132,11 +135,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result).toBeNull();
     } finally {
@@ -152,7 +155,7 @@ describe("updateVesselTrip", () => {
     const updatedTrip = makeTrip({
       Eta: ms("2026-03-13T06:52:00-07:00"),
     });
-    const detectTripEventsMod = await import("../lifecycle");
+    const detectTripEventsMod = await import("../tripEvents");
     const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
@@ -164,11 +167,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result?.vesselAbbrev).toBe(updatedTrip.VesselAbbrev);
       expect(result?.activeVesselTripUpdate).toEqual(updatedTrip);
@@ -196,7 +199,7 @@ describe("updateVesselTrip", () => {
       isCompletedTrip: true,
       didJustArriveAtDock: true,
     };
-    const detectTripEventsMod = await import("../lifecycle");
+    const detectTripEventsMod = await import("../tripEvents");
     const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
     const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
@@ -209,11 +212,11 @@ describe("updateVesselTrip", () => {
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation({ AtDock: true, LeftDock: undefined }),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation({ AtDock: true, LeftDock: undefined }),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result?.vesselAbbrev).toBe(replacementTrip.VesselAbbrev);
       expect(result?.activeVesselTripUpdate).toEqual(replacementTrip);
@@ -226,28 +229,50 @@ describe("updateVesselTrip", () => {
 
   it("emits no write intents when domain trip update fails", async () => {
     const existingTrip = makeTrip();
-    const detectTripEventsMod = await import("../lifecycle");
-    const tripFieldsMod = await import("../tripFields");
+    const detectTripEventsMod = await import("../tripEvents");
+    const buildTripMod = await import("../tripBuilders");
     const detectSpy = spyOn(detectTripEventsMod, "detectTripEvents");
-    const tripFieldsSpy = spyOn(tripFieldsMod, "resolveTripFieldsForTripRow");
+    const buildTripSpy = spyOn(buildTripMod, "buildUpdatedVesselRows");
 
     detectSpy.mockImplementation(() => defaultEvents);
-    tripFieldsSpy.mockImplementation(() => {
+    buildTripSpy.mockImplementation(async () => {
       throw new Error("boom");
     });
 
     try {
       const { updateVesselTrip } = await import("../updateVesselTrip");
-      const result = await updateVesselTrip({
-        vesselLocation: makeLocation(),
-        existingActiveTrip: existingTrip,
-        scheduleAccess: scheduleTables,
-      });
+      const result = await updateVesselTrip(
+        makeLocation(),
+        existingTrip,
+        scheduleTables
+      );
 
       expect(result).toBeNull();
     } finally {
       detectSpy.mockRestore();
-      tripFieldsSpy.mockRestore();
+      buildTripSpy.mockRestore();
     }
+  });
+
+  it("detects active vessel trip equality explicitly", () => {
+    const existingTrip = makeTrip();
+
+    expect(isSameVesselTrip(existingTrip, existingTrip)).toBe(true);
+    expect(
+      isSameVesselTrip(
+        existingTrip,
+        makeTrip({
+          TimeStamp: ms("2026-03-13T06:35:00-07:00"),
+        })
+      )
+    ).toBe(true);
+    expect(
+      isSameVesselTrip(
+        existingTrip,
+        makeTrip({
+          Eta: ms("2026-03-13T06:52:00-07:00"),
+        })
+      )
+    ).toBe(false);
   });
 });

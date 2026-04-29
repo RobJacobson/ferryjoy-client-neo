@@ -10,15 +10,14 @@ are related but not the same problem.
 
 ## Public seam
 
-The subfolder intentionally exposes one outward entrypoint:
+The subfolder intentionally exposes one data-first schedule resolution helper:
 
-- `resolveTripFieldsForTripRow(...)`
+- `resolveTripScheduleFields(...)`
 
-That function owns:
+That helper owns:
 
 1. Resolving current-trip fields from WSF, schedule evidence, or safe fallback
 2. Emitting transient inference observability
-3. Attaching or clearing next-leg schedule fields on the built trip row
 
 The helper files in this folder support that policy, but they are not the
 intended external seams.
@@ -28,9 +27,10 @@ intended external seams.
 Current-trip field precedence is:
 
 1. Authoritative WSF destination + scheduled departure
-2. Existing trip `NextScheduleKey`
-3. Schedule rollover from the prior scheduled departure
-4. Safe fallback / same-dock reuse
+2. Existing trip fields when they already provide enough identity
+3. Existing trip `NextScheduleKey`
+4. Schedule rollover from the prior scheduled departure
+5. Safe fallback / same-dock reuse
 
 That produces these durable fields for the current trip row:
 
@@ -46,20 +46,21 @@ The inference method remains transient:
 
 ## Relationship to row building
 
-`tripFields/` does not own lifecycle detection or trip completion. Instead,
-`tripBuilders.ts` delegates schedule policy to `resolveTripFieldsForTripRow`,
-then keeps ownership of:
+`tripFields/` does not own lifecycle detection, row construction, or trip
+completion. Instead, `basicTripRows.ts` builds rows first, `tripBuilders.ts`
+delegates schedule policy to `scheduleEnrichment.ts`, and the enrichment step
+applies the resulting fields while keeping ownership of:
 
-- base row shaping
-- completion shaping
 - stale next-leg clearing when identity changes
 
 That keeps the boundary simple:
 
 ```text
 tripBuilders.ts
-  -> resolveTripFieldsForTripRow(...)
-  -> receive fully schedule-enriched trip row
+  -> basicTripRows.ts
+  -> scheduleEnrichment.ts
+     -> resolveTripScheduleFields(...)
+     -> apply resolved fields to the active row
 ```
 
 ## Internal helpers
@@ -68,6 +69,6 @@ The private helper files in this folder fall into three buckets:
 
 - WSF authority checks
 - schedule lookup strategies
-- safe fallback reuse
+- safe fallback resolution
 
 They exist to keep the policy readable, not to create a second public API.

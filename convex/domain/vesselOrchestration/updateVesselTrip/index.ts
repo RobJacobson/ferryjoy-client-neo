@@ -2,6 +2,11 @@
  * Public entry for **updateVesselTrip**.
  */
 
-export type { TripFieldInferenceInput } from "./tripFields";
-export type { VesselTripUpdate } from "./types";
+export { stripVesselTripPredictions } from "./stripTripPredictionsForStorage";
+export {
+  buildCompletionTripEvents,
+  currentTripEvents,
+  type TripLifecycleEventFlags,
+} from "./tripLifecycle";
+export type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 export { updateVesselTrip } from "./updateVesselTrip";

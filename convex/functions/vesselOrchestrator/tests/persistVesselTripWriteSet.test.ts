@@ -1,10 +1,11 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import * as vesselTripWrites from "functions/vesselTrips/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   type PerVesselTripPersistInput,
   persistVesselTripWrites,
-} from "../mutation/persistence/tripWrites";
+} from "../pipeline/updateVesselTrip";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -47,7 +48,7 @@ const makeTrip = (
 });
 
 describe("persistVesselTripWrites", () => {
-  it("upserts active-only updates with no leave-dock follow-up", async () => {
+  it("writes active only with no leave-dock follow-up", async () => {
     const existingTac = makeTrip("TAC", { AtDock: false });
     const updatedTac = makeTrip("TAC", {
       AtDock: true,
@@ -60,23 +61,31 @@ describe("persistVesselTripWrites", () => {
       activeVesselTrip: updatedTac,
       completedVesselTrip: undefined,
     };
-    const deps = {
-      completeAndStartNewTripInDb: mock(async () => {}),
-      upsertActiveVesselTripInDb: mock(async () => {}),
-      setDepartNextActualsForMostRecentCompletedTripInDb: mock(async () => ({
-        updated: true as const,
-      })),
-    };
-    await persistVesselTripWrites({} as never, input, deps);
+    const writeActive = spyOn(
+      vesselTripWrites,
+      "writeActiveVesselTripInDb"
+    ).mockResolvedValue(undefined);
+    const rollover = spyOn(
+      vesselTripWrites,
+      "rolloverCompletedAndActiveInDb"
+    ).mockResolvedValue(undefined);
+    const setDepart = spyOn(
+      vesselTripWrites,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockResolvedValue({ updated: true });
 
-    expect(deps.completeAndStartNewTripInDb).toHaveBeenCalledTimes(0);
-    expect(deps.upsertActiveVesselTripInDb).toHaveBeenCalledTimes(1);
-    expect(
-      deps.setDepartNextActualsForMostRecentCompletedTripInDb
-    ).toHaveBeenCalledTimes(0);
+    await persistVesselTripWrites({} as never, input);
+
+    expect(writeActive).toHaveBeenCalledWith({} as never, updatedTac);
+    expect(rollover).toHaveBeenCalledTimes(0);
+    expect(setDepart).toHaveBeenCalledTimes(0);
+
+    writeActive.mockRestore();
+    rollover.mockRestore();
+    setDepart.mockRestore();
   });
 
-  it("upserts active-only updates and runs leave-dock follow-up", async () => {
+  it("writes active only and runs leave-dock follow-up", async () => {
     const existingTac = makeTrip("TAC", { AtDock: true });
     const updatedTac = makeTrip("TAC", {
       AtDock: false,
@@ -90,31 +99,35 @@ describe("persistVesselTripWrites", () => {
       completedVesselTrip: undefined,
     };
 
-    const completeAndStartNewTripInDb = mock(async () => {});
-    const upsertActiveVesselTripInDb = mock(async () => {});
-    const leaveDockCalls: Array<{
-      vesselAbbrev: string;
-      actualDepartMs: number;
-    }> = [];
-    const setDepartNextActualsForMostRecentCompletedTripInDb = mock(
-      async (_ctx: unknown, vesselAbbrev: string, actualDepartMs: number) => {
-        leaveDockCalls.push({ vesselAbbrev, actualDepartMs });
-        return { updated: true as const };
-      }
-    );
-    await persistVesselTripWrites({} as never, input, {
-      completeAndStartNewTripInDb,
-      upsertActiveVesselTripInDb,
-      setDepartNextActualsForMostRecentCompletedTripInDb,
-    });
+    const writeActive = spyOn(
+      vesselTripWrites,
+      "writeActiveVesselTripInDb"
+    ).mockResolvedValue(undefined);
+    const rollover = spyOn(
+      vesselTripWrites,
+      "rolloverCompletedAndActiveInDb"
+    ).mockResolvedValue(undefined);
+    const setDepart = spyOn(
+      vesselTripWrites,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockResolvedValue({ updated: true });
 
-    expect(completeAndStartNewTripInDb).toHaveBeenCalledTimes(0);
-    expect(upsertActiveVesselTripInDb).toHaveBeenCalledTimes(1);
-    expect(leaveDockCalls).toHaveLength(1);
-    expect(leaveDockCalls[0]?.vesselAbbrev).toBe("TAC");
+    await persistVesselTripWrites({} as never, input);
+
+    expect(writeActive).toHaveBeenCalledTimes(1);
+    expect(rollover).toHaveBeenCalledTimes(0);
+    expect(setDepart).toHaveBeenCalledWith(
+      {} as never,
+      "TAC",
+      updatedTac.LeftDockActual
+    );
+
+    writeActive.mockRestore();
+    rollover.mockRestore();
+    setDepart.mockRestore();
   });
 
-  it("completes and starts a replacement trip without active upsert", async () => {
+  it("rollover when completed and active are both present", async () => {
     const existingChe = makeTrip("CHE", { AtDock: false });
     const completedChe = makeTrip("CHE", {
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
@@ -139,32 +152,31 @@ describe("persistVesselTripWrites", () => {
       completedVesselTrip: completedChe,
     };
 
-    const completeAndStartNewTripInDb = mock(
-      async (
-        _ctx: unknown,
-        completedTrip: ConvexVesselTrip,
-        newTrip: ConvexVesselTrip
-      ) => {
-        expect(completedTrip.VesselAbbrev).toBe("CHE");
-        expect(newTrip.VesselAbbrev).toBe("CHE");
-      }
-    );
-    const upsertActiveVesselTripInDb = mock(async () => {});
-    const setDepartNextActualsForMostRecentCompletedTripInDb = mock(
-      async () => ({
-        updated: true as const,
-      })
-    );
-    await persistVesselTripWrites({} as never, input, {
-      completeAndStartNewTripInDb,
-      upsertActiveVesselTripInDb,
-      setDepartNextActualsForMostRecentCompletedTripInDb,
-    });
+    const writeActive = spyOn(
+      vesselTripWrites,
+      "writeActiveVesselTripInDb"
+    ).mockResolvedValue(undefined);
+    const rollover = spyOn(
+      vesselTripWrites,
+      "rolloverCompletedAndActiveInDb"
+    ).mockResolvedValue(undefined);
+    const setDepart = spyOn(
+      vesselTripWrites,
+      "setDepartNextActualsForMostRecentCompletedTripInDb"
+    ).mockResolvedValue({ updated: true });
 
-    expect(completeAndStartNewTripInDb).toHaveBeenCalledTimes(1);
-    expect(upsertActiveVesselTripInDb).toHaveBeenCalledTimes(0);
-    expect(
-      setDepartNextActualsForMostRecentCompletedTripInDb
-    ).toHaveBeenCalledTimes(0);
+    await persistVesselTripWrites({} as never, input);
+
+    expect(rollover).toHaveBeenCalledWith(
+      {} as never,
+      completedChe,
+      replacementChe
+    );
+    expect(writeActive).toHaveBeenCalledTimes(0);
+    expect(setDepart).toHaveBeenCalledTimes(0);
+
+    writeActive.mockRestore();
+    rollover.mockRestore();
+    setDepart.mockRestore();
   });
 });

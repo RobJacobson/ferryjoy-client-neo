@@ -5,7 +5,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Entry point
 
-- Action: `updateVesselOrchestrator` in `action/actions.ts`
+- Action: `updateVesselOrchestrator` in `actions.ts`
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - one `bulkUpsertVesselLocations` for locations
@@ -14,13 +14,13 @@ hot path in `convex/functions/vesselOrchestrator`.
 ## Single-ping stages
 
 1. **Load baseline read model**
-   - Function: `loadOrchestratorSnapshot`
+  - Function: `loadOrchestratorSnapshot` (`pipeline/loadSnapshot`)
    - Reads: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips`
    - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
    - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
 2. **Fetch, normalize, augment, and persist live locations**
-   - Function: `updateVesselLocations`
+  - Function: `runUpdateVesselLocations` (`pipeline/updateVesselLocations`)
    - External input: WSF vessel locations
    - Output: changed `ConvexVesselLocation[]` rows after dedupe
    - Phase contract: this stage derives `AtDockObserved`; downstream trip
@@ -30,9 +30,9 @@ hot path in `convex/functions/vesselOrchestrator`.
      writes for other vessels in the same batch
 
 3. **Build schedule continuity access**
-   - Function: `createScheduleContinuityAccess`
-   - Behavior: targeted, memoized schedule lookups for this ping
-   - Output: `ScheduleContinuityAccess`
+  - Function: `createUpdateVesselTripDbAccess` (`pipeline/updateVesselTrip`)
+  - Behavior: targeted schedule lookups for this ping
+  - Output: `UpdateVesselTripDbAccess`
 
 4. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
@@ -56,7 +56,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - One locations mutation per ping plus one sparse `persistPerVesselOrchestratorWrites`
   call per changed vessel whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
-- Schedule continuity reads are targeted and memoized per ping.
+- Schedule continuity reads are targeted per ping (each lookup runs its own Convex query; there is no in-process cache on `UpdateVesselTripDbAccess`).
 - Prediction model loading is gated per vessel by changed durable trip facts.
 - Timeline projection runs in action memory using same-ping ML overlays, and
   timeline mutations only apply supplied rows.

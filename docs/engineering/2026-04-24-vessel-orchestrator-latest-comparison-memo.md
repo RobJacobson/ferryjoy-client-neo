@@ -1,6 +1,6 @@
 # Vessel Orchestrator Latest Before/After Engineering Memo
 
-**Current code (authoritative):** The shipped orchestrator entrypoint is [`convex/functions/vesselOrchestrator/action/actions.ts`](../../convex/functions/vesselOrchestrator/action/actions.ts) (`updateVesselOrchestrator`). Per changed vessel it runs domain **`updateVesselTrip`** → **`loadPredictionContext`** ([`action/predictionContextLoader.ts`](../../convex/functions/vesselOrchestrator/action/predictionContextLoader.ts)) → **`updateVesselPredictions`** → **`updateTimeline`**, then persists trip rows, prediction proposals, and timeline dock rows together via **`persistPerVesselOrchestratorWrites`** ([`mutation/mutations.ts`](../../convex/functions/vesselOrchestrator/mutation/mutations.ts)). Timeline input is **`VesselTripUpdate`** (**`timelineHandoffFromTripUpdate`** inside **`updateTimeline`**). Schedule continuity is **`action/pipeline/scheduleContinuity.ts`**. See [`../../convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md) and [`../../convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md). The sections below are a **dated** before/after record; filenames and mutation names in the narrative may not match today’s tree.
+**Current code (authoritative):** The shipped orchestrator entrypoint is [`convex/functions/vesselOrchestrator/actions.ts`](../../convex/functions/vesselOrchestrator/actions.ts) (`updateVesselOrchestrator`). Per changed vessel it runs domain **`updateVesselTrip`** → **`loadPredictionContext`** ([`pipeline/updateVesselPredictions/index.ts`](../../convex/functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.ts)) → **`updateVesselPredictions`** → **`updateTimeline`**, then persists trip rows, prediction proposals, and timeline dock rows together via **`persistPerVesselOrchestratorWrites`** ([`mutations.ts`](../../convex/functions/vesselOrchestrator/mutations.ts)). Timeline input is **`VesselTripUpdate`** (**`timelineHandoffFromTripUpdate`** inside **`updateTimeline`**). Schedule reads are wired via **`pipeline/updateVesselTrip/scheduleDbAccess.ts`**. See [`../../convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md) and [`../../convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md). The sections below are a **dated** before/after record; filenames and mutation names in the narrative may not match today’s tree.
 **Historical note:** treat the section details below as snapshot analysis from the date above, not as a living runtime contract.
 
 **Date:** 2026-04-25 (revised; first published 2026-04-24; updated 2026-04-25 PM)  
@@ -45,7 +45,7 @@ But it now does so with a much healthier hot-path shape:
 - one WSF fetch
 - normalization of the feed using identity tables (`updateVesselLocations` / `mapWsfVesselLocations`)
 - trip compute over mutation-returned **changed** location rows each ping
-- targeted, memoized schedule reads only when trip-field inference needs them
+- targeted schedule reads only when trip-field inference needs them
 - three mutations per ping: one locations-only `bulkUpsertVesselLocations`, one `persistTripAndPredictionWrites`, then one `persistTimelineEventWrites`
 
 My overall assessment is:
@@ -73,7 +73,7 @@ The most important design conclusion is:
 | `updateVesselTrip`       | Lifecycle, schedule enrichment, ML, persistence, and timeline intents intertwined | Per-vessel pure compute with targeted schedule access; persistence separated                                                  | Stronger domain boundary, still more files/types than before                                   |
 | `updateVesselPredictions` | Embedded inside trip building                                                     | Separate stage gated by changed trip facts                                                                                    | Clear win; keep this separation                                                                |
 | `updateVesselTimeline`    | Built from trip lifecycle messages and applied after trip writes                  | Built after trip persistence from persisted facts plus ML computations                                                        | More correct, still the densest handoff area                                                   |
-| Hot-path schedule reads   | Targeted schedule queries when needed                                             | Targeted, memoized `eventsScheduled` queries when needed                                                                      | Recovers the old workload-friendly granularity while preserving cleaner trip logic             |
+| Hot-path schedule reads   | Targeted schedule queries when needed                                             | Targeted `eventsScheduled` queries when needed                                                                      | Recovers the old workload-friendly granularity while preserving cleaner trip logic             |
 | Summary tables            | None                                                                              | No location-update summary table; no production schedule snapshot table                                                       | Latest removed the two most questionable summary tables                                        |
 
 
@@ -129,8 +129,8 @@ Primary entrypoint:
       - `updateVesselLocations` stage
         - `fetchRawWsfVesselLocations`
         - `updateVesselLocations` (uses identity tables for WSF → `ConvexVesselLocation`)
-      - `createScheduleContinuityAccess`
-        - memoized targeted schedule readers
+      - `createScheduleDbAccess`
+        - targeted schedule readers (`pipeline/updateVesselTrip/scheduleDbAccess.ts`)
       - `computeTripStageForLocations`
         - loop **all** normalized locations this tick
         - `updateVesselTrip`
@@ -177,7 +177,7 @@ Normal expected branches:
 | External input            | WSF vessel locations                                                                              | WSF vessel locations                                                         |
 | Baseline DB read per tick | vessels + terminals + active trips                                                                | vesselsIdentity + terminalsIdentity + active trips (**no** `vesselLocations` in baseline query) |
 | Location dedupe source    | none before calling mutation; mutation rereads `vesselLocations`                                  | location mutation **`collect()`** on `vesselLocations` inside **`performBulkUpsertVesselLocations`** |
-| Conditional DB reads      | targeted schedule queries during trip building                                                    | targeted memoized `eventsScheduled` queries during trip-field inference      |
+| Conditional DB reads      | targeted schedule queries during trip building                                                    | targeted `eventsScheduled` queries during trip-field inference      |
 | Main side effects         | `vesselLocations`, `activeVesselTrips`, `completedVesselTrips`, `eventsActual`, `eventsPredicted` | same plus `vesselTripPredictions`                                            |
 | Control shape             | parallel location/trip branches                                                                   | sequential pipeline; `bulkUpsertVesselLocations`, `persistTripAndPredictionWrites`, then `persistTimelineEventWrites` |
 | Output style              | branch success object                                                                             | internal action returns `null`; failures throw after logging                 |
@@ -371,7 +371,7 @@ Expected non-error branches:
 | `buildTrip`                  | Base trip shaping, schedule enrichment, ML attachment, actualization     | `buildUpdatedVesselRows` + `resolveTripFieldsForTripRow`       | Lifecycle row shaping and schedule-field inference without ML                              |
 | `processCompletedTrips`      | Persist completed boundary and replacement active trip                   | `persistVesselTripWriteSet`                                  | Functions-layer applier for completed/current rows                                         |
 | `processCurrentTrips`        | Build current trip, persist, produce timeline messages                   | `updateVesselTrip` + `buildVesselTripPersistencePlan` | Compute and persistence are separated                                                      |
-| schedule adapters            | Targeted queries mixed into trip builder                                 | `ScheduleContinuityAccess`                                   | Narrow interface with targeted production implementation and in-memory test implementation |
+| schedule adapters            | Targeted queries mixed into trip builder                                 | `ScheduleDbAccess`                                   | Narrow interface with targeted production implementation and in-memory test implementation |
 
 
 ### 5.4 Data Flow And Side Effects
@@ -380,7 +380,7 @@ Expected non-error branches:
 | Dimension                 | Before                                                   | Latest                                                  |
 | ------------------------- | -------------------------------------------------------- | ------------------------------------------------------- |
 | Inputs                    | `ctx`, locations, tick time, active trips, fallback flag | normalized locations (full batch), active trips, schedule access |
-| Schedule source           | targeted schedule queries when needed                    | targeted memoized `eventsScheduled` queries when needed |
+| Schedule source           | targeted schedule queries when needed                    | targeted `eventsScheduled` queries when needed |
 | ML involvement            | embedded in `buildTrip`                                  | removed from trip compute stage                         |
 | Compute output            | side effects plus timeline write intents                 | per-vessel trip updates and storage-shaped rows         |
 | DB writes in trip compute | yes                                                      | no                                                      |
@@ -397,11 +397,11 @@ The latest branch keeps the useful boundary:
 
 That is much easier to test and reason about than the old `processVesselTrips` cluster.
 
-The most important improvement since the intermediate refactor is the return to targeted schedule access. `ScheduleContinuityAccess` is a good compromise:
+The most important improvement since the intermediate refactor is the return to targeted schedule access. `ScheduleDbAccess` is a good compromise:
 
 - the domain code does not know whether schedule evidence is coming from Convex queries or in-memory tests
 - production only asks for the schedule rows that inference actually needs
-- repeated asks within one ping are memoized
+- each schedule lookup issues a Convex `runQuery`; repeated asks for the same vessel/day or segment key incur repeated queries (no in-process memoization on `ScheduleDbAccess`)
 
 This preserves code clarity without forcing full-day schedule reads every tick.
 
@@ -694,7 +694,7 @@ The latest branch mostly accepts that conclusion.
 | ------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | baseline identity/trip snapshot | one combined query reading 3 tables                 | one combined query reading **3** tables: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips` (no `vesselLocations` in baseline) |
 | location dedupe reads           | mutation reads all `vesselLocations`                | `bulkUpsertVesselLocations` runs **`performBulkUpsertVesselLocations`** (`collect()` on `vesselLocations`) each ping |
-| schedule reads                  | targeted `eventsScheduled` lookups only when needed | targeted memoized `eventsScheduled` lookups only when needed                              |
+| schedule reads                  | targeted `eventsScheduled` lookups only when needed | targeted `eventsScheduled` lookups only when needed                              |
 | location writes                 | changed/new rows after mutation-side compare        | changed/new rows after mutation-side compare (`VesselAbbrev` + `TimeStamp`)                |
 | trip writes                     | conditional writes per lifecycle outcome            | conditional writes via persistence plan                                                   |
 | prediction writes               | implicit/embedded                                   | explicit `vesselTripPredictions` upserts when prediction rows exist                       |
@@ -731,7 +731,7 @@ The latest system pays for:
 1. one baseline query for identities + active trips (**no** `vesselLocations` preload)
 2. one WSF fetch
 3. trip computation for mutation-returned **changed** location rows each ping
-4. lazy, memoized schedule queries only when trip-field inference needs them
+4. lazy schedule queries only when trip-field inference needs them
 5. prediction model query only when gated trip facts need prediction
 6. one locations-only **`bulkUpsertVesselLocations`** mutation per ping
 7. one **`persistTripAndPredictionWrites`** mutation per ping (trips + predictions)
@@ -743,18 +743,17 @@ This trades some **trip-stage CPU** (full batch every tick) for simpler **data a
 
 The latest schedule access is the most important cost correction.
 
-Production now uses `createScheduleContinuityAccess`, which exposes two narrow methods:
+Production uses `createScheduleDbAccess` ([`pipeline/updateVesselTrip/scheduleDbAccess.ts`](../../convex/functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts)), which exposes two narrow methods:
 
-- `getScheduledSegmentByKey`
-- `getScheduledDeparturesForVesselAndSailingDay`
+- `getScheduledDepartureEvent` (segment key → one departure row)
+- `getScheduledDockEvents` (vessel + sailing day → that day’s scheduled dock rows)
 
-Both are memoized for the ping. The first can load one segment by key, then load that vessel/day's departures to attach next-leg continuity. The second loads one vessel/day's scheduled rows for rollover inference.
+Each call maps to a Convex internal query. Trip-field inference may call these multiple times per vessel; identical scopes are **not** deduplicated in-process—repeat lookups mean repeat queries unless Convex caches at another layer.
 
-This is a good compromise:
+This is still a good compromise:
 
 - trip code stays independent of Convex query details
-- schedule cost scales with schedule-sensitive vessels in the normalized batch (typically the live fleet each tick)
-- repeated continuity lookups within one ping are cached
+- schedule cost scales with schedule-sensitive vessels and how often inference asks for evidence
 
 The old full-day snapshot idea should remain out of the production hot path unless production evidence shows targeted reads are worse.
 

@@ -1,9 +1,10 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { ScheduleDbAccess } from "domain/vesselOrchestration/shared/scheduleAccess";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import type { UpdateVesselTripDbAccess } from "../../types";
 
 export const ms = (iso: string) => new Date(iso).getTime();
 
@@ -92,8 +93,16 @@ export const makeScheduledTables = (
       string,
       ReadonlyArray<ConvexScheduledDockEvent>
     >;
+    terminalsByAbbrev?: Record<string, TerminalIdentity | null>;
   } = {}
-): ScheduleDbAccess => ({
+): UpdateVesselTripDbAccess => ({
+  getTerminalIdentity: async (terminalAbbrev) =>
+    Object.prototype.hasOwnProperty.call(
+      options.terminalsByAbbrev ?? {},
+      terminalAbbrev
+    )
+      ? (options.terminalsByAbbrev?.[terminalAbbrev] ?? null)
+      : makeTerminalIdentity(terminalAbbrev),
   getScheduledDepartureEvent: async (scheduleKey) => {
     const segment = (options.segments ?? []).find(
       (candidate) => candidate.Key === scheduleKey
@@ -131,6 +140,20 @@ export const makeScheduledTables = (
 
             return rows;
           })),
+});
+
+export const makeTerminalIdentity = (
+  terminalAbbrev = "CLI",
+  overrides: Partial<TerminalIdentity> = {}
+): TerminalIdentity => ({
+  TerminalID: 1,
+  TerminalName: terminalAbbrev,
+  TerminalAbbrev: terminalAbbrev,
+  IsPassengerTerminal: true,
+  Latitude: 47.98,
+  Longitude: -122.35,
+  UpdatedAt: 1,
+  ...overrides,
 });
 
 const scheduledDepartureRowFromSegment = (
