@@ -320,12 +320,14 @@ The first priority is simplifying the domain pipeline.
 
 Current handoff note:
 
-- Stage 3: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-3-handoff.md`
+- Stage 5: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-5-handoff.md`
 
 Completed handoff notes:
 
 - Stage 1: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-1-handoff.md`
 - Stage 2: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-2-handoff.md`
+- Stage 3: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-3-handoff.md`
+- Stage 4: `docs/engineering/2026-04-29-update-vessel-trip-rewrite-stage-4-handoff.md`
 
 ### Stage 1: Public Behavior Test Net
 

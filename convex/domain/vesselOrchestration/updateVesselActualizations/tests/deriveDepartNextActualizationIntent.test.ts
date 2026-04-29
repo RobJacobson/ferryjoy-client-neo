@@ -55,6 +55,7 @@ const makeTripUpdate = (
   }),
   activeVesselTripUpdate: makeTrip("TAC", {
     AtDock: false,
+    LeftDock: ms("2026-03-13T06:40:00.789-07:00"),
     LeftDockActual: ms("2026-03-13T06:40:00.789-07:00"),
   }),
   completedVesselTripUpdate: undefined,
@@ -62,7 +63,7 @@ const makeTripUpdate = (
 });
 
 describe("deriveDepartNextActualizationIntent", () => {
-  it("returns intent for leave-dock transitions with schedule key", () => {
+  it("returns intent for active-only AtDock true->false transitions with feed-derived LeftDockActual and schedule key", () => {
     const result = deriveDepartNextActualizationIntent(makeTripUpdate());
 
     expect(result).toEqual({
