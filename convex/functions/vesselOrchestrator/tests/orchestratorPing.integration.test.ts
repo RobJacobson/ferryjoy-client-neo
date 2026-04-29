@@ -188,6 +188,68 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(persistArgs.predictedEvents).toEqual([]);
   });
 
+  it("runs explicit trip actualization stage after persist writes", async () => {
+    spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
+      makeRawLocation(),
+    ]);
+
+    const existingActiveTrip = makeTrip("CHE", {
+      AtDock: true,
+      LeftDockActual: undefined,
+      LeftDock: undefined,
+    });
+    spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue({
+      vesselAbbrev: "CHE",
+      existingActiveTrip,
+      activeVesselTripUpdate: makeTrip("CHE", {
+        AtDock: false,
+        LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
+      }),
+    });
+    spyOn(
+      updateVesselPredictionsModule,
+      "updateVesselPredictions"
+    ).mockResolvedValue({
+      predictionRows: [],
+      mlTimelineOverlays: [],
+    });
+    spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
+      actualEvents: [],
+      predictedEvents: [],
+    });
+
+    const mutationCalls: unknown[] = [];
+    const ctx = {
+      runQuery: async () => ({
+        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+        activeTrips: [existingActiveTrip],
+      }),
+      runMutation: async (_mutation: unknown, args: unknown) => {
+        mutationCalls.push(args);
+        return mutationCalls.length === 1
+          ? [makeNormalizedCheLocation()]
+          : null;
+      },
+    } as unknown as ActionCtx;
+
+    await (
+      updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
+    )._handler(ctx, {});
+
+    expect(mutationCalls).toHaveLength(3);
+    const actualizationArgs = mutationCalls[2] as {
+      vesselAbbrev: string;
+      depBoundaryKey: string;
+      actualDepartMs: number;
+    };
+    expect(actualizationArgs).toEqual({
+      vesselAbbrev: "CHE",
+      depBoundaryKey: "CHE--2026-03-13--05:30--ANA-ORI--dep-dock",
+      actualDepartMs: ms("2026-03-13T06:40:00.000-07:00"),
+    });
+  });
+
   it("skips persist when trip stage returns null", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),

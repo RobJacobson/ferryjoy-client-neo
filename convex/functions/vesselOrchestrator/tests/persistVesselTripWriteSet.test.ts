@@ -48,87 +48,35 @@ const makeTrip = (
 });
 
 describe("persistVesselTripWrites", () => {
-  it("writes active only with no leave-dock follow-up", async () => {
-    const existingTac = makeTrip("TAC", { AtDock: false });
+  it("writes active only", async () => {
     const updatedTac = makeTrip("TAC", {
       AtDock: true,
       LeftDockActual: undefined,
       TimeStamp: ms("2026-03-13T06:40:00-07:00"),
     });
     const input: PerVesselTripPersistInput = {
-      vesselAbbrev: "TAC",
-      existingActiveTrip: existingTac,
       activeVesselTrip: updatedTac,
       completedVesselTrip: undefined,
     };
     const writeActive = spyOn(
       vesselTripWrites,
-      "writeActiveVesselTripInDb"
+      "upsertActiveVesselTrip"
     ).mockResolvedValue(undefined);
-    const rollover = spyOn(
+    const insertCompleted = spyOn(
       vesselTripWrites,
-      "rolloverCompletedAndActiveInDb"
+      "insertCompletedVesselTripInDb"
     ).mockResolvedValue(undefined);
-    const setDepart = spyOn(
-      vesselTripWrites,
-      "setDepartNextActualsForMostRecentCompletedTripInDb"
-    ).mockResolvedValue({ updated: true });
 
     await persistVesselTripWrites({} as never, input);
 
     expect(writeActive).toHaveBeenCalledWith({} as never, updatedTac);
-    expect(rollover).toHaveBeenCalledTimes(0);
-    expect(setDepart).toHaveBeenCalledTimes(0);
+    expect(insertCompleted).toHaveBeenCalledTimes(0);
 
     writeActive.mockRestore();
-    rollover.mockRestore();
-    setDepart.mockRestore();
-  });
-
-  it("writes active only and runs leave-dock follow-up", async () => {
-    const existingTac = makeTrip("TAC", { AtDock: true });
-    const updatedTac = makeTrip("TAC", {
-      AtDock: false,
-      LeftDockActual: ms("2026-03-13T06:40:00-07:00"),
-      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
-    });
-    const input: PerVesselTripPersistInput = {
-      vesselAbbrev: "TAC",
-      existingActiveTrip: existingTac,
-      activeVesselTrip: updatedTac,
-      completedVesselTrip: undefined,
-    };
-
-    const writeActive = spyOn(
-      vesselTripWrites,
-      "writeActiveVesselTripInDb"
-    ).mockResolvedValue(undefined);
-    const rollover = spyOn(
-      vesselTripWrites,
-      "rolloverCompletedAndActiveInDb"
-    ).mockResolvedValue(undefined);
-    const setDepart = spyOn(
-      vesselTripWrites,
-      "setDepartNextActualsForMostRecentCompletedTripInDb"
-    ).mockResolvedValue({ updated: true });
-
-    await persistVesselTripWrites({} as never, input);
-
-    expect(writeActive).toHaveBeenCalledTimes(1);
-    expect(rollover).toHaveBeenCalledTimes(0);
-    expect(setDepart).toHaveBeenCalledWith(
-      {} as never,
-      "TAC",
-      updatedTac.LeftDockActual
-    );
-
-    writeActive.mockRestore();
-    rollover.mockRestore();
-    setDepart.mockRestore();
+    insertCompleted.mockRestore();
   });
 
   it("rollover when completed and active are both present", async () => {
-    const existingChe = makeTrip("CHE", { AtDock: false });
     const completedChe = makeTrip("CHE", {
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
       ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
@@ -146,37 +94,24 @@ describe("persistVesselTripWrites", () => {
       ArrivedNextActual: undefined,
     });
     const input: PerVesselTripPersistInput = {
-      vesselAbbrev: "CHE",
-      existingActiveTrip: existingChe,
       activeVesselTrip: replacementChe,
       completedVesselTrip: completedChe,
     };
 
     const writeActive = spyOn(
       vesselTripWrites,
-      "writeActiveVesselTripInDb"
+      "upsertActiveVesselTrip"
     ).mockResolvedValue(undefined);
-    const rollover = spyOn(
+    const insertCompleted = spyOn(
       vesselTripWrites,
-      "rolloverCompletedAndActiveInDb"
+      "insertCompletedVesselTripInDb"
     ).mockResolvedValue(undefined);
-    const setDepart = spyOn(
-      vesselTripWrites,
-      "setDepartNextActualsForMostRecentCompletedTripInDb"
-    ).mockResolvedValue({ updated: true });
-
     await persistVesselTripWrites({} as never, input);
 
-    expect(rollover).toHaveBeenCalledWith(
-      {} as never,
-      completedChe,
-      replacementChe
-    );
-    expect(writeActive).toHaveBeenCalledTimes(0);
-    expect(setDepart).toHaveBeenCalledTimes(0);
+    expect(insertCompleted).toHaveBeenCalledWith({} as never, completedChe);
+    expect(writeActive).toHaveBeenCalledWith({} as never, replacementChe);
 
     writeActive.mockRestore();
-    rollover.mockRestore();
-    setDepart.mockRestore();
+    insertCompleted.mockRestore();
   });
 });

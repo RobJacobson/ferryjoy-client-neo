@@ -97,10 +97,7 @@ export const makeScheduledTables = (
   } = {}
 ): UpdateVesselTripDbAccess => ({
   getTerminalIdentity: async (terminalAbbrev) =>
-    Object.prototype.hasOwnProperty.call(
-      options.terminalsByAbbrev ?? {},
-      terminalAbbrev
-    )
+    Object.hasOwn(options.terminalsByAbbrev ?? {}, terminalAbbrev)
       ? (options.terminalsByAbbrev?.[terminalAbbrev] ?? null)
       : makeTerminalIdentity(terminalAbbrev),
   getScheduledDepartureEvent: async (scheduleKey) => {

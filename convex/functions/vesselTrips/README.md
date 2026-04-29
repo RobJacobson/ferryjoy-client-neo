@@ -5,7 +5,7 @@
 Thin Convex entrypoints for vessel trips (`queries`, `mutations`, `schemas`). Lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrip/` (import via `domain/vesselOrchestration/updateVesselTrip`), while the orchestrator wires targeted schedule reads and prediction staging from [`updateVesselOrchestrator`](../vesselOrchestrator/actions.ts).
 
 - **`queries.ts`** — Indexed reads for active/completed trips used by the app (`getActiveTripsByRoutes`, `getCompletedTripsByRoutesAndTripDate`, `getActiveTripsWithScheduledTrip`) plus `getActiveTrips` for subscriber reads. Delegates prediction enrichment to `mergeTripsWithPredictions` / `dedupeTripDocBatchesByTripKey` from `functions/vesselTrips/read`.
-- **`mutations.ts`** — Internal persistence entrypoints (`upsertVesselTripsBatch`, `completeAndStartNewTrip`, `setDepartNextActualsForMostRecentCompletedTrip`) and depart-next backfill on `eventsPredicted`; policy helpers such as `resolveDepartNextLegContext` from `domain/vesselOrchestration/shared`.
+- **`mutations.ts`** — Internal persistence entrypoints (`upsertVesselTripsBatch`, `completeAndStartNewTrip`) for active/completed trip rows. Depart-next actualization now lives in orchestrator `updateVesselActualizations` and `functions/events/eventsPredicted`.
 - **`schemas.ts`** — Validators and API/domain conversion helpers.
 
 **Schedule sources:** ping-time enrichment uses targeted `eventsScheduled`-backed continuity queries. Subscriber reads that attach display schedule rows use the `scheduledTrips` table (`getActiveTripsWithScheduledTrip`). Keep behavior aligned when changing either path.
