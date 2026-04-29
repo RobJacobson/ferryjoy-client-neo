@@ -1,5 +1,0 @@
-`shared/` holds cross-cutting vessel-orchestrator domain code that is used by more than one pipeline or by the orchestrator itself. This is the home for schedule continuity contracts, shared handshake types, and other artifacts that are not owned exclusively by `updateVesselTrip/`, `updateVesselPredictions/`, or `updateTimeline/`. In-memory test fixtures implement **`UpdateVesselTripDbAccess`** where needed; they are not the removed production `vesselOrchestratorScheduleSnapshots` table.
-
-`shared/` is not a second trip-pipeline bucket. Keep trip-ping internals, query-time read helpers, and single-pipeline implementation details in their owning modules instead of promoting them here just for convenience.
-
-**Vocabulary:** Use **ping** for one full orchestrator **update cycle** (fetch locations → trips → predictions → timeline, or whatever the current pipeline is): a single “radar ping” over the fleet, not a network ICMP ping. Cross-cutting identifiers outside this folder may lag the ping rename until updated project-wide.
