@@ -25,10 +25,6 @@ export type BuiltTripRows = {
   activeVesselTrip?: ConvexVesselTrip;
 };
 
-type CompletedTripUpdate = TripRowBuildInput & {
-  existingActiveTrip: ConvexVesselTrip;
-};
-
 type BasicTripIdentity = {
   arrivingTerminalAbbrev: string | undefined;
   scheduledDeparture: number | undefined;
@@ -49,7 +45,11 @@ export const buildBasicUpdatedVesselRows = (
     update.events.isCompletedTrip &&
     update.existingActiveTrip !== undefined
   ) {
-    return buildBasicRowsWhenCompleting(update as CompletedTripUpdate);
+    return buildBasicRowsWhenCompleting({
+      vesselLocation: update.vesselLocation,
+      existingActiveTrip: update.existingActiveTrip,
+      events: update.events,
+    });
   }
 
   if (update.events.isCompletedTrip) {
@@ -66,7 +66,11 @@ export const buildBasicUpdatedVesselRows = (
 };
 
 const buildBasicRowsWhenCompleting = (
-  update: CompletedTripUpdate
+  update: {
+    vesselLocation: ConvexVesselLocation;
+    existingActiveTrip: ConvexVesselTrip;
+    events: TripBuildEvents;
+  }
 ): BuiltTripRows => {
   const completedVesselTrip = buildCompletedTrip(
     update.existingActiveTrip,

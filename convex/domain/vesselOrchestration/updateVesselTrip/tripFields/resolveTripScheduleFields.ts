@@ -42,34 +42,17 @@ export const resolveTripScheduleFields = async ({
     return { current: getTripFieldsFromWsf(location) };
   }
 
-  const carriedArrivingTerminalAbbrev =
-    existingTrip?.ArrivingTerminalAbbrev ?? location.ArrivingTerminalAbbrev;
-  const carriedScheduledDeparture =
-    existingTrip?.ScheduledDeparture ?? location.ScheduledDeparture;
-  const carriedIdentity = deriveTripIdentity({
-    vesselAbbrev: location.VesselAbbrev,
-    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev: carriedArrivingTerminalAbbrev,
-    scheduledDepartureMs: carriedScheduledDeparture,
-  });
+  const carriedCurrent = resolveCarriedCurrentTripFields(
+    location,
+    existingTrip
+  );
 
   // Skip schedule reads when we already have enough fields to derive identity.
   if (
-    carriedArrivingTerminalAbbrev !== undefined &&
-    carriedScheduledDeparture !== undefined
+    carriedCurrent.ArrivingTerminalAbbrev !== undefined &&
+    carriedCurrent.ScheduledDeparture !== undefined
   ) {
-    return {
-      current: {
-        ArrivingTerminalAbbrev: carriedArrivingTerminalAbbrev,
-        ScheduledDeparture: carriedScheduledDeparture,
-        ScheduleKey:
-          location.ScheduleKey ??
-          existingTrip?.ScheduleKey ??
-          carriedIdentity.ScheduleKey,
-        SailingDay: carriedIdentity.SailingDay ?? existingTrip?.SailingDay,
-        tripFieldDataSource: "inferred",
-      },
-    };
+    return { current: carriedCurrent };
   }
 
   const scheduleMatch = await inferScheduleMatch({
@@ -95,16 +78,6 @@ export const resolveTripScheduleFields = async ({
     };
   }
 
-  const fallbackArrivingTerminalAbbrev =
-    existingTrip?.ArrivingTerminalAbbrev ?? location.ArrivingTerminalAbbrev;
-  const fallbackScheduledDeparture =
-    existingTrip?.ScheduledDeparture ?? location.ScheduledDeparture;
-  const fallbackIdentity = deriveTripIdentity({
-    vesselAbbrev: location.VesselAbbrev,
-    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev: fallbackArrivingTerminalAbbrev,
-    scheduledDepartureMs: fallbackScheduledDeparture,
-  });
   console.warn("[TripFields] schedule inference unavailable", {
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
@@ -113,16 +86,32 @@ export const resolveTripScheduleFields = async ({
     existingNextScheduleKey: existingTrip?.NextScheduleKey,
   });
   return {
-    current: {
-      ArrivingTerminalAbbrev: fallbackArrivingTerminalAbbrev,
-      ScheduledDeparture: fallbackScheduledDeparture,
-      ScheduleKey:
-        location.ScheduleKey ??
-        existingTrip?.ScheduleKey ??
-        fallbackIdentity.ScheduleKey,
-      SailingDay: fallbackIdentity.SailingDay ?? existingTrip?.SailingDay,
-      tripFieldDataSource: "inferred",
-    },
+    current: carriedCurrent,
+  };
+};
+
+const resolveCarriedCurrentTripFields = (
+  location: ConvexVesselLocation,
+  existingTrip: ConvexVesselTrip | undefined
+): ResolvedCurrentTripFields => {
+  const arrivingTerminalAbbrev =
+    existingTrip?.ArrivingTerminalAbbrev ?? location.ArrivingTerminalAbbrev;
+  const scheduledDeparture =
+    existingTrip?.ScheduledDeparture ?? location.ScheduledDeparture;
+  const identity = deriveTripIdentity({
+    vesselAbbrev: location.VesselAbbrev,
+    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev,
+    scheduledDepartureMs: scheduledDeparture,
+  });
+
+  return {
+    ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
+    ScheduledDeparture: scheduledDeparture,
+    ScheduleKey:
+      location.ScheduleKey ?? existingTrip?.ScheduleKey ?? identity.ScheduleKey,
+    SailingDay: identity.SailingDay ?? existingTrip?.SailingDay,
+    tripFieldDataSource: "inferred",
   };
 };
 

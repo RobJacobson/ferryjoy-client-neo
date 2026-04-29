@@ -1,5 +1,3 @@
-import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-
 /**
  * Resolved schedule-facing fields for the **current** trip row, before the
  * trip-field resolver attaches next-leg schedule hints.
@@ -18,9 +16,4 @@ export type ResolvedCurrentTripFields = {
   // transient unless we find a concrete operational need to persist it on trip
   // rows.
   tripFieldInferenceMethod?: "next_scheduled_trip" | "schedule_rollover";
-};
-
-export type ScheduledTripMatch = {
-  segment: ConvexInferredScheduledSegment;
-  tripFieldInferenceMethod: "next_scheduled_trip" | "schedule_rollover";
 };

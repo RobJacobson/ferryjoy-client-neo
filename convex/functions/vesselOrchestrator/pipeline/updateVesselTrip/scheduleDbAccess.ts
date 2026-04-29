@@ -10,6 +10,8 @@ import type { ScheduleDbAccess } from "domain/vesselOrchestration/updateVesselTr
 /**
  * Builds a minimal scheduled-events database accessor.
  *
+ * Intentionally *does not* cache the results of the queries.
+ *
  * @param ctx - Convex action context used for internal schedule queries
  * @returns Scheduled-event read functions
  */
