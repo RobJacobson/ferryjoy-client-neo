@@ -38,15 +38,17 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
-     2. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestsForTripUpdate`**)
-     3. Domain **`updateVesselPredictions`** takes `{ tripUpdate, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
-     4. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
-     5. Mutation **`persistPerVesselOrchestratorWrites`** writes in order:
+     2. Domain **`updateVesselActualizations`** derives optional depart-next actualization intent from leave-dock transitions
+     3. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestsForTripUpdate`**)
+     4. Domain **`updateVesselPredictions`** takes `{ tripUpdate, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
+     5. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
+     6. Mutation **`persistPerVesselOrchestratorWrites`** writes in order:
         - trip writes (`persistVesselTripWrites`)
         - prediction upserts (`batchUpsertProposalsInDb`)
         - timeline rows:
           - actual row upserts (`upsertActualDockRows`)
           - predicted row writes (`projectPredictedDockWriteBatchesInDb`)
+     7. Mutation **`actualizeDepartNextFromIntent`** applies explicit depart-next `eventsPredicted` actualization after timeline projection writes
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants

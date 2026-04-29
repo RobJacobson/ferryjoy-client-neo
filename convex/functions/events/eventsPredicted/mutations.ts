@@ -110,6 +110,9 @@ export const projectPredictedDockWriteBatchesInDb = async (
       }
       const id = predictedDockCompositeKey(existing);
       if (!incomingIds.has(id)) {
+        if (shouldPreserveDepartNextMlRow(existing)) {
+          continue;
+        }
         await ctx.db.delete(existing._id);
         existingByComposite.delete(id);
       }
@@ -165,6 +168,14 @@ const predictedRowsEqual = (
   left.Actual === right.Actual &&
   left.DeltaTotal === right.DeltaTotal;
 
+const shouldPreserveDepartNextMlRow = (
+  row: Doc<"eventsPredicted">
+): boolean =>
+  row.PredictionSource === "ml" &&
+  DEPART_NEXT_ML_PREDICTION_TYPES.includes(
+    row.PredictionType as (typeof DEPART_NEXT_ML_PREDICTION_TYPES)[number]
+  );
+
 /**
  * Patches depart-next ML predictions for one departure boundary when rows
  * exist and have not yet been actualized.
@@ -205,3 +216,33 @@ export const actualizeDepartNextMlPredictions = async (
 
   return anyUpdated;
 };
+
+/**
+ * Applies depart-next actualization for one explicit orchestrator intent.
+ *
+ * @param ctx - Convex internal mutation context
+ * @param args - Derived depart-next actualization intent fields
+ * @returns Whether any row changed and optional no-op reason
+ */
+export const actualizeDepartNextFromIntent = internalMutation({
+  args: {
+    vesselAbbrev: v.string(),
+    depBoundaryKey: v.string(),
+    actualDepartMs: v.number(),
+  },
+  returns: v.object({
+    updated: v.boolean(),
+    reason: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const anyUpdated = await actualizeDepartNextMlPredictions(
+      ctx,
+      args.depBoundaryKey,
+      args.actualDepartMs
+    );
+    if (!anyUpdated) {
+      return { updated: false, reason: "no_predictions_to_update" };
+    }
+    return { updated: true };
+  },
+});

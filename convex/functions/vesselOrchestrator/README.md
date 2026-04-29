@@ -8,7 +8,7 @@ The orchestrator follows the backend layering rule:
 convex/functions -> convex/adapters -> convex/domain -> convex/functions/persistence
 ```
 
-In this module, `actions.ts` is the Convex-facing shell (`updateVesselOrchestrator`): it loads the read model, runs one WSF fetch, normalizes locations, writes locations through standalone internal mutation **`bulkUpsertVesselLocations`** (which returns only changed rows after timestamp dedupe), then runs a **sequential per-vessel sparse pipeline** for each changed location. For each changed vessel, it computes **`updateVesselTrip`** → **`VesselTripUpdate | null`**, loads prediction model context via **`loadPredictionContext`** when domain-derived preload requests apply, runs domain **`updateVesselPredictions`**, computes timeline rows with domain **`updateTimeline`**, and persists trip/prediction/timeline rows together through **`persistPerVesselOrchestratorWrites`**. **`loadPredictionContext`** wraps **`getProductionModelParametersForPing`**; terminal-pair requests are derived in **`domain/vesselOrchestration/updateVesselPredictions`** (**`predictionModelLoadRequestsForTripUpdate`**). Raw vessel locations are fetched through `convex/adapters/fetch/fetchWsfVesselLocations.ts`, then normalized by `domain/vesselOrchestration/updateVesselLocations` into `ConvexVesselLocation` before Convex mutations run.
+In this module, `actions.ts` is the Convex-facing shell (`updateVesselOrchestrator`): it loads the read model, runs one WSF fetch, normalizes locations, writes locations through standalone internal mutation **`bulkUpsertVesselLocations`** (which returns only changed rows after timestamp dedupe), then runs a **sequential per-vessel sparse pipeline** for each changed location. For each changed vessel, it computes **`updateVesselTrip`** → **`VesselTripUpdate | null`**, derives optional depart-next actualization intent via **`updateVesselActualizations`**, loads prediction model context via **`loadPredictionContext`** when domain-derived preload requests apply, runs domain **`updateVesselPredictions`**, computes timeline rows with domain **`updateTimeline`**, persists trip/prediction/timeline rows through **`persistPerVesselOrchestratorWrites`**, then applies explicit depart-next `eventsPredicted` actualization via **`actualizeDepartNextFromIntent`** when intent exists. **`loadPredictionContext`** wraps **`getProductionModelParametersForPing`**; terminal-pair requests are derived in **`domain/vesselOrchestration/updateVesselPredictions`** (**`predictionModelLoadRequestsForTripUpdate`**). Raw vessel locations are fetched through `convex/adapters/fetch/fetchWsfVesselLocations.ts`, then normalized by `domain/vesselOrchestration/updateVesselLocations` into `ConvexVesselLocation` before Convex mutations run.
 
 ### O1 pipeline structure (named steps)
 
@@ -16,9 +16,11 @@ Phase **O1** ([handoff](../../../docs/handoffs/vessel-orchestrator-o1-orchestrat
 
 1. **Locations** — `runStage1UpdateVesselLocations` (pipeline) persists the normalized batch via **`bulkUpsertVesselLocations`** and returns changed rows (`VesselAbbrev` + timestamp dedupe).
 2. **`updateVesselTrip`** — domain compute only; returns **`VesselTripUpdate | null`** (skip vessel when null). Trip table writes run inside **`persistPerVesselOrchestratorWrites`** (**`persistVesselTripWrites`**).
-3. **`loadPredictionContext`** + **`updateVesselPredictions`** — preload production models when needed, then ML overlay + **`vesselTripPredictions`** proposal rows + **`mlTimelineOverlays`** for the same ping.
-4. **`updateTimeline`** — domain projection from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`**; derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**).
-5. **`persistPerVesselOrchestratorWrites`** — applies per-vessel trip rows, prediction proposals, and timeline dock rows in one mutation call.
+3. **`updateVesselActualizations`** — pure domain derivation for optional depart-next actualization intent from leave-dock transitions.
+4. **`loadPredictionContext`** + **`updateVesselPredictions`** — preload production models when needed, then ML overlay + **`vesselTripPredictions`** proposal rows + **`mlTimelineOverlays`** for the same ping.
+5. **`updateTimeline`** — domain projection from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`**; derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**).
+6. **`persistPerVesselOrchestratorWrites`** — applies per-vessel trip rows, prediction proposals, and timeline dock rows in one mutation call.
+7. **`actualizeDepartNextFromIntent`** — applies explicit depart-next `eventsPredicted` actualization after timeline persistence for that vessel.
 
 The handler in `actions.ts` chains these steps; each step either calls domain helpers and/or `ctx.runMutation` with the payloads produced for that phase.
 
@@ -77,7 +79,7 @@ Responsibilities:
 - **fetch:** `fetchRawWsfVesselLocations` throws when WSF returns no rows
 - normalize raw WSF payloads through `mapWsfVesselLocations` + `assertUsableVesselLocationBatch`, which skip individual bad feed rows (`console.warn` per skip) and throw when every row fails conversion
 - convert raw WSF payloads into `ConvexVesselLocation`, including resolved vessel identity, canonical optional `Key`, and terminal-or-marine-location fields derived from the backend `terminalsIdentity` table
-- after normalizing the WSF batch: write locations through `bulkUpsertVesselLocations` and use only the returned changed rows for trip compute, create targeted `eventsScheduled` access for the ping through `pipeline/updateVesselTrip/scheduleDbAccess.ts`, and for each changed vessel run `updateVesselTrip` → `loadPredictionContext` → `updateVesselPredictions` → `updateTimeline` → `persistPerVesselOrchestratorWrites`.
+- after normalizing the WSF batch: write locations through `bulkUpsertVesselLocations` and use only the returned changed rows for trip compute, create targeted `eventsScheduled` access for the ping through `pipeline/updateVesselTrip/scheduleDbAccess.ts`, and for each changed vessel run `updateVesselTrip` → `updateVesselActualizations` (intent) → `loadPredictionContext` → `updateVesselPredictions` → `updateTimeline` → `persistPerVesselOrchestratorWrites` → `actualizeDepartNextFromIntent` (when intent exists).
 
 Domain pipeline (same ping semantics as before):
 

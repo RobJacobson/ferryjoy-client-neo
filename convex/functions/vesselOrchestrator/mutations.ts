@@ -136,8 +136,6 @@ export const persistPerVesselOrchestratorWrites = internalMutation({
         1 + Number(args.completedVesselTrip !== undefined);
 
       await persistVesselTripWrites(ctx, {
-        vesselAbbrev: args.vesselAbbrev,
-        existingActiveTrip: args.existingActiveTrip,
         activeVesselTrip: args.activeVesselTrip,
         completedVesselTrip: args.completedVesselTrip,
       });

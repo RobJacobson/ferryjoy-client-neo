@@ -18,6 +18,10 @@ import { loadOrchestratorSnapshot } from "./loadSnapshot";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
 import { loadPredictionContext } from "./updateVesselPredictions";
 import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
+import {
+  deriveVesselTripActualizationIntent,
+  persistVesselTripActualizationIntent,
+} from "./updateVesselActualizations";
 
 /**
  * Executes one ping pipeline after the action shell handles top-level errors.
@@ -91,6 +95,15 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       }
 
       /**
+       * Stage 2.5: updateVesselActualizations (intent)
+       *
+       * Derive whether this leave-dock branch should actualize depart-next ML
+       * prediction rows for the current trip departure boundary.
+       */
+      const tripActualizationIntent =
+        deriveVesselTripActualizationIntent(tripUpdate);
+
+      /**
        * Stage 3: updateVesselPredictions
        *
        * Use `tripUpdate` as the truth of what changed, load only the model
@@ -144,6 +157,20 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
           predictedEvents: timelineRows.predictedEvents,
         }
       );
+
+      /**
+       * Stage 6: updateVesselActualizations (persist)
+       *
+       * Apply explicit depart-next actualization after timeline persistence so
+       * this ping's final predicted-row write for the boundary keeps `Actual`
+       * / `DeltaTotal` fields intact.
+       */
+      if (tripActualizationIntent !== null) {
+        await persistVesselTripActualizationIntent(
+          ctx,
+          tripActualizationIntent
+        );
+      }
 
       // if (tripUpdate.activeVesselTripUpdate !== undefined) {
       //   console.log("[updateVesselOrchestrator] persisted active vessel trip", {

@@ -1,23 +1,16 @@
 /**
- * Orchestrator trip writes: optional completion + active, then leave-dock
- * actualization on the last completed leg when needed.
+ * Orchestrator trip writes: optional completion + active upsert only.
  */
 
 import type { MutationCtx } from "_generated/server";
+import { stripVesselTripPredictions } from "domain/vesselOrchestration/updateVesselTrip";
 import {
-  currentTripEvents,
-  stripVesselTripPredictions,
-} from "domain/vesselOrchestration/updateVesselTrip";
-import {
-  rolloverCompletedAndActiveInDb,
-  setDepartNextActualsForMostRecentCompletedTripInDb,
+  insertCompletedVesselTripInDb,
   upsertActiveVesselTrip,
 } from "functions/vesselTrips/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type PerVesselTripPersistInput = {
-  vesselAbbrev: string;
-  existingActiveTrip?: ConvexVesselTrip;
   activeVesselTrip: ConvexVesselTrip;
   completedVesselTrip?: ConvexVesselTrip;
 };
@@ -37,19 +30,9 @@ export const persistVesselTripWrites = async (
       : stripVesselTripPredictions(input.completedVesselTrip);
 
   if (completedTrip !== undefined) {
-    await rolloverCompletedAndActiveInDb(ctx, completedTrip, activeTrip);
+    await insertCompletedVesselTripInDb(ctx, completedTrip);
+    await upsertActiveVesselTrip(ctx, activeTrip);
   } else {
     await upsertActiveVesselTrip(ctx, activeTrip);
   }
-
-  const events = currentTripEvents(input.existingActiveTrip, activeTrip);
-  if (!events.didJustLeaveDock || activeTrip.LeftDockActual === undefined) {
-    return;
-  }
-
-  await setDepartNextActualsForMostRecentCompletedTripInDb(
-    ctx,
-    input.vesselAbbrev,
-    activeTrip.LeftDockActual
-  );
 };

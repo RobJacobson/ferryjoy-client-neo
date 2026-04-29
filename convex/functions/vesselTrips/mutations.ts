@@ -9,8 +9,6 @@ import type { Id } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { ConvexError, v } from "convex/values";
-import { resolveDepartNextLegContext } from "domain/events/predicted/departNextActualization";
-import { actualizeDepartNextMlPredictions } from "functions/events/eventsPredicted/mutations";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
@@ -75,32 +73,6 @@ export const upsertVesselTripsBatch = internalMutation({
   }),
   handler: async (ctx, args) =>
     upsertVesselTripsBatchInDb(ctx, args.activeUpserts),
-});
-
-/**
- * Backfill depart-next prediction actuals on `eventsPredicted` for the most
- * recent completed trip when the next leg leaves dock.
- *
- * @param ctx - Convex context
- * @param args.vesselAbbrev - The vessel abbreviation
- * @param args.actualDepartMs - Actual departure timestamp of the next trip (epoch ms)
- * @returns Whether any prediction row was patched and optional skip reason
- */
-export const setDepartNextActualsForMostRecentCompletedTrip = internalMutation({
-  args: {
-    vesselAbbrev: v.string(),
-    actualDepartMs: v.number(),
-  },
-  returns: v.object({
-    updated: v.boolean(),
-    reason: v.optional(v.string()),
-  }),
-  handler: async (ctx, args) =>
-    setDepartNextActualsForMostRecentCompletedTripInDb(
-      ctx,
-      args.vesselAbbrev,
-      args.actualDepartMs
-    ),
 });
 
 export const upsertVesselTripsBatchInDb = async (
@@ -201,49 +173,6 @@ export const rolloverCompletedAndActiveInDb = async (
   await upsertActiveVesselTrip(ctx, activeTrip);
 };
 
-export const setDepartNextActualsForMostRecentCompletedTripInDb = async (
-  ctx: MutationCtx,
-  vesselAbbrev: string,
-  actualDepartMs: number
-): Promise<{
-  updated: boolean;
-  reason?: string;
-}> => {
-  const mostRecent = await getMostRecentCompletedTrip(ctx, vesselAbbrev);
-  if (!mostRecent) {
-    return {
-      updated: false,
-      reason: "no_completed_trip",
-    };
-  }
-
-  const leg = resolveDepartNextLegContext(mostRecent, actualDepartMs);
-  if (!leg.ok) {
-    return {
-      updated: false,
-      reason: leg.reason,
-    };
-  }
-
-  const { depKey, actualMs } = leg;
-  const anyUpdated = await actualizeDepartNextMlPredictions(
-    ctx,
-    depKey,
-    actualMs
-  );
-
-  if (!anyUpdated) {
-    return {
-      updated: false,
-      reason: "no_predictions_to_update",
-    };
-  }
-
-  return {
-    updated: true,
-  };
-};
-
 /**
  * Persists one stripped active trip row, replacing when the vessel already has a row.
  *
@@ -286,19 +215,3 @@ const assertCompletedTripHasEndTime = (
     severity: "error",
   });
 };
-
-/**
- * Load the latest completed trip for one vessel.
- *
- * @param ctx - Mutation context
- * @param vesselAbbrev - Vessel abbreviation
- * @returns Most recent completed trip or null
- */
-const getMostRecentCompletedTrip = (ctx: MutationCtx, vesselAbbrev: string) =>
-  ctx.db
-    .query("completedVesselTrips")
-    .withIndex("by_vessel_and_trip_end", (q) =>
-      q.eq("VesselAbbrev", vesselAbbrev)
-    )
-    .order("desc")
-    .first();
