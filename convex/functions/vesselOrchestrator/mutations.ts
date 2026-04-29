@@ -133,8 +133,7 @@ export const persistPerVesselOrchestratorWrites = internalMutation({
     const currentMinuteKey = minuteKeyFromEpochMs(Date.now());
     try {
       const tripWriteIntentCount =
-        Number(args.completedVesselTrip !== undefined) +
-        Number(args.activeVesselTrip !== undefined);
+        1 + Number(args.completedVesselTrip !== undefined);
 
       await persistVesselTripWrites(ctx, {
         vesselAbbrev: args.vesselAbbrev,

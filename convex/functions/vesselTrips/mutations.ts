@@ -15,11 +15,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
 /**
- * Complete an active trip and start a new one.
- * Performs three steps in one mutation transaction:
- * 1. Insert the completed trip into completedVesselTrips
- * 2. Delete the previous active trip row
- * 3. Insert a fresh active trip row for the new trip
+ * Complete an active trip and start a new one via {@link rolloverCompletedAndActiveInDb}.
  *
  * @param ctx - Convex context
  * @param args.completedTrip - The completed vessel trip to archive
@@ -34,7 +30,11 @@ export const completeAndStartNewTrip = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     try {
-      await completeAndStartNewTripInDb(ctx, args.completedTrip, args.newTrip);
+      await rolloverCompletedAndActiveInDb(
+        ctx,
+        args.completedTrip,
+        args.newTrip
+      );
       return null;
     } catch (error) {
       if (error instanceof ConvexError) {
@@ -103,22 +103,6 @@ export const setDepartNextActualsForMostRecentCompletedTrip = internalMutation({
     ),
 });
 
-export const completeAndStartNewTripInDb = async (
-  ctx: MutationCtx,
-  completedTrip: ConvexVesselTrip,
-  newTrip: ConvexVesselTrip
-): Promise<void> => {
-  assertCompletedTripHasEndTime(completedTrip);
-  const existingActive = await getExistingActiveTripOrThrow(
-    ctx,
-    completedTrip.VesselAbbrev
-  );
-
-  await ctx.db.insert("completedVesselTrips", completedTrip);
-  await ctx.db.delete(existingActive._id);
-  await ctx.db.insert("activeVesselTrips", newTrip);
-};
-
 export const upsertVesselTripsBatchInDb = async (
   ctx: MutationCtx,
   activeUpserts: ConvexVesselTrip[]
@@ -162,7 +146,27 @@ export const upsertVesselTripsBatchInDb = async (
   return { perVessel };
 };
 
-export const upsertActiveVesselTripInDb = async (
+/**
+ * Inserts one row into `completedVesselTrips`.
+ *
+ * @param ctx - Mutation context
+ * @param completedTrip - Completed trip document to archive
+ */
+export const insertCompletedVesselTripInDb = async (
+  ctx: MutationCtx,
+  completedTrip: ConvexVesselTrip
+): Promise<void> => {
+  assertCompletedTripHasEndTime(completedTrip);
+  await ctx.db.insert("completedVesselTrips", completedTrip);
+};
+
+/**
+ * Upserts one row in `activeVesselTrips` by matching `trip.VesselAbbrev`.
+ *
+ * @param ctx - Mutation context
+ * @param trip - Active trip row to persist
+ */
+export const upsertActiveVesselTrip = async (
   ctx: MutationCtx,
   trip: ConvexVesselTrip
 ): Promise<void> => {
@@ -179,6 +183,22 @@ export const upsertActiveVesselTripInDb = async (
   }
 
   await ctx.db.insert("activeVesselTrips", trip);
+};
+
+/**
+ * Archives the completed leg and persists the next active row for that vessel.
+ *
+ * @param ctx - Mutation context
+ * @param completedTrip - Leg moving to `completedVesselTrips`
+ * @param activeTrip - Replacement active row for that vessel
+ */
+export const rolloverCompletedAndActiveInDb = async (
+  ctx: MutationCtx,
+  completedTrip: ConvexVesselTrip,
+  activeTrip: ConvexVesselTrip
+): Promise<void> => {
+  await insertCompletedVesselTripInDb(ctx, completedTrip);
+  await upsertActiveVesselTrip(ctx, activeTrip);
 };
 
 export const setDepartNextActualsForMostRecentCompletedTripInDb = async (
@@ -264,34 +284,6 @@ const assertCompletedTripHasEndTime = (
     message: "Completed trip must have EndTime set",
     code: "INVALID_COMPLETED_TRIP",
     severity: "error",
-  });
-};
-
-/**
- * Load the current active row for one vessel or throw a structured error.
- *
- * @param ctx - Mutation context
- * @param vesselAbbrev - Vessel abbreviation
- * @returns Existing active trip row
- */
-const getExistingActiveTripOrThrow = async (
-  ctx: MutationCtx,
-  vesselAbbrev: string
-) => {
-  const existingActive = await ctx.db
-    .query("activeVesselTrips")
-    .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", vesselAbbrev))
-    .first();
-
-  if (existingActive) {
-    return existingActive;
-  }
-
-  throw new ConvexError({
-    message: `No active trip found for vessel ${vesselAbbrev}`,
-    code: "ACTIVE_TRIP_NOT_FOUND",
-    severity: "error",
-    details: { vesselAbbrev },
   });
 };
 

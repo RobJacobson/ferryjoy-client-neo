@@ -35,35 +35,27 @@ export const timelineHandoffFromTripUpdate = (
               existingActiveTrip,
               completedTrip
             ),
-            scheduleTrip: activeTrip ?? completedTrip,
+            scheduleTrip: activeTrip,
           },
         ];
-  const events =
-    activeTrip === undefined
-      ? undefined
-      : currentTripEvents(existingActiveTrip, activeTrip);
+  const events = currentTripEvents(existingActiveTrip, activeTrip);
   const pendingActualWrite =
-    activeTrip === undefined ||
-    events === undefined ||
-    (!events.didJustLeaveDock && !events.didJustArriveAtDock)
+    !events.didJustLeaveDock && !events.didJustArriveAtDock
       ? undefined
       : {
           events,
           scheduleTrip: activeTrip,
           vesselAbbrev: activeTrip.VesselAbbrev,
         };
-  const pendingPredictedWrite =
-    activeTrip === undefined
-      ? undefined
-      : {
-          existingTrip: existingActiveTrip,
-          scheduleTrip: activeTrip,
-          vesselAbbrev: activeTrip.VesselAbbrev,
-        };
+  const pendingPredictedWrite = {
+    existingTrip: existingActiveTrip,
+    scheduleTrip: activeTrip,
+    vesselAbbrev: activeTrip.VesselAbbrev,
+  };
   return {
     completedTripFacts,
     currentBranch: {
-      successfulVesselAbbrev: activeTrip?.VesselAbbrev,
+      successfulVesselAbbrev: activeTrip.VesselAbbrev,
       pendingActualWrite,
       pendingPredictedWrite,
     },

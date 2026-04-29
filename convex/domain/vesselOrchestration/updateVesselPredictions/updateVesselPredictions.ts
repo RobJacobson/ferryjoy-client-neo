@@ -87,8 +87,7 @@ const buildPredictedCompletedHandoff = async (
  * Canonical predictions entrypoint for orchestrator callers.
  *
  * Derives prediction inputs internally from the upstream trip update and
- * short-circuits with empty output when there is no active or completed trip
- * to predict against.
+ * short-circuits with empty output when there is nothing to predict against.
  *
  * @param input - Upstream trip update plus model access context
  * @returns Prediction rows and timeline ML overlays for this ping
@@ -99,7 +98,7 @@ export const updateVesselPredictions = async (
   const { activeTrip, completedHandoff } = predictionInputsFromTripUpdate(
     input.tripUpdate
   );
-  if (activeTrip === undefined && completedHandoff === undefined) {
+  if (completedHandoff === undefined && activeTrip === undefined) {
     return {
       predictionRows: [],
       mlTimelineOverlays: [],

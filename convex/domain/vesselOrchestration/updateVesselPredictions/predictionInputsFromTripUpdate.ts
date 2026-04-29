@@ -13,7 +13,7 @@ import {
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type PredictionInputsFromTripUpdate = {
-  activeTrip?: ConvexVesselTrip;
+  activeTrip: ConvexVesselTrip;
   completedHandoff?: CompletedArrivalHandoff;
 };
 
@@ -41,7 +41,7 @@ export const predictionInputsFromTripUpdate = (
       existingTrip: existingActiveTrip,
       tripToComplete: completedTrip,
       events: buildCompletionTripEvents(existingActiveTrip, completedTrip),
-      scheduleTrip: activeTrip ?? completedTrip,
+      scheduleTrip: activeTrip,
     },
   };
 };

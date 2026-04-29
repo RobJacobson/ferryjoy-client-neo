@@ -57,7 +57,10 @@ export const buildUpdatedVesselRows = async (
 
     return basicRows.completedVesselTrip === undefined
       ? {}
-      : { completedVesselTrip: basicRows.completedVesselTrip };
+      : {
+          completedVesselTrip: basicRows.completedVesselTrip,
+          activeVesselTrip: basicRows.activeVesselTrip,
+        };
   }
 };
 

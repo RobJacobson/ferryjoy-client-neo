@@ -201,7 +201,7 @@ import type * as functions_vesselOrchestrator_pipeline_updateVesselPredictions_i
 import type * as functions_vesselOrchestrator_pipeline_updateVesselPredictions_persist from "../functions/vesselOrchestrator/pipeline/updateVesselPredictions/persist.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_index from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/index.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_persist from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/persist.js";
-import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_scheduleDbAccess from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.js";
+import type * as functions_vesselOrchestrator_pipeline_updateVesselTrip_updateVesselTripDbAccess from "../functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.js";
 import type * as functions_vesselOrchestrator_queries from "../functions/vesselOrchestrator/queries.js";
 import type * as functions_vesselPings_actions from "../functions/vesselPings/actions.js";
 import type * as functions_vesselPings_index from "../functions/vesselPings/index.js";
@@ -451,7 +451,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/pipeline/updateVesselPredictions/persist": typeof functions_vesselOrchestrator_pipeline_updateVesselPredictions_persist;
   "functions/vesselOrchestrator/pipeline/updateVesselTrip/index": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_index;
   "functions/vesselOrchestrator/pipeline/updateVesselTrip/persist": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_persist;
-  "functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_scheduleDbAccess;
+  "functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess": typeof functions_vesselOrchestrator_pipeline_updateVesselTrip_updateVesselTripDbAccess;
   "functions/vesselOrchestrator/queries": typeof functions_vesselOrchestrator_queries;
   "functions/vesselPings/actions": typeof functions_vesselPings_actions;
   "functions/vesselPings/index": typeof functions_vesselPings_index;

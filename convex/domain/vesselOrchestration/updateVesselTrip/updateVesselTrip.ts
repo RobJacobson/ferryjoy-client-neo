@@ -42,6 +42,11 @@ const updateVesselTrip = async (
       return null;
     }
 
+    // Persist layer requires an active row every time we emit a trip update.
+    if (activeVesselTrip === undefined) {
+      return null;
+    }
+
     // Check if the active vessel trip has meaningfully changed.
     const isActiveVesselTripUnchanged = isSameVesselTrip(
       existingActiveTrip,

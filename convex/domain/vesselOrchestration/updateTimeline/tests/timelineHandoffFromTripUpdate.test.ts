@@ -44,22 +44,33 @@ const makeTrip = (
 });
 
 describe("timelineHandoffFromTripUpdate", () => {
-  it("builds completion-only handoff", () => {
+  it("builds completion plus replacement active handoff", () => {
     const existing = makeTrip("CHE", { ArrivedNextActual: undefined });
     const completed = makeTrip("CHE", {
       ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
     });
+    const replacement = makeTrip("CHE", {
+      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "LOP",
+      ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
+      AtDock: true,
+      LeftDockActual: undefined,
+    });
     const result = timelineHandoffFromTripUpdate({
       vesselAbbrev: "CHE",
       existingActiveTrip: existing,
-      activeVesselTripUpdate: undefined,
+      activeVesselTripUpdate: replacement,
       completedVesselTripUpdate: completed,
     });
     expect(result.completedTripFacts).toHaveLength(1);
     expect(result.completedTripFacts[0]?.tripToComplete).toEqual(completed);
+    expect(result.completedTripFacts[0]?.scheduleTrip).toEqual(replacement);
     expect(result.currentBranch.pendingActualWrite).toBeUndefined();
-    expect(result.currentBranch.pendingPredictedWrite).toBeUndefined();
+    expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
+      replacement
+    );
   });
 
   it("builds active-only current branch handoff", () => {

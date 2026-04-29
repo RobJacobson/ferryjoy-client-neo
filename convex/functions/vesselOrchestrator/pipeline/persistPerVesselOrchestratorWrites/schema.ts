@@ -14,7 +14,7 @@ import {
 export const persistPerVesselOrchestratorWritesSchema = v.object({
   vesselAbbrev: v.string(),
   existingActiveTrip: v.optional(vesselTripStoredSchema),
-  activeVesselTrip: v.optional(vesselTripStoredSchema),
+  activeVesselTrip: vesselTripStoredSchema,
   completedVesselTrip: v.optional(vesselTripStoredSchema),
   predictionRows: v.array(vesselTripPredictionProposalSchema),
   actualEvents: v.array(eventsActualSchema),

@@ -10,13 +10,15 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 /**
  * Canonical Stage 2 per-vessel write intents for the orchestrator pipeline.
  *
- * Each field represents a concrete storage update to apply. When a field is
- * undefined, no write should be emitted for that table/branch.
+ * `activeVesselTripUpdate` is always the next **active** row to persist. When a
+ * leg completes, that value is the replacement trip; `completedVesselTripUpdate`
+ * is set for the row being archived. When a field is undefined, no write of
+ * that kind is emitted.
  */
 export type VesselTripUpdate = {
   vesselAbbrev: ConvexVesselLocation["VesselAbbrev"];
   existingActiveTrip?: ConvexVesselTrip;
-  activeVesselTripUpdate?: ConvexVesselTrip;
+  activeVesselTripUpdate: ConvexVesselTrip;
   completedVesselTripUpdate?: ConvexVesselTrip;
 };
 
