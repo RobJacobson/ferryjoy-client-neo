@@ -17,7 +17,7 @@ describe("performBulkUpsertVesselLocations", () => {
     const ctx = createMutationCtx([], { insert: insertMock });
 
     const result = await performBulkUpsertVesselLocations(ctx, incoming);
-    const expected = withAtDockObserved([], incoming);
+    const expected = withAtDockObserved(incoming);
 
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(result.changedLocations).toHaveLength(1);

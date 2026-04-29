@@ -48,13 +48,7 @@ export const captureHistoricVesselLocations = internalAction({
       vesselsIdentity: vesselIdentities,
       terminalsIdentity: terminalIdentities,
     });
-    const existingLocations = await ctx.runQuery(
-      internal.functions.vesselLocation.queries.getCurrentVesselLocations
-    );
-    const locationsWithObserved = withAtDockObserved(
-      existingLocations,
-      convexLocations
-    );
+    const locationsWithObserved = withAtDockObserved(convexLocations);
 
     const locations: ConvexHistoricVesselLocation[] =
       locationsWithObserved.map(addSailingDay);

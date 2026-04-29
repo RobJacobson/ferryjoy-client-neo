@@ -5,6 +5,22 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
 describe("detectTripEvents", () => {
+  it("does not report schedule-key changes on cold start", () => {
+    const currLocation = makeLocation({
+      ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
+      AtDockObserved: false,
+    });
+
+    const events = detectTripEvents(undefined, currLocation);
+
+    expect(events.didJustLeaveDock).toBe(false);
+    expect(events.didJustArriveAtDock).toBe(false);
+    expect(events.isCompletedTrip).toBe(false);
+    expect(events.leftDockTime).toBe(currLocation.LeftDock);
+    expect(events.scheduleKeyChanged).toBe(false);
+  });
+
   it("does not treat an overnight destination-field change as arrival at dock", () => {
     const existingTrip = makeTrip({
       DepartingTerminalAbbrev: "ANA",
@@ -109,7 +125,7 @@ describe("detectTripEvents", () => {
     expect(events.isCompletedTrip).toBe(true);
   });
 
-  it("does not infer departure from AtDock false without LeftDock", () => {
+  it("detects departure from an AtDockObserved edge without LeftDock", () => {
     const existingTrip = makeTrip({
       AtDock: true,
       LeftDock: undefined,
@@ -118,14 +134,15 @@ describe("detectTripEvents", () => {
 
     const currLocation = makeLocation({
       AtDock: false,
+      AtDockObserved: false,
       LeftDock: undefined,
       TimeStamp: ms("2026-03-13T05:29:35-07:00"),
     });
 
     const events = detectTripEvents(existingTrip, currLocation);
 
-    expect(events.leftDockTime).toBeUndefined();
-    expect(events.didJustLeaveDock).toBe(false);
+    expect(events.leftDockTime).toBe(ms("2026-03-13T05:29:35-07:00"));
+    expect(events.didJustLeaveDock).toBe(true);
   });
 
   it("preserves schedule identity continuity from the dock window", () => {
@@ -169,24 +186,23 @@ describe("detectTripEvents", () => {
     expect(events.didJustLeaveDock).toBe(false);
   });
 
-  it("detects departure only when LeftDock is provided by the feed", () => {
+  it("does not re-fire departure after departure evidence already exists", () => {
     const existingTrip = makeTrip({
-      AtDock: true,
-      LeftDock: undefined,
+      AtDock: false,
+      LeftDock: ms("2026-03-13T05:29:38-07:00"),
       TimeStamp: ms("2026-03-13T05:29:30-07:00"),
     });
 
     const currLocation = makeLocation({
       AtDock: false,
       AtDockObserved: false,
-      LeftDock: ms("2026-03-13T05:29:38-07:00"),
       TimeStamp: ms("2026-03-13T05:29:40-07:00"),
     });
 
     const events = detectTripEvents(existingTrip, currLocation);
 
     expect(events.leftDockTime).toBe(ms("2026-03-13T05:29:38-07:00"));
-    expect(events.didJustLeaveDock).toBe(true);
+    expect(events.didJustLeaveDock).toBe(false);
   });
 
   it("does not treat a leave-dock future identity jump as a key change", () => {
@@ -266,6 +282,7 @@ describe("detectTripEvents", () => {
       ScheduledDeparture: undefined,
       ScheduleKey: undefined,
       AtDock: false,
+      AtDockObserved: false,
       // Keep the same in-flight physical trip while dropping schedule
       // alignment, which should count as a meaningful schedule transition.
       LeftDock: existingTrip.LeftDock,

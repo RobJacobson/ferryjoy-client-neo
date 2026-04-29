@@ -6,7 +6,6 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { withAtDockObserved } from "domain/vesselOrchestration/updateVesselLocations";
-import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { vesselIdentitySchema } from "../vessels/schemas";
 import type {
   ConvexVesselLocation,
@@ -60,11 +59,7 @@ export async function performBulkUpsertVesselLocations(
   const existingByAbbrev = new Map(
     existingDocs.map((loc) => [loc.VesselAbbrev, loc] as const)
   );
-  const existingForObserved = existingDocs.map(stripConvexMeta);
-  const dedupedLocations = withAtDockObserved(
-    existingForObserved,
-    dedupedIncoming
-  );
+  const dedupedLocations = withAtDockObserved(dedupedIncoming);
 
   const changedLocations: Array<ConvexVesselLocation> = [];
 
