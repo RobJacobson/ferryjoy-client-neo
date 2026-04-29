@@ -1,5 +1,3 @@
 /**
- * Public entrypoint for update-timeline stage persistence helpers.
+ * Public entrypoint for update-timeline stage helpers.
  */
-
-export { persistVesselTimelineWrites } from "./persist";

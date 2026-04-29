@@ -17,15 +17,15 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions.ts)
        loadPredictionContext (Convex query when model preload applies)
        updateVesselPredictions ({ tripUpdate, predictionContext })
        updateTimeline ({ pingStartedAt, tripUpdate, mlTimelineOverlays })
-  -> persistPerVesselOrchestratorWrites: trip rows + prediction upserts + timeline rows
+       persistVesselUpdates (one atomic mutation for trip, predictions, timeline, actualization)
 ```
 
 The trip and prediction stages run in the action per changed location row.
 Location dedupe runs in `bulkUpsertVesselLocations`, and the action consumes only
 that mutation's changed-row return. Timeline projection (`updateTimeline`) runs
-in the action **before** persistence; `persistPerVesselOrchestratorWrites` applies
-trip lifecycle writes, prediction proposals, and projected actual/predicted dock
-rows in one ordered mutation per vessel.
+in the action **before** persistence; `persistVesselUpdates` applies trip
+lifecycle writes, prediction proposals, projected actual/predicted dock rows,
+and optional depart-next actualization in one transaction per vessel.
 
 ## Timestamp semantics (current code)
 
@@ -127,14 +127,14 @@ Prediction inputs are derived inside **`updateVesselPredictions`** from **`Vesse
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/pipeline/*`
   - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/scheduleDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
-- `functions/vesselOrchestrator/mutations.ts` (`persistPerVesselOrchestratorWrites`)
-  - ordered trip + prediction + timeline persistence per vessel
+- `functions/vesselOrchestrator/mutations.ts`
+  - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`
   - trip compute only
 - `domain/vesselOrchestration/updateVesselPredictions/`
   - ML overlay from trip rows
 - `domain/vesselOrchestration/updateTimeline/`
-  - actual/predicted dock event assembly (pure); orchestrator calls it before `persistPerVesselOrchestratorWrites`
+  - actual/predicted dock event assembly (pure); orchestrator calls it before aggregate persistence
 
 ## Key design rules
 

@@ -124,10 +124,21 @@ describe("updateVesselOrchestrator ping integration", () => {
     spyOn(console, "log").mockImplementation(() => {});
   });
 
-  it("calls persistPerVesselOrchestratorWrites after locations when trip stage returns writes", async () => {
+  it("persists location then active trip when trip stage returns writes", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
+
+    const activeTripWithMl = {
+      ...makeTrip("CHE"),
+      AtDockDepartNext: {
+        PredTime: ms("2026-03-13T05:35:00-07:00"),
+        MinTime: ms("2026-03-13T05:30:00-07:00"),
+        MaxTime: ms("2026-03-13T05:40:00-07:00"),
+        MAE: 3,
+        StdDev: 2,
+      },
+    } as unknown as ConvexVesselTrip;
 
     const tripSpy = spyOn(
       updateVesselTripModule,
@@ -135,7 +146,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     ).mockResolvedValue({
       vesselAbbrev: "CHE",
       existingActiveTrip: undefined,
-      activeVesselTripUpdate: makeTrip("CHE"),
+      activeVesselTripUpdate: activeTripWithMl,
     });
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
@@ -176,16 +187,11 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(timelineSpy).toHaveBeenCalledTimes(1);
 
     expect(mutationCalls).toHaveLength(2);
-    const persistArgs = mutationCalls[1] as {
-      vesselAbbrev: string;
-      predictionRows: unknown[];
-      actualEvents: unknown[];
-      predictedEvents: unknown[];
+    const vesselUpdateArgs = mutationCalls[1] as {
+      activeVesselTrip: { VesselAbbrev: string; AtDockDepartNext?: unknown };
     };
-    expect(persistArgs.vesselAbbrev).toBe("CHE");
-    expect(persistArgs.predictionRows).toEqual([]);
-    expect(persistArgs.actualEvents).toEqual([]);
-    expect(persistArgs.predictedEvents).toEqual([]);
+    expect(vesselUpdateArgs.activeVesselTrip.VesselAbbrev).toBe("CHE");
+    expect(vesselUpdateArgs.activeVesselTrip.AtDockDepartNext).toBeUndefined();
   });
 
   it("runs explicit trip actualization stage after persist writes", async () => {
@@ -237,13 +243,17 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(mutationCalls).toHaveLength(3);
-    const actualizationArgs = mutationCalls[2] as {
-      vesselAbbrev: string;
-      depBoundaryKey: string;
-      actualDepartMs: number;
+    expect(mutationCalls).toHaveLength(2);
+    const vesselUpdateArgs = mutationCalls[1] as {
+      activeVesselTrip: { VesselAbbrev: string };
+      departNextActualization: {
+        vesselAbbrev: string;
+        depBoundaryKey: string;
+        actualDepartMs: number;
+      };
     };
-    expect(actualizationArgs).toEqual({
+    expect(vesselUpdateArgs.activeVesselTrip.VesselAbbrev).toBe("CHE");
+    expect(vesselUpdateArgs.departNextActualization).toEqual({
       vesselAbbrev: "CHE",
       depBoundaryKey: "CHE--2026-03-13--05:30--ANA-ORI--dep-dock",
       actualDepartMs: ms("2026-03-13T06:40:00.000-07:00"),
@@ -342,8 +352,10 @@ describe("updateVesselOrchestrator ping integration", () => {
     )._handler(ctx, {});
 
     expect(mutationCalls.length).toBe(2);
-    const persistArgs = mutationCalls[1] as { vesselAbbrev: string };
-    expect(persistArgs.vesselAbbrev).toBe("TAC");
+    const vesselUpdateArgs = mutationCalls[1] as {
+      activeVesselTrip: { VesselAbbrev: string };
+    };
+    expect(vesselUpdateArgs.activeVesselTrip.VesselAbbrev).toBe("TAC");
 
     expect(consoleErrorSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
     const errorPayload = consoleErrorSpy.mock.calls.find(

@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { Id } from "_generated/dataModel";
-import { applyDepartNextActualizationIntentInDb } from "../actualizations";
+import { actualizeDepartNextPredictions } from "../actualizations";
 
 type PredictedRow = {
   _id: Id<"eventsPredicted">;
@@ -11,7 +11,7 @@ type PredictedRow = {
   Actual?: number;
 };
 
-describe("applyDepartNextActualizationIntentInDb", () => {
+describe("actualizeDepartNextPredictions", () => {
   it("updates both depart-next ML rows when present", async () => {
     const patchPayloads: Array<{ Actual: number; DeltaTotal: number }> = [];
     const patchMock = mock(
@@ -54,7 +54,7 @@ describe("applyDepartNextActualizationIntentInDb", () => {
     ]);
     const ctx = createMutationCtx(rows, patchMock);
 
-    const result = await applyDepartNextActualizationIntentInDb(ctx, {
+    const result = await actualizeDepartNextPredictions(ctx, {
       vesselAbbrev: "TAC",
       depBoundaryKey: "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
       actualDepartMs: 1_600_000,
@@ -108,7 +108,7 @@ describe("applyDepartNextActualizationIntentInDb", () => {
     ]);
     const ctx = createMutationCtx(rows, patchMock);
 
-    const result = await applyDepartNextActualizationIntentInDb(ctx, {
+    const result = await actualizeDepartNextPredictions(ctx, {
       vesselAbbrev: "TAC",
       depBoundaryKey: "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
       actualDepartMs: 1600,
@@ -125,7 +125,7 @@ describe("applyDepartNextActualizationIntentInDb", () => {
     const patchMock = mock(async () => {});
     const ctx = createMutationCtx(new Map(), patchMock);
 
-    const result = await applyDepartNextActualizationIntentInDb(ctx, {
+    const result = await actualizeDepartNextPredictions(ctx, {
       vesselAbbrev: "TAC",
       depBoundaryKey: "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
       actualDepartMs: 1600,

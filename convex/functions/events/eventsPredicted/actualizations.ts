@@ -18,7 +18,7 @@ export type DepartNextActualizationPersistResult = {
  * @param intent - Derived leave-dock actualization intent
  * @returns Whether any prediction rows were patched
  */
-export const applyDepartNextActualizationIntentInDb = async (
+export const actualizeDepartNextPredictions = async (
   ctx: MutationCtx,
   intent: DepartNextActualizationIntent
 ): Promise<DepartNextActualizationPersistResult> => {

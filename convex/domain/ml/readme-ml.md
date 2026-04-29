@@ -380,12 +380,7 @@ trip compute for changed location rows in the action (with
 **`UpdateVesselTripDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts` for targeted
 `eventsScheduled` continuity), then **`loadPredictionContext`** (when domain preload
 requests apply) and domain **`updateVesselPredictions`** (`{ tripUpdate, predictionContext }`).
-Domain **`updateTimeline`** runs in action memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived inside **`timelineHandoffFromTripUpdate`**); then
-[`persistPerVesselOrchestratorWrites`](../../functions/vesselOrchestrator/mutations.ts)
-applies trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted`
-rows in one ordered mutation per changed vessel. Per-tick trip lifecycle
-logic lives in `convex/domain/vesselOrchestration/updateVesselTrip/` and is
-driven by the per-vessel loop in `functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts`.
+Domain **`updateTimeline`** runs in action memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived inside **`timelineHandoffFromTripUpdate`**); then stage-level persistence helpers apply trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted` rows in explicit per-vessel order. Per-tick trip lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrip/` and is driven by the per-vessel loop in `functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 

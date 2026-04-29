@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { Id } from "_generated/dataModel";
-import { projectPredictedDockWriteBatchesInDb } from "../mutations";
+import { upsertPredictedDockBatches } from "../mutations";
 
 type PredictedDoc = {
   _id: Id<"eventsPredicted">;
@@ -20,7 +20,7 @@ type PredictedDoc = {
   DeltaTotal?: number;
 };
 
-describe("projectPredictedDockWriteBatchesInDb", () => {
+describe("upsertPredictedDockBatches", () => {
   it("preserves depart-next ML rows during target-key clearing", async () => {
     const depKey = "TAC--2026-03-13--05:30--ANA-ORI--dep-dock";
     const arvKey = "TAC--2026-03-13--05:30--ANA-ORI--arv-dock";
@@ -53,7 +53,7 @@ describe("projectPredictedDockWriteBatchesInDb", () => {
       delete: deleteMock,
     });
 
-    await projectPredictedDockWriteBatchesInDb(ctx, [
+    await upsertPredictedDockBatches(ctx, [
       {
         VesselAbbrev: "TAC",
         SailingDay: "2026-03-13",
@@ -91,7 +91,10 @@ const createCtx = (
         withIndex: (
           _index: "by_vessel_and_sailing_day",
           _builder: (q: {
-            eq: (field: "VesselAbbrev" | "SailingDay", value: string) => unknown;
+            eq: (
+              field: "VesselAbbrev" | "SailingDay",
+              value: string
+            ) => unknown;
           }) => unknown
         ) => ({
           collect: async () => rows,
@@ -99,6 +102,7 @@ const createCtx = (
       }),
       delete: mocks?.delete ?? mock(async () => {}),
       replace: mocks?.replace ?? mock(async () => {}),
-      insert: mocks?.insert ?? mock(async () => "new-id" as Id<"eventsPredicted">),
+      insert:
+        mocks?.insert ?? mock(async () => "new-id" as Id<"eventsPredicted">),
     },
   }) as never;

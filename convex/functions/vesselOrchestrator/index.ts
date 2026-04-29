@@ -3,5 +3,5 @@
  */
 
 export { updateVesselOrchestrator } from "./actions";
-export { persistPerVesselOrchestratorWrites } from "./mutations";
+export { persistVesselUpdates } from "./mutations";
 export { getOrchestratorModelData } from "./queries";

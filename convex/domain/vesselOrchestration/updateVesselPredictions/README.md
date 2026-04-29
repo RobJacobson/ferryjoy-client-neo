@@ -1,7 +1,7 @@
 # updateVesselPredictions (orchestrator concern)
 
 ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
-leave-dock actualization for one ping. On the **orchestrator** path **`updateVesselOrchestrator`** calls **`updateVesselPredictions`** in the action per-vessel loop **before** **`persistPerVesselOrchestratorWrites`**, with input **`{ tripUpdate, predictionContext }`** (**`tripUpdate`** comes from **`updateVesselTrip`**). Persistence of trip rows and prediction proposals still happens in the consolidated mutation, not inside this domain function.
+leave-dock actualization for one ping. On the **orchestrator** path **`updateVesselOrchestrator`** calls **`updateVesselPredictions`** in the action per-vessel loop with input **`{ tripUpdate, predictionContext }`** (**`tripUpdate`** comes from **`updateVesselTrip`**). Persistence stays outside this domain function and runs through stage-level helpers in the pipeline (trip writes first, then prediction writes, then timeline writes).
 
 ## Canonical code
 

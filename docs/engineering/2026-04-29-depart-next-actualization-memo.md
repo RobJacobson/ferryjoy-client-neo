@@ -19,50 +19,28 @@ The intended direction is to make depart-next actualization a first-class vessel
 
 The current hot path is in `convex/functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts`.
 
-For each changed vessel location, the orchestrator currently runs:
+For each changed vessel location, the orchestrator runs:
 
 ```text
 updateVesselTrip
+  -> persistCompletedVesselTrip (optional)
+  -> persistActiveVesselTrip
   -> loadPredictionContext
   -> updateVesselPredictions
+  -> persistPredictionRows
   -> updateTimeline
-  -> persistPerVesselOrchestratorWrites
+  -> persistActualTimelineEvents
+  -> persistPredictedTimelineEvents
+  -> persistVesselTripActualizationIntent (optional)
 ```
 
-The actualization step is hidden inside `persistPerVesselOrchestratorWrites`, specifically through `persistVesselTripWrites` in:
+The actualization step is now explicit in `runOrchestratorPing` through:
 
 ```text
-convex/functions/vesselOrchestrator/pipeline/updateVesselTrip/persist.ts
+convex/functions/vesselOrchestrator/pipeline/updateVesselActualizations/persistVesselTripActualizationIntent.ts
 ```
 
-That helper:
-
-1. Strips prediction fields from trip rows before storage.
-2. Writes the completed trip and active trip rows.
-3. Recomputes current-trip lifecycle events with `currentTripEvents`.
-4. If the active row just left dock, calls:
-
-```ts
-setDepartNextActualsForMostRecentCompletedTripInDb(
-  ctx,
-  input.vesselAbbrev,
-  activeTrip.LeftDockActual
-)
-```
-
-That function lives in:
-
-```text
-convex/functions/vesselTrips/mutations.ts
-```
-
-It:
-
-1. Loads the most recent completed trip for the vessel.
-2. Reads that completed trip's `NextScheduleKey`.
-3. Builds the next leg `dep-dock` boundary key from `NextScheduleKey`.
-4. Calls `actualizeDepartNextMlPredictions` in `functions/events/eventsPredicted/mutations.ts`.
-5. Patches `eventsPredicted` rows for:
+The actualization mutation now receives explicit intent fields (`vesselAbbrev`, `depBoundaryKey`, `actualDepartMs`) and patches `eventsPredicted` rows for:
 
 ```text
 AtDockDepartNext
@@ -118,10 +96,15 @@ Recommended conceptual flow:
 ```text
 updateVesselTrip
   -> deriveDepartNextActualizationIntent
+  -> persistCompletedVesselTrip (optional)
+  -> persistActiveVesselTrip
   -> loadPredictionContext
   -> updateVesselPredictions
+  -> persistPredictionRows
   -> updateTimeline
-  -> persistPerVesselOrchestratorWrites
+  -> persistActualTimelineEvents
+  -> persistPredictedTimelineEvents
+  -> persistVesselTripActualizationIntent (optional)
 ```
 
 The stage can be placed after `updateVesselTrip` because it depends on the trip lifecycle transition. The final write should be coordinated with predicted-event persistence so actualized `eventsPredicted` rows are not accidentally overwritten by later projection.
