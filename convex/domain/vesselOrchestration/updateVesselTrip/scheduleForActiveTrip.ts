@@ -23,10 +23,10 @@ import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 import {
   hasWsfScheduleFields,
   resolveScheduleFromWsfRealtime,
-} from "./tripFields/resolveScheduleFromWsfRealtime";
-import { tryResolveScheduledSegmentFromNextTripKey } from "./tripFields/resolveSegmentFromNextTripKey";
-import { tryResolveScheduledSegmentFromScheduleTables } from "./tripFields/resolveSegmentFromScheduleLookup";
-import type { ResolvedTripScheduleFields } from "./tripFields/types";
+} from "./activeTripSchedule/resolveScheduleFromWsfRealtime";
+import { tryResolveScheduledSegmentFromNextTripKey } from "./activeTripSchedule/resolveSegmentFromNextTripKey";
+import { tryResolveScheduledSegmentFromScheduleTables } from "./activeTripSchedule/resolveSegmentFromScheduleLookup";
+import type { ResolvedTripScheduleFields } from "./activeTripSchedule/types";
 import type { UpdateVesselTripDbAccess } from "./types";
 
 type ApplyScheduleForActiveTripInput = {

@@ -7,7 +7,7 @@ Reviewer: Deep Thought / supervising agent
 ## Summary
 
 The Stage 5 cleanup is mostly successful. The old event/builder runtime path is
-gone, the conservative decision to keep `scheduleEnrichment.ts` and `tripFields/`
+gone, the conservative decision to keep `scheduleEnrichment.ts` and `activeTripSchedule/`
 is reasonable, and the focused behavior/downstream tests pass.
 
 Before Stage 5 is approved, please address the cleanup items below.
@@ -34,7 +34,7 @@ Please update this section to match the current code:
 - completed handoff key helper lives in `updateTimeline/completedHandoffKey.ts`.
 - there is no current `isUpdatedTrip` shared helper.
 - test fixtures for schedule resolution live under
-  `updateVesselTrip/tripFields/tests/` and the public behavior/module tests live
+  `updateVesselTrip/activeTripSchedule/tests/` and the public behavior/module tests live
   under `updateVesselTrip/tests/`.
 
 Also update the design-rule bullet that currently says shared downstream
@@ -84,7 +84,7 @@ row-builder-facing API around.
 Please re-run:
 
 ```sh
-bun test convex/domain/vesselOrchestration/updateVesselTrip/tests convex/domain/vesselOrchestration/updateVesselTrip/tripFields/tests
+bun test convex/domain/vesselOrchestration/updateVesselTrip/tests convex/domain/vesselOrchestration/updateVesselTrip/activeTripSchedule/tests
 bun test convex/domain/vesselOrchestration/updateTimeline/tests/timelineHandoffFromTripUpdate.test.ts convex/domain/vesselOrchestration/updateVesselPredictions/tests/predictionInputsFromTripUpdate.test.ts convex/domain/vesselOrchestration/updateVesselActualizations/tests/deriveDepartNextActualizationIntent.test.ts convex/functions/vesselOrchestrator/tests/tripStagePolicy.test.ts
 ```
 

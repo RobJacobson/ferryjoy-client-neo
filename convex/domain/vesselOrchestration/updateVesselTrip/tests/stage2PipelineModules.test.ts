@@ -1,6 +1,6 @@
 /**
  * Focused tests for Stage 2 pipeline modules (local fixtures only; do not import
- * `tripFields/tests/testHelpers` so this suite stays independent of that folder).
+ * `activeTripSchedule/tests/testHelpers` so this suite stays independent of that folder).
  */
 
 import { describe, expect, it } from "bun:test";

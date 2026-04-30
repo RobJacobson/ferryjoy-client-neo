@@ -51,7 +51,7 @@ Avoid in Stage 1:
 - `convex/domain/vesselOrchestration/updateVesselTrip/tripBuilders.ts`
 - `convex/domain/vesselOrchestration/updateVesselTrip/basicTripRows.ts`
 - `convex/domain/vesselOrchestration/updateVesselTrip/scheduleEnrichment.ts`
-- `convex/domain/vesselOrchestration/updateVesselTrip/tripFields/`
+- `convex/domain/vesselOrchestration/updateVesselTrip/activeTripSchedule/`
 
 ## Current Test Problem
 
@@ -262,9 +262,9 @@ Prefer simple local factories:
 - `makeDbAccess(options?)`
 
 The existing helper in
-`convex/domain/vesselOrchestration/updateVesselTrip/tripFields/tests/testHelpers.ts`
+`convex/domain/vesselOrchestration/updateVesselTrip/activeTripSchedule/tests/testHelpers.ts`
 can be copied or reused, but avoid coupling the new public tests to the
-`tripFields/` folder if it makes Stage 5 deletion harder.
+`activeTripSchedule/` folder if it makes Stage 5 deletion harder.
 
 Recommended approach:
 

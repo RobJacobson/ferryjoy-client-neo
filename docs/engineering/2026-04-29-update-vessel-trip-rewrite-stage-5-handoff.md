@@ -91,19 +91,19 @@ Current Stage 3/4 code still uses:
 
 - `scheduleForActiveTrip.ts`
   - imports `applyResolvedTripScheduleFields` from `scheduleEnrichment.ts`
-  - imports WSF helpers and resolver from `tripFields/`
+  - imports WSF helpers and resolver from `activeTripSchedule/`
 
 You have two acceptable options:
 
-1. Keep `scheduleEnrichment.ts` and `tripFields/` for now, but update docs to
+1. Keep `scheduleEnrichment.ts` and `activeTripSchedule/` for now, but update docs to
    describe them as private schedule support behind `scheduleForActiveTrip`.
 2. Inline or move the small schedule helpers into `scheduleForActiveTrip.ts` and
-   then delete `scheduleEnrichment.ts` / `tripFields/`.
+   then delete `scheduleEnrichment.ts` / `activeTripSchedule/`.
 
 Prefer option 1 unless option 2 is straightforward and keeps the code simpler.
 Do not do a risky schedule rewrite in a cleanup stage.
 
-If keeping them, remove stale docs inside `tripFields/README.md` that describe
+If keeping them, remove stale docs inside `activeTripSchedule/README.md` that describe
 the old row-builder path, or replace that README with a brief note that this
 folder is private schedule-resolution support.
 
@@ -112,7 +112,7 @@ folder is private schedule-resolution support.
 Before deleting a file, search for imports:
 
 ```sh
-rg -n "tripEvents|detectTripEvents|tripBuilders|buildUpdatedVesselRows|basicTripRows|buildBasicUpdatedVesselRows|tripEvidence|scheduleEnrichment|tripFields" convex/domain/vesselOrchestration convex/functions/vesselOrchestrator
+rg -n "tripEvents|detectTripEvents|tripBuilders|buildUpdatedVesselRows|basicTripRows|buildBasicUpdatedVesselRows|tripEvidence|scheduleEnrichment|activeTripSchedule" convex/domain/vesselOrchestration convex/functions/vesselOrchestrator
 ```
 
 After deletion/conversion, there should be no production imports of:
@@ -153,7 +153,7 @@ Mention:
 
 ### `architecture.md`
 
-Update the `updateVesselTrip` and `tripFields` sections so they do not describe
+Update the `updateVesselTrip` and `activeTripSchedule` sections so they do not describe
 the old `detectTripEvents` / `buildUpdatedVesselRows` path as current.
 
 ## Tests To Preserve

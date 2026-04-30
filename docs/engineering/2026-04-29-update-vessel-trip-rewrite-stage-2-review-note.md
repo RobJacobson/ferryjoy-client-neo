@@ -57,7 +57,7 @@ Also add a focused test in `stage2PipelineModules.test.ts` proving that a
 replacement trip with incomplete WSF and `getTerminalIdentity(...) -> null` does
 not call scheduled-event lookup methods.
 
-### 2. Do not couple Stage 2 tests to `tripFields/tests/testHelpers`
+### 2. Do not couple Stage 2 tests to `activeTripSchedule/tests/testHelpers`
 
 File:
 
@@ -66,13 +66,13 @@ File:
 Current import:
 
 ```ts
-import { makeLocation, makeTrip, ms } from "../tripFields/tests/testHelpers";
+import { makeLocation, makeTrip, ms } from "../activeTripSchedule/tests/testHelpers";
 ```
 
-This makes the new pipeline-module tests depend on the old `tripFields/` test
+This makes the new pipeline-module tests depend on the old `activeTripSchedule/` test
 fixture folder, which we may delete in Stage 5. Please inline the small fixture
 helpers in this test file, or otherwise define local helpers that do not import
-from `tripFields/`.
+from `activeTripSchedule/`.
 
 This is a little tedious, but it keeps the new tests from anchoring the old
 folder in place.
