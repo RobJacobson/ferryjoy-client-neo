@@ -47,17 +47,16 @@ export const isSameVesselTrip = (
     stripVesselTripPredictions(nextTrip)
   );
 
-  // Return false if the trips have different number of keys.
-  if (
-    Object.keys(currComparable).length !== Object.keys(nextComparable).length
-  ) {
-    return false;
-  }
+  // Convex documents omit unset optional fields; trip builders often attach the
+  // full schema shape with explicit `undefined`. Compare the union of keys and
+  // treat missing properties as `undefined` so sparse vs dense rows match.
+  const allKeys = new Set([
+    ...Object.keys(currComparable),
+    ...Object.keys(nextComparable),
+  ]);
 
-  // Return false if any key has a different value.
-  return Object.keys(currComparable).every(
-    (key) =>
-      currComparable[key as keyof VesselTripComparable] ===
-      nextComparable[key as keyof VesselTripComparable]
-  );
+  return [...allKeys].every((key) => {
+    const k = key as keyof VesselTripComparable;
+    return currComparable[k] === nextComparable[k];
+  });
 };

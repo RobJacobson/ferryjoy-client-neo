@@ -193,6 +193,7 @@ import type * as functions_vesselOrchestrator_index from "../functions/vesselOrc
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_pipeline_loadSnapshot_index from "../functions/vesselOrchestrator/pipeline/loadSnapshot/index.js";
 import type * as functions_vesselOrchestrator_pipeline_runOrchestratorPing from "../functions/vesselOrchestrator/pipeline/runOrchestratorPing.js";
+import type * as functions_vesselOrchestrator_pipeline_runPersistVesselUpdatesWithTripDeltas from "../functions/vesselOrchestrator/pipeline/runPersistVesselUpdatesWithTripDeltas.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselActualizations_deriveVesselTripActualizationIntent from "../functions/vesselOrchestrator/pipeline/updateVesselActualizations/deriveVesselTripActualizationIntent.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselActualizations_index from "../functions/vesselOrchestrator/pipeline/updateVesselActualizations/index.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_index from "../functions/vesselOrchestrator/pipeline/updateVesselLocations/index.js";
@@ -443,6 +444,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/pipeline/loadSnapshot/index": typeof functions_vesselOrchestrator_pipeline_loadSnapshot_index;
   "functions/vesselOrchestrator/pipeline/runOrchestratorPing": typeof functions_vesselOrchestrator_pipeline_runOrchestratorPing;
+  "functions/vesselOrchestrator/pipeline/runPersistVesselUpdatesWithTripDeltas": typeof functions_vesselOrchestrator_pipeline_runPersistVesselUpdatesWithTripDeltas;
   "functions/vesselOrchestrator/pipeline/updateVesselActualizations/deriveVesselTripActualizationIntent": typeof functions_vesselOrchestrator_pipeline_updateVesselActualizations_deriveVesselTripActualizationIntent;
   "functions/vesselOrchestrator/pipeline/updateVesselActualizations/index": typeof functions_vesselOrchestrator_pipeline_updateVesselActualizations_index;
   "functions/vesselOrchestrator/pipeline/updateVesselLocations/index": typeof functions_vesselOrchestrator_pipeline_updateVesselLocations_index;

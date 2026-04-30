@@ -8,7 +8,6 @@
  * The public Convex action entry is `updateVesselOrchestrator` in `../actions.ts`.
  */
 
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
@@ -17,6 +16,7 @@ import {
   updateVesselTrip,
 } from "domain/vesselOrchestration/updateVesselTrip";
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
+import { runPersistVesselUpdatesWithTripDeltas } from "./runPersistVesselUpdatesWithTripDeltas";
 import { deriveVesselTripActualizationIntent } from "./updateVesselActualizations";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
 import { loadPredictionContext } from "./updateVesselPredictions";
@@ -142,8 +142,9 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        * vessel branch rolls back as a unit and the next tick can retry from the
        * latest durable state.
        */
-      await ctx.runMutation(
-        internal.functions.vesselOrchestrator.mutations.persistVesselUpdates,
+      await runPersistVesselUpdatesWithTripDeltas(
+        ctx,
+        tripUpdate.existingActiveTrip,
         {
           vesselAbbrev: tripUpdate.vesselAbbrev,
           activeVesselTrip: stripVesselTripPredictions(
