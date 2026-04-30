@@ -28,31 +28,42 @@ export const buildActiveTrip = ({
   location,
   isNewTrip,
 }: BuildActiveTripInput): ConvexVesselTrip => {
-  if (isNewTrip) {
-    return buildReplacementActiveTrip({
-      previousTrip,
-      completedTrip,
-      location,
-    });
+  if (!isNewTrip && previousTrip !== undefined) {
+    return buildContinuingActiveTrip(previousTrip, location);
   }
 
-  if (previousTrip === undefined) {
-    return buildFirstSeenActiveTrip(location);
+  const activeTrip = buildNewActiveTrip(location);
+  if (!isNewTrip) {
+    return activeTrip;
   }
 
-  return buildContinuingActiveTrip(previousTrip, location);
+  const priorLeg = completedTrip ?? previousTrip;
+  const priorLegDeparture =
+    priorLeg?.LeftDockActual ?? priorLeg?.LeftDock ?? undefined;
+
+  return {
+    ...activeTrip,
+    PrevTerminalAbbrev: priorLeg?.DepartingTerminalAbbrev,
+    ArrivedCurrActual: location.TimeStamp,
+    AtDockActual: location.TimeStamp,
+    LeftDock: undefined,
+    TripDelay: undefined,
+    NextScheduleKey: previousTrip?.NextScheduleKey,
+    NextScheduledDeparture: previousTrip?.NextScheduledDeparture,
+    PrevScheduledDeparture: priorLeg?.ScheduledDeparture,
+    PrevLeftDock: priorLegDeparture,
+  };
 };
 
 /**
- * Builds a new active trip when no prior row exists.
+ * Builds a fresh active trip from the current ping.
  *
  * @param location - Incoming vessel location ping
- * @returns First-seen active trip row
+ * @returns Active trip row with no prior-leg continuity
  */
-const buildFirstSeenActiveTrip = (
+const buildNewActiveTrip = (
   location: ConvexVesselLocation
 ): ConvexVesselTrip => {
-  const tripKey = generateTripKey(location.VesselAbbrev, location.TimeStamp);
   const identity = deriveTripIdentity({
     vesselAbbrev: location.VesselAbbrev,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
@@ -65,7 +76,7 @@ const buildFirstSeenActiveTrip = (
     DepartingTerminalAbbrev: location.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
     RouteAbbrev: location.RouteAbbrev,
-    TripKey: tripKey,
+    TripKey: generateTripKey(location.VesselAbbrev, location.TimeStamp),
     ScheduleKey: location.ScheduleKey ?? identity.ScheduleKey,
     SailingDay: identity.SailingDay,
     PrevTerminalAbbrev: undefined,
@@ -81,7 +92,10 @@ const buildFirstSeenActiveTrip = (
     ScheduledDeparture: location.ScheduledDeparture,
     LeftDock: location.LeftDock,
     LeftDockActual: undefined,
-    TripDelay: calculateTimeDelta(location.ScheduledDeparture, location.LeftDock),
+    TripDelay: calculateTimeDelta(
+      location.ScheduledDeparture,
+      location.LeftDock
+    ),
     Eta: location.Eta,
     NextScheduleKey: undefined,
     NextScheduledDeparture: undefined,
@@ -92,67 +106,6 @@ const buildFirstSeenActiveTrip = (
     TimeStamp: location.TimeStamp,
     PrevScheduledDeparture: undefined,
     PrevLeftDock: undefined,
-  };
-};
-
-/**
- * Builds a replacement active trip immediately after a completed leg.
- *
- * @param input - Previous/completed trip context and current location
- * @returns Replacement active trip row with fresh lifecycle fields
- */
-const buildReplacementActiveTrip = ({
-  previousTrip,
-  completedTrip,
-  location,
-}: {
-  previousTrip: ConvexVesselTrip | undefined;
-  completedTrip: ConvexVesselTrip | undefined;
-  location: ConvexVesselLocation;
-}): ConvexVesselTrip => {
-  const tripKey = generateTripKey(location.VesselAbbrev, location.TimeStamp);
-  const identity = deriveTripIdentity({
-    vesselAbbrev: location.VesselAbbrev,
-    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
-    scheduledDepartureMs: location.ScheduledDeparture,
-  });
-  const priorLeg = completedTrip ?? previousTrip;
-  const previousDeparture =
-    priorLeg?.LeftDockActual ?? priorLeg?.LeftDock ?? undefined;
-
-  return {
-    VesselAbbrev: location.VesselAbbrev,
-    DepartingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
-    RouteAbbrev: location.RouteAbbrev,
-    TripKey: tripKey,
-    ScheduleKey: location.ScheduleKey ?? identity.ScheduleKey,
-    SailingDay: identity.SailingDay,
-    PrevTerminalAbbrev: priorLeg?.DepartingTerminalAbbrev,
-    ArriveDest: undefined,
-    ArrivedCurrActual: location.TimeStamp,
-    ArrivedNextActual: undefined,
-    StartTime: location.TimeStamp,
-    EndTime: undefined,
-    AtDockActual: location.TimeStamp,
-    TripStart: location.TimeStamp,
-    AtDock: location.AtDockObserved,
-    AtDockDuration: undefined,
-    ScheduledDeparture: location.ScheduledDeparture,
-    LeftDock: undefined,
-    LeftDockActual: undefined,
-    TripDelay: undefined,
-    Eta: location.Eta,
-    NextScheduleKey: previousTrip?.NextScheduleKey,
-    NextScheduledDeparture: previousTrip?.NextScheduledDeparture,
-    TripEnd: undefined,
-    AtSeaDuration: undefined,
-    TotalDuration: undefined,
-    InService: location.InService,
-    TimeStamp: location.TimeStamp,
-    PrevScheduledDeparture: priorLeg?.ScheduledDeparture,
-    PrevLeftDock: previousDeparture,
   };
 };
 
@@ -181,22 +134,14 @@ const buildContinuingActiveTrip = (
   const justLeftDock = didLeaveDock(previousTrip, location);
 
   return {
+    ...previousTrip,
     VesselAbbrev: location.VesselAbbrev,
     DepartingTerminalAbbrev: location.DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: resolvedArrivingTerminal,
     RouteAbbrev: location.RouteAbbrev,
-    TripKey: previousTrip.TripKey,
     ScheduleKey:
       location.ScheduleKey ?? previousTrip.ScheduleKey ?? identity.ScheduleKey,
     SailingDay: identity.SailingDay ?? previousTrip.SailingDay,
-    PrevTerminalAbbrev: previousTrip.PrevTerminalAbbrev,
-    ArriveDest: previousTrip.ArriveDest,
-    ArrivedCurrActual: previousTrip.ArrivedCurrActual,
-    ArrivedNextActual: previousTrip.ArrivedNextActual,
-    StartTime: previousTrip.StartTime,
-    EndTime: previousTrip.EndTime,
-    AtDockActual: previousTrip.AtDockActual,
-    TripStart: previousTrip.TripStart,
     AtDock: location.AtDockObserved,
     AtDockDuration: calculateTimeDelta(
       previousTrip.ArrivedNextActual ??
@@ -209,19 +154,9 @@ const buildContinuingActiveTrip = (
     LeftDockActual:
       previousTrip.LeftDockActual ??
       (justLeftDock ? (location.LeftDock ?? location.TimeStamp) : undefined),
-    TripDelay: calculateTimeDelta(
-      resolvedScheduledDeparture,
-      resolvedLeftDock
-    ),
+    TripDelay: calculateTimeDelta(resolvedScheduledDeparture, resolvedLeftDock),
     Eta: location.Eta ?? previousTrip.Eta,
-    NextScheduleKey: previousTrip.NextScheduleKey,
-    NextScheduledDeparture: previousTrip.NextScheduledDeparture,
-    TripEnd: previousTrip.TripEnd,
-    AtSeaDuration: previousTrip.AtSeaDuration,
-    TotalDuration: previousTrip.TotalDuration,
     InService: location.InService,
     TimeStamp: location.TimeStamp,
-    PrevScheduledDeparture: previousTrip.PrevScheduledDeparture,
-    PrevLeftDock: previousTrip.PrevLeftDock,
   };
 };
