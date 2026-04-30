@@ -79,5 +79,9 @@ describe("predictionInputsFromTripUpdate", () => {
     expect(result.completedHandoff?.tripToComplete).toEqual(completedTrip);
     expect(result.completedHandoff?.scheduleTrip).toEqual(replacementTrip);
     expect(result.completedHandoff?.events.didJustArriveAtDock).toBe(true);
+    expect(result.completedHandoff?.events.isCompletedTrip).toBe(true);
+    expect(result.completedHandoff?.tripToComplete.ArrivedNextActual).toBe(
+      ms("2026-03-13T06:45:00-07:00")
+    );
   });
 });

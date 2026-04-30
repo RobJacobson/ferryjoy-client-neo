@@ -1,6 +1,6 @@
 # tripFields
 
-`tripFields/` owns one concern:
+`tripFields/` owns one concern behind `scheduleForActiveTrip.ts`:
 
 > Given one vessel-location ping plus schedule evidence, decide which
 > schedule-facing fields should be attached to the trip row.
@@ -8,19 +8,9 @@
 This folder stays isolated because WSF schedule identity and physical lifecycle
 are related but not the same problem.
 
-## Public seam
-
-The subfolder intentionally exposes one data-first schedule resolution helper:
-
-- `resolveTripScheduleFields(...)`
-
-That helper owns:
-
-1. Resolving current-trip fields from WSF, schedule evidence, or safe fallback
-2. Emitting transient inference observability
-
-The helper files in this folder support that policy, but they are not the
-intended external seams.
+This folder is private schedule-resolution support. The intended integration
+point for trip updates is `scheduleForActiveTrip.ts`, not direct imports from
+outside `updateVesselTrip/`.
 
 ## Resolution order
 
@@ -46,22 +36,9 @@ The inference method remains transient:
 
 ## Relationship to row building
 
-`tripFields/` does not own lifecycle detection, row construction, or trip
-completion. Instead, `basicTripRows.ts` builds rows first, `tripBuilders.ts`
-delegates schedule policy to `scheduleEnrichment.ts`, and the enrichment step
-applies the resulting fields while keeping ownership of:
-
-- stale next-leg clearing when identity changes
-
-That keeps the boundary simple:
-
-```text
-tripBuilders.ts
-  -> basicTripRows.ts
-  -> scheduleEnrichment.ts
-     -> resolveTripScheduleFields(...)
-     -> apply resolved fields to the active row
-```
+`tripFields/` does not own lifecycle detection, completed-row shaping, or base
+active-row construction. It only provides schedule-resolution helpers consumed
+by `scheduleForActiveTrip.ts`.
 
 ## Internal helpers
 

@@ -2,15 +2,19 @@
  * Schedule enrichment for already-built active trip rows.
  */
 
-import {
-  type ResolvedTripScheduleFields,
-  resolveTripScheduleFields,
+import type {
+  ResolvedTripScheduleFields,
 } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
-import type { TripBuildEvents } from "./basicTripRows";
-import type { UpdateVesselTripDbAccess } from "./types";
+
+type TripBuildEvents = {
+  isCompletedTrip: boolean;
+  didJustArriveAtDock: boolean;
+  didJustLeaveDock: boolean;
+  leftDockTime: number | undefined;
+  scheduleKeyChanged: boolean;
+};
 
 /**
  * Applies resolved schedule-facing fields to an already-built active trip.
@@ -76,43 +80,12 @@ export const applyResolvedTripScheduleFields = ({
 };
 
 /**
- * Resolves and applies schedule fields after basic active row construction.
- *
- * @param activeTrip - Basic active trip row
- * @param existingTrip - Prior trip row used for schedule continuity
- * @param vesselLocation - Incoming vessel location ping
- * @param events - Lifecycle events for this ping
- * @param scheduleAccess - Narrow schedule continuity access
- * @returns Active trip row with schedule fields enriched
- */
-export const enrichActiveTripWithSchedule = async (
-  activeTrip: ConvexVesselTrip,
-  existingTrip: ConvexVesselTrip | undefined,
-  vesselLocation: ConvexVesselLocation,
-  events: TripBuildEvents,
-  scheduleAccess: UpdateVesselTripDbAccess
-): Promise<ConvexVesselTrip> => {
-  const resolution = await resolveTripScheduleFields({
-    location: vesselLocation,
-    existingTrip,
-    scheduleAccess,
-  });
-
-  return applyResolvedTripScheduleFields({
-    activeTrip,
-    existingTrip,
-    events,
-    resolution,
-  });
-};
-
-/**
  * Attaches next scheduled segment fields while preserving continuity when possible.
  *
  * @param args - Built trip row, prior trip row, and resolved next schedule fields
  * @returns Trip row with next schedule key/departure fields populated or cleared
  */
-export const attachNextScheduledTripFields = ({
+const attachNextScheduledTripFields = ({
   baseTrip,
   existingTrip,
   next,

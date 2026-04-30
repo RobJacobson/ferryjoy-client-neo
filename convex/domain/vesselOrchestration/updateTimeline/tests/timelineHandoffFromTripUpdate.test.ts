@@ -67,6 +67,11 @@ describe("timelineHandoffFromTripUpdate", () => {
     expect(result.completedTripFacts).toHaveLength(1);
     expect(result.completedTripFacts[0]?.tripToComplete).toEqual(completed);
     expect(result.completedTripFacts[0]?.scheduleTrip).toEqual(replacement);
+    expect(result.completedTripFacts[0]?.events.isCompletedTrip).toBe(true);
+    expect(result.completedTripFacts[0]?.events.didJustArriveAtDock).toBe(true);
+    expect(result.completedTripFacts[0]?.tripToComplete.ArrivedNextActual).toBe(
+      ms("2026-03-13T06:45:00-07:00")
+    );
     expect(result.currentBranch.pendingActualWrite).toBeUndefined();
     expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
       replacement
@@ -93,5 +98,40 @@ describe("timelineHandoffFromTripUpdate", () => {
     expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
       active
     );
+  });
+
+  it("keeps completion handoff on terminal change even when replacement AtDock is false", () => {
+    const existing = makeTrip("CHE", {
+      DepartingTerminalAbbrev: "ANA",
+      ArrivingTerminalAbbrev: "ORI",
+      AtDock: false,
+      ArrivedNextActual: undefined,
+    });
+    const completed = makeTrip("CHE", {
+      DepartingTerminalAbbrev: "ANA",
+      ArrivingTerminalAbbrev: "ORI",
+      ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
+      TripEnd: ms("2026-03-13T06:45:00-07:00"),
+    });
+    const replacement = makeTrip("CHE", {
+      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "LOP",
+      ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
+      AtDock: false,
+      ArrivedNextActual: undefined,
+      LeftDockActual: undefined,
+    });
+
+    const result = timelineHandoffFromTripUpdate({
+      vesselAbbrev: "CHE",
+      existingActiveTrip: existing,
+      activeVesselTripUpdate: replacement,
+      completedVesselTripUpdate: completed,
+    });
+
+    expect(result.completedTripFacts).toHaveLength(1);
+    expect(result.completedTripFacts[0]?.events.didJustArriveAtDock).toBe(true);
+    expect(result.currentBranch.pendingActualWrite).toBeUndefined();
   });
 });

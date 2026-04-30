@@ -70,17 +70,13 @@ describe("resolveTripScheduleFields", () => {
         NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
       scheduleAccess: {
-        getTerminalIdentity: scheduleAccess.getTerminalIdentity,
-        getScheduledDepartureEvent: async (scheduleKey) => {
+        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
+          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
         },
-        getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
+        getScheduleRolloverDockEvents: async (args) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDockEvents(
-            vesselAbbrev,
-            sailingDay
-          );
+          return scheduleAccess.getScheduleRolloverDockEvents(args);
         },
       },
     });
@@ -108,17 +104,13 @@ describe("resolveTripScheduleFields", () => {
       }),
       existingTrip,
       scheduleAccess: {
-        getTerminalIdentity: scheduleAccess.getTerminalIdentity,
-        getScheduledDepartureEvent: async (scheduleKey) => {
+        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
+          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
         },
-        getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
+        getScheduleRolloverDockEvents: async (args) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDockEvents(
-            vesselAbbrev,
-            sailingDay
-          );
+          return scheduleAccess.getScheduleRolloverDockEvents(args);
         },
       },
     });
@@ -157,17 +149,13 @@ describe("resolveTripScheduleFields", () => {
         ScheduledDeparture: undefined,
       }),
       scheduleAccess: {
-        getTerminalIdentity: scheduleAccess.getTerminalIdentity,
-        getScheduledDepartureEvent: async (scheduleKey) => {
+        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDepartureEvent(scheduleKey);
+          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
         },
-        getScheduledDockEvents: async (vesselAbbrev, sailingDay) => {
+        getScheduleRolloverDockEvents: async (args) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledDockEvents(
-            vesselAbbrev,
-            sailingDay
-          );
+          return scheduleAccess.getScheduleRolloverDockEvents(args);
         },
       },
     });
@@ -177,7 +165,35 @@ describe("resolveTripScheduleFields", () => {
     expect(resolution.next?.NextScheduledDeparture).toBe(
       nextSegment.NextDepartingTime
     );
-    expect(scheduleReadCount).toBeGreaterThan(0);
+    expect(scheduleReadCount).toBe(1);
+  });
+
+  it("does not carry existing trip fields when carry is disabled", async () => {
+    const nextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--CLI-MUK",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+
+    const resolution = await resolveFields({
+      location: makeLocation({
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+      }),
+      existingTrip: makeTrip({
+        ArrivingTerminalAbbrev: "OLD",
+        ScheduledDeparture: ms("2026-03-13T08:00:00-07:00"),
+        ScheduleKey: "CHE--2026-03-13--08:00--OLD-LEG",
+        NextScheduleKey: nextSegment.Key,
+      }),
+      scheduleAccess: makeScheduledTables({
+        segments: [nextSegment],
+      }),
+      allowCarriedCurrentFields: false,
+    });
+
+    expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
+    expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
   });
 
   it("infers trip fields by schedule rollover when the next scheduled trip is unavailable", async () => {

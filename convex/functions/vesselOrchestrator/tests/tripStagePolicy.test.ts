@@ -79,14 +79,13 @@ const makeLocationUpdate = (
 describe("updateVesselTrip stage-2 policy", () => {
   it("returns sparse writes for one changed location update", async () => {
     const scheduleAccess: UpdateVesselTripDbAccess = {
-      getTerminalIdentity: async (terminalAbbrev) => ({
-        TerminalID: 1,
-        TerminalName: terminalAbbrev,
-        TerminalAbbrev: terminalAbbrev,
-        IsPassengerTerminal: true,
+      getScheduledSegmentByScheduleKey: async () => null,
+      getScheduleRolloverDockEvents: async () => ({
+        currentSailingDay: "2026-03-13",
+        currentDayEvents: [],
+        nextSailingDay: "2026-03-14",
+        nextDayEvents: [],
       }),
-      getScheduledDockEvents: async () => [],
-      getScheduledDepartureEvent: async () => null,
     };
     const tripStage = await updateVesselTrip(
       makeLocationUpdate("CHE"),
@@ -108,14 +107,13 @@ describe("updateVesselTrip stage-2 policy", () => {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
     const scheduleAccess: UpdateVesselTripDbAccess = {
-      getTerminalIdentity: async (terminalAbbrev) => ({
-        TerminalID: 1,
-        TerminalName: terminalAbbrev,
-        TerminalAbbrev: terminalAbbrev,
-        IsPassengerTerminal: true,
+      getScheduledSegmentByScheduleKey: async () => null,
+      getScheduleRolloverDockEvents: async () => ({
+        currentSailingDay: "2026-03-13",
+        currentDayEvents: [],
+        nextSailingDay: "2026-03-14",
+        nextDayEvents: [],
       }),
-      getScheduledDockEvents: async () => [],
-      getScheduledDepartureEvent: async () => null,
     };
     computeTripSpy.mockImplementation(
       async (

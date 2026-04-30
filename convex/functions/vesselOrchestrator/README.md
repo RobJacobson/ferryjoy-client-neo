@@ -78,7 +78,7 @@ Responsibilities:
 - **fetch:** `fetchRawWsfVesselLocations` throws when WSF returns no rows
 - normalize raw WSF payloads through `mapWsfVesselLocations` + `assertUsableVesselLocationBatch`, which skip individual bad feed rows (`console.warn` per skip) and throw when every row fails conversion
 - convert raw WSF payloads into `ConvexVesselLocation`, including resolved vessel identity, canonical optional `Key`, and terminal-or-marine-location fields derived from the backend `terminalsIdentity` table
-- after normalizing the WSF batch: write locations through `bulkUpsertVesselLocations` and use only the returned changed rows for trip compute, create targeted `eventsScheduled` access for the ping through `pipeline/updateVesselTrip/scheduleDbAccess.ts`, and for each changed vessel run `updateVesselTrip` → `updateVesselActualizations` (intent) → `loadPredictionContext` → `updateVesselPredictions` → `updateTimeline` → `persistVesselUpdates`.
+- after normalizing the WSF batch: write locations through `bulkUpsertVesselLocations` and use only the returned changed rows for trip compute, create key-first schedule access through `pipeline/updateVesselTrip/updateVesselTripDbAccess.ts`, and for each changed vessel run `updateVesselTrip` → `updateVesselActualizations` (intent) → `loadPredictionContext` → `updateVesselPredictions` → `updateTimeline` → `persistVesselUpdates`.
 
 Domain pipeline (same ping semantics as before):
 
@@ -248,10 +248,10 @@ Current hot-path implementation notes:
 
 Trip-field and continuity code must depend only on **`UpdateVesselTripDbAccess`**:
 
-- **Production:** `pipeline/updateVesselTrip/scheduleDbAccess.ts` — targeted `eventsScheduled` internal queries.
-- **Tests:** in-memory implementations live under `domain/vesselOrchestration/shared/scheduleSnapshot/` (fixture data only; not a production schedule read path).
+- **Production:** `pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` — key-first internal queries for `NextScheduleKey` continuity and rollover fallback.
+- **Tests:** fakes and fixtures live under `domain/vesselOrchestration/updateVesselTrip/tripFields/tests/` and `domain/vesselOrchestration/updateVesselTrip/tests/` (not a production schedule read path).
 
-Do not introduce a second public “schedule provider” abstraction above this interface; extend these methods if new evidence shapes are needed.
+Do not introduce a second public “schedule provider” abstraction above this interface; evolve the key lookup or rollover fallback methods if new evidence shapes are needed.
 
 The timeline overlay path is designed to stay lightweight:
 
@@ -288,7 +288,7 @@ The timeline overlay path is designed to stay lightweight:
 - `actions.ts` — `updateVesselOrchestrator`: Convex action entrypoint for one orchestrator ping.
 - `pipeline/runOrchestratorPing.ts` — pipeline stage sequencing and per-vessel isolation.
 - `pipeline/updateVesselLocations/` — location update stage (fetch, normalize, augment with `AtDockObserved`, persist via `bulkUpsertVesselLocations`, return changed rows).
-- `pipeline/updateVesselTrip/scheduleDbAccess.ts` — scheduled-events DB access used by trip stage continuity.
+- `pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` — scheduled-events DB access used by trip stage continuity.
 - `pipeline/loadSnapshot/index.ts` — **`loadOrchestratorSnapshot`** baseline read model for one ping.
 - `pipeline/updateVesselPredictions/index.ts` — **`loadPredictionContext`**: Convex query for **`getProductionModelParametersForPing`** when domain preload requests are non-empty.
 - `domain/vesselOrchestration/updateVesselTrip/` — **`updateVesselTrip`**, **`VesselTripUpdate`**.

@@ -16,12 +16,14 @@ On the shipped path these rows are written through explicit stage-level persiste
 2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
 3. **`loadPredictionContext`** ([`pipeline/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.ts)) queries production model parameters when **`predictionModelLoadRequestsForTripUpdate`** returns requests.
 4. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
-5. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`../shared/pingHandshake/completedHandoffKey.ts`](../shared/pingHandshake/completedHandoffKey.ts)).
+5. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`completedHandoffKey.ts`](./completedHandoffKey.ts)).
 6. Stage-level persistence runs in order: optional completed-trip insert, active-trip upsert, prediction upserts, timeline actual writes, then timeline predicted writes.
 
 ## Handoff glossary
 
-Orchestrator ping output crosses several DTOs. Canonical definitions live in [`../shared/pingHandshake/types.ts`](../shared/pingHandshake/types.ts); this table is the “who produces / who consumes” map.
+Orchestrator ping output crosses several DTOs. Canonical definitions live in this
+folder (primarily [`handoffTypes.ts`](./handoffTypes.ts)); this table is the
+“who produces / who consumes” map.
 
 | Type | Produced when | Consumed by | Notes |
 | --- | --- | --- | --- |
@@ -40,18 +42,19 @@ Further renames or public type aliases are optional: this table is the intended 
 | --- | --- |
 | `updateTimeline.ts` | `updateTimeline`, `projectTimelineFromHandoff` (tests / lower-level), ML overlay application + projection wiring |
 | `timelineHandoffFromTripUpdate.ts` | **`VesselTripUpdate`** → **`PersistedTripTimelineHandoff`** |
-| `../shared/pingHandshake/projectionWire.ts` | `PingEventWrites`, `mergePingEventWrites` (canonical; timeline imports here) |
-| `../shared/pingHandshake/completedHandoffKey.ts` | **`buildCompletedHandoffKey`** — stable key for completed-branch ML ↔ facts merge |
+| `projectionWire.ts` | `PingEventWrites`, `mergePingEventWrites` (canonical timeline projection wire helpers) |
+| `completedHandoffKey.ts` | **`buildCompletedHandoffKey`** — stable key for completed-branch ML ↔ facts merge |
 | `timelineEventAssembler.ts` | Lifecycle facts/messages → ping writes |
 | `actualDockWritesFromTrip.ts` | Dep/arv actual dock writes from trip rows |
 | `buildDockWritesFromTripHandoff.ts` | Completed + current branch merge per ping |
-| `../shared/pingHandshake/types.ts` | Handshake DTOs (`CompletedArrivalHandoff`, dock intents, …); canonical definitions |
+| `handoffTypes.ts` | Handshake DTOs (`CompletedArrivalHandoff`, dock intents, `MlTimelineOverlay`, ...); canonical definitions |
 | `index.ts` | Public barrel (`updateTimeline`, contracts, projection input types) |
 
 ## Imports
 
 - **`functions/vesselOrchestrator/actions.ts`** + stage-level persist helpers — production caller path: action-side **`updateTimeline`**, then explicit per-vessel timeline persistence after trip/prediction persists.
-- Lifecycle code imports handshake DTOs from **`domain/vesselOrchestration/shared/pingHandshake/types`** (re-exported from **`domain/vesselOrchestration/shared`** and the **`updateTimeline`** barrel for convenience).
+- Lifecycle and prediction code import handshake DTOs from this folder (via
+  `updateTimeline/handoffTypes.ts` and `updateTimeline` barrel exports).
 - **`domain/vesselOrchestration/updateVesselTrip/index.ts`** re-exports key symbols for queries and shared callers.
 
 ## See also

@@ -79,39 +79,39 @@ Internal one-vessel flow:
 
 ```text
 updateVesselTrip
-  -> detectTripEvents
-  -> buildUpdatedVesselRows
+  -> isNewTrip
+  -> completeTrip?
+  -> buildActiveTrip
+  -> applyScheduleForActiveTrip
   -> classify storage/lifecycle change
 ```
 
-`buildUpdatedVesselRows` is the only row-construction seam in the folder.
-
 ### `tripFields`
 
-Owns schedule-facing trip identity policy.
+`tripFields/` is now private support for `scheduleForActiveTrip.ts`.
 
-Public seam:
+It owns focused schedule-resolution helpers (WSF authority checks, schedule
+lookup strategies, and fallback resolution), but it is no longer documented as
+the top-level row-construction seam for `updateVesselTrip`.
 
-- `resolveTripFieldsForTripRow`
+### Downstream contract boundaries
 
-That seam resolves current-trip fields, emits transient inference observability, and attaches next-leg schedule fields to the built row.
+Cross-module contracts are owned by the domain modules that consume them:
 
-### `shared`
-
-Owns cross-module contracts that should not leak from `updateVesselTrip`, such as:
-
-- `TripLifecycleEventFlags`
-  - `isCompletedTrip`
-  - `didJustArriveAtDock`
-  - `didJustLeaveDock`
-  - `scheduleKeyChanged`
-- `isUpdatedTrip`
-- ping-handshake DTOs shared by persistence, predictions, and timeline code
+- `TripLifecycleEventFlags` is defined in
+  `updateVesselTrip/tripLifecycle.ts` and exported via the
+  `updateVesselTrip` barrel.
+- Timeline handoff DTOs live in `updateTimeline/handoffTypes.ts`.
+- Timeline projection wire helpers live in `updateTimeline/projectionWire.ts`.
+- Completed-handoff key helper lives in
+  `updateTimeline/completedHandoffKey.ts`.
 
 ### Schedule continuity (production vs tests)
 
-- **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts` (`createUpdateVesselTripDbAccess`) with targeted internal queries against `eventsScheduled`. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
-- **Tests:** `shared/scheduleSnapshot/` builds the same interface from an in-memory `ScheduleSnapshot` fixture (see that folder’s README). Do not treat that fixture as documentation of production persistence.
+- **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` (`createUpdateVesselTripDbAccess`) with key-first internal queries against `eventsScheduled`. The domain tries `NextScheduleKey` continuity before rollover fallback. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
+- **Tests:** schedule-resolution fixtures/helpers live under
+  `updateVesselTrip/tripFields/tests/`, and public behavior/module tests live
+  under `updateVesselTrip/tests/`.
 
 ## Contracts between stages
 
@@ -119,14 +119,18 @@ Trip stage output to downstream domain callers:
 
 - **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
 
-Prediction inputs are derived inside **`updateVesselPredictions`** from **`VesselTripUpdate`** (**`predictionInputsFromTripUpdate`**). Timeline handoff is derived inside **`updateTimeline`** from the same shape (**`timelineHandoffFromTripUpdate`**). Shared handshake DTO types live in **`domain/vesselOrchestration/shared`**.
+Prediction inputs are derived inside **`updateVesselPredictions`** from
+**`VesselTripUpdate`** (**`predictionInputsFromTripUpdate`**). Timeline handoff
+is derived inside **`updateTimeline`** from the same shape
+(**`timelineHandoffFromTripUpdate`**) with DTOs in
+**`updateTimeline/handoffTypes.ts`**.
 
 ## Current ownership
 
 - `functions/vesselOrchestrator/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/pipeline/*`
-  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/scheduleDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
+  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
 - `functions/vesselOrchestrator/mutations.ts`
   - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`
@@ -139,7 +143,9 @@ Prediction inputs are derived inside **`updateVesselPredictions`** from **`Vesse
 ## Key design rules
 
 - Trip compute stays prediction-free.
-- Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/scheduleDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
-- Shared downstream contracts are owned in `shared/`, not in `updateVesselTrip`.
+- Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
+- Downstream contracts are owned by their module boundaries
+  (`updateVesselTrip/tripLifecycle.ts` and `updateTimeline/*`), not a shared
+  cross-folder contract package.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
-- `tripFields/` remains isolated because schedule identity policy changes for different reasons than physical lifecycle logic.
+- `tripLifecycle.ts` compatibility helpers remain downstream-facing and do not drive the main trip update pipeline.

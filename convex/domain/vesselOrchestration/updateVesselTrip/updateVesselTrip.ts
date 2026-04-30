@@ -4,9 +4,11 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildUpdatedVesselRows } from "./tripBuilders";
+import { buildActiveTrip } from "./buildActiveTrip";
+import { completeTrip } from "./completeTrip";
+import { isNewTrip } from "./lifecycleSignals";
+import { applyScheduleForActiveTrip } from "./scheduleForActiveTrip";
 import { isSameVesselTrip } from "./tripComparison";
-import { detectTripEvents } from "./tripEvents";
 import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**
@@ -23,29 +25,27 @@ const updateVesselTrip = async (
   dbAccess: UpdateVesselTripDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
-    // Detect lifecycle transitions before mutating trip rows.
-    const events = detectTripEvents(existingActiveTrip, vesselLocation);
+    const hasNewTripSignal = isNewTrip(existingActiveTrip, vesselLocation);
+    const completedVesselTrip =
+      hasNewTripSignal && existingActiveTrip !== undefined
+        ? completeTrip(existingActiveTrip, vesselLocation)
+        : undefined;
 
-    // Build candidate rows from lifecycle and schedule evidence.
-    const { activeVesselTrip, completedVesselTrip } =
-      await buildUpdatedVesselRows(
-        {
-          vesselLocation,
-          existingActiveTrip,
-          events,
-        },
-        dbAccess
-      );
+    const baseActiveTrip = buildActiveTrip({
+      previousTrip: existingActiveTrip,
+      completedTrip: completedVesselTrip,
+      location: vesselLocation,
+      isNewTrip: hasNewTripSignal,
+    });
 
-    // Enrichment (or other downstream) failure can drop all rows; nothing to persist.
-    if (activeVesselTrip === undefined && completedVesselTrip === undefined) {
-      return null;
-    }
-
-    // Persist layer requires an active row every time we emit a trip update.
-    if (activeVesselTrip === undefined) {
-      return null;
-    }
+    const activeVesselTrip = await applyScheduleForActiveTrip({
+      activeTrip: baseActiveTrip,
+      previousTrip: existingActiveTrip,
+      completedTrip: completedVesselTrip,
+      location: vesselLocation,
+      isNewTrip: hasNewTripSignal,
+      dbAccess,
+    });
 
     // Check if the active vessel trip has meaningfully changed.
     const isActiveVesselTripUnchanged = isSameVesselTrip(
@@ -53,8 +53,8 @@ const updateVesselTrip = async (
       activeVesselTrip
     );
 
-    // If the active vessel trip is unchanged, return null.
-    if (isActiveVesselTripUnchanged) {
+    // Suppress no-op active-only updates but always emit completion rollover.
+    if (completedVesselTrip === undefined && isActiveVesselTripUnchanged) {
       return null;
     }
 
