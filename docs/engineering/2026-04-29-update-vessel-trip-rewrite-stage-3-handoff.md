@@ -136,7 +136,7 @@ After this stage:
 
 - `computeVesselTripUpdates.test.ts` should pass completely.
 - The public `updateVesselTrip` path should:
-  - not stamp `ArrivedCurrActual` for first-seen rows
+  - not stamp `TripStart` for first-seen rows
   - suppress timestamp-only churn
   - emit ETA-only active updates
   - stamp `LeftDockActual` from `location.LeftDock` when present

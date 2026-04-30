@@ -20,8 +20,8 @@ export const buildCompletionTripEvents = (
 ): TripLifecycleEventFlags => ({
   isCompletedTrip: true,
   didJustArriveAtDock:
-    completedTrip.ArrivedNextActual !== undefined &&
-    existingTrip.ArrivedNextActual !== completedTrip.ArrivedNextActual,
+    completedTrip.TripEnd !== undefined &&
+    existingTrip.TripEnd !== completedTrip.TripEnd,
   didJustLeaveDock: false,
   scheduleKeyChanged: existingTrip.ScheduleKey !== completedTrip.ScheduleKey,
 });
@@ -41,7 +41,7 @@ export const currentTripEvents = (
   didJustArriveAtDock:
     existingTrip?.AtDock !== true &&
     nextTrip.AtDock === true &&
-    nextTrip.ArrivedNextActual !== undefined,
+    nextTrip.TripEnd !== undefined,
   didJustLeaveDock:
     existingTrip?.AtDock === true &&
     nextTrip.AtDock !== true &&

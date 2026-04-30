@@ -10,11 +10,15 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
-import type { UpdateVesselTripDbAccess } from "../types";
 import { buildActiveTrip } from "../buildActiveTrip";
 import { completeTrip } from "../completeTrip";
-import { didLeaveDock, isNewTrip, leftDockTimeForUpdate } from "../lifecycleSignals";
+import {
+  didLeaveDock,
+  isNewTrip,
+  leftDockTimeForUpdate,
+} from "../lifecycleSignals";
 import { applyScheduleForActiveTrip } from "../scheduleForActiveTrip";
+import type { UpdateVesselTripDbAccess } from "../types";
 
 const ms = (iso: string): number => new Date(iso).getTime();
 
@@ -60,8 +64,7 @@ const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",
-  ArriveDest: undefined,
-  AtDockActual: ms("2026-03-13T10:30:00-07:00"),
+  TripEnd: undefined,
   TripStart: ms("2026-03-13T10:30:00-07:00"),
   AtDock: true,
   AtDockDuration: undefined,
@@ -72,7 +75,6 @@ const makeTrip = (
   Eta: undefined,
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -96,11 +98,19 @@ const makeDepartureEvent = (
   ...overrides,
 });
 
-const makeDbAccess = (options: {
-  scheduledSegmentByKey?: Record<string, ConvexInferredScheduledSegment | null>;
-  scheduledDockEventsBySailingDay?: Record<string, ConvexScheduledDockEvent[]>;
-  throwOnAnyCall?: boolean;
-} = {}): {
+const makeDbAccess = (
+  options: {
+    scheduledSegmentByKey?: Record<
+      string,
+      ConvexInferredScheduledSegment | null
+    >;
+    scheduledDockEventsBySailingDay?: Record<
+      string,
+      ConvexScheduledDockEvent[]
+    >;
+    throwOnAnyCall?: boolean;
+  } = {}
+): {
   dbAccess: UpdateVesselTripDbAccess;
   counters: {
     getScheduledSegmentByScheduleKey: number;
@@ -173,13 +183,14 @@ describe("stage-2 pipeline modules", () => {
 
     expect(isNewTrip(previousTrip, location)).toBe(true);
     expect(didLeaveDock(previousTrip, location)).toBe(true);
-    expect(leftDockTimeForUpdate(previousTrip, location)).toBe(location.LeftDock);
+    expect(leftDockTimeForUpdate(previousTrip, location)).toBe(
+      location.LeftDock
+    );
   });
 
   it("builds completed trip closeout fields and durations on completion", () => {
     const previousTrip = makeTrip({
       ArrivingTerminalAbbrev: undefined,
-      StartTime: ms("2026-03-13T04:33:00-07:00"),
       TripStart: ms("2026-03-13T04:33:00-07:00"),
       LeftDock: ms("2026-03-13T05:29:38-07:00"),
       LeftDockActual: undefined,
@@ -191,10 +202,10 @@ describe("stage-2 pipeline modules", () => {
 
     const completedTrip = completeTrip(previousTrip, location);
 
-    expect(completedTrip.EndTime).toBe(location.TimeStamp);
     expect(completedTrip.TripEnd).toBe(location.TimeStamp);
-    expect(completedTrip.ArrivedNextActual).toBe(location.TimeStamp);
-    expect(completedTrip.ArriveDest).toBe(location.TimeStamp);
+    expect(completedTrip.TripEnd).toBe(location.TimeStamp);
+    expect(completedTrip.TripEnd).toBe(location.TimeStamp);
+    expect(completedTrip.TripEnd).toBe(location.TimeStamp);
     expect(completedTrip.ArrivingTerminalAbbrev).toBe("ORI");
     expect(completedTrip.AtSeaDuration).toBe(60.3);
     expect(completedTrip.TotalDuration).toBe(116.9);
@@ -207,17 +218,14 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const activeTrip = buildActiveTrip({
-      previousTrip: undefined,
+      prev: undefined,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: false,
     });
 
     expect(activeTrip.TripKey).toBeString();
-    expect(activeTrip.StartTime).toBe(location.TimeStamp);
-    expect(activeTrip.TripStart).toBe(location.TimeStamp);
-    expect(activeTrip.ArrivedCurrActual).toBeUndefined();
-    expect(activeTrip.AtDockActual).toBeUndefined();
+    expect(activeTrip.TripStart).toBeUndefined();
   });
 
   it("stamps LeftDockActual from LeftDock on dock-to-sea transition", () => {
@@ -237,9 +245,9 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: false,
     });
 
@@ -264,9 +272,9 @@ describe("stage-2 pipeline modules", () => {
       TimeStamp: ms("2026-03-13T06:31:45-07:00"),
     });
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: false,
     });
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
@@ -299,9 +307,9 @@ describe("stage-2 pipeline modules", () => {
       TimeStamp: ms("2026-03-13T06:47:00-07:00"),
     });
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: true,
     });
     const primarySegment = makeScheduledSegment({
@@ -327,7 +335,9 @@ describe("stage-2 pipeline modules", () => {
     expect(scheduledTrip.ScheduledDeparture).toBe(primarySegment.DepartingTime);
     expect(scheduledTrip.ScheduleKey).toBe("CHE--2026-03-13--07:00--ORI-LOP");
     expect(scheduledTrip.SailingDay).toBe("2026-03-13");
-    expect(scheduledTrip.NextScheduleKey).toBe("CHE--2026-03-13--08:00--LOP-SHW");
+    expect(scheduledTrip.NextScheduleKey).toBe(
+      "CHE--2026-03-13--08:00--LOP-SHW"
+    );
     expect(scheduledTrip.NextScheduledDeparture).toBe(
       primarySegment.NextDepartingTime
     );
@@ -350,9 +360,9 @@ describe("stage-2 pipeline modules", () => {
       InService: true,
     });
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: true,
     });
     const rolloverDeparture = makeDepartureEvent();

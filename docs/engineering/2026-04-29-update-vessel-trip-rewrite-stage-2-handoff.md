@@ -112,15 +112,15 @@ export const completeTrip = (
 Rules:
 
 - Completion is triggered by terminal abbreviation transition, not dock phase.
-- Set `EndTime` and `TripEnd` to `location.TimeStamp`.
-- Set `ArrivedNextActual` and `ArriveDest` to `location.TimeStamp`.
+- Set `TripEnd` and `TripEnd` to `location.TimeStamp`.
+- Set `TripEnd` and `TripEnd` to `location.TimeStamp`.
 - Backfill `ArrivingTerminalAbbrev` from `location.DepartingTerminalAbbrev`
   when missing.
 - Preserve origin/start fields from `previousTrip`.
 - Compute `AtSeaDuration` from departure actual/fallback to arrival time.
 - Compute `TotalDuration` from start time to completion time.
 - Keep compatibility mirrors aligned:
-  - `AtDockActual = previousTrip.ArrivedCurrActual ?? previousTrip.AtDockActual`
+  - `TripStart = previousTrip.TripStart ?? previousTrip.TripStart`
   - `LeftDockActual = previousTrip.LeftDockActual ?? previousTrip.LeftDock`
 
 Do not actualize predictions here. Prediction actualization is outside
@@ -144,7 +144,7 @@ Rules:
 - Persist `AtDock` from `location.AtDockObserved`.
 - For replacement trips:
   - generate a new `TripKey` from vessel abbrev + `location.TimeStamp`
-  - set `StartTime` / `TripStart` / `ArrivedCurrActual` / `AtDockActual` to
+  - set `TripStart` / `TripStart` / `TripStart` / `TripStart` to
     `location.TimeStamp`
   - set previous-leg metadata from `completedTrip` when available:
     - `PrevTerminalAbbrev`
@@ -153,11 +153,11 @@ Rules:
   - clear end/destination/departure/duration fields for the new active row
 - For first-seen trips:
   - generate a new `TripKey`
-  - set `StartTime` / `TripStart` to `location.TimeStamp`
-  - do **not** stamp `ArrivedCurrActual`
-  - do **not** stamp `AtDockActual`
+  - set `TripStart` / `TripStart` to `location.TimeStamp`
+  - do **not** stamp `TripStart`
+  - do **not** stamp `TripStart`
 - For continuing trips:
-  - preserve `TripKey`, `StartTime`, `TripStart`, previous-leg metadata, and
+  - preserve `TripKey`, `TripStart`, `TripStart`, previous-leg metadata, and
     existing physical boundary facts
   - update location-owned fields from the current location
   - set departure fields using `leftDockTimeForUpdate`
@@ -210,7 +210,7 @@ Stage 3 small. Prioritize tests for:
 
 - `isNewTrip` true/false
 - `completeTrip` closeout fields
-- first-seen active trip does not stamp `ArrivedCurrActual`
+- first-seen active trip does not stamp `TripStart`
 - continuing dock-to-sea uses `location.LeftDock` for `LeftDockActual`
 - continuing incomplete WSF does not read DB access
 - replacement incomplete WSF can infer schedule

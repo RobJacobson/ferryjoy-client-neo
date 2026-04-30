@@ -193,6 +193,7 @@ import type * as functions_vesselOrchestrator_index from "../functions/vesselOrc
 import type * as functions_vesselOrchestrator_mutations from "../functions/vesselOrchestrator/mutations.js";
 import type * as functions_vesselOrchestrator_pipeline_loadSnapshot_index from "../functions/vesselOrchestrator/pipeline/loadSnapshot/index.js";
 import type * as functions_vesselOrchestrator_pipeline_runOrchestratorPing from "../functions/vesselOrchestrator/pipeline/runOrchestratorPing.js";
+import type * as functions_vesselOrchestrator_pipeline_runPersistVesselUpdatesWithTripDeltas from "../functions/vesselOrchestrator/pipeline/runPersistVesselUpdatesWithTripDeltas.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselActualizations_deriveVesselTripActualizationIntent from "../functions/vesselOrchestrator/pipeline/updateVesselActualizations/deriveVesselTripActualizationIntent.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselActualizations_index from "../functions/vesselOrchestrator/pipeline/updateVesselActualizations/index.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_index from "../functions/vesselOrchestrator/pipeline/updateVesselLocations/index.js";
@@ -229,6 +230,7 @@ import type * as functions_vesselTripPredictions_predictionOverlayCompare from "
 import type * as functions_vesselTripPredictions_queries from "../functions/vesselTripPredictions/queries.js";
 import type * as functions_vesselTripPredictions_schemas from "../functions/vesselTripPredictions/schemas.js";
 import type * as functions_vesselTripPredictions_vesselTripPredictionPersistPlan from "../functions/vesselTripPredictions/vesselTripPredictionPersistPlan.js";
+import type * as functions_vesselTrips_columnAudit from "../functions/vesselTrips/columnAudit.js";
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
 import type * as functions_vesselTrips_read_dedupeTripDocsByTripKey from "../functions/vesselTrips/read/dedupeTripDocsByTripKey.js";
@@ -443,6 +445,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/mutations": typeof functions_vesselOrchestrator_mutations;
   "functions/vesselOrchestrator/pipeline/loadSnapshot/index": typeof functions_vesselOrchestrator_pipeline_loadSnapshot_index;
   "functions/vesselOrchestrator/pipeline/runOrchestratorPing": typeof functions_vesselOrchestrator_pipeline_runOrchestratorPing;
+  "functions/vesselOrchestrator/pipeline/runPersistVesselUpdatesWithTripDeltas": typeof functions_vesselOrchestrator_pipeline_runPersistVesselUpdatesWithTripDeltas;
   "functions/vesselOrchestrator/pipeline/updateVesselActualizations/deriveVesselTripActualizationIntent": typeof functions_vesselOrchestrator_pipeline_updateVesselActualizations_deriveVesselTripActualizationIntent;
   "functions/vesselOrchestrator/pipeline/updateVesselActualizations/index": typeof functions_vesselOrchestrator_pipeline_updateVesselActualizations_index;
   "functions/vesselOrchestrator/pipeline/updateVesselLocations/index": typeof functions_vesselOrchestrator_pipeline_updateVesselLocations_index;
@@ -479,6 +482,7 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTripPredictions/queries": typeof functions_vesselTripPredictions_queries;
   "functions/vesselTripPredictions/schemas": typeof functions_vesselTripPredictions_schemas;
   "functions/vesselTripPredictions/vesselTripPredictionPersistPlan": typeof functions_vesselTripPredictions_vesselTripPredictionPersistPlan;
+  "functions/vesselTrips/columnAudit": typeof functions_vesselTrips_columnAudit;
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;
   "functions/vesselTrips/read/dedupeTripDocsByTripKey": typeof functions_vesselTrips_read_dedupeTripDocsByTripKey;

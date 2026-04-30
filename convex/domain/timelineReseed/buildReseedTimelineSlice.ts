@@ -109,7 +109,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
       }
 
       if (
-        trip.ArrivedNextActual !== undefined &&
+        trip.TripEnd !== undefined &&
         trip.ArrivingTerminalAbbrev !== undefined
       ) {
         rows.push(
@@ -127,7 +127,7 @@ const buildPhysicalOnlyActualRowsFromTrips = (
               TerminalAbbrev: trip.ArrivingTerminalAbbrev,
               EventType: "arv-dock" as const,
               EventOccurred: true,
-              EventActualTime: trip.ArrivedNextActual,
+              EventActualTime: trip.TripEnd,
             },
             updatedAt
           )

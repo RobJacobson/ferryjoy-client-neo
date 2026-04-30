@@ -77,7 +77,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
  * Type guard for trips that are ready for predictions.
  *
  * A trip is prediction-ready when it has all required context fields:
- * ArrivedCurrActual, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
+ * TripStart, DepartingTerminalAbbrev, ArrivingTerminalAbbrev,
  * PrevTerminalAbbrev, InService, ScheduledDeparture,
  * PrevScheduledDeparture, and PrevLeftDock.
  *
@@ -87,7 +87,7 @@ export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
 export const isPredictionReadyTrip = (
   trip: ConvexVesselTripWithPredictions
 ): trip is PredictionReadyTrip =>
-  Boolean(trip.ArrivedCurrActual) &&
+  Boolean(trip.TripStart) &&
   Boolean(trip.DepartingTerminalAbbrev) &&
   Boolean(trip.ArrivingTerminalAbbrev) &&
   Boolean(trip.PrevTerminalAbbrev) &&
@@ -218,7 +218,7 @@ export const actualizePredictionsOnLeaveDock = (
 export const actualizePredictionsOnTripComplete = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTripWithML => {
-  const arrivalActual = trip.ArrivedNextActual;
+  const arrivalActual = trip.TripEnd;
   if (!arrivalActual || !trip.AtSeaArriveNext) {
     return trip;
   }

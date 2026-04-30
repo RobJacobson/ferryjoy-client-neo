@@ -118,14 +118,9 @@ const tripIdentityFields = {
   SailingDay: v.optional(v.string()),
   PrevTerminalAbbrev: v.optional(v.string()),
   // Canonical timestamp contract. Physical boundary actuals use past-tense
-  // names (`ArrivedCurrActual`, `ArrivedNextActual`, `LeftDockActual`).
-  ArrivedCurrActual: v.optional(v.number()),
-  ArrivedNextActual: v.optional(v.number()),
-  StartTime: v.optional(v.number()),
-  EndTime: v.optional(v.number()),
-  ArriveDest: v.optional(v.number()),
-  AtDockActual: v.optional(v.number()),
+  // names (`TripStart`, `TripEnd`, `LeftDockActual`).
   TripStart: v.optional(v.number()),
+  TripEnd: v.optional(v.number()),
   AtDock: v.boolean(),
   AtDockDuration: v.optional(v.number()),
   ScheduledDeparture: v.optional(v.number()),
@@ -133,7 +128,6 @@ const tripIdentityFields = {
   LeftDockActual: v.optional(v.number()),
   TripDelay: v.optional(v.number()),
   Eta: v.optional(v.number()),
-  TripEnd: v.optional(v.number()),
   AtSeaDuration: v.optional(v.number()),
   TotalDuration: v.optional(v.number()),
   InService: v.boolean(),
@@ -227,20 +221,14 @@ export const toDomainVesselTrip = (
 ) => {
   const domainTrip = {
     ...trip,
-    ArrivedCurrActual: optionalEpochMsToDate(trip.ArrivedCurrActual),
-    ArrivedNextActual: optionalEpochMsToDate(trip.ArrivedNextActual),
-    StartTime: optionalEpochMsToDate(trip.StartTime),
-    EndTime: optionalEpochMsToDate(trip.EndTime),
+    TripStart: optionalEpochMsToDate(trip.TripStart),
+    TripEnd: optionalEpochMsToDate(trip.TripEnd),
     ScheduledDeparture: optionalEpochMsToDate(trip.ScheduledDeparture),
     NextScheduledDeparture: optionalEpochMsToDate(trip.NextScheduledDeparture),
     Eta: optionalEpochMsToDate(trip.Eta),
-    AtDockActual: optionalEpochMsToDate(trip.AtDockActual),
     LeftDock: optionalEpochMsToDate(trip.LeftDock),
     LeftDockActual: optionalEpochMsToDate(trip.LeftDockActual),
     TimeStamp: epochMsToDate(trip.TimeStamp),
-    ArriveDest: optionalEpochMsToDate(trip.ArriveDest),
-    TripStart: optionalEpochMsToDate(trip.TripStart),
-    TripEnd: optionalEpochMsToDate(trip.TripEnd),
     AtDockDepartCurr: mapPredictionField(trip.AtDockDepartCurr),
     AtDockArriveNext: mapPredictionField(trip.AtDockArriveNext),
     AtDockDepartNext: mapPredictionField(trip.AtDockDepartNext),
@@ -291,7 +279,7 @@ export type PredictionReadyTrip = ConvexVesselTripWithML & {
   ScheduledDeparture: number;
   PrevTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
-  ArrivedCurrActual: number;
+  TripStart: number;
   PrevScheduledDeparture: number;
   PrevLeftDock: number;
 };

@@ -2,13 +2,13 @@
  * Schedule policy application for active-trip rows.
  */
 
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 import { getTripFieldsFromWsf } from "./tripFields/getTripFieldsFromWsf";
 import { hasWsfTripFields } from "./tripFields/hasWsfTripFields";
 import { resolveTripScheduleFields } from "./tripFields/resolveTripScheduleFields";
 import type { UpdateVesselTripDbAccess } from "./types";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 type ApplyScheduleForActiveTripInput = {
   activeTrip: ConvexVesselTrip;
@@ -46,7 +46,8 @@ export const applyScheduleForActiveTrip = async ({
         didJustArriveAtDock: isNewTrip,
         didJustLeaveDock: false,
         leftDockTime: activeTrip.LeftDock,
-        scheduleKeyChanged: previousTrip?.ScheduleKey !== activeTrip.ScheduleKey,
+        scheduleKeyChanged:
+          previousTrip?.ScheduleKey !== activeTrip.ScheduleKey,
       },
       resolution,
     });
@@ -77,7 +78,8 @@ export const applyScheduleForActiveTrip = async ({
       didJustArriveAtDock: isNewTrip,
       didJustLeaveDock: false,
       leftDockTime: activeTrip.LeftDock,
-      scheduleKeyChanged: continuityTrip?.ScheduleKey !== activeTrip.ScheduleKey,
+      scheduleKeyChanged:
+        continuityTrip?.ScheduleKey !== activeTrip.ScheduleKey,
     },
     resolution,
   });

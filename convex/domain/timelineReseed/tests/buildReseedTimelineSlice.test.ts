@@ -367,9 +367,8 @@ describe("buildReseedTimelineSlice", () => {
       ArrivingTerminalAbbrev: "VAI",
       SailingDay: SAILING_DAY,
       ScheduledDeparture: at(17, 20),
-      ArrivedNextActual: at(17, 55),
+      TripEnd: at(17, 55),
       LeftDockActual: at(17, 30),
-      ArriveDest: at(17, 56),
     });
 
     const { actualRows } = buildReseedTimelineSlice({
@@ -396,9 +395,8 @@ describe("buildReseedTimelineSlice", () => {
       ArrivingTerminalAbbrev: "VAI",
       SailingDay: SAILING_DAY,
       ScheduledDeparture: at(17, 20),
-      ArrivedNextActual: undefined,
+      TripEnd: undefined,
       LeftDockActual: at(17, 29),
-      ArriveDest: at(17, 55),
     });
 
     const { actualRows } = buildReseedTimelineSlice({
@@ -496,10 +494,9 @@ const makeActivePhysicalTrip = (
     DepartingTerminalAbbrev,
     ArrivingTerminalAbbrev: "BBI",
     ScheduledDeparture: at(17, 20),
-    ArrivedNextActual: undefined,
+    TripEnd: undefined,
     LeftDock: undefined,
     LeftDockActual: undefined,
-    ArriveDest: undefined,
-    AtDockActual: undefined,
+    TripStart: undefined,
     ...rest,
   }))(overrides) as ActiveTripForPhysicalActualReconcile & { TripKey: string };

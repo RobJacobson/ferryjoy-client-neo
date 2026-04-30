@@ -35,12 +35,12 @@ describe("toActiveRow", () => {
   it("selects the final dock row after arrival or trip end", () => {
     const arrived = getActiveRow({
       trip: {
-        ArrivedNextActual: at(8, 36),
+        TripEnd: at(8, 36),
       },
     });
     const tripEnded = getActiveRow({
       trip: {
-        EndTime: at(8, 37),
+        TripEnd: at(8, 37),
       },
     });
 

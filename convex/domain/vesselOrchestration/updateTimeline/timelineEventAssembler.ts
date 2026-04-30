@@ -203,7 +203,7 @@ const buildTaggedActualDockRowsFromMessage = (
       rows.push(buildActualDockEventFromWrite(departure, updatedAt));
     }
   }
-  if (events.didJustArriveAtDock && proposed.ArrivedNextActual !== undefined) {
+  if (events.didJustArriveAtDock && proposed.TripEnd !== undefined) {
     const arrival = buildArrivalActualDockWriteForTrip(proposed);
     if (arrival !== null) {
       rows.push(buildActualDockEventFromWrite(arrival, updatedAt));

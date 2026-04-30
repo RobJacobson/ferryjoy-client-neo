@@ -78,7 +78,7 @@ export const synthesizeTripSegments = (params: {
 
     // Self-resolving status:
     // - Active segment is always ongoing (so we never show "Arrived" on the bar while en route).
-    // - If we have EndTime (coverage end) and this segment is not active, it's past.
+    // - If we have TripEnd (coverage end) and this segment is not active, it's past.
     // - Otherwise, it's future.
     let status: "past" | "ongoing" | "future" = "future";
     if (isActive) {

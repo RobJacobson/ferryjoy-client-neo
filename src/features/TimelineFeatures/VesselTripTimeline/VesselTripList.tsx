@@ -21,7 +21,7 @@ export type TripProgressListProps = {
  * This prevents UI flicker and provides a smooth transition for users.
  *
  * The hold window logic is implemented in useDelayedVesselTrips hook,
- * which uses coverage end (`EndTime`) and trip identity to determine if a
+ * which uses coverage end (`TripEnd`) and trip identity to determine if a
  * completed trip is still within the hold window.
  */
 export const TripProgressList = ({

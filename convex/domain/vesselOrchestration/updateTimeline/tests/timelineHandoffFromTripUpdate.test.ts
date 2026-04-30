@@ -17,18 +17,15 @@ const makeTrip = (
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
-  ArriveDest: undefined,
+  TripEnd: undefined,
   TripStart: ms("2026-03-13T04:33:00-07:00"),
   AtDock: false,
   AtDockDuration: undefined,
   ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
   LeftDock: ms("2026-03-13T05:29:38-07:00"),
   LeftDockActual: ms("2026-03-13T05:29:38-07:00"),
-  ArrivedCurrActual: ms("2026-03-13T04:33:00-07:00"),
-  ArrivedNextActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -37,17 +34,13 @@ const makeTrip = (
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  EndTime: undefined,
-  StartTime: ms("2026-03-13T04:33:00-07:00"),
-  AtDockActual: ms("2026-03-13T04:33:00-07:00"),
   ...overrides,
 });
 
 describe("timelineHandoffFromTripUpdate", () => {
   it("builds completion plus replacement active handoff", () => {
-    const existing = makeTrip("CHE", { ArrivedNextActual: undefined });
+    const existing = makeTrip("CHE", { TripEnd: undefined });
     const completed = makeTrip("CHE", {
-      ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
     });
     const replacement = makeTrip("CHE", {
@@ -69,7 +62,7 @@ describe("timelineHandoffFromTripUpdate", () => {
     expect(result.completedTripFacts[0]?.scheduleTrip).toEqual(replacement);
     expect(result.completedTripFacts[0]?.events.isCompletedTrip).toBe(true);
     expect(result.completedTripFacts[0]?.events.didJustArriveAtDock).toBe(true);
-    expect(result.completedTripFacts[0]?.tripToComplete.ArrivedNextActual).toBe(
+    expect(result.completedTripFacts[0]?.tripToComplete.TripEnd).toBe(
       ms("2026-03-13T06:45:00-07:00")
     );
     expect(result.currentBranch.pendingActualWrite).toBeUndefined();
@@ -105,12 +98,11 @@ describe("timelineHandoffFromTripUpdate", () => {
       DepartingTerminalAbbrev: "ANA",
       ArrivingTerminalAbbrev: "ORI",
       AtDock: false,
-      ArrivedNextActual: undefined,
+      TripEnd: undefined,
     });
     const completed = makeTrip("CHE", {
       DepartingTerminalAbbrev: "ANA",
       ArrivingTerminalAbbrev: "ORI",
-      ArrivedNextActual: ms("2026-03-13T06:45:00-07:00"),
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
     });
     const replacement = makeTrip("CHE", {
@@ -119,7 +111,7 @@ describe("timelineHandoffFromTripUpdate", () => {
       ArrivingTerminalAbbrev: "LOP",
       ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
       AtDock: false,
-      ArrivedNextActual: undefined,
+      TripEnd: undefined,
       LeftDockActual: undefined,
     });
 

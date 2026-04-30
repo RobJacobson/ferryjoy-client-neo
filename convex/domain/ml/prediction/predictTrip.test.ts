@@ -37,13 +37,8 @@ const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--05:30--SOU-VAI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "FAU",
-  ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
-  ArrivedNextActual: undefined,
-  StartTime: ms("2026-03-13T09:00:00-07:00"),
-  EndTime: undefined,
-  ArriveDest: undefined,
-  AtDockActual: undefined,
-  TripStart: ms("2026-03-13T09:00:00-07:00"),
+  TripStart: ms("2026-03-13T09:30:00-07:00"),
+  TripEnd: undefined,
   AtDock: true,
   AtDockDuration: undefined,
   ScheduledDeparture: ms("2026-03-13T10:00:00-07:00"),
@@ -51,7 +46,6 @@ const makeTrip = (
   LeftDockActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -71,8 +65,7 @@ const makeTrip = (
 describe("predictEtaOnDeparture", () => {
   it("uses canonical origin-arrival actuals instead of TripStart aliases", async () => {
     const trip = makeTrip({
-      ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
-      TripStart: ms("2026-03-13T09:50:00-07:00"),
+      TripStart: ms("2026-03-13T09:30:00-07:00"),
       LeftDock: ms("2026-03-13T09:55:00-07:00"),
     });
     const access = makeModelAccess({
@@ -92,7 +85,7 @@ describe("predictArriveEta", () => {
   it("uses canonical departure actuals instead of raw LeftDock aliases", async () => {
     const trip = makeTrip({
       ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
-      ArrivedNextActual: ms("2026-03-13T05:50:00-07:00"),
+      TripEnd: ms("2026-03-13T05:50:00-07:00"),
       LeftDockActual: ms("2026-03-13T05:40:00-07:00"),
       LeftDock: ms("2026-03-13T05:50:00-07:00"),
       TripStart: ms("2026-03-13T05:55:00-07:00"),

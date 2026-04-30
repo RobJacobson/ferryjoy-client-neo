@@ -2,11 +2,11 @@
  * Trip-field schedule resolution for one trip row.
  */
 
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import {
   findNextDepartureEvent,
   inferScheduledSegmentFromDepartureEvent,
 } from "domain/timelineRows/scheduledSegmentResolvers";
-import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { deriveTripIdentity } from "shared/tripIdentity";
@@ -154,9 +154,7 @@ const resolveFromNextScheduleKey = async ({
 
   const segment =
     await scheduleAccess.getScheduledSegmentByScheduleKey(nextScheduleKey);
-  if (
-    segment?.DepartingTerminalAbbrev !== location.DepartingTerminalAbbrev
-  ) {
+  if (segment?.DepartingTerminalAbbrev !== location.DepartingTerminalAbbrev) {
     return null;
   }
   return segment;
@@ -184,24 +182,19 @@ const resolveFromScheduleRollover = async ({
     }
   );
   if (currentDayDeparture) {
-    return inferScheduledSegmentFromDepartureEvent(
-      currentDayDeparture,
-      [...rollover.currentDayEvents]
-    );
+    return inferScheduledSegmentFromDepartureEvent(currentDayDeparture, [
+      ...rollover.currentDayEvents,
+    ]);
   }
 
-  const nextDayDeparture = findNextDepartureEvent(
-    [...rollover.nextDayEvents],
-    {
-      terminalAbbrev: location.DepartingTerminalAbbrev,
-      afterTime: Number.NEGATIVE_INFINITY,
-    }
-  );
+  const nextDayDeparture = findNextDepartureEvent([...rollover.nextDayEvents], {
+    terminalAbbrev: location.DepartingTerminalAbbrev,
+    afterTime: Number.NEGATIVE_INFINITY,
+  });
   if (!nextDayDeparture) {
     return null;
   }
-  return inferScheduledSegmentFromDepartureEvent(
-    nextDayDeparture,
-    [...rollover.nextDayEvents]
-  );
+  return inferScheduledSegmentFromDepartureEvent(nextDayDeparture, [
+    ...rollover.nextDayEvents,
+  ]);
 };

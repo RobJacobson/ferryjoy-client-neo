@@ -42,7 +42,6 @@ export const persistVesselUpdates = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    console.log("[persistVesselUpdates] args", args.activeVesselTrip);
     if (args.completedVesselTrip !== undefined) {
       await insertCompletedVesselTrip(ctx, args.completedVesselTrip);
     }

@@ -83,7 +83,7 @@ produces downstream completion facts for:
 - timeline handoff
 
 The important behavior is that terminal-change completion from the new pipeline
-still produces an arrival actual via `completedVesselTripUpdate.ArrivedNextActual`.
+still produces an arrival actual via `completedVesselTripUpdate.TripEnd`.
 
 ### 3. Leave-Dock Actualization
 
@@ -105,7 +105,7 @@ representing:
 
 - terminal abbreviation changed
 - replacement active row has `AtDock: false`
-- completed row still has `ArrivedNextActual`
+- completed row still has `TripEnd`
 
 Expected:
 

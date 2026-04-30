@@ -64,7 +64,7 @@ describe("getVesselTripTimelineRenderState", () => {
     const renderState = getVesselTripTimelineRenderState(
       makeTimelineItem({
         trip: {
-          ArriveDest: at(8, 36),
+          TripEnd: at(8, 36),
         },
       }),
       makeGetTerminalNameByAbbrev(),

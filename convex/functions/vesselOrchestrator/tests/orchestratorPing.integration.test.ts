@@ -69,7 +69,7 @@ const makeTrip = (
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
-  ArriveDest: undefined,
+  TripEnd: undefined,
   TripStart: ms("2026-03-13T04:33:00-07:00"),
   AtDock: false,
   AtDockDuration: undefined,
@@ -77,7 +77,6 @@ const makeTrip = (
   LeftDock: ms("2026-03-13T05:29:38-07:00"),
   TripDelay: undefined,
   Eta: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -86,9 +85,6 @@ const makeTrip = (
   PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  EndTime: undefined,
-  StartTime: ms("2026-03-13T04:33:00-07:00"),
-  AtDockActual: ms("2026-03-13T04:33:00-07:00"),
   ...overrides,
 });
 

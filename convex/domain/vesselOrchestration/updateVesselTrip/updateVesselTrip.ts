@@ -32,9 +32,9 @@ const updateVesselTrip = async (
         : undefined;
 
     const baseActiveTrip = buildActiveTrip({
-      previousTrip: existingActiveTrip,
+      prev: existingActiveTrip,
       completedTrip: completedVesselTrip,
-      location: vesselLocation,
+      curr: vesselLocation,
       isNewTrip: hasNewTripSignal,
     });
 

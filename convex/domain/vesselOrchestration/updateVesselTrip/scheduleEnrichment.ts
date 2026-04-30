@@ -2,9 +2,7 @@
  * Schedule enrichment for already-built active trip rows.
  */
 
-import type {
-  ResolvedTripScheduleFields,
-} from "domain/vesselOrchestration/updateVesselTrip/tripFields";
+import type { ResolvedTripScheduleFields } from "domain/vesselOrchestration/updateVesselTrip/tripFields";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 
