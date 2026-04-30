@@ -11,11 +11,11 @@ import {
   inferScheduledSegmentFromDepartureEvent,
 } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { UpdateVesselTripDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 
 type ResolveSegmentFromScheduleTablesInput = {
   location: ConvexVesselLocation;
-  scheduleAccess: UpdateVesselTripDbAccess;
+  dbAccess: UpdateVesselTripDbAccess;
 };
 
 /**
@@ -27,16 +27,16 @@ type ResolveSegmentFromScheduleTablesInput = {
  * at or after the ping timestamp. This allows schedule recovery during WSF
  * realtime gaps immediately after dock arrivals and trip transitions.
  *
- * @param input - Ping context and schedule DB access for current/next service-day
- *   schedule-table lookup
+ * @param input - Ping context and {@link UpdateVesselTripDbAccess} for current/next
+ *   service-day schedule-table lookup
  * @returns Inferred segment for the next departure from current terminal, or null
  */
 export const tryResolveScheduledSegmentFromScheduleTables = async ({
   location,
-  scheduleAccess,
+  dbAccess,
 }: ResolveSegmentFromScheduleTablesInput): Promise<ConvexInferredScheduledSegment | null> => {
   // Load both service-day pools so lookup can cross midnight/service-day boundaries safely.
-  const serviceDayPools = await scheduleAccess.getScheduleRolloverDockEvents({
+  const serviceDayPools = await dbAccess.getScheduleRolloverDockEvents({
     vesselAbbrev: location.VesselAbbrev,
     timestamp: location.TimeStamp,
   });

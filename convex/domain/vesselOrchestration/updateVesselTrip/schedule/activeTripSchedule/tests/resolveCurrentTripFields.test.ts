@@ -42,7 +42,7 @@ describe("resolveScheduleFromTripArrival", () => {
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
       }),
-      scheduleAccess: makeScheduledTables({
+      dbAccess: makeScheduledTables({
         segments: [nextSegment, scheduleTablesSegment],
         scheduledDeparturesByVesselAbbrev: {
           CHE: [
@@ -87,7 +87,7 @@ describe("resolveScheduleFromTripArrival", () => {
       existingTrip: makeTrip({
         NextScheduleKey: staleNextSegment.Key,
       }),
-      scheduleAccess: makeScheduledTables({
+      dbAccess: makeScheduledTables({
         segments: [staleNextSegment, scheduleTablesSegment],
         scheduledDeparturesByVesselAbbrev: {
           CHE: [
@@ -119,7 +119,7 @@ describe("resolveScheduleFromTripArrival", () => {
       NextKey: "CHE--2026-03-13--14:00--MUK-CLI",
       NextDepartingTime: ms("2026-03-13T14:00:00-07:00"),
     });
-    const scheduleAccess = makeScheduledTables({
+    const dbAccessTables = makeScheduledTables({
       segments: [nextSegment],
     });
 
@@ -134,14 +134,14 @@ describe("resolveScheduleFromTripArrival", () => {
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
       }),
-      scheduleAccess: {
+      dbAccess: {
         getScheduledSegmentByScheduleKey: async (scheduleKey) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
+          return dbAccessTables.getScheduledSegmentByScheduleKey(scheduleKey);
         },
         getScheduleRolloverDockEvents: async (args) => {
           scheduleReadCount += 1;
-          return scheduleAccess.getScheduleRolloverDockEvents(args);
+          return dbAccessTables.getScheduleRolloverDockEvents(args);
         },
       },
     });
@@ -173,7 +173,7 @@ describe("resolveScheduleFromTripArrival", () => {
         ScheduleKey: "CHE--2026-03-13--08:00--OLD-LEG",
         NextScheduleKey: nextSegment.Key,
       }),
-      scheduleAccess: makeScheduledTables({
+      dbAccess: makeScheduledTables({
         segments: [nextSegment],
       }),
     });
@@ -200,7 +200,7 @@ describe("resolveScheduleFromTripArrival", () => {
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
       }),
-      scheduleAccess: makeScheduledTables({
+      dbAccess: makeScheduledTables({
         segments: [nextSegment],
         scheduledDeparturesByVesselAbbrev: {
           CHE: [
@@ -237,7 +237,7 @@ describe("resolveScheduleFromTripArrival", () => {
       existingTrip: makeTrip({
         NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
-      scheduleAccess: makeScheduledTables({
+      dbAccess: makeScheduledTables({
         segments: [],
         scheduledDeparturesByVesselAbbrev: {
           CHE: [],

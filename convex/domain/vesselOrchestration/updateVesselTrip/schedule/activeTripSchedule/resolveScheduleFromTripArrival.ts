@@ -11,15 +11,18 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { UpdateVesselTripDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 import { tryResolveScheduledSegmentFromNextTripKey } from "./resolveSegmentFromNextTripKey";
 import { tryResolveScheduledSegmentFromScheduleTables } from "./resolveSegmentFromScheduleLookup";
-import type { ResolvedCurrentTripFields, ResolvedTripScheduleFields } from "./types";
+import type {
+  ResolvedCurrentTripFields,
+  ResolvedTripScheduleFields,
+} from "./types";
 
 export type ResolveScheduleFromTripArrivalInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleAccess: UpdateVesselTripDbAccess;
+  dbAccess: UpdateVesselTripDbAccess;
 };
 
 /**
@@ -35,23 +38,24 @@ export type ResolveScheduleFromTripArrivalInput = {
  * 1) prior-row `NextScheduleKey` continuity (`nextTripKey`)
  * 2) schedule-table lookup across current/next service day (`scheduleLookup`)
  *
- * @param input - Ping context, prior active row, and schedule DB access
+ * @param input - Ping context, prior active row, and {@link UpdateVesselTripDbAccess}
  * @returns Resolved current fields and optional next-leg fields for merge layer;
  *   undefined when no schedule evidence is available
  */
 export const resolveScheduleFromTripArrival = async ({
   location,
   existingTrip,
-  scheduleAccess,
+  dbAccess,
 }: ResolveScheduleFromTripArrivalInput): Promise<
   ResolvedTripScheduleFields | undefined
 > => {
   // Prefer prior-row next-key continuity so schedule identity stays stable when linkage is valid.
-  const segmentFromNextTripKey = await tryResolveScheduledSegmentFromNextTripKey({
-    nextScheduleKey: existingTrip?.NextScheduleKey,
-    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    scheduleAccess,
-  });
+  const segmentFromNextTripKey =
+    await tryResolveScheduledSegmentFromNextTripKey({
+      nextScheduleKey: existingTrip?.NextScheduleKey,
+      departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+      dbAccess,
+    });
   if (segmentFromNextTripKey) {
     return resolutionFromSegment(segmentFromNextTripKey, "nextTripKey");
   }
@@ -60,7 +64,7 @@ export const resolveScheduleFromTripArrival = async ({
   const segmentFromScheduleTables =
     await tryResolveScheduledSegmentFromScheduleTables({
       location,
-      scheduleAccess,
+      dbAccess,
     });
   if (segmentFromScheduleTables) {
     return resolutionFromSegment(segmentFromScheduleTables, "scheduleLookup");

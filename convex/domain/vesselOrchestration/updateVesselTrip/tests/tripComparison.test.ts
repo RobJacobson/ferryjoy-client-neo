@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { isSameVesselTrip } from "../tripComparison";
+import { isSameVesselTrip } from "../pipeline/tripComparison";
 
 describe("isSameVesselTrip", () => {
   it("treats omitted optional keys like explicit undefined (sparse vs dense)", () => {

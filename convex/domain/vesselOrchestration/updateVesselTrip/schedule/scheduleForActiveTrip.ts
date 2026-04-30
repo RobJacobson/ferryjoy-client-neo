@@ -19,7 +19,7 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
+import type { UpdateVesselTripDbAccess } from "../types";
 import {
   hasWsfScheduleFields,
   resolveScheduleFromWsfRealtime,
@@ -27,11 +27,11 @@ import {
 import { tryResolveScheduledSegmentFromNextTripKey } from "./activeTripSchedule/resolveSegmentFromNextTripKey";
 import { tryResolveScheduledSegmentFromScheduleTables } from "./activeTripSchedule/resolveSegmentFromScheduleLookup";
 import type { ResolvedTripScheduleFields } from "./activeTripSchedule/types";
-import type { UpdateVesselTripDbAccess } from "./types";
+import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 
 type ApplyScheduleForActiveTripInput = {
   /** Active trip row built for this ping (before schedule merge). */
-  curr: ConvexVesselTrip;
+  activeTrip: ConvexVesselTrip;
   /** Prior stored active trip for this vessel, when any. */
   prev: ConvexVesselTrip | undefined;
   location: ConvexVesselLocation;
@@ -48,14 +48,14 @@ type ApplyScheduleForActiveTripInput = {
  * centralized merge layer. When no evidence applies, it returns the built trip
  * unchanged so the pipeline can continue without forcing weak schedule values.
  *
- * @param args - Built active trip (`curr`), prior active row (`prev`), ping context
+ * @param args - Built active trip (`activeTrip`), prior active row (`prev`), ping context
  * @returns Active trip row with schedule fields preserved or enriched; if
- *   unchanged, returns `curr`
+ *   unchanged, returns `activeTrip`
  */
 export const applyScheduleForActiveTrip = async (
   args: ApplyScheduleForActiveTripInput
 ): Promise<ConvexVesselTrip> => {
-  const { curr, prev, location, isNewTrip, dbAccess } = args;
+  const { activeTrip, prev, location, isNewTrip, dbAccess } = args;
 
   // Select the highest-confidence schedule source first so downstream merge logic stays deterministic.
   const resolution = hasWsfScheduleFields(location)
@@ -64,18 +64,18 @@ export const applyScheduleForActiveTrip = async (
         location,
         existingTrip: prev,
         isNewTrip,
-        scheduleAccess: dbAccess,
+        dbAccess,
       });
 
   if (resolution === undefined) {
-    return curr;
+    return activeTrip;
   }
 
   // Apply resolved schedule fields in one place to preserve continuity and keep write semantics centralized.
   return applyResolvedTripScheduleFields({
-    activeTrip: curr,
+    activeTrip,
     existingTrip: prev,
-    scheduleKeyChanged: prev?.ScheduleKey !== curr.ScheduleKey,
+    scheduleKeyChanged: prev?.ScheduleKey !== activeTrip.ScheduleKey,
     resolution,
   });
 };
@@ -89,19 +89,19 @@ export const applyScheduleForActiveTrip = async (
  * the vessel's terminal context. If both strategies fail, it emits a warning
  * and returns undefined so callers can preserve a no-op schedule outcome.
  *
- * @param input - Ping context, prior trip context, and schedule access
+ * @param input - Ping context, prior trip context, and `UpdateVesselTripDbAccess`
  * @returns Resolved schedule fields when evidence exists, otherwise undefined
  */
 const resolveScheduleForNewTrip = async ({
   location,
   existingTrip,
   isNewTrip,
-  scheduleAccess,
+  dbAccess,
 }: {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   isNewTrip: boolean;
-  scheduleAccess: UpdateVesselTripDbAccess;
+  dbAccess: UpdateVesselTripDbAccess;
 }): Promise<ResolvedTripScheduleFields | undefined> => {
   if (!isNewTrip || !location.InService) {
     return undefined;
@@ -112,7 +112,7 @@ const resolveScheduleForNewTrip = async ({
     await tryResolveScheduledSegmentFromNextTripKey({
       nextScheduleKey: existingTrip?.NextScheduleKey,
       departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-      scheduleAccess,
+      dbAccess,
     });
   if (segmentFromNextTripKey) {
     return resolutionFromScheduledSegment(
@@ -125,7 +125,7 @@ const resolveScheduleForNewTrip = async ({
   const segmentFromScheduleTables =
     await tryResolveScheduledSegmentFromScheduleTables({
       location,
-      scheduleAccess,
+      dbAccess,
     });
   if (segmentFromScheduleTables) {
     return resolutionFromScheduledSegment(

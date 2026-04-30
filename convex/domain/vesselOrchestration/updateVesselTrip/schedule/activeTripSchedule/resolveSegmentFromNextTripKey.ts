@@ -3,12 +3,12 @@
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { UpdateVesselTripDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 
 type ResolveSegmentFromNextTripKeyInput = {
   nextScheduleKey: string | undefined;
   departingTerminalAbbrev: string | undefined;
-  scheduleAccess: UpdateVesselTripDbAccess;
+  dbAccess: UpdateVesselTripDbAccess;
 };
 
 /**
@@ -20,14 +20,15 @@ type ResolveSegmentFromNextTripKeyInput = {
  * departing terminal. That terminal guard prevents stale key reuse when the
  * vessel state has already advanced to a different physical leg.
  *
- * @param input - Prior next schedule key, current departing terminal, and DB access
+ * @param input - Prior next schedule key, current departing terminal, and
+ *   {@link UpdateVesselTripDbAccess}
  * @returns Matching scheduled segment when key exists and terminal continuity holds;
  *   otherwise null
  */
 export const tryResolveScheduledSegmentFromNextTripKey = async ({
   nextScheduleKey,
   departingTerminalAbbrev,
-  scheduleAccess,
+  dbAccess,
 }: ResolveSegmentFromNextTripKeyInput): Promise<ConvexInferredScheduledSegment | null> => {
   if (nextScheduleKey === undefined) {
     return null;
@@ -35,7 +36,7 @@ export const tryResolveScheduledSegmentFromNextTripKey = async ({
 
   // Load the keyed segment first so continuity stays O(1) when prior linkage is valid.
   const segment =
-    await scheduleAccess.getScheduledSegmentByScheduleKey(nextScheduleKey);
+    await dbAccess.getScheduledSegmentByScheduleKey(nextScheduleKey);
   if (segment === null) {
     return null;
   }

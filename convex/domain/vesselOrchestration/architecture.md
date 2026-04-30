@@ -80,7 +80,7 @@ Internal one-vessel flow:
 ```text
 updateVesselTrip
   -> isNewTrip
-  -> completeTrip?
+  -> buildCompleteTrip?
   -> buildActiveTrip
   -> applyScheduleForActiveTrip
   -> classify storage/lifecycle change
@@ -110,7 +110,7 @@ Cross-module contracts are owned by the domain modules that consume them:
 
 - **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` (`createUpdateVesselTripDbAccess`) with key-first internal queries against `eventsScheduled`. The domain tries `NextScheduleKey` continuity before rollover fallback. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** schedule-resolution fixtures/helpers live under
-  `updateVesselTrip/activeTripSchedule/tests/`, and public behavior/module tests live
+  `updateVesselTrip/schedule/activeTripSchedule/tests/`, and public behavior/module tests live
   under `updateVesselTrip/tests/`.
 
 ## Contracts between stages

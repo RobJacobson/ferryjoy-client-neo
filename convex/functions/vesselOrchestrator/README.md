@@ -249,7 +249,7 @@ Current hot-path implementation notes:
 Trip-field and continuity code must depend only on **`UpdateVesselTripDbAccess`**:
 
 - **Production:** `pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` — key-first internal queries for `NextScheduleKey` continuity and rollover fallback.
-- **Tests:** fakes and fixtures live under `domain/vesselOrchestration/updateVesselTrip/activeTripSchedule/tests/` and `domain/vesselOrchestration/updateVesselTrip/tests/` (not a production schedule read path).
+- **Tests:** fakes and fixtures live under `domain/vesselOrchestration/updateVesselTrip/schedule/activeTripSchedule/tests/` and `domain/vesselOrchestration/updateVesselTrip/tests/` (not a production schedule read path).
 
 Do not introduce a second public “schedule provider” abstraction above this interface; evolve the key lookup or rollover fallback methods if new evidence shapes are needed.
 

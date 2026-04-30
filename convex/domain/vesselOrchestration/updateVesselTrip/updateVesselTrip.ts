@@ -4,11 +4,11 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildActiveTrip } from "./buildActiveTrip";
-import { completeTrip } from "./completeTrip";
-import { isNewTrip } from "./lifecycleSignals";
-import { applyScheduleForActiveTrip } from "./scheduleForActiveTrip";
-import { isSameVesselTrip } from "./tripComparison";
+import { buildActiveTrip } from "./pipeline/buildActiveTrip";
+import { buildCompleteTrip } from "./pipeline/buildCompleteTrip";
+import * as lifecycle from "./pipeline/lifecycleSignals";
+import { isSameVesselTrip } from "./pipeline/tripComparison";
+import { applyScheduleForActiveTrip } from "./schedule/scheduleForActiveTrip";
 import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**
@@ -26,32 +26,36 @@ const updateVesselTrip = async (
   dbAccess: UpdateVesselTripDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
-    const hasNewTripSignal = isNewTrip(existingActiveTrip, vesselLocation);
+    // Extract continuity context from the prior active trip row.
+    const prev = existingActiveTrip;
+    const curr = vesselLocation;
+    const isNewTrip = lifecycle.isNewTrip(prev, curr);
     const completedVesselTrip =
-      hasNewTripSignal && existingActiveTrip !== undefined
-        ? completeTrip(existingActiveTrip, vesselLocation)
+      isNewTrip && prev !== undefined
+        ? buildCompleteTrip(prev, curr)
         : undefined;
 
-    const baseActiveTrip = buildActiveTrip({
-      prev: existingActiveTrip,
-      completedTrip: completedVesselTrip,
-      curr: vesselLocation,
-      isNewTrip: hasNewTripSignal,
+    // Build the active trip row for this ping.
+    const activeTrip = buildActiveTrip({
+      prev,
+      completedVesselTrip,
+      curr,
+      isNewTrip,
     });
 
     // Schedule-table reads (inside applyScheduleForActiveTrip) run only on new
     // trip rollover while InService; WSF pings use a sync merge path instead.
     const activeVesselTrip = await applyScheduleForActiveTrip({
-      curr: baseActiveTrip,
-      prev: existingActiveTrip,
-      location: vesselLocation,
-      isNewTrip: hasNewTripSignal,
+      activeTrip,
+      prev,
+      location: curr,
+      isNewTrip,
       dbAccess,
     });
 
     // Check if the active vessel trip has meaningfully changed.
     const isActiveVesselTripUnchanged = isSameVesselTrip(
-      existingActiveTrip,
+      prev,
       activeVesselTrip
     );
 
