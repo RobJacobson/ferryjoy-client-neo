@@ -57,6 +57,51 @@ describe("resolveScheduleFromTripArrival", () => {
     expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
   });
 
+  it("falls back to schedule lookup when next key segment mismatches terminal", async () => {
+    const staleNextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--PTA-MUK",
+      DepartingTerminalAbbrev: "PTA",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
+    });
+    const rolloverSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--13:30--CLI-MUK",
+      DepartingTerminalAbbrev: "CLI",
+      DepartingTime: ms("2026-03-13T13:30:00-07:00"),
+    });
+
+    const resolution = await resolveFields({
+      location: makeLocation({
+        ArrivingTerminalAbbrev: undefined,
+        ScheduledDeparture: undefined,
+        ScheduleKey: undefined,
+        DepartingTerminalAbbrev: "CLI",
+      }),
+      existingTrip: makeTrip({
+        NextScheduleKey: staleNextSegment.Key,
+      }),
+      scheduleAccess: makeScheduledTables({
+        segments: [staleNextSegment, rolloverSegment],
+        scheduledDeparturesByVesselAbbrev: {
+          CHE: [
+            {
+              Key: `${rolloverSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
+              ScheduledDeparture: rolloverSegment.DepartingTime,
+              TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(resolution.current.ScheduleKey).toBe(rolloverSegment.Key);
+    expect(resolution.current.tripFieldResolutionMethod).toBe("scheduleLookup");
+  });
+
   it("infers trip fields from the next scheduled trip when WSF is incomplete", async () => {
     let scheduleReadCount = 0;
     const nextSegment = makeScheduledSegment({
@@ -187,7 +232,7 @@ describe("resolveScheduleFromTripArrival", () => {
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
         SailingDay: "2026-03-13",
         tripFieldDataSource: "inferred" as const,
-        tripFieldInferenceMethod: "next_scheduled_trip" as const,
+        tripFieldResolutionMethod: "nextTripKey" as const,
       },
     };
 
@@ -198,7 +243,7 @@ describe("resolveScheduleFromTripArrival", () => {
         vesselAbbrev: "CHE",
         reason: "partial_wsf_conflict_with_inference",
         tripFieldDataSource: "inferred",
-        tripFieldInferenceMethod: "next_scheduled_trip",
+        tripFieldResolutionMethod: "nextTripKey",
       },
     });
   });

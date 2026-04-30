@@ -15,5 +15,19 @@ export type ResolvedCurrentTripFields = {
   // Observability-only metadata for the current resolution path. This stays
   // transient unless we find a concrete operational need to persist it on trip
   // rows.
-  tripFieldInferenceMethod?: "next_scheduled_trip" | "schedule_rollover";
+  tripFieldResolutionMethod?: TripFieldResolutionMethod;
+};
+
+export type TripFieldResolutionMethod =
+  | "wsfRealtimeFields"
+  | "nextTripKey"
+  | "scheduleLookup"
+  | "scheduleUnavailable";
+
+export type ResolvedTripScheduleFields = {
+  current: ResolvedCurrentTripFields;
+  next?: {
+    NextScheduleKey?: string;
+    NextScheduledDeparture?: number;
+  };
 };

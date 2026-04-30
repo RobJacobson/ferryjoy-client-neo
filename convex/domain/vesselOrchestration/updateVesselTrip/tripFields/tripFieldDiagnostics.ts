@@ -14,7 +14,7 @@ export type TripFieldInferenceInput = {
 export type TripFieldInferenceLogContext = {
   vesselAbbrev: string;
   tripFieldDataSource: ResolvedCurrentTripFields["tripFieldDataSource"];
-  tripFieldInferenceMethod?: ResolvedCurrentTripFields["tripFieldInferenceMethod"];
+  tripFieldResolutionMethod?: ResolvedCurrentTripFields["tripFieldResolutionMethod"];
   reason:
     | "inferred_trip_fields_started"
     | "inferred_trip_fields_updated"
@@ -109,7 +109,7 @@ const getTripFieldInferenceLogContext = ({
   const shared = {
     vesselAbbrev: location.VesselAbbrev,
     tripFieldDataSource,
-    tripFieldInferenceMethod: current.tripFieldInferenceMethod,
+    tripFieldResolutionMethod: current.tripFieldResolutionMethod,
     previousTripFields,
     resolvedTripFields,
     rawWsfTripFields,

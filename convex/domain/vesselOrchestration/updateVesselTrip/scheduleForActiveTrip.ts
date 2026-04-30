@@ -11,13 +11,13 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 import {
-  getTripFieldsFromWsf,
-  type WsfCompleteSchedulePing,
-} from "./tripFields/getTripFieldsFromWsf";
-import {
-  type ResolvedTripScheduleFields,
   resolveScheduleFromTripArrival,
 } from "./tripFields/resolveScheduleFromTripArrival";
+import {
+  hasWsfScheduleFields,
+  resolveScheduleFromWsfRealtime,
+} from "./tripFields/resolveScheduleFromWsfRealtime";
+import type { ResolvedTripScheduleFields } from "./tripFields/types";
 import type { UpdateVesselTripDbAccess } from "./types";
 
 type ApplyScheduleForActiveTripInput = {
@@ -47,9 +47,7 @@ export const applyScheduleForActiveTrip = async (
   let resolution: ResolvedTripScheduleFields | undefined;
 
   if (hasWsfScheduleFields(location)) {
-    resolution = resolveScheduleFromWsfData(
-      location as WsfCompleteSchedulePing
-    );
+    resolution = resolveScheduleFromWsfRealtime(location);
   } else if (shouldInferScheduleFromTablesForNewTrip(location, isNewTrip)) {
     resolution = await resolveScheduleFromTripArrival({
       location,
@@ -71,16 +69,6 @@ export const applyScheduleForActiveTrip = async (
 };
 
 /**
- * Path A: ping carries authoritative WSF destination and scheduled departure.
- *
- * @param location - Vessel location row for this ping
- * @returns True when feed-complete schedule fields are present on the ping
- */
-const hasWsfScheduleFields = (location: ConvexVesselLocation): boolean =>
-  location.ArrivingTerminalAbbrev !== undefined &&
-  location.ScheduledDeparture !== undefined;
-
-/**
  * Path B: schedule-table inference is allowed (trip rollover, vessel in service).
  *
  * @param location - Vessel location row for this ping
@@ -91,20 +79,3 @@ const shouldInferScheduleFromTablesForNewTrip = (
   location: ConvexVesselLocation,
   isNewTrip: boolean
 ): boolean => isNewTrip && location.InService;
-
-/**
- * Path A: schedule resolution from feed-complete WSF fields on the ping (sync).
- *
- * @param location - Ping satisfying {@link WsfCompleteSchedulePing}
- * @returns Resolution current/next shapes for the merge layer
- */
-const resolveScheduleFromWsfData = (
-  location: WsfCompleteSchedulePing
-): ResolvedTripScheduleFields => ({
-  current: {
-    ...getTripFieldsFromWsf(location),
-    ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
-    ScheduledDeparture: location.ScheduledDeparture,
-  },
-  next: undefined,
-});

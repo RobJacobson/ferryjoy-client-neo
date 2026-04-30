@@ -32,5 +32,6 @@ export const getTripFieldsFromWsf = (
     ),
     SailingDay: getSailingDay(departureDate),
     tripFieldDataSource: "wsf",
+    tripFieldResolutionMethod: "wsfRealtimeFields",
   };
 };
