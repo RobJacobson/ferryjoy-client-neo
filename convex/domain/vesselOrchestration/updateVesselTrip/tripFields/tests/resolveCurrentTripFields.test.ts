@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTripFieldInferenceLog, resolveTripScheduleFields } from "..";
+import { getTripFieldInferenceLog, resolveScheduleFromTripArrival } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -9,10 +9,10 @@ import {
 } from "./testHelpers";
 
 const resolveFields = (
-  input: Parameters<typeof resolveTripScheduleFields>[0]
-) => resolveTripScheduleFields(input);
+  input: Parameters<typeof resolveScheduleFromTripArrival>[0]
+) => resolveScheduleFromTripArrival(input);
 
-describe("resolveTripScheduleFields", () => {
+describe("resolveScheduleFromTripArrival", () => {
   it("prefers next scheduled segment over rollover when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
@@ -55,74 +55,6 @@ describe("resolveTripScheduleFields", () => {
     });
 
     expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
-  });
-
-  it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", async () => {
-    let scheduleReadCount = 0;
-    const scheduleAccess = makeScheduledTables();
-    const resolution = await resolveFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
-      }),
-      scheduleAccess: {
-        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
-        },
-        getScheduleRolloverDockEvents: async (args) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduleRolloverDockEvents(args);
-        },
-      },
-    });
-
-    expect(resolution.current.ScheduleKey).toBe(
-      "CHE--2026-03-13--11:00--CLI-MUK"
-    );
-    expect(scheduleReadCount).toBe(0);
-  });
-
-  it("uses existing trip fields without schedule reads when WSF is incomplete", async () => {
-    let scheduleReadCount = 0;
-    const existingTrip = makeTrip({
-      ArrivingTerminalAbbrev: "MUK",
-      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-      ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-    });
-    const scheduleAccess = makeScheduledTables();
-
-    const resolution = await resolveFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip,
-      scheduleAccess: {
-        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
-        },
-        getScheduleRolloverDockEvents: async (args) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduleRolloverDockEvents(args);
-        },
-      },
-    });
-
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe(
-      existingTrip.ArrivingTerminalAbbrev
-    );
-    expect(resolution.current.ScheduledDeparture).toBe(
-      existingTrip.ScheduledDeparture
-    );
-    expect(resolution.current.ScheduleKey).toBe(existingTrip.ScheduleKey);
-    expect(scheduleReadCount).toBe(0);
   });
 
   it("infers trip fields from the next scheduled trip when WSF is incomplete", async () => {
@@ -168,7 +100,7 @@ describe("resolveTripScheduleFields", () => {
     expect(scheduleReadCount).toBe(1);
   });
 
-  it("does not carry existing trip fields when carry is disabled", async () => {
+  it("infers next segment from NextScheduleKey instead of stale stored arrival row", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -189,7 +121,6 @@ describe("resolveTripScheduleFields", () => {
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
       }),
-      allowCarriedCurrentFields: false,
     });
 
     expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
@@ -235,54 +166,6 @@ describe("resolveTripScheduleFields", () => {
     expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
     expect(resolution.current.ArrivingTerminalAbbrev).toBe(
       nextSegment.ArrivingTerminalAbbrev
-    );
-  });
-
-  it("falls back cleanly when no schedule match exists", async () => {
-    const resolution = await resolveFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: undefined,
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-      }),
-      scheduleAccess: makeScheduledTables(),
-    });
-
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
-    expect(resolution.current.ScheduledDeparture).toBe(
-      ms("2026-03-13T11:00:00-07:00")
-    );
-    expect(resolution.current.ScheduleKey).toBe(
-      "CHE--2026-03-13--11:00--CLI-MUK"
-    );
-  });
-
-  it("falls back to inferred fields for partial WSF conflicts", async () => {
-    const resolution = await resolveFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "SHI",
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-      }),
-      scheduleAccess: makeScheduledTables(),
-    });
-
-    expect(resolution.current.ScheduleKey).toBe(
-      "CHE--2026-03-13--11:00--CLI-MUK"
-    );
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
-    expect(resolution.current.ScheduledDeparture).toBe(
-      ms("2026-03-13T11:00:00-07:00")
     );
   });
 

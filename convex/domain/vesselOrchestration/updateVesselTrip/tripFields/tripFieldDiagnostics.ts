@@ -90,6 +90,11 @@ const getTripFieldInferenceLogContext = ({
   existingTrip,
   current,
 }: TripFieldInferenceInput): TripFieldInferenceLogContext | undefined => {
+  const tripFieldDataSource = current.tripFieldDataSource;
+  if (tripFieldDataSource === undefined) {
+    return undefined;
+  }
+
   const previousTripFields =
     existingTrip === undefined
       ? undefined
@@ -103,14 +108,14 @@ const getTripFieldInferenceLogContext = ({
 
   const shared = {
     vesselAbbrev: location.VesselAbbrev,
-    tripFieldDataSource: current.tripFieldDataSource,
+    tripFieldDataSource,
     tripFieldInferenceMethod: current.tripFieldInferenceMethod,
     previousTripFields,
     resolvedTripFields,
     rawWsfTripFields,
   };
 
-  if (current.tripFieldDataSource === "inferred") {
+  if (tripFieldDataSource === "inferred") {
     const reason = hasPartialWsfConflict(location, resolvedTripFields)
       ? "partial_wsf_conflict_with_inference"
       : existingTrip === undefined

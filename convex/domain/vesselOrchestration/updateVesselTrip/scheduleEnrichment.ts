@@ -6,32 +6,24 @@ import type { ResolvedTripScheduleFields } from "domain/vesselOrchestration/upda
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 
-type TripBuildEvents = {
-  isCompletedTrip: boolean;
-  didJustArriveAtDock: boolean;
-  didJustLeaveDock: boolean;
-  leftDockTime: number | undefined;
-  scheduleKeyChanged: boolean;
-};
-
 /**
  * Applies resolved schedule-facing fields to an already-built active trip.
  *
  * @param activeTrip - Basic active trip row
  * @param existingTrip - Prior trip row used for schedule continuity
- * @param events - Lifecycle events for this ping
+ * @param scheduleKeyChanged - Prior vs built trip disagree on schedule anchor
  * @param resolution - Resolved current/next schedule fields
  * @returns Active trip row with current and next schedule fields finalized
  */
 export const applyResolvedTripScheduleFields = ({
   activeTrip,
   existingTrip,
-  events,
+  scheduleKeyChanged,
   resolution,
 }: {
   activeTrip: ConvexVesselTrip;
   existingTrip: ConvexVesselTrip | undefined;
-  events: TripBuildEvents;
+  scheduleKeyChanged: boolean;
   resolution: ResolvedTripScheduleFields;
 }): ConvexVesselTrip => {
   const { current } = resolution;
@@ -61,8 +53,7 @@ export const applyResolvedTripScheduleFields = ({
     existingTrip?.ScheduleKey !== undefined &&
     withDerivedScheduleFields.ScheduleKey === undefined;
   const scheduleSafeTrip =
-    events.scheduleKeyChanged &&
-    (physicalIdentityReplaced || scheduleAttachmentLost)
+    scheduleKeyChanged && (physicalIdentityReplaced || scheduleAttachmentLost)
       ? {
           ...withDerivedScheduleFields,
           NextScheduleKey: undefined,

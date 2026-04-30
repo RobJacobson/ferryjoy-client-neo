@@ -11,7 +11,7 @@ export type ResolvedCurrentTripFields = {
   // whether the trip row should be treated as authoritative WSF state or as
   // provisional schedule-backed state; it is not about which helper supplied a
   // fallback value.
-  tripFieldDataSource: "wsf" | "inferred";
+  tripFieldDataSource?: "wsf" | "inferred";
   // Observability-only metadata for the current resolution path. This stays
   // transient unless we find a concrete operational need to persist it on trip
   // rows.

@@ -199,7 +199,7 @@ Rules:
 - If no schedule inference is available, return the active trip with its basic
   fields; do not throw.
 
-Implementation may reuse logic from current `tripFields/resolveTripScheduleFields.ts`,
+Implementation may reuse logic from current `tripFields/resolveScheduleFromTripArrival.ts`,
 but avoid recreating the same public subfolder/API unless it genuinely makes the
 new pipeline simpler.
 

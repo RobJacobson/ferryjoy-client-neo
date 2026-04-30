@@ -4,9 +4,8 @@
 
 export { stripVesselTripPredictions } from "./stripTripPredictionsForStorage";
 export {
-  buildCompletionTripEvents,
-  currentTripEvents,
-  type TripLifecycleEventFlags,
+  type CurrentTripDockEvents,
+  currentTripDockEvents,
 } from "./tripLifecycle";
 export type {
   GetScheduleRolloverDockEventsArgs,

@@ -83,7 +83,7 @@ folder in place.
   Stage 2 added new domain modules under `convex/`, so codegen naturally picked
   them up. This is different from the prior test-helper generated churn.
 - `scheduleForActiveTrip.ts` temporarily reuses `applyResolvedTripScheduleFields`
-  and `resolveTripScheduleFields`. That is fine for Stage 2. Stage 3/5 can
+  and `resolveScheduleFromTripArrival`. That is fine for Stage 2. Stage 3/5 can
   decide whether to keep, inline, or replace that schedule helper boundary.
 
 ## Verification

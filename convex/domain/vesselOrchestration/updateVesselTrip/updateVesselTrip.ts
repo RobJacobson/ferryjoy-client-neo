@@ -16,7 +16,8 @@ import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
  *
  * @param vesselLocation - Latest location ping for one vessel
  * @param existingActiveTrip - Existing active trip row for that vessel, when present
- * @param scheduleAccess - Schedule lookup tables used to enrich trip fields
+ * @param dbAccess - Schedule tables used to enrich new-trip rows (see
+ *   applyScheduleForActiveTrip); not consulted on every ping.
  * @returns Trip update when substantive changes exist, otherwise `null`
  */
 const updateVesselTrip = async (
@@ -38,10 +39,11 @@ const updateVesselTrip = async (
       isNewTrip: hasNewTripSignal,
     });
 
+    // Schedule-table reads (inside applyScheduleForActiveTrip) run only on new
+    // trip rollover while InService; WSF pings use a sync merge path instead.
     const activeVesselTrip = await applyScheduleForActiveTrip({
-      activeTrip: baseActiveTrip,
-      previousTrip: existingActiveTrip,
-      completedTrip: completedVesselTrip,
+      curr: baseActiveTrip,
+      prev: existingActiveTrip,
       location: vesselLocation,
       isNewTrip: hasNewTripSignal,
       dbAccess,

@@ -12,7 +12,7 @@ import type {
 } from "../../../functions/vesselTrips/schemas";
 import { floorToSecond, getRoundedMinutesDelta } from "../../../shared/time";
 import type { ModelType } from "../shared/types";
-import { predictTripValue } from "./predictTrip";
+import { isMissingTrainedModelError, predictTripValue } from "./predictTrip";
 import type { VesselTripPredictionModelAccess } from "./vesselTripPredictionModelAccess";
 
 const MINUTES_TO_MS = 60 * 1000;
@@ -300,10 +300,12 @@ export const predictFromSpec = async (
 
     return createPredictionResult(clampedPredictedMs, mae, stdDev);
   } catch (error) {
-    console.error(
-      `[Prediction] ${spec.modelType} failed for ${trip.VesselAbbrev}:`,
-      error
-    );
+    if (!isMissingTrainedModelError(error)) {
+      console.error(
+        `[Prediction] ${spec.modelType} failed for ${trip.VesselAbbrev}:`,
+        error
+      );
+    }
     return null;
   }
 };

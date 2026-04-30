@@ -1,86 +1,110 @@
 /**
  * Schedule policy application for active-trip rows.
+ *
+ * Entry point chooses among:
+ * - Path A — authoritative WSF destination + scheduled departure on the ping.
+ * - Path B — new-trip rollover while in service: infer from schedule tables.
+ * - Neither — return the built active trip unchanged.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
-import { getTripFieldsFromWsf } from "./tripFields/getTripFieldsFromWsf";
-import { hasWsfTripFields } from "./tripFields/hasWsfTripFields";
-import { resolveTripScheduleFields } from "./tripFields/resolveTripScheduleFields";
+import {
+  getTripFieldsFromWsf,
+  type WsfCompleteSchedulePing,
+} from "./tripFields/getTripFieldsFromWsf";
+import {
+  type ResolvedTripScheduleFields,
+  resolveScheduleFromTripArrival,
+} from "./tripFields/resolveScheduleFromTripArrival";
 import type { UpdateVesselTripDbAccess } from "./types";
 
 type ApplyScheduleForActiveTripInput = {
-  activeTrip: ConvexVesselTrip;
-  previousTrip: ConvexVesselTrip | undefined;
-  completedTrip: ConvexVesselTrip | undefined;
+  /** Active trip row built for this ping (before schedule merge). */
+  curr: ConvexVesselTrip;
+  /** Prior stored active trip for this vessel, when any. */
+  prev: ConvexVesselTrip | undefined;
   location: ConvexVesselLocation;
   isNewTrip: boolean;
   dbAccess: UpdateVesselTripDbAccess;
 };
 
 /**
- * Applies schedule fields to an active trip under Stage 2 policy gates.
+ * Applies schedule fields to an active trip.
  *
- * @param input - Active trip and continuity context for this ping
- * @returns Active trip row with schedule fields preserved or enriched
+ * Dispatches path A (WSF-authoritative), path B (schedule-table inference on
+ * start of a new trip), or leaves the built row unchanged.
+ *
+ * @param args - Built active trip (`curr`), prior active row (`prev`), ping context
+ * @returns Active trip row with schedule fields preserved or enriched; if
+ *   unchanged, returns `curr`
  */
-export const applyScheduleForActiveTrip = async ({
-  activeTrip,
-  previousTrip,
-  completedTrip,
-  location,
-  isNewTrip,
-  dbAccess,
-}: ApplyScheduleForActiveTripInput): Promise<ConvexVesselTrip> => {
-  if (hasWsfTripFields(location)) {
-    const resolution = {
-      current: getTripFieldsFromWsf(location),
-      next: undefined,
-    };
-    return applyResolvedTripScheduleFields({
-      activeTrip,
-      existingTrip: previousTrip,
-      events: {
-        isCompletedTrip: isNewTrip,
-        didJustArriveAtDock: isNewTrip,
-        didJustLeaveDock: false,
-        leftDockTime: activeTrip.LeftDock,
-        scheduleKeyChanged:
-          previousTrip?.ScheduleKey !== activeTrip.ScheduleKey,
-      },
-      resolution,
+export const applyScheduleForActiveTrip = async (
+  args: ApplyScheduleForActiveTripInput
+): Promise<ConvexVesselTrip> => {
+  const { curr, prev, location, isNewTrip, dbAccess } = args;
+  let resolution: ResolvedTripScheduleFields | undefined;
+
+  if (hasWsfScheduleFields(location)) {
+    resolution = resolveScheduleFromWsfData(
+      location as WsfCompleteSchedulePing
+    );
+  } else if (shouldInferScheduleFromTablesForNewTrip(location, isNewTrip)) {
+    resolution = await resolveScheduleFromTripArrival({
+      location,
+      existingTrip: prev,
+      scheduleAccess: dbAccess,
     });
   }
 
-  const isContinuingTrip = previousTrip !== undefined && !isNewTrip;
-  if (isContinuingTrip) {
-    return activeTrip;
+  if (resolution === undefined) {
+    return curr;
   }
-
-  if (!location.InService) {
-    return activeTrip;
-  }
-
-  const continuityTrip = previousTrip ?? completedTrip;
-  const resolution = await resolveTripScheduleFields({
-    location,
-    existingTrip: continuityTrip,
-    scheduleAccess: dbAccess,
-    allowCarriedCurrentFields: !isNewTrip,
-  });
 
   return applyResolvedTripScheduleFields({
-    activeTrip,
-    existingTrip: continuityTrip,
-    events: {
-      isCompletedTrip: isNewTrip,
-      didJustArriveAtDock: isNewTrip,
-      didJustLeaveDock: false,
-      leftDockTime: activeTrip.LeftDock,
-      scheduleKeyChanged:
-        continuityTrip?.ScheduleKey !== activeTrip.ScheduleKey,
-    },
+    activeTrip: curr,
+    existingTrip: prev,
+    scheduleKeyChanged: prev?.ScheduleKey !== curr.ScheduleKey,
     resolution,
   });
 };
+
+/**
+ * Path A: ping carries authoritative WSF destination and scheduled departure.
+ *
+ * @param location - Vessel location row for this ping
+ * @returns True when feed-complete schedule fields are present on the ping
+ */
+const hasWsfScheduleFields = (location: ConvexVesselLocation): boolean =>
+  location.ArrivingTerminalAbbrev !== undefined &&
+  location.ScheduledDeparture !== undefined;
+
+/**
+ * Path B: schedule-table inference is allowed (trip rollover, vessel in service).
+ *
+ * @param location - Vessel location row for this ping
+ * @param isNewTrip - Ping signals start of a replacement active trip
+ * @returns True when async schedule evidence lookup may run
+ */
+const shouldInferScheduleFromTablesForNewTrip = (
+  location: ConvexVesselLocation,
+  isNewTrip: boolean
+): boolean => isNewTrip && location.InService;
+
+/**
+ * Path A: schedule resolution from feed-complete WSF fields on the ping (sync).
+ *
+ * @param location - Ping satisfying {@link WsfCompleteSchedulePing}
+ * @returns Resolution current/next shapes for the merge layer
+ */
+const resolveScheduleFromWsfData = (
+  location: WsfCompleteSchedulePing
+): ResolvedTripScheduleFields => ({
+  current: {
+    ...getTripFieldsFromWsf(location),
+    ArrivingTerminalAbbrev: location.ArrivingTerminalAbbrev,
+    ScheduledDeparture: location.ScheduledDeparture,
+  },
+  next: undefined,
+});

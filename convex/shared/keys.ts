@@ -76,29 +76,6 @@ export const buildSegmentKey = (
 };
 
 /**
- * Builds the canonical **schedule segment** key (composite sailing identity).
- * For physical trip instance identity see `physicalTripIdentity.generateTripKey`.
- *
- * @param vesselAbbrev - Vessel abbreviation
- * @param departingTerminalAbbrev - Departing terminal abbreviation
- * @param arrivingTerminalAbbrev - Arriving terminal abbreviation
- * @param departingTime - Departure time as Date object
- * @returns Segment key string, or undefined if required fields are missing
- */
-export const buildScheduleSegmentKey = (
-  vesselAbbrev: string,
-  departingTerminalAbbrev: string,
-  arrivingTerminalAbbrev: string | undefined,
-  departingTime: Date | undefined
-) =>
-  buildSegmentKey(
-    vesselAbbrev,
-    departingTerminalAbbrev,
-    arrivingTerminalAbbrev,
-    departingTime
-  );
-
-/**
  * Generate a boundary-event key from the canonical segment key.
  *
  * @param segmentKey - Canonical segment key for the sailing

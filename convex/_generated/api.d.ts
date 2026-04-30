@@ -123,9 +123,8 @@ import type * as domain_vesselOrchestration_updateVesselTrip_scheduleForActiveTr
 import type * as domain_vesselOrchestration_updateVesselTrip_stripTripPredictionsForStorage from "../domain/vesselOrchestration/updateVesselTrip/stripTripPredictionsForStorage.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripComparison from "../domain/vesselOrchestration/updateVesselTrip/tripComparison.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_getTripFieldsFromWsf from "../domain/vesselOrchestration/updateVesselTrip/tripFields/getTripFieldsFromWsf.js";
-import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_hasWsfTripFields from "../domain/vesselOrchestration/updateVesselTrip/tripFields/hasWsfTripFields.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_index from "../domain/vesselOrchestration/updateVesselTrip/tripFields/index.js";
-import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_resolveTripScheduleFields from "../domain/vesselOrchestration/updateVesselTrip/tripFields/resolveTripScheduleFields.js";
+import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_resolveScheduleFromTripArrival from "../domain/vesselOrchestration/updateVesselTrip/tripFields/resolveScheduleFromTripArrival.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_tests_testHelpers from "../domain/vesselOrchestration/updateVesselTrip/tripFields/tests/testHelpers.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_tripFieldDiagnostics from "../domain/vesselOrchestration/updateVesselTrip/tripFields/tripFieldDiagnostics.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_tripFields_types from "../domain/vesselOrchestration/updateVesselTrip/tripFields/types.js";
@@ -375,9 +374,8 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrip/stripTripPredictionsForStorage": typeof domain_vesselOrchestration_updateVesselTrip_stripTripPredictionsForStorage;
   "domain/vesselOrchestration/updateVesselTrip/tripComparison": typeof domain_vesselOrchestration_updateVesselTrip_tripComparison;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/getTripFieldsFromWsf": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_getTripFieldsFromWsf;
-  "domain/vesselOrchestration/updateVesselTrip/tripFields/hasWsfTripFields": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_hasWsfTripFields;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/index": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_index;
-  "domain/vesselOrchestration/updateVesselTrip/tripFields/resolveTripScheduleFields": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_resolveTripScheduleFields;
+  "domain/vesselOrchestration/updateVesselTrip/tripFields/resolveScheduleFromTripArrival": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_resolveScheduleFromTripArrival;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/tests/testHelpers": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_tests_testHelpers;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/tripFieldDiagnostics": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_tripFieldDiagnostics;
   "domain/vesselOrchestration/updateVesselTrip/tripFields/types": typeof domain_vesselOrchestration_updateVesselTrip_tripFields_types;

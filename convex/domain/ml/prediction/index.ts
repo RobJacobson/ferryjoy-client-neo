@@ -16,6 +16,8 @@ export { calculateMAE, calculateR2, calculateRMSE } from "./metrics";
  * Core prediction functions for vessel trip timing
  */
 export {
+  isMissingTrainedModelError,
+  MISSING_TRAINED_MODEL_MESSAGE_PREFIX,
   predictArriveEta,
   predictDelayOnArrival,
   predictEtaOnDeparture,

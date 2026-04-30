@@ -36,13 +36,18 @@ export const deriveTripIdentity = ({
   arrivingTerminalAbbrev,
   scheduledDepartureMs,
 }: TripIdentityInput): TripIdentity => {
-  const departureDate =
-    scheduledDepartureMs === undefined
-      ? undefined
-      : new Date(scheduledDepartureMs);
   const isTripStartReady =
     arrivingTerminalAbbrev !== undefined && scheduledDepartureMs !== undefined;
 
+  if (scheduledDepartureMs === undefined) {
+    return {
+      ScheduleKey: undefined,
+      SailingDay: undefined,
+      isTripStartReady,
+    };
+  }
+
+  const departureDate = new Date(scheduledDepartureMs);
   return {
     ScheduleKey: buildSegmentKey(
       vesselAbbrev,
@@ -50,8 +55,7 @@ export const deriveTripIdentity = ({
       arrivingTerminalAbbrev,
       departureDate
     ),
-    SailingDay:
-      departureDate === undefined ? undefined : getSailingDay(departureDate),
+    SailingDay: getSailingDay(departureDate),
     isTripStartReady,
   };
 };

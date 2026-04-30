@@ -1,43 +1,20 @@
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-export type TripLifecycleEventFlags = {
-  isCompletedTrip: boolean;
-  didJustArriveAtDock: boolean;
+export type CurrentTripDockEvents = {
   didJustLeaveDock: boolean;
-  scheduleKeyChanged: boolean;
+  didJustArriveAtDock: boolean;
 };
 
 /**
- * Builds lifecycle flags for completed-trip rollover writes.
- *
- * @param existingTrip - Existing active trip before rollover
- * @param completedTrip - Completed trip row produced this ping
- * @returns Completion event flags for downstream persistence
- */
-export const buildCompletionTripEvents = (
-  existingTrip: ConvexVesselTrip,
-  completedTrip: ConvexVesselTrip
-): TripLifecycleEventFlags => ({
-  isCompletedTrip: true,
-  didJustArriveAtDock:
-    completedTrip.TripEnd !== undefined &&
-    existingTrip.TripEnd !== completedTrip.TripEnd,
-  didJustLeaveDock: false,
-  scheduleKeyChanged: existingTrip.ScheduleKey !== completedTrip.ScheduleKey,
-});
-
-/**
- * Builds lifecycle flags for active-trip upsert writes.
+ * Dock boundary transitions on the active trip branch for this ping.
  *
  * @param existingTrip - Existing active trip before update, if any
  * @param nextTrip - Candidate active trip row for persistence
- * @returns Current-branch event flags for dock write intents
  */
-export const currentTripEvents = (
+export const currentTripDockEvents = (
   existingTrip: ConvexVesselTrip | undefined,
   nextTrip: ConvexVesselTrip
-): TripLifecycleEventFlags => ({
-  isCompletedTrip: false,
+): CurrentTripDockEvents => ({
   didJustArriveAtDock:
     existingTrip?.AtDock !== true &&
     nextTrip.AtDock === true &&
@@ -46,5 +23,4 @@ export const currentTripEvents = (
     existingTrip?.AtDock === true &&
     nextTrip.AtDock !== true &&
     nextTrip.LeftDockActual !== undefined,
-  scheduleKeyChanged: existingTrip?.ScheduleKey !== nextTrip.ScheduleKey,
 });

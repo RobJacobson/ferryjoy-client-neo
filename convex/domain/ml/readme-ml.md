@@ -326,7 +326,7 @@ Current layering:
 
 #### Composite trip key format
 
-Both ScheduledTrips and VesselTrips use a shared composite schedule-segment key (see `convex/shared/keys.ts` `buildScheduleSegmentKey`) with format:
+Both ScheduledTrips and VesselTrips use a shared composite schedule-segment key (see `convex/shared/keys.ts` `buildSegmentKey`) with format:
 
 `[VesselAbbrev]--[PacificDate]--[PacificTime]--[DepartingTerminal]-[ArrivingTerminal]`
 
@@ -335,7 +335,7 @@ Important details:
 - **PacificDate/PacificTime** are computed in `America/Los_Angeles`.
   - Implementation: `convex/shared/keys.ts` (`formatPacificDate`, `formatPacificTime`)
 - The key uses the **Pacific calendar day** (not WSF “sailing day”).
-  - Implementation: `convex/shared/keys.ts` (`buildScheduleSegmentKey`)
+  - Implementation: `convex/shared/keys.ts` (`buildSegmentKey`)
 
 #### ScheduledTrips chain fields
 
