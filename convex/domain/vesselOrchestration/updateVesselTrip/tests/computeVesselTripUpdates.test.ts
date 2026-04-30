@@ -167,9 +167,10 @@ describe("updateVesselTrip", () => {
     expect(result).not.toBeNull();
     expect(result?.completedVesselTripUpdate).toBeUndefined();
     expect(result?.activeVesselTripUpdate.TripKey).toBeString();
-    expect(result?.activeVesselTripUpdate.TripStart).toBe(location.TimeStamp);
-    expect(result?.activeVesselTripUpdate.TripStart).toBe(location.TimeStamp);
     expect(result?.activeVesselTripUpdate.TripStart).toBeUndefined();
+    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(
+      location.LeftDock
+    );
   });
 
   it("returns null for continuing timestamp-only churn", async () => {
@@ -296,6 +297,8 @@ describe("updateVesselTrip", () => {
       existingTrip.TripKey
     );
     expect(result?.activeVesselTripUpdate.TripStart).toBe(completionTime);
+    expect(result?.activeVesselTripUpdate.LeftDock).toBeUndefined();
+    expect(result?.activeVesselTripUpdate.LeftDockActual).toBeUndefined();
   });
 
   it("trusts terminal change even when AtDockObserved is false", async () => {
