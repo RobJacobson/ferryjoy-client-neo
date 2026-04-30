@@ -223,7 +223,7 @@ Rules:
   evidence read.
 
 This module should replace the current split between `scheduleEnrichment.ts`
-and `tripFields/` unless a small private subfolder remains clearly simpler.
+and `activeTripSchedule/` unless a small private subfolder remains clearly simpler.
 
 ### `tripLifecycle.ts`
 
@@ -415,7 +415,7 @@ Worker scope:
   - `tripBuilders.ts`
   - `basicTripRows.ts`
   - `scheduleEnrichment.ts`
-  - `tripFields/` if fully replaced
+  - `activeTripSchedule/` if fully replaced
 - Delete obsolete implementation-shaped tests.
 - Update `updateVesselTrip/README.md`.
 - Update `convex/domain/vesselOrchestration/architecture.md` if its module map

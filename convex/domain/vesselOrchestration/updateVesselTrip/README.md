@@ -57,6 +57,8 @@ isolated.
   - active row shaping before schedule enrichment
 - `scheduleForActiveTrip.ts`
   - schedule-facing field policy for active rows
+- `activeTripSchedule/`
+  - private schedule resolution helpers (WSF realtime, next-key, schedule tables) used by `scheduleForActiveTrip.ts`
 - `tripComparison.ts`
   - durable equality checks
 - `tripLifecycle.ts`

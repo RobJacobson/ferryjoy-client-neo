@@ -2,7 +2,7 @@
  * Handoff DTOs between trip persistence, prediction overlays, and timeline projection.
  */
 
-import type { TripLifecycleEventFlags } from "domain/vesselOrchestration/updateVesselTrip";
+import type { CurrentTripDockEvents } from "domain/vesselOrchestration/updateVesselTrip";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -14,7 +14,6 @@ import type {
 export type CompletedArrivalHandoff = {
   existingTrip: ConvexVesselTrip;
   tripToComplete: ConvexVesselTrip;
-  events: TripLifecycleEventFlags;
   scheduleTrip: ConvexVesselTrip;
   newTrip?: ConvexVesselTripWithML;
 };
@@ -25,9 +24,7 @@ type DockWriteIntentBase = {
   finalProposed?: ConvexVesselTripWithML;
 };
 
-export type ActualDockWriteIntent = DockWriteIntentBase & {
-  events: TripLifecycleEventFlags;
-};
+export type ActualDockWriteIntent = DockWriteIntentBase & CurrentTripDockEvents;
 
 export type PredictedDockWriteIntent = DockWriteIntentBase & {
   existingTrip?: ConvexVesselTrip;

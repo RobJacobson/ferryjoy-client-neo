@@ -5,10 +5,9 @@
  * own input derivation from upstream trip rows.
  */
 
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import {
-  buildCompletionTripEvents,
-  currentTripEvents,
+  currentTripDockEvents,
+  type VesselTripUpdate,
 } from "domain/vesselOrchestration/updateVesselTrip";
 import type { PersistedTripTimelineHandoff } from "./handoffTypes";
 
@@ -31,19 +30,15 @@ export const timelineHandoffFromTripUpdate = (
           {
             existingTrip: existingActiveTrip,
             tripToComplete: completedTrip,
-            events: buildCompletionTripEvents(
-              existingActiveTrip,
-              completedTrip
-            ),
             scheduleTrip: activeTrip,
           },
         ];
-  const events = currentTripEvents(existingActiveTrip, activeTrip);
+  const dockEvents = currentTripDockEvents(existingActiveTrip, activeTrip);
   const pendingActualWrite =
-    !events.didJustLeaveDock && !events.didJustArriveAtDock
+    !dockEvents.didJustLeaveDock && !dockEvents.didJustArriveAtDock
       ? undefined
       : {
-          events,
+          ...dockEvents,
           scheduleTrip: activeTrip,
           vesselAbbrev: activeTrip.VesselAbbrev,
         };

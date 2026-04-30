@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTripFieldInferenceLog, resolveTripScheduleFields } from "..";
+import { getTripFieldInferenceLog, resolveScheduleFromTripArrival } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -9,16 +9,23 @@ import {
 } from "./testHelpers";
 
 const resolveFields = (
-  input: Parameters<typeof resolveTripScheduleFields>[0]
-) => resolveTripScheduleFields(input);
+  input: Parameters<typeof resolveScheduleFromTripArrival>[0]
+) => resolveScheduleFromTripArrival(input);
 
-describe("resolveTripScheduleFields", () => {
-  it("prefers next scheduled segment over rollover when both are available", async () => {
+const expectResolved = (
+  resolution: Awaited<ReturnType<typeof resolveScheduleFromTripArrival>>
+) => {
+  expect(resolution).toBeDefined();
+  return resolution;
+};
+
+describe("resolveScheduleFromTripArrival", () => {
+  it("prefers next scheduled segment over schedule tables when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
-    const rolloverSegment = makeScheduledSegment({
+    const scheduleTablesSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--13:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T13:30:00-07:00"),
     });
@@ -36,15 +43,15 @@ describe("resolveTripScheduleFields", () => {
         ScheduledDeparture: undefined,
       }),
       scheduleAccess: makeScheduledTables({
-        segments: [nextSegment, rolloverSegment],
+        segments: [nextSegment, scheduleTablesSegment],
         scheduledDeparturesByVesselAbbrev: {
           CHE: [
             {
-              Key: `${rolloverSegment.Key}--dep-dock`,
+              Key: `${scheduleTablesSegment.Key}--dep-dock`,
               VesselAbbrev: "CHE",
               SailingDay: "2026-03-13",
               UpdatedAt: 1,
-              ScheduledDeparture: rolloverSegment.DepartingTime,
+              ScheduledDeparture: scheduleTablesSegment.DepartingTime,
               TerminalAbbrev: "CLI",
               NextTerminalAbbrev: "MUK",
               EventType: "dep-dock",
@@ -54,75 +61,54 @@ describe("resolveTripScheduleFields", () => {
       }),
     });
 
-    expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
+    const resolved = expectResolved(resolution);
+    expect(resolved?.current.ScheduleKey).toBe(nextSegment.Key);
   });
 
-  it("treats direct WSF trip fields as authoritative even when ScheduleKey is derived locally", async () => {
-    let scheduleReadCount = 0;
-    const scheduleAccess = makeScheduledTables();
-    const resolution = await resolveFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
-      }),
-      scheduleAccess: {
-        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
-        },
-        getScheduleRolloverDockEvents: async (args) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduleRolloverDockEvents(args);
-        },
-      },
+  it("falls back to schedule lookup when next key segment mismatches terminal", async () => {
+    const staleNextSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--12:30--PTA-MUK",
+      DepartingTerminalAbbrev: "PTA",
+      DepartingTime: ms("2026-03-13T12:30:00-07:00"),
     });
-
-    expect(resolution.current.ScheduleKey).toBe(
-      "CHE--2026-03-13--11:00--CLI-MUK"
-    );
-    expect(scheduleReadCount).toBe(0);
-  });
-
-  it("uses existing trip fields without schedule reads when WSF is incomplete", async () => {
-    let scheduleReadCount = 0;
-    const existingTrip = makeTrip({
-      ArrivingTerminalAbbrev: "MUK",
-      ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-      ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+    const scheduleTablesSegment = makeScheduledSegment({
+      Key: "CHE--2026-03-13--13:30--CLI-MUK",
+      DepartingTerminalAbbrev: "CLI",
+      DepartingTime: ms("2026-03-13T13:30:00-07:00"),
     });
-    const scheduleAccess = makeScheduledTables();
 
     const resolution = await resolveFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
         ScheduleKey: undefined,
+        DepartingTerminalAbbrev: "CLI",
       }),
-      existingTrip,
-      scheduleAccess: {
-        getScheduledSegmentByScheduleKey: async (scheduleKey) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduledSegmentByScheduleKey(scheduleKey);
+      existingTrip: makeTrip({
+        NextScheduleKey: staleNextSegment.Key,
+      }),
+      scheduleAccess: makeScheduledTables({
+        segments: [staleNextSegment, scheduleTablesSegment],
+        scheduledDeparturesByVesselAbbrev: {
+          CHE: [
+            {
+              Key: `${scheduleTablesSegment.Key}--dep-dock`,
+              VesselAbbrev: "CHE",
+              SailingDay: "2026-03-13",
+              UpdatedAt: 1,
+              ScheduledDeparture: scheduleTablesSegment.DepartingTime,
+              TerminalAbbrev: "CLI",
+              NextTerminalAbbrev: "MUK",
+              EventType: "dep-dock",
+            },
+          ],
         },
-        getScheduleRolloverDockEvents: async (args) => {
-          scheduleReadCount += 1;
-          return scheduleAccess.getScheduleRolloverDockEvents(args);
-        },
-      },
+      }),
     });
 
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe(
-      existingTrip.ArrivingTerminalAbbrev
-    );
-    expect(resolution.current.ScheduledDeparture).toBe(
-      existingTrip.ScheduledDeparture
-    );
-    expect(resolution.current.ScheduleKey).toBe(existingTrip.ScheduleKey);
-    expect(scheduleReadCount).toBe(0);
+    const resolved = expectResolved(resolution);
+    expect(resolved?.current.ScheduleKey).toBe(scheduleTablesSegment.Key);
+    expect(resolved?.current.tripFieldResolutionMethod).toBe("scheduleLookup");
   });
 
   it("infers trip fields from the next scheduled trip when WSF is incomplete", async () => {
@@ -160,15 +146,16 @@ describe("resolveTripScheduleFields", () => {
       },
     });
 
-    expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
-    expect(resolution.next?.NextScheduleKey).toBe(nextSegment.NextKey);
-    expect(resolution.next?.NextScheduledDeparture).toBe(
+    const resolved = expectResolved(resolution);
+    expect(resolved?.current.ScheduleKey).toBe(nextSegment.Key);
+    expect(resolved?.next?.NextScheduleKey).toBe(nextSegment.NextKey);
+    expect(resolved?.next?.NextScheduledDeparture).toBe(
       nextSegment.NextDepartingTime
     );
     expect(scheduleReadCount).toBe(1);
   });
 
-  it("does not carry existing trip fields when carry is disabled", async () => {
+  it("infers next segment from NextScheduleKey instead of stale stored arrival row", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -189,14 +176,14 @@ describe("resolveTripScheduleFields", () => {
       scheduleAccess: makeScheduledTables({
         segments: [nextSegment],
       }),
-      allowCarriedCurrentFields: false,
     });
 
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
-    expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
+    const resolved = expectResolved(resolution);
+    expect(resolved?.current.ArrivingTerminalAbbrev).toBe("MUK");
+    expect(resolved?.current.ScheduleKey).toBe(nextSegment.Key);
   });
 
-  it("infers trip fields by schedule rollover when the next scheduled trip is unavailable", async () => {
+  it("infers trip fields by schedule tables when the next scheduled trip is unavailable", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
       DepartingTime: ms("2026-03-13T12:30:00-07:00"),
@@ -232,58 +219,33 @@ describe("resolveTripScheduleFields", () => {
       }),
     });
 
-    expect(resolution.current.ScheduleKey).toBe(nextSegment.Key);
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe(
+    const resolved = expectResolved(resolution);
+    expect(resolved?.current.ScheduleKey).toBe(nextSegment.Key);
+    expect(resolved?.current.ArrivingTerminalAbbrev).toBe(
       nextSegment.ArrivingTerminalAbbrev
     );
   });
 
-  it("falls back cleanly when no schedule match exists", async () => {
+  it("returns undefined when neither next-trip key nor schedule tables resolve", async () => {
     const resolution = await resolveFields({
       location: makeLocation({
         ArrivingTerminalAbbrev: undefined,
         ScheduledDeparture: undefined,
         ScheduleKey: undefined,
+        DepartingTerminalAbbrev: "CLI",
       }),
       existingTrip: makeTrip({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
+        NextScheduleKey: "CHE--2026-03-13--12:30--CLI-MUK",
       }),
-      scheduleAccess: makeScheduledTables(),
+      scheduleAccess: makeScheduledTables({
+        segments: [],
+        scheduledDeparturesByVesselAbbrev: {
+          CHE: [],
+        },
+      }),
     });
 
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
-    expect(resolution.current.ScheduledDeparture).toBe(
-      ms("2026-03-13T11:00:00-07:00")
-    );
-    expect(resolution.current.ScheduleKey).toBe(
-      "CHE--2026-03-13--11:00--CLI-MUK"
-    );
-  });
-
-  it("falls back to inferred fields for partial WSF conflicts", async () => {
-    const resolution = await resolveFields({
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "SHI",
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-      }),
-      scheduleAccess: makeScheduledTables(),
-    });
-
-    expect(resolution.current.ScheduleKey).toBe(
-      "CHE--2026-03-13--11:00--CLI-MUK"
-    );
-    expect(resolution.current.ArrivingTerminalAbbrev).toBe("MUK");
-    expect(resolution.current.ScheduledDeparture).toBe(
-      ms("2026-03-13T11:00:00-07:00")
-    );
+    expect(resolution).toBeUndefined();
   });
 
   it("builds inference diagnostics from inferred metadata", async () => {
@@ -303,8 +265,7 @@ describe("resolveTripScheduleFields", () => {
         ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
         ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
         SailingDay: "2026-03-13",
-        tripFieldDataSource: "inferred" as const,
-        tripFieldInferenceMethod: "next_scheduled_trip" as const,
+        tripFieldResolutionMethod: "nextTripKey" as const,
       },
     };
 
@@ -314,8 +275,7 @@ describe("resolveTripScheduleFields", () => {
       context: {
         vesselAbbrev: "CHE",
         reason: "partial_wsf_conflict_with_inference",
-        tripFieldDataSource: "inferred",
-        tripFieldInferenceMethod: "next_scheduled_trip",
+        tripFieldResolutionMethod: "nextTripKey",
       },
     });
   });

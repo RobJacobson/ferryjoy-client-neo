@@ -2,8 +2,10 @@
  * Pure derivation for depart-next prediction actualization intents.
  */
 
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
-import { currentTripEvents } from "domain/vesselOrchestration/updateVesselTrip";
+import {
+  currentTripDockEvents,
+  type VesselTripUpdate,
+} from "domain/vesselOrchestration/updateVesselTrip";
 import { buildBoundaryKey } from "shared/keys";
 import { floorToSecond } from "shared/time";
 
@@ -28,8 +30,11 @@ export const deriveDepartNextActualizationIntent = (
     return null;
   }
 
-  const events = currentTripEvents(tripUpdate.existingActiveTrip, activeTrip);
-  if (!events.didJustLeaveDock) {
+  const { didJustLeaveDock } = currentTripDockEvents(
+    tripUpdate.existingActiveTrip,
+    activeTrip
+  );
+  if (!didJustLeaveDock) {
     return null;
   }
 

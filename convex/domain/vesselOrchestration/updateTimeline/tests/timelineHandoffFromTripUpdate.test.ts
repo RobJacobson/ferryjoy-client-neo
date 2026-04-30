@@ -60,8 +60,6 @@ describe("timelineHandoffFromTripUpdate", () => {
     expect(result.completedTripFacts).toHaveLength(1);
     expect(result.completedTripFacts[0]?.tripToComplete).toEqual(completed);
     expect(result.completedTripFacts[0]?.scheduleTrip).toEqual(replacement);
-    expect(result.completedTripFacts[0]?.events.isCompletedTrip).toBe(true);
-    expect(result.completedTripFacts[0]?.events.didJustArriveAtDock).toBe(true);
     expect(result.completedTripFacts[0]?.tripToComplete.TripEnd).toBe(
       ms("2026-03-13T06:45:00-07:00")
     );
@@ -85,9 +83,9 @@ describe("timelineHandoffFromTripUpdate", () => {
       completedVesselTripUpdate: undefined,
     });
     expect(result.completedTripFacts).toEqual([]);
-    expect(
-      result.currentBranch.pendingActualWrite?.events.didJustLeaveDock
-    ).toBe(true);
+    expect(result.currentBranch.pendingActualWrite?.didJustLeaveDock).toBe(
+      true
+    );
     expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
       active
     );
@@ -123,7 +121,6 @@ describe("timelineHandoffFromTripUpdate", () => {
     });
 
     expect(result.completedTripFacts).toHaveLength(1);
-    expect(result.completedTripFacts[0]?.events.didJustArriveAtDock).toBe(true);
     expect(result.currentBranch.pendingActualWrite).toBeUndefined();
   });
 });

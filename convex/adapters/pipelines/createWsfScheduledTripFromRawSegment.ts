@@ -8,7 +8,7 @@ import { buildInitialScheduledTripRow } from "domain/scheduledTrips/buildInitial
 import type { ConvexScheduledTrip } from "functions/scheduledTrips/schemas";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import { buildScheduleSegmentKey } from "shared/keys";
+import { buildSegmentKey } from "shared/keys";
 
 /**
  * Creates a scheduled-trip row from a raw WSF schedule segment.
@@ -40,7 +40,7 @@ export const createScheduledTripFromRawSegment = (
     resolvedSegment.departingTerminal.TerminalAbbrev;
   const arrivingTerminalAbbrev =
     resolvedSegment.arrivingTerminal.TerminalAbbrev;
-  const key = buildScheduleSegmentKey(
+  const key = buildSegmentKey(
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,

@@ -260,6 +260,13 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
  * @returns Object containing predicted value and model MAE
  * @throws Error if required trip data is missing or model not found
  */
+export const MISSING_TRAINED_MODEL_MESSAGE_PREFIX =
+  "No trained model found" as const;
+
+export const isMissingTrainedModelError = (error: unknown): boolean =>
+  error instanceof Error &&
+  error.message.startsWith(MISSING_TRAINED_MODEL_MESSAGE_PREFIX);
+
 export const predictTripValue = async (
   source: MutationCtx | VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML,
@@ -283,7 +290,9 @@ export const predictTripValue = async (
       ? preloadedModel
       : await loadModelForPair(source, pairKey, modelType);
   if (!model) {
-    throw new Error(`No trained model found for ${pairKey} ${modelType}`);
+    throw new Error(
+      `${MISSING_TRAINED_MODEL_MESSAGE_PREFIX} for ${pairKey} ${modelType}`
+    );
   }
 
   // Convert trip data to ML format and extract features

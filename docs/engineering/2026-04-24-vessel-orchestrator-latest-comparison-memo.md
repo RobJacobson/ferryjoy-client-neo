@@ -649,7 +649,7 @@ These numbers are approximate and are only meant to support the qualitative asse
 | -------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Top-level orchestrator action          | `actions.ts` ≈ 287 LOC plus `applyTickEventWrites.ts` | `actions.ts` ≈ 209 LOC plus helper modules                                                                                          |
 | Orchestrator runtime helper cluster    | small inline helpers plus `applyTickEventWrites`      | `locationUpdates.ts`, `mutations.ts`, `persistVesselTripWriteSet.ts`, `predictionStage.ts`, `scheduleContinuityAccess.ts` ≈ 815 LOC |
-| Trip compute cluster                   | old `processTick` and `tripLifecycle` modules         | `updateVesselTrip`, `tripBuilders`, `lifecycle`, `tripFields` ≈ 1,084 LOC                                                    |
+| Trip compute cluster                   | old `processTick` and `tripLifecycle` modules         | `updateVesselTrip`, `tripBuilders`, `lifecycle`, `activeTripSchedule` ≈ 1,084 LOC                                                    |
 | Timeline/prediction projection cluster | embedded prediction plus old assembler                | standalone prediction and timeline projection modules; clearer but larger                                                           |
 
 

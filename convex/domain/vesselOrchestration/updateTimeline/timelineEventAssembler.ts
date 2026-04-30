@@ -195,15 +195,15 @@ const buildTaggedActualDockRowsFromMessage = (
 ): TaggedActualDockRow[] => {
   const rows: ConvexActualDockEvent[] = [];
   const proposed = currentTripProposedForActuals(message);
-  const { events, vesselAbbrev } = message;
+  const { didJustLeaveDock, didJustArriveAtDock, vesselAbbrev } = message;
 
-  if (events.didJustLeaveDock && proposed.LeftDockActual !== undefined) {
+  if (didJustLeaveDock && proposed.LeftDockActual !== undefined) {
     const departure = buildDepartureActualDockWriteForTrip(proposed);
     if (departure !== null) {
       rows.push(buildActualDockEventFromWrite(departure, updatedAt));
     }
   }
-  if (events.didJustArriveAtDock && proposed.TripEnd !== undefined) {
+  if (didJustArriveAtDock && proposed.TripEnd !== undefined) {
     const arrival = buildArrivalActualDockWriteForTrip(proposed);
     if (arrival !== null) {
       rows.push(buildActualDockEventFromWrite(arrival, updatedAt));

@@ -48,12 +48,8 @@ describe("projectTimelineFromHandoff", () => {
       completedTripFacts: [],
       currentBranch: {
         pendingActualWrite: {
-          events: {
-            isCompletedTrip: false,
-            didJustArriveAtDock: false,
-            didJustLeaveDock: true,
-            scheduleKeyChanged: false,
-          },
+          didJustLeaveDock: true,
+          didJustArriveAtDock: false,
           scheduleTrip: currentTrip,
           vesselAbbrev: "TAC",
         },

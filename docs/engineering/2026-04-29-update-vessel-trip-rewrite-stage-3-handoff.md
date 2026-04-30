@@ -60,7 +60,7 @@ Allowed if needed:
 Avoid in Stage 3:
 
 - Do not delete `tripEvents.ts`, `tripBuilders.ts`, `basicTripRows.ts`,
-  `scheduleEnrichment.ts`, or `tripFields/` yet.
+  `scheduleEnrichment.ts`, or `activeTripSchedule/` yet.
 - Do not rewrite prediction, actualization, timeline, or orchestrator
   persistence modules.
 - Do not change `VesselTripUpdate` shape.

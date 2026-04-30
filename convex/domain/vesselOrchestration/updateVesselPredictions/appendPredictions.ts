@@ -100,6 +100,10 @@ const applySpecPredictionResults = (
     {}
   );
 
+  if (Object.keys(predictionUpdates).length === 0) {
+    return trip;
+  }
+
   return { ...trip, ...predictionUpdates };
 };
 
@@ -145,7 +149,7 @@ const computePredictions = async (
       `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
       error
     );
-    return { ...trip };
+    return trip;
   }
 };
 

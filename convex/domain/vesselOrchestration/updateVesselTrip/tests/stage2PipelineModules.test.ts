@@ -1,6 +1,6 @@
 /**
  * Focused tests for Stage 2 pipeline modules (local fixtures only; do not import
- * `tripFields/tests/testHelpers` so this suite stays independent of that folder).
+ * `activeTripSchedule/tests/testHelpers` so this suite stays independent of that folder).
  */
 
 import { describe, expect, it } from "bun:test";
@@ -228,6 +228,35 @@ describe("stage-2 pipeline modules", () => {
     expect(activeTrip.TripStart).toBeUndefined();
   });
 
+  it("does not read DB on cold-start pings without WSF schedule fields", async () => {
+    const location = makeLocation({
+      AtDockObserved: true,
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
+    });
+    const activeTrip = buildActiveTrip({
+      prev: undefined,
+      completedTrip: undefined,
+      curr: location,
+      isNewTrip: false,
+    });
+    const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
+
+    const scheduledTrip = await applyScheduleForActiveTrip({
+      curr: activeTrip,
+      prev: undefined,
+      location,
+      isNewTrip: false,
+      dbAccess,
+    });
+
+    expect(scheduledTrip).toBe(activeTrip);
+    expect(counters.getScheduledSegmentByScheduleKey).toBe(0);
+    expect(counters.getScheduleRolloverDockEvents).toBe(0);
+  });
+
   it("stamps LeftDockActual from LeftDock on dock-to-sea transition", () => {
     const previousTrip = makeTrip({
       AtDock: true,
@@ -280,9 +309,8 @@ describe("stage-2 pipeline modules", () => {
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      activeTrip,
-      previousTrip,
-      completedTrip: undefined,
+      curr: activeTrip,
+      prev: previousTrip,
       location,
       isNewTrip: false,
       dbAccess,
@@ -323,9 +351,8 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      activeTrip,
-      previousTrip,
-      completedTrip: undefined,
+      curr: activeTrip,
+      prev: previousTrip,
       location,
       isNewTrip: true,
       dbAccess,
@@ -373,9 +400,8 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      activeTrip,
-      previousTrip,
-      completedTrip: undefined,
+      curr: activeTrip,
+      prev: previousTrip,
       location,
       isNewTrip: true,
       dbAccess,

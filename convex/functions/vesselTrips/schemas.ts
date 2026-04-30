@@ -154,7 +154,7 @@ export const vesselTripStoredSchema = v.object({
  * (joined minimal predictions); the trips pipeline and persistence use this type only.
  *
  * Trip-field inference observability metadata such as
- * `tripFieldInferenceMethod` is intentionally excluded from this stored schema.
+ * `tripFieldResolutionMethod` is intentionally excluded from this stored schema.
  */
 export type ConvexVesselTrip = Infer<typeof vesselTripStoredSchema>;
 

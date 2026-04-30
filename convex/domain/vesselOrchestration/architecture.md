@@ -86,13 +86,13 @@ updateVesselTrip
   -> classify storage/lifecycle change
 ```
 
-### `tripFields`
+### `activeTripSchedule`
 
-`tripFields/` is now private support for `scheduleForActiveTrip.ts`.
+`activeTripSchedule/` is private support for `scheduleForActiveTrip.ts`.
 
-It owns focused schedule-resolution helpers (WSF authority checks, schedule
-lookup strategies, and fallback resolution), but it is no longer documented as
-the top-level row-construction seam for `updateVesselTrip`.
+It owns focused schedule-resolution helpers (WSF realtime helpers used from
+schedule policy, next-trip-key continuity, schedule-table lookup, and types), but
+it is not the top-level row-construction seam for `updateVesselTrip`.
 
 ### Downstream contract boundaries
 
@@ -110,7 +110,7 @@ Cross-module contracts are owned by the domain modules that consume them:
 
 - **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/pipeline/updateVesselTrip/updateVesselTripDbAccess.ts` (`createUpdateVesselTripDbAccess`) with key-first internal queries against `eventsScheduled`. The domain tries `NextScheduleKey` continuity before rollover fallback. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** schedule-resolution fixtures/helpers live under
-  `updateVesselTrip/tripFields/tests/`, and public behavior/module tests live
+  `updateVesselTrip/activeTripSchedule/tests/`, and public behavior/module tests live
   under `updateVesselTrip/tests/`.
 
 ## Contracts between stages
