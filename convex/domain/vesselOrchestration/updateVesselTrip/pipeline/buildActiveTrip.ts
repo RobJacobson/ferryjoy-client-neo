@@ -49,8 +49,14 @@ export const buildActiveTrip = ({
       return buildColdStartActiveTrip(context);
     case "newTrip":
       return buildNewActiveTrip(context);
-    case "continuing":
-      return buildContinuingActiveTrip(context);
+    case "continuing": {
+      if (prev === undefined) {
+        throw new Error(
+          "buildActiveTrip: continuing mode requires a stored active trip row"
+        );
+      }
+      return buildContinuingActiveTrip(prev, curr);
+    }
   }
 };
 
@@ -66,8 +72,15 @@ const resolveTripBuildMode = ({
 }: {
   prev: ConvexVesselTrip | undefined;
   isNewTrip: boolean;
-}): TripBuildMode =>
-  isNewTrip ? "newTrip" : prev !== undefined ? "continuing" : "coldStart";
+}): TripBuildMode => {
+  if (isNewTrip) {
+    return "newTrip";
+  }
+  if (prev !== undefined) {
+    return "continuing";
+  }
+  return "coldStart";
+};
 
 /**
  * Derives schedule-facing trip identity fields from the current ping.
@@ -122,6 +135,21 @@ const buildCreationScheduleFields = (
 ): Pick<ConvexVesselTrip, "ScheduleKey" | "SailingDay"> => ({
   ScheduleKey: curr.ScheduleKey ?? identity.ScheduleKey,
   SailingDay: identity.SailingDay,
+});
+
+/**
+ * Returns unset aggregate and duration fields shared by cold-start and new-trip rows.
+ *
+ * @returns Trip slice with no leg completion or segment duration totals yet
+ */
+const buildCreationPathUnsetAggregateFields = (): Pick<
+  ConvexVesselTrip,
+  "TripEnd" | "AtDockDuration" | "AtSeaDuration" | "TotalDuration"
+> => ({
+  TripEnd: undefined,
+  AtDockDuration: undefined,
+  AtSeaDuration: undefined,
+  TotalDuration: undefined,
 });
 
 /**
@@ -191,18 +219,15 @@ const buildColdStartActiveTrip = (
     ...buildLiveLocationFields(curr),
     TripKey: generateTripKey(curr.VesselAbbrev, curr.TimeStamp),
     ...buildCreationScheduleFields(curr, identity),
+    ...buildCreationPathUnsetAggregateFields(),
     PrevTerminalAbbrev: undefined,
     TripStart: undefined,
-    TripEnd: undefined,
-    AtDockDuration: undefined,
     ScheduledDeparture: curr.ScheduledDeparture,
     LeftDock: curr.LeftDock,
     LeftDockActual: curr.LeftDock,
     TripDelay: calculateTimeDelta(curr.ScheduledDeparture, curr.LeftDock),
     NextScheduleKey: undefined,
     NextScheduledDeparture: undefined,
-    AtSeaDuration: undefined,
-    TotalDuration: undefined,
     PrevScheduledDeparture: undefined,
     PrevLeftDock: undefined,
   };
@@ -223,35 +248,29 @@ const buildNewActiveTrip = (context: BuildTripContext): ConvexVesselTrip => {
     ...buildLiveLocationFields(curr),
     TripKey: generateTripKey(curr.VesselAbbrev, curr.TimeStamp),
     ...buildCreationScheduleFields(curr, identity),
+    ...buildCreationPathUnsetAggregateFields(),
     ...buildPriorLegFields(priorLeg),
     TripStart: curr.TimeStamp,
-    TripEnd: undefined,
-    AtDockDuration: undefined,
     ScheduledDeparture: curr.ScheduledDeparture,
     LeftDock: undefined,
     LeftDockActual: undefined,
     TripDelay: undefined,
     NextScheduleKey: prev?.NextScheduleKey,
     NextScheduledDeparture: prev?.NextScheduledDeparture,
-    AtSeaDuration: undefined,
-    TotalDuration: undefined,
   };
 };
 
 /**
  * Builds the updated active trip row for an in-progress leg.
  *
- * @param context - Build mode and trip/location inputs
+ * @param prev - Stored active trip row for this vessel
+ * @param curr - Current vessel location ping
  * @returns Continuing active trip row with updated feed-derived fields
  */
 const buildContinuingActiveTrip = (
-  context: BuildTripContext
+  prev: ConvexVesselTrip,
+  curr: ConvexVesselLocation
 ): ConvexVesselTrip => {
-  const { prev, curr } = context;
-  if (prev === undefined) {
-    throw new Error("buildContinuingActiveTrip requires prev");
-  }
-
   const resolvedArrivingTerminal =
     curr.ArrivingTerminalAbbrev ?? prev.ArrivingTerminalAbbrev;
   const resolvedScheduledDeparture =
@@ -274,6 +293,7 @@ const buildContinuingActiveTrip = (
     SailingDay: identity.SailingDay ?? prev.SailingDay,
     ScheduledDeparture: resolvedScheduledDeparture,
     ...departureFields,
+    // Keep prior ETA when the feed omits it so sparse pings do not clear ETA.
     Eta: curr.Eta ?? prev.Eta,
   };
 };
