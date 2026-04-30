@@ -31,7 +31,7 @@ import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 
 type ApplyScheduleForActiveTripInput = {
   /** Active trip row built for this ping (before schedule merge). */
-  curr: ConvexVesselTrip;
+  activeTrip: ConvexVesselTrip;
   /** Prior stored active trip for this vessel, when any. */
   prev: ConvexVesselTrip | undefined;
   location: ConvexVesselLocation;
@@ -48,14 +48,14 @@ type ApplyScheduleForActiveTripInput = {
  * centralized merge layer. When no evidence applies, it returns the built trip
  * unchanged so the pipeline can continue without forcing weak schedule values.
  *
- * @param args - Built active trip (`curr`), prior active row (`prev`), ping context
+ * @param args - Built active trip (`activeTrip`), prior active row (`prev`), ping context
  * @returns Active trip row with schedule fields preserved or enriched; if
- *   unchanged, returns `curr`
+ *   unchanged, returns `activeTrip`
  */
 export const applyScheduleForActiveTrip = async (
   args: ApplyScheduleForActiveTripInput
 ): Promise<ConvexVesselTrip> => {
-  const { curr, prev, location, isNewTrip, dbAccess } = args;
+  const { activeTrip, prev, location, isNewTrip, dbAccess } = args;
 
   // Select the highest-confidence schedule source first so downstream merge logic stays deterministic.
   const resolution = hasWsfScheduleFields(location)
@@ -68,14 +68,14 @@ export const applyScheduleForActiveTrip = async (
       });
 
   if (resolution === undefined) {
-    return curr;
+    return activeTrip;
   }
 
   // Apply resolved schedule fields in one place to preserve continuity and keep write semantics centralized.
   return applyResolvedTripScheduleFields({
-    activeTrip: curr,
+    activeTrip,
     existingTrip: prev,
-    scheduleKeyChanged: prev?.ScheduleKey !== curr.ScheduleKey,
+    scheduleKeyChanged: prev?.ScheduleKey !== activeTrip.ScheduleKey,
     resolution,
   });
 };

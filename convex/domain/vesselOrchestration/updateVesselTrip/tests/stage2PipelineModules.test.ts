@@ -219,7 +219,7 @@ describe("stage-2 pipeline modules", () => {
 
     const activeTrip = buildActiveTrip({
       prev: undefined,
-      completedTrip: undefined,
+      completedVesselTrip: undefined,
       curr: location,
       isNewTrip: false,
     });
@@ -238,14 +238,14 @@ describe("stage-2 pipeline modules", () => {
     });
     const activeTrip = buildActiveTrip({
       prev: undefined,
-      completedTrip: undefined,
+      completedVesselTrip: undefined,
       curr: location,
       isNewTrip: false,
     });
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      curr: activeTrip,
+      activeTrip,
       prev: undefined,
       location,
       isNewTrip: false,
@@ -275,7 +275,7 @@ describe("stage-2 pipeline modules", () => {
 
     const activeTrip = buildActiveTrip({
       prev: previousTrip,
-      completedTrip: undefined,
+      completedVesselTrip: undefined,
       curr: location,
       isNewTrip: false,
     });
@@ -302,14 +302,14 @@ describe("stage-2 pipeline modules", () => {
     });
     const activeTrip = buildActiveTrip({
       prev: previousTrip,
-      completedTrip: undefined,
+      completedVesselTrip: undefined,
       curr: location,
       isNewTrip: false,
     });
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      curr: activeTrip,
+      activeTrip,
       prev: previousTrip,
       location,
       isNewTrip: false,
@@ -336,7 +336,7 @@ describe("stage-2 pipeline modules", () => {
     });
     const activeTrip = buildActiveTrip({
       prev: previousTrip,
-      completedTrip: undefined,
+      completedVesselTrip: undefined,
       curr: location,
       isNewTrip: true,
     });
@@ -351,7 +351,7 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      curr: activeTrip,
+      activeTrip,
       prev: previousTrip,
       location,
       isNewTrip: true,
@@ -388,7 +388,7 @@ describe("stage-2 pipeline modules", () => {
     });
     const activeTrip = buildActiveTrip({
       prev: previousTrip,
-      completedTrip: undefined,
+      completedVesselTrip: undefined,
       curr: location,
       isNewTrip: true,
     });
@@ -400,7 +400,7 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const scheduledTrip = await applyScheduleForActiveTrip({
-      curr: activeTrip,
+      activeTrip,
       prev: previousTrip,
       location,
       isNewTrip: true,

@@ -8,55 +8,53 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 /**
  * Returns whether the incoming ping starts a new trip leg.
  *
- * @param previousTrip - Existing active trip row, if present
- * @param location - Incoming vessel location ping
- * @returns True when the departing terminal changed from prior active trip
+ * @param prev - Stored active trip row for this vessel, if present
+ * @param curr - Current vessel location ping
+ * @returns True when the departing terminal changed from the stored row
  */
 export const isNewTrip = (
-  previousTrip: ConvexVesselTrip | undefined,
-  location: ConvexVesselLocation
+  prev: ConvexVesselTrip | undefined,
+  curr: ConvexVesselLocation
 ): boolean =>
-  previousTrip !== undefined &&
-  previousTrip.DepartingTerminalAbbrev !== location.DepartingTerminalAbbrev;
+  prev !== undefined &&
+  prev.DepartingTerminalAbbrev !== curr.DepartingTerminalAbbrev;
 
 /**
  * Returns whether the vessel just transitioned from docked to at-sea.
  *
- * @param previousTrip - Existing active trip row, if present
- * @param location - Incoming vessel location ping
+ * @param prev - Stored active trip row for this vessel, if present
+ * @param curr - Current vessel location ping
  * @returns True when prior row was docked and current ping is not docked
  */
 export const didLeaveDock = (
-  previousTrip: ConvexVesselTrip | undefined,
-  location: ConvexVesselLocation
-): boolean =>
-  previousTrip?.AtDock === true && location.AtDockObserved === false;
+  prev: ConvexVesselTrip | undefined,
+  curr: ConvexVesselLocation
+): boolean => prev?.AtDock === true && curr.AtDockObserved === false;
 
 /**
  * Resolves the best departure timestamp for the active-trip update.
  *
  * Precedence:
  * 1) persisted departure (`LeftDockActual ?? LeftDock`)
- * 2) feed departure (`location.LeftDock`)
- * 3) transition timestamp (`location.TimeStamp`) only when just left dock
+ * 2) feed departure (`curr.LeftDock`)
+ * 3) transition timestamp (`curr.TimeStamp`) only when just left dock
  *
- * @param previousTrip - Existing active trip row, if present
- * @param location - Incoming vessel location ping
+ * @param prev - Stored active trip row for this vessel, if present
+ * @param curr - Current vessel location ping
  * @returns Departure timestamp for update fields, or `undefined`
  */
 export const leftDockTimeForUpdate = (
-  previousTrip: ConvexVesselTrip | undefined,
-  location: ConvexVesselLocation
+  prev: ConvexVesselTrip | undefined,
+  curr: ConvexVesselLocation
 ): number | undefined => {
-  const persistedDeparture =
-    previousTrip?.LeftDockActual ?? previousTrip?.LeftDock;
+  const persistedDeparture = prev?.LeftDockActual ?? prev?.LeftDock;
   if (persistedDeparture !== undefined) {
     return persistedDeparture;
   }
 
-  if (location.LeftDock !== undefined) {
-    return location.LeftDock;
+  if (curr.LeftDock !== undefined) {
+    return curr.LeftDock;
   }
 
-  return didLeaveDock(previousTrip, location) ? location.TimeStamp : undefined;
+  return didLeaveDock(prev, curr) ? curr.TimeStamp : undefined;
 };

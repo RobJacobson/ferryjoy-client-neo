@@ -11,7 +11,7 @@ import { didLeaveDock, leftDockTimeForUpdate } from "./lifecycleSignals";
 
 type BuildActiveTripInput = {
   prev: ConvexVesselTrip | undefined;
-  completedTrip: ConvexVesselTrip | undefined;
+  completedVesselTrip: ConvexVesselTrip | undefined;
   curr: ConvexVesselLocation;
   isNewTrip: boolean;
 };
@@ -21,7 +21,7 @@ type TripBuildMode = "coldStart" | "newTrip" | "continuing";
 type BuildTripContext = {
   mode: TripBuildMode;
   prev: ConvexVesselTrip | undefined;
-  completedTrip: ConvexVesselTrip | undefined;
+  completedVesselTrip: ConvexVesselTrip | undefined;
   curr: ConvexVesselLocation;
 };
 
@@ -33,7 +33,7 @@ type BuildTripContext = {
  */
 export const buildActiveTrip = ({
   prev,
-  completedTrip,
+  completedVesselTrip,
   curr,
   isNewTrip,
 }: BuildActiveTripInput): ConvexVesselTrip => {
@@ -41,7 +41,7 @@ export const buildActiveTrip = ({
   const context: BuildTripContext = {
     mode,
     prev,
-    completedTrip,
+    completedVesselTrip,
     curr,
   };
   switch (mode) {
@@ -240,8 +240,8 @@ const buildColdStartActiveTrip = (
  * @returns New-trip active row with prior-leg continuity and departure resets
  */
 const buildNewActiveTrip = (context: BuildTripContext): ConvexVesselTrip => {
-  const { completedTrip, prev, curr } = context;
-  const priorLeg = completedTrip ?? prev;
+  const { completedVesselTrip, prev, curr } = context;
+  const priorLeg = completedVesselTrip ?? prev;
   const identity = buildTripIdentityFromCurr(curr);
 
   return {
