@@ -19,7 +19,7 @@ import type { ResolvedCurrentTripFields, ResolvedTripScheduleFields } from "./ty
 export type ResolveScheduleFromTripArrivalInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
-  scheduleAccess: UpdateVesselTripDbAccess;
+  dbAccess: UpdateVesselTripDbAccess;
 };
 
 /**
@@ -35,14 +35,14 @@ export type ResolveScheduleFromTripArrivalInput = {
  * 1) prior-row `NextScheduleKey` continuity (`nextTripKey`)
  * 2) schedule-table lookup across current/next service day (`scheduleLookup`)
  *
- * @param input - Ping context, prior active row, and schedule DB access
+ * @param input - Ping context, prior active row, and {@link UpdateVesselTripDbAccess}
  * @returns Resolved current fields and optional next-leg fields for merge layer;
  *   undefined when no schedule evidence is available
  */
 export const resolveScheduleFromTripArrival = async ({
   location,
   existingTrip,
-  scheduleAccess,
+  dbAccess,
 }: ResolveScheduleFromTripArrivalInput): Promise<
   ResolvedTripScheduleFields | undefined
 > => {
@@ -50,7 +50,7 @@ export const resolveScheduleFromTripArrival = async ({
   const segmentFromNextTripKey = await tryResolveScheduledSegmentFromNextTripKey({
     nextScheduleKey: existingTrip?.NextScheduleKey,
     departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    scheduleAccess,
+    dbAccess,
   });
   if (segmentFromNextTripKey) {
     return resolutionFromSegment(segmentFromNextTripKey, "nextTripKey");
@@ -60,7 +60,7 @@ export const resolveScheduleFromTripArrival = async ({
   const segmentFromScheduleTables =
     await tryResolveScheduledSegmentFromScheduleTables({
       location,
-      scheduleAccess,
+      dbAccess,
     });
   if (segmentFromScheduleTables) {
     return resolutionFromSegment(segmentFromScheduleTables, "scheduleLookup");

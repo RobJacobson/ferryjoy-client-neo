@@ -64,7 +64,7 @@ export const applyScheduleForActiveTrip = async (
         location,
         existingTrip: prev,
         isNewTrip,
-        scheduleAccess: dbAccess,
+        dbAccess,
       });
 
   if (resolution === undefined) {
@@ -89,19 +89,19 @@ export const applyScheduleForActiveTrip = async (
  * the vessel's terminal context. If both strategies fail, it emits a warning
  * and returns undefined so callers can preserve a no-op schedule outcome.
  *
- * @param input - Ping context, prior trip context, and schedule access
+ * @param input - Ping context, prior trip context, and `UpdateVesselTripDbAccess`
  * @returns Resolved schedule fields when evidence exists, otherwise undefined
  */
 const resolveScheduleForNewTrip = async ({
   location,
   existingTrip,
   isNewTrip,
-  scheduleAccess,
+  dbAccess,
 }: {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   isNewTrip: boolean;
-  scheduleAccess: UpdateVesselTripDbAccess;
+  dbAccess: UpdateVesselTripDbAccess;
 }): Promise<ResolvedTripScheduleFields | undefined> => {
   if (!isNewTrip || !location.InService) {
     return undefined;
@@ -112,7 +112,7 @@ const resolveScheduleForNewTrip = async ({
     await tryResolveScheduledSegmentFromNextTripKey({
       nextScheduleKey: existingTrip?.NextScheduleKey,
       departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-      scheduleAccess,
+      dbAccess,
     });
   if (segmentFromNextTripKey) {
     return resolutionFromScheduledSegment(
@@ -125,7 +125,7 @@ const resolveScheduleForNewTrip = async ({
   const segmentFromScheduleTables =
     await tryResolveScheduledSegmentFromScheduleTables({
       location,
-      scheduleAccess,
+      dbAccess,
     });
   if (segmentFromScheduleTables) {
     return resolutionFromScheduledSegment(

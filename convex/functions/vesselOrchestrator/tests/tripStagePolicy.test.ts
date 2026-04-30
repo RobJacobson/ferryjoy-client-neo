@@ -74,7 +74,7 @@ const makeLocationUpdate = (
 
 describe("updateVesselTrip stage-2 policy", () => {
   it("returns sparse writes for one changed location update", async () => {
-    const scheduleAccess: UpdateVesselTripDbAccess = {
+    const dbAccess: UpdateVesselTripDbAccess = {
       getScheduledSegmentByScheduleKey: async () => null,
       getScheduleRolloverDockEvents: async () => ({
         currentSailingDay: "2026-03-13",
@@ -86,7 +86,7 @@ describe("updateVesselTrip stage-2 policy", () => {
     const tripStage = await updateVesselTrip(
       makeLocationUpdate("CHE"),
       makeTrip("CHE"),
-      scheduleAccess
+      dbAccess
     );
 
     expect(tripStage).not.toBeNull();
@@ -102,7 +102,7 @@ describe("updateVesselTrip stage-2 policy", () => {
     const healthyActiveTrip = makeTrip("TAC", {
       TimeStamp: ms("2026-03-13T06:35:00-07:00"),
     });
-    const scheduleAccess: UpdateVesselTripDbAccess = {
+    const dbAccess: UpdateVesselTripDbAccess = {
       getScheduledSegmentByScheduleKey: async () => null,
       getScheduleRolloverDockEvents: async () => ({
         currentSailingDay: "2026-03-13",
@@ -130,7 +130,7 @@ describe("updateVesselTrip stage-2 policy", () => {
       const tripStage = await updateVesselTrip(
         makeLocationUpdate("CHE"),
         makeTrip("CHE"),
-        scheduleAccess
+        dbAccess
       );
 
       expect(tripStage).toBeNull();
