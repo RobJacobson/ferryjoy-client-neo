@@ -80,7 +80,7 @@ Internal one-vessel flow:
 ```text
 updateVesselTrip
   -> isNewTrip
-  -> completeTrip?
+  -> buildCompleteTrip?
   -> buildActiveTrip
   -> applyScheduleForActiveTrip
   -> classify storage/lifecycle change

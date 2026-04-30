@@ -23,7 +23,7 @@ For one vessel, the pipeline is intentionally linear:
 ```text
 updateVesselTrip
   -> isNewTrip
-  -> completeTrip? (only when replacement/new trip signal)
+  -> buildCompleteTrip? (only when replacement/new trip signal)
   -> buildActiveTrip
   -> applyScheduleForActiveTrip
   -> isSameVesselTrip
@@ -51,7 +51,7 @@ isolated.
 - `types.ts` — `VesselTripUpdate`, `UpdateVesselTripDbAccess`, schedule read args
 - `pipeline/` — row shaping and comparison (what the orchestrator steps through before/after schedule)
   - `lifecycleSignals.ts` — physical lifecycle / new-trip signal helpers
-  - `completeTrip.ts` — completed-row shaping for rollover
+  - `buildCompleteTrip.ts` — completed-row shaping for rollover
   - `buildActiveTrip.ts` — active row shaping before schedule enrichment
   - `tripComparison.ts` — durable equality checks
   - `stripTripPredictionsForStorage.ts` — comparison normalization (predictions stripped)

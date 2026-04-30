@@ -11,7 +11,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import { buildActiveTrip } from "../pipeline/buildActiveTrip";
-import { completeTrip } from "../pipeline/completeTrip";
+import { buildCompleteTrip } from "../pipeline/buildCompleteTrip";
 import {
   didLeaveDock,
   isNewTrip,
@@ -200,7 +200,7 @@ describe("stage-2 pipeline modules", () => {
       TimeStamp: ms("2026-03-13T06:29:56-07:00"),
     });
 
-    const completedTrip = completeTrip(previousTrip, location);
+    const completedTrip = buildCompleteTrip(previousTrip, location);
 
     expect(completedTrip.TripEnd).toBe(location.TimeStamp);
     expect(completedTrip.TripEnd).toBe(location.TimeStamp);

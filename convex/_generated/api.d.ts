@@ -116,7 +116,7 @@ import type * as domain_vesselOrchestration_updateVesselPredictions_updateVessel
 import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_index from "../domain/vesselOrchestration/updateVesselTrip/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_buildActiveTrip from "../domain/vesselOrchestration/updateVesselTrip/pipeline/buildActiveTrip.js";
-import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_completeTrip from "../domain/vesselOrchestration/updateVesselTrip/pipeline/completeTrip.js";
+import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_buildCompleteTrip from "../domain/vesselOrchestration/updateVesselTrip/pipeline/buildCompleteTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_lifecycleSignals from "../domain/vesselOrchestration/updateVesselTrip/pipeline/lifecycleSignals.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_stripTripPredictionsForStorage from "../domain/vesselOrchestration/updateVesselTrip/pipeline/stripTripPredictionsForStorage.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_tripComparison from "../domain/vesselOrchestration/updateVesselTrip/pipeline/tripComparison.js";
@@ -370,7 +370,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip;
   "domain/vesselOrchestration/updateVesselTrip/index": typeof domain_vesselOrchestration_updateVesselTrip_index;
   "domain/vesselOrchestration/updateVesselTrip/pipeline/buildActiveTrip": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_buildActiveTrip;
-  "domain/vesselOrchestration/updateVesselTrip/pipeline/completeTrip": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_completeTrip;
+  "domain/vesselOrchestration/updateVesselTrip/pipeline/buildCompleteTrip": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_buildCompleteTrip;
   "domain/vesselOrchestration/updateVesselTrip/pipeline/lifecycleSignals": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_lifecycleSignals;
   "domain/vesselOrchestration/updateVesselTrip/pipeline/stripTripPredictionsForStorage": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_stripTripPredictionsForStorage;
   "domain/vesselOrchestration/updateVesselTrip/pipeline/tripComparison": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_tripComparison;

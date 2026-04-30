@@ -5,7 +5,7 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { buildActiveTrip } from "./pipeline/buildActiveTrip";
-import { completeTrip } from "./pipeline/completeTrip";
+import { buildCompleteTrip } from "./pipeline/buildCompleteTrip";
 import { isNewTrip } from "./pipeline/lifecycleSignals";
 import { isSameVesselTrip } from "./pipeline/tripComparison";
 import { applyScheduleForActiveTrip } from "./schedule/scheduleForActiveTrip";
@@ -29,7 +29,7 @@ const updateVesselTrip = async (
     const hasNewTripSignal = isNewTrip(existingActiveTrip, vesselLocation);
     const completedVesselTrip =
       hasNewTripSignal && existingActiveTrip !== undefined
-        ? completeTrip(existingActiveTrip, vesselLocation)
+        ? buildCompleteTrip(existingActiveTrip, vesselLocation)
         : undefined;
 
     const baseActiveTrip = buildActiveTrip({
