@@ -4,7 +4,7 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
-import type { UpdateVesselTripDbAccess } from "../../types";
+import type { UpdateVesselTripDbAccess } from "../../../types";
 
 export const ms = (iso: string) => new Date(iso).getTime();
 

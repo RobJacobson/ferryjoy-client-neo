@@ -1,6 +1,6 @@
 /**
  * Focused tests for Stage 2 pipeline modules (local fixtures only; do not import
- * `activeTripSchedule/tests/testHelpers` so this suite stays independent of that folder).
+ * `schedule/activeTripSchedule/tests/testHelpers` so this suite stays independent of that folder).
  */
 
 import { describe, expect, it } from "bun:test";
@@ -10,14 +10,14 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
-import { buildActiveTrip } from "../buildActiveTrip";
-import { completeTrip } from "../completeTrip";
+import { buildActiveTrip } from "../pipeline/buildActiveTrip";
+import { completeTrip } from "../pipeline/completeTrip";
 import {
   didLeaveDock,
   isNewTrip,
   leftDockTimeForUpdate,
-} from "../lifecycleSignals";
-import { applyScheduleForActiveTrip } from "../scheduleForActiveTrip";
+} from "../pipeline/lifecycleSignals";
+import { applyScheduleForActiveTrip } from "../schedule/scheduleForActiveTrip";
 import type { UpdateVesselTripDbAccess } from "../types";
 
 const ms = (iso: string): number => new Date(iso).getTime();

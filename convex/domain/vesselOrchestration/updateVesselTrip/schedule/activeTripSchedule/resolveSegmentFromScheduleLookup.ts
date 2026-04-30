@@ -11,7 +11,7 @@ import {
   inferScheduledSegmentFromDepartureEvent,
 } from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { UpdateVesselTripDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 
 type ResolveSegmentFromScheduleTablesInput = {
   location: ConvexVesselLocation;

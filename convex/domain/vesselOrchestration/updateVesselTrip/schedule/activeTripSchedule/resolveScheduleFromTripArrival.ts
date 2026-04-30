@@ -11,10 +11,13 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { UpdateVesselTripDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 import { tryResolveScheduledSegmentFromNextTripKey } from "./resolveSegmentFromNextTripKey";
 import { tryResolveScheduledSegmentFromScheduleTables } from "./resolveSegmentFromScheduleLookup";
-import type { ResolvedCurrentTripFields, ResolvedTripScheduleFields } from "./types";
+import type {
+  ResolvedCurrentTripFields,
+  ResolvedTripScheduleFields,
+} from "./types";
 
 export type ResolveScheduleFromTripArrivalInput = {
   location: ConvexVesselLocation;
@@ -47,11 +50,12 @@ export const resolveScheduleFromTripArrival = async ({
   ResolvedTripScheduleFields | undefined
 > => {
   // Prefer prior-row next-key continuity so schedule identity stays stable when linkage is valid.
-  const segmentFromNextTripKey = await tryResolveScheduledSegmentFromNextTripKey({
-    nextScheduleKey: existingTrip?.NextScheduleKey,
-    departingTerminalAbbrev: location.DepartingTerminalAbbrev,
-    dbAccess,
-  });
+  const segmentFromNextTripKey =
+    await tryResolveScheduledSegmentFromNextTripKey({
+      nextScheduleKey: existingTrip?.NextScheduleKey,
+      departingTerminalAbbrev: location.DepartingTerminalAbbrev,
+      dbAccess,
+    });
   if (segmentFromNextTripKey) {
     return resolutionFromSegment(segmentFromNextTripKey, "nextTripKey");
   }

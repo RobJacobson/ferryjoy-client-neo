@@ -19,7 +19,7 @@
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
+import type { UpdateVesselTripDbAccess } from "../types";
 import {
   hasWsfScheduleFields,
   resolveScheduleFromWsfRealtime,
@@ -27,7 +27,7 @@ import {
 import { tryResolveScheduledSegmentFromNextTripKey } from "./activeTripSchedule/resolveSegmentFromNextTripKey";
 import { tryResolveScheduledSegmentFromScheduleTables } from "./activeTripSchedule/resolveSegmentFromScheduleLookup";
 import type { ResolvedTripScheduleFields } from "./activeTripSchedule/types";
-import type { UpdateVesselTripDbAccess } from "./types";
+import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 
 type ApplyScheduleForActiveTripInput = {
   /** Active trip row built for this ping (before schedule merge). */

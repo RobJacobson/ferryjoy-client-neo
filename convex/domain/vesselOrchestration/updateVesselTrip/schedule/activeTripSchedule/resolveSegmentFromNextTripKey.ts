@@ -3,7 +3,7 @@
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
-import type { UpdateVesselTripDbAccess } from "../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 
 type ResolveSegmentFromNextTripKeyInput = {
   nextScheduleKey: string | undefined;

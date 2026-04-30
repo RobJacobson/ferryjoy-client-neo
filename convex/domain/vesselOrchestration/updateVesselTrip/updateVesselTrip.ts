@@ -4,11 +4,11 @@
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildActiveTrip } from "./buildActiveTrip";
-import { completeTrip } from "./completeTrip";
-import { isNewTrip } from "./lifecycleSignals";
-import { applyScheduleForActiveTrip } from "./scheduleForActiveTrip";
-import { isSameVesselTrip } from "./tripComparison";
+import { buildActiveTrip } from "./pipeline/buildActiveTrip";
+import { completeTrip } from "./pipeline/completeTrip";
+import { isNewTrip } from "./pipeline/lifecycleSignals";
+import { isSameVesselTrip } from "./pipeline/tripComparison";
+import { applyScheduleForActiveTrip } from "./schedule/scheduleForActiveTrip";
 import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**

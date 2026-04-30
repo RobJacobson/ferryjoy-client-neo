@@ -47,22 +47,19 @@ isolated.
 
 ## Module map
 
-- `updateVesselTrip.ts`
-  - orchestration for one ping and meaningful-change suppression
-- `lifecycleSignals.ts`
-  - physical lifecycle/new-trip signal helpers
-- `completeTrip.ts`
-  - completed-row shaping for rollover
-- `buildActiveTrip.ts`
-  - active row shaping before schedule enrichment
-- `scheduleForActiveTrip.ts`
-  - schedule-facing field policy for active rows
-- `activeTripSchedule/`
-  - private schedule resolution helpers (WSF realtime, next-key, schedule tables) used by `scheduleForActiveTrip.ts`
-- `tripComparison.ts`
-  - durable equality checks
-- `tripLifecycle.ts`
-  - compatibility helpers used by downstream row-diff consumers only
+- `updateVesselTrip.ts` — orchestration for one ping and meaningful-change suppression
+- `types.ts` — `VesselTripUpdate`, `UpdateVesselTripDbAccess`, schedule read args
+- `pipeline/` — row shaping and comparison (what the orchestrator steps through before/after schedule)
+  - `lifecycleSignals.ts` — physical lifecycle / new-trip signal helpers
+  - `completeTrip.ts` — completed-row shaping for rollover
+  - `buildActiveTrip.ts` — active row shaping before schedule enrichment
+  - `tripComparison.ts` — durable equality checks
+  - `stripTripPredictionsForStorage.ts` — comparison normalization (predictions stripped)
+- `schedule/` — schedule-facing policy and resolution
+  - `scheduleForActiveTrip.ts` — schedule field policy for active rows
+  - `scheduleEnrichment.ts` — merge resolved schedule into a trip row
+  - `activeTripSchedule/` — resolution helpers (WSF realtime, next-key, schedule tables)
+- `tripLifecycle.ts` — compatibility helpers for downstream row-diff consumers
 
 ## Non-ownership
 

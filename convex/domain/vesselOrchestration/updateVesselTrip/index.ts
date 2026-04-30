@@ -2,7 +2,7 @@
  * Public entry for **updateVesselTrip**.
  */
 
-export { stripVesselTripPredictions } from "./stripTripPredictionsForStorage";
+export { stripVesselTripPredictions } from "./pipeline/stripTripPredictionsForStorage";
 export {
   type CurrentTripDockEvents,
   currentTripDockEvents,
