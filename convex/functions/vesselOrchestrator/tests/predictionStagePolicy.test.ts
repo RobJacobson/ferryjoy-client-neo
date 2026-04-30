@@ -18,10 +18,8 @@ const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--09:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "SHI",
-  ArrivedCurrActual: ms("2026-03-13T09:00:00-07:00"),
-  ArriveDest: undefined,
-  AtDockActual: ms("2026-03-13T09:00:00-07:00"),
   TripStart: ms("2026-03-13T09:00:00-07:00"),
+  TripEnd: undefined,
   AtDock: true,
   AtDockDuration: 10,
   ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
@@ -29,7 +27,6 @@ const makeTrip = (
   LeftDockActual: undefined,
   TripDelay: 4,
   Eta: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -38,8 +35,6 @@ const makeTrip = (
   PrevLeftDock: ms("2026-03-13T08:12:00-07:00"),
   NextScheduleKey: "CHE--2026-03-13--10:15--ORI-ANA",
   NextScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
-  EndTime: undefined,
-  StartTime: ms("2026-03-13T09:00:00-07:00"),
   ...overrides,
 });
 

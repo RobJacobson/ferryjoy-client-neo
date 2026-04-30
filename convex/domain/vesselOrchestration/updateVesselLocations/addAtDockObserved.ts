@@ -38,7 +38,9 @@ export const addAtDockObserved = (
  * @param location - Normalized incoming row for one vessel
  * @returns Majority-vote observed docked state
  */
-const resolveAtDockObserved = (location: ConvexVesselLocationIncoming): boolean => {
+const resolveAtDockObserved = (
+  location: ConvexVesselLocationIncoming
+): boolean => {
   // Build the three docked-oriented votes used for majority resolution.
   const votes = [
     location.AtDock === true,

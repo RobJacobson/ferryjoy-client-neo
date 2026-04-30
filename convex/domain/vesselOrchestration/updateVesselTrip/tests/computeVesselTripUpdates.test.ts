@@ -52,12 +52,7 @@ const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
-  ArriveDest: undefined,
-  ArrivedCurrActual: ms("2026-03-13T04:33:00-07:00"),
-  ArrivedNextActual: undefined,
-  StartTime: ms("2026-03-13T04:33:00-07:00"),
-  EndTime: undefined,
-  AtDockActual: ms("2026-03-13T04:33:00-07:00"),
+  TripEnd: undefined,
   TripStart: ms("2026-03-13T04:33:00-07:00"),
   AtDock: false,
   AtDockDuration: undefined,
@@ -66,7 +61,6 @@ const makeTrip = (
   LeftDockActual: ms("2026-03-13T05:29:38-07:00"),
   TripDelay: undefined,
   Eta: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -78,11 +72,19 @@ const makeTrip = (
   ...overrides,
 });
 
-const makeDbAccess = (options: {
-  scheduledSegmentByKey?: Record<string, ConvexInferredScheduledSegment | null>;
-  scheduledDockEventsBySailingDay?: Record<string, ConvexScheduledDockEvent[]>;
-  throwOnAnyCall?: boolean;
-} = {}): {
+const makeDbAccess = (
+  options: {
+    scheduledSegmentByKey?: Record<
+      string,
+      ConvexInferredScheduledSegment | null
+    >;
+    scheduledDockEventsBySailingDay?: Record<
+      string,
+      ConvexScheduledDockEvent[]
+    >;
+    throwOnAnyCall?: boolean;
+  } = {}
+): {
   dbAccess: UpdateVesselTripDbAccess;
   counters: {
     getScheduledSegmentByScheduleKey: number;
@@ -153,7 +155,7 @@ const makeScheduledSegment = (
 });
 
 describe("updateVesselTrip", () => {
-  it("creates a first-seen active trip without ArrivedCurrActual", async () => {
+  it("creates a first-seen active trip without TripStart", async () => {
     const location = makeLocation({
       AtDockObserved: true,
       TimeStamp: ms("2026-03-13T06:40:00-07:00"),
@@ -165,9 +167,9 @@ describe("updateVesselTrip", () => {
     expect(result).not.toBeNull();
     expect(result?.completedVesselTripUpdate).toBeUndefined();
     expect(result?.activeVesselTripUpdate.TripKey).toBeString();
-    expect(result?.activeVesselTripUpdate.StartTime).toBe(location.TimeStamp);
     expect(result?.activeVesselTripUpdate.TripStart).toBe(location.TimeStamp);
-    expect(result?.activeVesselTripUpdate.ArrivedCurrActual).toBeUndefined();
+    expect(result?.activeVesselTripUpdate.TripStart).toBe(location.TimeStamp);
+    expect(result?.activeVesselTripUpdate.TripStart).toBeUndefined();
   });
 
   it("returns null for continuing timestamp-only churn", async () => {
@@ -237,7 +239,9 @@ describe("updateVesselTrip", () => {
 
     expect(result?.completedVesselTripUpdate).toBeUndefined();
     expect(result?.activeVesselTripUpdate.AtDock).toBe(false);
-    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(location.LeftDock);
+    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(
+      location.LeftDock
+    );
   });
 
   it("falls back LeftDockActual to TimeStamp when LeftDock is missing", async () => {
@@ -258,7 +262,9 @@ describe("updateVesselTrip", () => {
     const { dbAccess } = makeDbAccess({ throwOnAnyCall: true });
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
-    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(location.TimeStamp);
+    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(
+      location.TimeStamp
+    );
   });
 
   it("completes previous trip and starts replacement on terminal change", async () => {
@@ -278,16 +284,18 @@ describe("updateVesselTrip", () => {
 
     expect(result?.completedVesselTripUpdate).toBeDefined();
     expect(result?.activeVesselTripUpdate).toBeDefined();
-    expect(result?.completedVesselTripUpdate?.EndTime).toBe(completionTime);
     expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
-    expect(result?.completedVesselTripUpdate?.ArrivedNextActual).toBe(
-      completionTime
+    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTripUpdate?.ArrivingTerminalAbbrev).toBe(
+      "ORI"
     );
-    expect(result?.completedVesselTripUpdate?.ArriveDest).toBe(completionTime);
-    expect(result?.completedVesselTripUpdate?.ArrivingTerminalAbbrev).toBe("ORI");
     expect(result?.activeVesselTripUpdate.DepartingTerminalAbbrev).toBe("ORI");
-    expect(result?.activeVesselTripUpdate.TripKey).not.toBe(existingTrip.TripKey);
-    expect(result?.activeVesselTripUpdate.ArrivedCurrActual).toBe(completionTime);
+    expect(result?.activeVesselTripUpdate.TripKey).not.toBe(
+      existingTrip.TripKey
+    );
+    expect(result?.activeVesselTripUpdate.TripStart).toBe(completionTime);
   });
 
   it("trusts terminal change even when AtDockObserved is false", async () => {

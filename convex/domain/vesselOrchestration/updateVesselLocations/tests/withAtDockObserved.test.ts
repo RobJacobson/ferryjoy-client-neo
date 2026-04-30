@@ -3,9 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type {
-  ConvexVesselLocationIncoming,
-} from "functions/vesselLocation/schemas";
+import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
 import { addAtDockObserved } from "../addAtDockObserved";
 
 describe("withAtDockObserved", () => {

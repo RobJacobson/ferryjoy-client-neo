@@ -44,9 +44,9 @@ export const buildActiveTrip = ({
   return {
     ...activeTrip,
     PrevTerminalAbbrev: priorLeg?.DepartingTerminalAbbrev,
-    ArrivedCurrActual: location.TimeStamp,
-    AtDockActual: location.TimeStamp,
+    TripStart: location.TimeStamp,
     LeftDock: undefined,
+    LeftDockActual: undefined,
     TripDelay: undefined,
     NextScheduleKey: previousTrip?.NextScheduleKey,
     NextScheduledDeparture: previousTrip?.NextScheduledDeparture,
@@ -80,18 +80,13 @@ const buildNewActiveTrip = (
     ScheduleKey: location.ScheduleKey ?? identity.ScheduleKey,
     SailingDay: identity.SailingDay,
     PrevTerminalAbbrev: undefined,
-    ArriveDest: undefined,
-    ArrivedCurrActual: undefined,
-    ArrivedNextActual: undefined,
-    StartTime: location.TimeStamp,
-    EndTime: undefined,
-    AtDockActual: undefined,
     TripStart: location.TimeStamp,
+    TripEnd: undefined,
     AtDock: location.AtDockObserved,
     AtDockDuration: undefined,
     ScheduledDeparture: location.ScheduledDeparture,
     LeftDock: location.LeftDock,
-    LeftDockActual: undefined,
+    LeftDockActual: location.LeftDock,
     TripDelay: calculateTimeDelta(
       location.ScheduledDeparture,
       location.LeftDock
@@ -99,7 +94,6 @@ const buildNewActiveTrip = (
     Eta: location.Eta,
     NextScheduleKey: undefined,
     NextScheduledDeparture: undefined,
-    TripEnd: undefined,
     AtSeaDuration: undefined,
     TotalDuration: undefined,
     InService: location.InService,
@@ -144,9 +138,7 @@ const buildContinuingActiveTrip = (
     SailingDay: identity.SailingDay ?? previousTrip.SailingDay,
     AtDock: location.AtDockObserved,
     AtDockDuration: calculateTimeDelta(
-      previousTrip.ArrivedNextActual ??
-        previousTrip.EndTime ??
-        previousTrip.StartTime,
+      previousTrip.TripEnd ?? previousTrip.TripStart,
       resolvedLeftDock
     ),
     ScheduledDeparture: resolvedScheduledDeparture,

@@ -186,10 +186,7 @@ const toTrainingWindow = (trip: ConvexVesselTripWithML): TrainingWindow => {
 
   // Physical-boundary semantics: the arrival proxy for the current terminal is
   // the canonical origin-arrival actual, not the legacy TripStart alias.
-  const tripStartMs = requireTripField(
-    trip.ArrivedCurrActual,
-    "Missing ArrivedCurrActual"
-  );
+  const tripStartMs = requireTripField(trip.TripStart, "Missing TripStart");
   const prevScheduledMs = requireTripField(
     trip.PrevScheduledDeparture,
     "Missing PrevScheduledDeparture"

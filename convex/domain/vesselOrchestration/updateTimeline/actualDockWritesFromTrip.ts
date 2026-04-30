@@ -31,7 +31,7 @@ export const buildDepartureActualDockWriteForTrip = (
 
 /**
  * Build an arrival (`arv-dock`) actual dock write when the trip has `TripKey`
- * and `ArrivedNextActual` timestamp.
+ * and `TripEnd` timestamp.
  *
  * Completed-trip projection expects trip lifecycle code to have already
  * backfilled `ArrivingTerminalAbbrev` from the physical arrival dock when the
@@ -43,12 +43,7 @@ export const buildDepartureActualDockWriteForTrip = (
 export const buildArrivalActualDockWriteForTrip = (
   trip: ConvexVesselTripWithPredictions
 ): ConvexActualDockWritePersistable | null =>
-  buildActualDockWriteFromTrip(
-    trip,
-    "arv-dock",
-    trip.ArrivedNextActual,
-    "arriving"
-  );
+  buildActualDockWriteFromTrip(trip, "arv-dock", trip.TripEnd, "arriving");
 
 /**
  * Shared guard + write shape for trip-driven actual dock writes.
@@ -59,7 +54,7 @@ export const buildArrivalActualDockWriteForTrip = (
  *
  * @param trip - Trip row supplying physical identity and terminal fields
  * @param eventType - Dock kind for projection
- * @param actualTime - Epoch ms for the boundary (`LeftDockActual` or `ArrivedNextActual`)
+ * @param actualTime - Epoch ms for the boundary (`LeftDockActual` or `TripEnd`)
  * @param terminalRole - Which terminal field to use and how strictly to validate
  * @returns Write for projection, or `null` when required fields are missing
  */

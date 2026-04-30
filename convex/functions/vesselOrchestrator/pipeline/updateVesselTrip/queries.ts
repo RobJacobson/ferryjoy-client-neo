@@ -4,12 +4,12 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
+import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import { queryScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import {
-  eventsScheduledSchema,
   type ConvexScheduledDockEvent,
+  eventsScheduledSchema,
 } from "functions/events/eventsScheduled/schemas";
-import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
 import { buildBoundaryKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";

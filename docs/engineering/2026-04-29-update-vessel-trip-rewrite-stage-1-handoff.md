@@ -82,8 +82,8 @@ Expected:
 - returns an active trip update
 - does not return a completed trip
 - active row has a generated `TripKey`
-- active row has `StartTime` / `TripStart` from `location.TimeStamp`
-- active row does **not** stamp `ArrivedCurrActual`
+- active row has `TripStart` / `TripStart` from `location.TimeStamp`
+- active row does **not** stamp `TripStart`
 
 Why:
 
@@ -152,13 +152,13 @@ Input:
 Expected:
 
 - returns both `completedVesselTripUpdate` and `activeVesselTripUpdate`
-- completed row has `EndTime` and `TripEnd` equal to `location.TimeStamp`
-- completed row has `ArrivedNextActual` and `ArriveDest` equal to
+- completed row has `TripEnd` and `TripEnd` equal to `location.TimeStamp`
+- completed row has `TripEnd` and `TripEnd` equal to
   `location.TimeStamp`
 - completed row backfills `ArrivingTerminalAbbrev` to `ORI` if missing
 - replacement active row departs `ORI`
 - replacement active row has a new `TripKey`
-- replacement active row stamps `ArrivedCurrActual` from `location.TimeStamp`
+- replacement active row stamps `TripStart` from `location.TimeStamp`
 
 Why:
 
@@ -294,7 +294,7 @@ Some Stage 1 tests may fail against the current implementation because they
 encode the intended rewrite behavior. In particular, these are likely to expose
 current-design mismatch:
 
-- first-seen docked trip should not stamp `ArrivedCurrActual`
+- first-seen docked trip should not stamp `TripStart`
 - terminal change should complete even if `AtDockObserved` is false
 
 If tests fail, leave them in place and report the exact failures. Do not contort

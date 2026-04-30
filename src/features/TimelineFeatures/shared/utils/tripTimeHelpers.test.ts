@@ -17,22 +17,17 @@ import {
 const d = (ms: number) => new Date(ms);
 
 describe("getCoverageEndTime", () => {
-  it("prefers EndTime over TripEnd", () => {
+  it("returns TripEnd when present", () => {
     expect(
       getCoverageEndTime({
-        EndTime: d(100),
-        TripEnd: d(200),
+        TripEnd: d(100),
       } as VesselTrip)
     ).toEqual(d(100));
   });
 });
 
 describe("hasTripCoverageEnded", () => {
-  it("is true when EndTime is set", () => {
-    expect(hasTripCoverageEnded({ EndTime: d(1) } as VesselTrip)).toBeTrue();
-  });
-
-  it("is true when only TripEnd is set", () => {
+  it("is true when TripEnd is set", () => {
     expect(hasTripCoverageEnded({ TripEnd: d(1) } as VesselTrip)).toBeTrue();
   });
 
@@ -42,11 +37,10 @@ describe("hasTripCoverageEnded", () => {
 });
 
 describe("getTripListKeyTimeMs", () => {
-  it("prefers StartTime over legacy TripStart", () => {
+  it("uses TripStart when present", () => {
     expect(
       getTripListKeyTimeMs({
-        StartTime: d(100),
-        TripStart: d(200),
+        TripStart: d(100),
       } as VesselTrip)
     ).toBe(100);
   });
@@ -63,10 +57,9 @@ describe("getBestDepartureTime", () => {
 });
 
 describe("getDestinationArrivalOrCoverageClose", () => {
-  it("prefers ArrivedNextActual over EndTime", () => {
+  it("returns TripEnd", () => {
     const t = {
-      ArrivedNextActual: d(500),
-      EndTime: d(600),
+      TripEnd: d(500),
     } as VesselTrip;
     expect(getDestinationArrivalOrCoverageClose(t)).toEqual(d(500));
   });
@@ -81,10 +74,9 @@ describe("getOriginArrivalActual", () => {
 });
 
 describe("getBestArrivalTime", () => {
-  it("prefers ArrivedNextActual over EndTime", () => {
+  it("prefers TripEnd", () => {
     const t = {
-      ArrivedNextActual: d(500),
-      EndTime: d(600),
+      TripEnd: d(500),
     } as VesselTrip;
     expect(getBestArrivalTime(undefined, t)).toEqual(d(500));
   });

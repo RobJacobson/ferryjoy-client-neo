@@ -44,7 +44,7 @@ export type DelayedVesselTripsResult = {
  *
  * Tracks current trips for each vessel and ensures that when a trip completes
  * (disappears from activeTrips), it remains in the display list for 30 seconds
- * with an injected {@link VesselTrip.EndTime} (coverage close).
+ * with an injected {@link VesselTrip.TripEnd} (coverage close).
  *
  * Handles preemption: if a new trip starts while the previous is in its hold
  * period, the old trip continues to be shown until the hold expires.
@@ -106,10 +106,10 @@ export const useDelayedVesselTrips = (
         // No previous: show active or nothing
         resolvedTrip = activeTrip ?? null;
       } else if (!activeTrip) {
-        // Trip disappeared: inject EndTime, hold for 30s, then clear
+        // Trip disappeared: inject TripEnd, hold for 30s, then clear
         const ended = hasTripCoverageEnded(prevTrip)
           ? prevTrip
-          : { ...prevTrip, EndTime: new Date(nowMs) };
+          : { ...prevTrip, TripEnd: new Date(nowMs) };
         const endedAtMs = getCoverageEndTime(ended)?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? ended : null;
@@ -120,7 +120,7 @@ export const useDelayedVesselTrips = (
         // Different trip (new one started): hold previous for 30s, then show new
         const endedPrev = hasTripCoverageEnded(prevTrip)
           ? prevTrip
-          : { ...prevTrip, EndTime: new Date(nowMs) };
+          : { ...prevTrip, TripEnd: new Date(nowMs) };
         const endedAtMs = getCoverageEndTime(endedPrev)?.getTime() ?? nowMs;
         const shouldHold = nowMs - endedAtMs < HOLD_DURATION_MS;
         resolvedTrip = shouldHold ? endedPrev : activeTrip;
@@ -146,7 +146,7 @@ export const useDelayedVesselTrips = (
           !hasTripCoverageEnded(prevTrip) &&
           currentLocation?.TimeStamp
         ) {
-          resolvedTrip.EndTime = roundToMinute(
+          resolvedTrip.TripEnd = roundToMinute(
             currentLocation.TimeStamp.getTime()
           );
         }

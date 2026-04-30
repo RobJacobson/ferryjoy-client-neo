@@ -25,7 +25,7 @@ The `Key` (deterministic scheduled trip ID) is the universal join key.
 ### 4. On-Demand Synthesis (`synthesizeTripSegments`)
 As each `ScheduledTripCard` renders, it calls `synthesizeTripSegments`. This is where the "magic" happens. Each segment self-resolves its status, phase, and estimated times:
 - **Status Determination**:
-  - `past`: The `vesselTripByKeys` contains a record with coverage end (`EndTime`, or legacy `TripEnd`) for this segment's `Key`.
+  - `past`: The `vesselTripByKeys` contains a record with coverage end (`TripEnd`, or legacy `TripEnd`) for this segment's `Key`.
   - `ongoing`: The segment's `Key` matches the vessel's current `activeKey` (derived from `heldTrip` or `vesselLocation.ScheduledDeparture`).
   - `future`: Default state.
 - **Phase Determination**:
@@ -93,6 +93,6 @@ When a vessel arrives and the trip technically ends, we "hold" the trip identity
 ## Implementation Notes & Debugging
 
 - **Missing Indicator**: Check if the `vesselLocation.ScheduledDeparture` matches the `segment.DepartingTime`. If they don't match exactly, the segment won't be marked as `ongoing`.
-- **Wrong Status**: Verify the `vesselTripByKeys`. If a trip has `EndTime` (or legacy `TripEnd`), it will always be `past`.
+- **Wrong Status**: Verify the `vesselTripByKeys`. If a trip has `TripEnd` (or legacy `TripEnd`), it will always be `past`.
 - **"Arrived" while en route**: If the at-sea bar shows "Arrived" and "--" when the vessel is still at sea, the segment likely has `phase === "completed"` instead of `at-sea`. Ensure phase is only `completed` when status is `past` or when held and not ongoing (see Phase Determination above).
 - **Predictions (future segments)**: For a *future* segment (e.g. BBI → P52 while the vessel is on P52 → BBI), estimated times are resolved from the previous segment's `VesselTrip` via `segment.PrevKey`. `arriveCurr.estimated` (arrival at this segment's origin) uses `vesselLocation.Eta`, then `prevTrip.AtSeaArriveNext?.PredTime`, then `prevTrip.AtDockArriveNext?.PredTime`. `leaveCurr.estimated` (departure from that origin) uses `prevTrip.AtDockDepartNext?.PredTime` or `prevTrip.AtSeaDepartNext?.PredTime`. This ensures the next leg's card shows projected arrival and departure at the connecting terminal.

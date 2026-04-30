@@ -38,21 +38,21 @@ Use this as the canonical timestamp vocabulary for trip, timeline, and client re
 
 ### Trip row fields by intent
 
-- Coverage interval: `StartTime` and `EndTime` describe when a trip row exists in storage. `EndTime` can be a synthetic close.
-- Physical boundaries: `ArrivedCurrActual`, `LeftDockActual`, `ArrivedNextActual` are the canonical physical boundary facts.
+- Coverage interval: `TripStart` and `TripEnd` describe when a trip row exists in storage. `TripEnd` can be a synthetic close.
+- Physical boundaries: `TripStart`, `LeftDockActual`, `TripEnd` are the canonical physical boundary facts.
 - Phase state: trip `AtDock` is sourced from location `AtDockObserved` (stabilized observed phase), not directly from raw WSF `AtDock`.
-- Legacy mirrors/fallbacks: `TripStart`, `TripEnd`, `ArriveDest`, `LeftDock`, `AtDockActual` remain for compatibility and display fallback chains.
+- Legacy mirrors/fallbacks: `TripStart`, `TripEnd`, `TripEnd`, `LeftDock`, `TripStart` remain for compatibility and display fallback chains.
 
 ### Key rule
 
-- Never infer physical arrival/departure from coverage fields alone. In particular, `EndTime` does not imply destination arrival.
+- Never infer physical arrival/departure from coverage fields alone. In particular, `TripEnd` does not imply destination arrival.
 
 ### Timeline projection contract
 
 - `eventsActual` projection reads trip physical boundaries from `actualDockWritesFromTrip.ts`:
   - `dep-dock` uses `LeftDockActual`
-  - `arv-dock` uses `ArrivedNextActual`
-- Projection requires trip identity/terminal context (`TripKey`, terminal abbreviations) and does not derive boundaries from `StartTime`/`EndTime`.
+  - `arv-dock` uses `TripEnd`
+- Projection requires trip identity/terminal context (`TripKey`, terminal abbreviations) and does not derive boundaries from `TripStart`/`TripEnd`.
 
 ### Prediction storage contract
 

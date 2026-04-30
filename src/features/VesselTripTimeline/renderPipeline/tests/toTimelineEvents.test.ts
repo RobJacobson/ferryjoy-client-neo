@@ -35,8 +35,7 @@ describe("toTimelineEvents", () => {
       makePipelineInput({
         trip: {
           LeftDock: at(8, 4),
-          ArrivedNextActual: at(8, 36),
-          EndTime: at(8, 37),
+          TripEnd: at(8, 36),
           AtSeaArriveNext: makePrediction({ PredTime: at(8, 39) }),
           AtDockArriveNext: makePrediction({ PredTime: at(8, 41) }),
           AtDockDepartNext: makePrediction({ PredTime: at(9, 3) }),

@@ -236,17 +236,17 @@ const replaceOrInsertActiveTripForVessel = async (
  * Ensure completed trips carry a coverage end before archival.
  *
  * @param completedTrip - Candidate completed trip row
- * @returns Nothing; throws when `EndTime` is missing
+ * @returns Nothing; throws when `TripEnd` is missing
  */
 const assertCompletedTripHasEndTime = (
   completedTrip: ConvexVesselTrip
 ): void => {
-  if (completedTrip.EndTime) {
+  if (completedTrip.TripEnd) {
     return;
   }
 
   throw new ConvexError({
-    message: "Completed trip must have EndTime set",
+    message: "Completed trip must have TripEnd set",
     code: "INVALID_COMPLETED_TRIP",
     severity: "error",
   });

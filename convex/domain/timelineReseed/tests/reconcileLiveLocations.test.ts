@@ -524,8 +524,8 @@ const makeActivePhysicalTrip = (
     ScheduledDeparture: at(17, 20),
     LeftDock: undefined,
     LeftDockActual: undefined,
-    ArriveDest: undefined,
-    AtDockActual: undefined,
+    TripEnd: undefined,
+    TripStart: undefined,
     ...rest,
   }))(overrides) as ActiveTripForPhysicalActualReconcile & { TripKey: string };
 

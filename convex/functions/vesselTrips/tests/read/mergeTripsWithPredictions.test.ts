@@ -17,13 +17,8 @@ const makeTrip = (): ConvexVesselTrip => ({
   ScheduleKey: "CHE--2026-03-13--05:30--SOU-VAI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "FAU",
-  ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
-  ArrivedNextActual: ms("2026-03-13T11:05:00-07:00"),
-  StartTime: ms("2026-03-13T07:00:00-07:00"),
-  EndTime: ms("2026-03-13T13:00:00-07:00"),
-  ArriveDest: ms("2026-03-13T11:10:00-07:00"),
-  AtDockActual: ms("2026-03-13T09:30:00-07:00"),
-  TripStart: ms("2026-03-13T09:35:00-07:00"),
+  TripStart: ms("2026-03-13T09:30:00-07:00"),
+  TripEnd: ms("2026-03-13T11:05:00-07:00"),
   AtDock: true,
   AtDockDuration: 35,
   ScheduledDeparture: ms("2026-03-13T10:00:00-07:00"),
@@ -31,7 +26,6 @@ const makeTrip = (): ConvexVesselTrip => ({
   LeftDockActual: ms("2026-03-13T10:05:00-07:00"),
   TripDelay: 5,
   Eta: ms("2026-03-13T11:15:00-07:00"),
-  TripEnd: ms("2026-03-13T11:20:00-07:00"),
   AtSeaDuration: 60,
   TotalDuration: 95,
   InService: true,
@@ -47,10 +41,10 @@ describe("mergeTripsWithPredictions", () => {
     const trip = makeTrip();
     const [enriched] = mergeTripsWithPredictions([trip], new Map());
 
-    expect(enriched.ArrivedCurrActual).toBe(trip.ArrivedCurrActual);
-    expect(enriched.ArrivedNextActual).toBe(trip.ArrivedNextActual);
+    expect(enriched.TripStart).toBe(trip.TripStart);
+    expect(enriched.TripEnd).toBe(trip.TripEnd);
     expect(enriched.LeftDockActual).toBe(trip.LeftDockActual);
-    expect(enriched.StartTime).toBe(trip.StartTime);
-    expect(enriched.EndTime).toBe(trip.EndTime);
+    expect(enriched.TripStart).toBe(trip.TripStart);
+    expect(enriched.TripEnd).toBe(trip.TripEnd);
   });
 });

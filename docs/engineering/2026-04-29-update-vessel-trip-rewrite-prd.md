@@ -99,16 +99,16 @@ Phase state:
 First-seen vessel:
 
 - Build a current active trip.
-- Do not stamp `ArrivedCurrActual` for a first-seen trip merely because the
+- Do not stamp `TripStart` for a first-seen trip merely because the
   vessel is currently docked; the true arrival happened before this pipeline
   had state.
 
 Completed trip:
 
 - When a new-trip signal exists, close the previous active trip.
-- Set coverage close fields such as `EndTime` and `TripEnd` from
+- Set coverage close fields such as `TripEnd` and `TripEnd` from
   `currentVesselLocation.TimeStamp`.
-- Set physical arrival fields such as `ArrivedNextActual` and `ArriveDest` from
+- Set physical arrival fields such as `TripEnd` and `TripEnd` from
   `currentVesselLocation.TimeStamp` because the terminal transition is trusted
   arrival evidence.
 - Backfill the completed row destination terminal from
@@ -120,9 +120,9 @@ Current active trip:
 - Always build the next active row as the merge of prior durable trip facts and
   current location facts, with explicit start/replacement exceptions.
 - On a new-trip signal, start a replacement trip with a new `TripKey`,
-  `StartTime`, `TripStart`, and `ArrivedCurrActual` equal to the current
+  `TripStart`, `TripStart`, and `TripStart` equal to the current
   timestamp.
-- On a continuing trip, preserve the existing `TripKey`, `StartTime`,
+- On a continuing trip, preserve the existing `TripKey`, `TripStart`,
   `TripStart`, previous-terminal metadata, and prior physical boundary facts.
 - On departure from dock, set `LeftDockActual` from
   `currentVesselLocation.LeftDock ?? currentVesselLocation.TimeStamp`.
@@ -325,7 +325,7 @@ Worker scope:
 
 Minimum behavior cases:
 
-- First-seen vessel creates an active trip without `ArrivedCurrActual`.
+- First-seen vessel creates an active trip without `TripStart`.
 - Continuing timestamp-only churn returns `null`.
 - Continuing ETA change returns an active trip update.
 - Continuing dock-to-sea transition stamps `LeftDockActual`.
@@ -487,7 +487,7 @@ Reject a stage if it:
 - Performs schedule reads for continuing trips with missing fields.
 - Derives arrival completion from `AtDockObserved` instead of terminal
   abbreviation transition.
-- Stamps first-seen `ArrivedCurrActual` without a real rollover boundary.
+- Stamps first-seen `TripStart` without a real rollover boundary.
 - Mixes prediction or persistence concerns back into trip row construction.
 - Preserves old tests by shaping the new code around obsolete internals.
 

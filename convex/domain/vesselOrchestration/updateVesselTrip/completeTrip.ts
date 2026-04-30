@@ -20,20 +20,16 @@ export const completeTrip = (
   const completionTime = location.TimeStamp;
   const departureForDurations =
     previousTrip.LeftDockActual ?? previousTrip.LeftDock;
-  const tripStartForDurations = previousTrip.StartTime ?? previousTrip.TripStart;
+  const tripStartForDurations = previousTrip.TripStart;
 
   return {
     ...previousTrip,
     ArrivingTerminalAbbrev:
-      previousTrip.ArrivingTerminalAbbrev ??
-      location.DepartingTerminalAbbrev,
-    ArrivedNextActual: completionTime,
-    EndTime: completionTime,
-    ArriveDest: completionTime,
+      previousTrip.ArrivingTerminalAbbrev ?? location.DepartingTerminalAbbrev,
     TripEnd: completionTime,
     AtSeaDuration: calculateTimeDelta(departureForDurations, completionTime),
     TotalDuration: calculateTimeDelta(tripStartForDurations, completionTime),
-    AtDockActual: previousTrip.ArrivedCurrActual ?? previousTrip.AtDockActual,
+    TripStart: previousTrip.TripStart,
     LeftDockActual: previousTrip.LeftDockActual ?? previousTrip.LeftDock,
   };
 };

@@ -54,14 +54,13 @@ describe("buildDepartureActualDockWriteForTrip", () => {
 });
 
 describe("buildArrivalActualDockWriteForTrip", () => {
-  it("returns a write from ArrivedNextActual when completion has backfilled the physical arrival terminal", () => {
+  it("returns a write from TripEnd when completion has backfilled the physical arrival terminal", () => {
     const trip = {
       VesselAbbrev: "WEN",
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: undefined,
       ArrivingTerminalAbbrev: "P52",
-      ArrivedNextActual: at(12, 59),
-      ArriveDest: at(12, 58),
+      TripEnd: at(12, 59),
     } as ConvexVesselTripWithPredictions;
 
     const write = buildArrivalActualDockWriteForTrip(trip);
@@ -85,8 +84,7 @@ describe("buildArrivalActualDockWriteForTrip", () => {
       TripKey: "WEN 2026-03-25 19:20:00Z",
       ScheduleKey: undefined,
       ArrivingTerminalAbbrev: "P52",
-      ArrivedNextActual: undefined,
-      ArriveDest: at(12, 58),
+      TripEnd: undefined,
     } as ConvexVesselTripWithPredictions;
 
     expect(buildArrivalActualDockWriteForTrip(trip)).toBeNull();

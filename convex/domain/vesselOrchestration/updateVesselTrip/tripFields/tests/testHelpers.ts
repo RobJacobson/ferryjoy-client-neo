@@ -50,8 +50,7 @@ export const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",
-  ArriveDest: undefined,
-  AtDockActual: ms("2026-03-13T10:30:00-07:00"),
+  TripEnd: undefined,
   TripStart: ms("2026-03-13T10:30:00-07:00"),
   AtDock: true,
   AtDockDuration: undefined,
@@ -62,7 +61,6 @@ export const makeTrip = (
   Eta: undefined,
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -149,7 +147,8 @@ const scheduledRowsForSailingDay = ({
     >;
   };
 }) => {
-  const fromOverride = options.scheduledDeparturesByVesselAbbrev?.[vesselAbbrev];
+  const fromOverride =
+    options.scheduledDeparturesByVesselAbbrev?.[vesselAbbrev];
   if (fromOverride !== undefined) {
     return fromOverride.filter((row) => row.SailingDay === sailingDay);
   }

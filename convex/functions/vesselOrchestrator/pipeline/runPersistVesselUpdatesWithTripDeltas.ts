@@ -13,12 +13,12 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /** Stored trip fields that hold epoch ms wall-clock instants (not durations). */
 const EPOCH_MS_TRIP_FIELD_KEYS = new Set<string>([
-  "ArrivedCurrActual",
-  "ArrivedNextActual",
-  "StartTime",
-  "EndTime",
-  "ArriveDest",
-  "AtDockActual",
+  "TripStart",
+  "TripEnd",
+  "TripStart",
+  "TripEnd",
+  "TripEnd",
+  "TripStart",
   "TripStart",
   "ScheduledDeparture",
   "LeftDock",

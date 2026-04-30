@@ -35,13 +35,8 @@ const makeTrip = (
   ScheduleKey: "CHE--2026-03-13--05:30--SOU-VAI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "FAU",
-  ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
-  ArrivedNextActual: undefined,
-  StartTime: ms("2026-03-13T09:00:00-07:00"),
-  EndTime: undefined,
-  ArriveDest: undefined,
-  AtDockActual: undefined,
-  TripStart: ms("2026-03-13T09:00:00-07:00"),
+  TripStart: ms("2026-03-13T09:30:00-07:00"),
+  TripEnd: undefined,
   AtDock: true,
   AtDockDuration: undefined,
   ScheduledDeparture: ms("2026-03-13T10:00:00-07:00"),
@@ -49,7 +44,6 @@ const makeTrip = (
   LeftDockActual: undefined,
   TripDelay: undefined,
   Eta: undefined,
-  TripEnd: undefined,
   AtSeaDuration: undefined,
   TotalDuration: undefined,
   InService: true,
@@ -67,18 +61,14 @@ const makeTrip = (
 });
 
 describe("isPredictionReadyTrip", () => {
-  it("requires canonical origin-arrival actuals rather than TripStart or AtDockActual aliases", () => {
+  it("requires canonical origin-arrival actuals rather than TripStart or TripStart aliases", () => {
     const readyTrip = makeTrip({
-      ArrivedCurrActual: ms("2026-03-13T09:30:00-07:00"),
-      TripStart: ms("2026-03-13T09:55:00-07:00"),
-      AtDockActual: ms("2026-03-13T09:55:00-07:00"),
+      TripStart: ms("2026-03-13T09:30:00-07:00"),
     });
 
     const legacyOnlyTrip = {
       ...readyTrip,
-      ArrivedCurrActual: undefined,
-      TripStart: ms("2026-03-13T09:55:00-07:00"),
-      AtDockActual: ms("2026-03-13T09:55:00-07:00"),
+      TripStart: undefined,
     } as ConvexVesselTripWithPredictions;
 
     expect(
@@ -125,9 +115,7 @@ describe("prediction actualization", () => {
 
   it("uses canonical destination-arrival actuals when actualizing completion predictions", () => {
     const trip = makeTrip({
-      ArrivedNextActual: ms("2026-03-13T11:05:00-07:00"),
-      ArriveDest: ms("2026-03-13T11:15:00-07:00"),
-      TripEnd: ms("2026-03-13T11:25:00-07:00"),
+      TripEnd: ms("2026-03-13T11:05:00-07:00"),
       AtSeaArriveNext: createPredictionResult(
         ms("2026-03-13T11:10:00-07:00"),
         1.2,
@@ -144,9 +132,7 @@ describe("prediction actualization", () => {
 
   it("does not backfill completion actuals from legacy mirrors alone", () => {
     const trip = makeTrip({
-      ArrivedNextActual: undefined,
-      ArriveDest: ms("2026-03-13T11:15:00-07:00"),
-      TripEnd: ms("2026-03-13T11:25:00-07:00"),
+      TripEnd: undefined,
       AtSeaArriveNext: createPredictionResult(
         ms("2026-03-13T11:10:00-07:00"),
         1.2,
