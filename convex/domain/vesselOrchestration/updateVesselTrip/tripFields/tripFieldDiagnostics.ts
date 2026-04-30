@@ -13,7 +13,6 @@ export type TripFieldInferenceInput = {
 
 export type TripFieldInferenceLogContext = {
   vesselAbbrev: string;
-  tripFieldDataSource: ResolvedCurrentTripFields["tripFieldDataSource"];
   tripFieldResolutionMethod?: ResolvedCurrentTripFields["tripFieldResolutionMethod"];
   reason:
     | "inferred_trip_fields_started"
@@ -90,8 +89,8 @@ const getTripFieldInferenceLogContext = ({
   existingTrip,
   current,
 }: TripFieldInferenceInput): TripFieldInferenceLogContext | undefined => {
-  const tripFieldDataSource = current.tripFieldDataSource;
-  if (tripFieldDataSource === undefined) {
+  const tripFieldResolutionMethod = current.tripFieldResolutionMethod;
+  if (tripFieldResolutionMethod === undefined) {
     return undefined;
   }
 
@@ -108,14 +107,13 @@ const getTripFieldInferenceLogContext = ({
 
   const shared = {
     vesselAbbrev: location.VesselAbbrev,
-    tripFieldDataSource,
-    tripFieldResolutionMethod: current.tripFieldResolutionMethod,
+    tripFieldResolutionMethod,
     previousTripFields,
     resolvedTripFields,
     rawWsfTripFields,
   };
 
-  if (tripFieldDataSource === "inferred") {
+  if (tripFieldResolutionMethod !== "wsfRealtimeFields") {
     const reason = hasPartialWsfConflict(location, resolvedTripFields)
       ? "partial_wsf_conflict_with_inference"
       : existingTrip === undefined

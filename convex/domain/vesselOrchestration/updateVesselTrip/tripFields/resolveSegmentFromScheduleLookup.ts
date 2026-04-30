@@ -1,5 +1,5 @@
 /**
- * Schedule-segment inference from rollover dock-event lookups.
+ * Schedule-segment inference from scheduled dock-event tables.
  */
 
 import type {
@@ -13,35 +13,36 @@ import {
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { UpdateVesselTripDbAccess } from "../types";
 
-type ResolveSegmentFromScheduleLookupInput = {
+type ResolveSegmentFromScheduleTablesInput = {
   location: ConvexVesselLocation;
   scheduleAccess: UpdateVesselTripDbAccess;
 };
 
 /**
- * Attempts schedule-segment inference from rollover dock-event pools.
+ * Attempts schedule-segment inference from schedule tables.
  *
- * @param input - Ping context and schedule DB access for rollover lookup
+ * @param input - Ping context and schedule DB access for current/next service-day
+ *   schedule-table lookup
  * @returns Inferred segment for the next departure from current terminal, or null
  */
-export const tryResolveScheduledSegmentFromScheduleLookup = async ({
+export const tryResolveScheduledSegmentFromScheduleTables = async ({
   location,
   scheduleAccess,
-}: ResolveSegmentFromScheduleLookupInput): Promise<ConvexInferredScheduledSegment | null> => {
-  const rollover = await scheduleAccess.getScheduleRolloverDockEvents({
+}: ResolveSegmentFromScheduleTablesInput): Promise<ConvexInferredScheduledSegment | null> => {
+  const serviceDayPools = await scheduleAccess.getScheduleRolloverDockEvents({
     vesselAbbrev: location.VesselAbbrev,
     timestamp: location.TimeStamp,
   });
 
   return (
     segmentAfterDepartureInPool(
-      rollover.currentDayEvents,
+      serviceDayPools.currentDayEvents,
       location.DepartingTerminalAbbrev,
       location.TimeStamp
     ) ??
-    // Scan the next sailing-day pool from its earliest departure.
+    // Scan the next service-day pool from its earliest departure.
     segmentAfterDepartureInPool(
-      rollover.nextDayEvents,
+      serviceDayPools.nextDayEvents,
       location.DepartingTerminalAbbrev,
       Number.NEGATIVE_INFINITY
     )
