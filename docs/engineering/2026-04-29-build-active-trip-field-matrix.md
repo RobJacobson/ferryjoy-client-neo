@@ -8,17 +8,22 @@ This memo maps each `ConvexVesselTrip` field produced by `buildActiveTrip` acros
 - **New trip**: rollover start (`isNewTrip` true)
 - **In-progress update**: ongoing leg update (`previousTrip` present, `isNewTrip` false)
 
-## Refactor note (legacy fields being removed)
+## Current builder shape
 
-Planned schema simplification:
+`buildActiveTrip` now routes through a `switch` on `TripBuildMode` and delegates to
+three path-specific builders:
 
-- remove `TripEnd`, `TripEnd`, `TripEnd` and use `TripEnd`
-- remove `TripStart`, `TripStart`, `TripStart` and use `TripStart`
+- `buildColdStartActiveTrip(ctx)`
+- `buildNewActiveTrip(ctx)`
+- `buildContinuingActiveTrip(ctx)`
 
-Decision for cold-start uncertainty:
+Shared helper composition used by those builders:
 
-- treat cold-start `TripStart` as `undefined` (we do not truly know physical trip start)
-- accept this as intentional short-lived uncertainty that self-corrects after rollover
+- `buildTripIdentityFromCurr(curr, overrides?)`
+- `buildLiveLocationFields(curr)`
+- `buildCreationScheduleFields(curr, identity)`
+- `buildPriorLegFields(completedTrip ?? prev)`
+- `buildContinuingDepartureFields(prev, curr, resolvedScheduledDeparture)`
 
 Abbreviations used in table cells:
 
@@ -41,7 +46,7 @@ Abbreviations used in table cells:
 | `PrevTerminalAbbrev` | `undefined` | `prior?.DepartingTerminalAbbrev` (connect prior leg) | keep `prev.PrevTerminalAbbrev` |
 | `TripStart` | `undefined` (intentional cold-start unknown) | `loc.TimeStamp` (known rollover start) | keep `prev.TripStart` |
 | `AtDock` | `loc.AtDockObserved` | same | overwrite from `loc.AtDockObserved` |
-| `AtDockDuration` | `undefined` | same | recompute as `delta(prev.TripEnd ?? prev.TripEnd ?? prev.TripStart, resLeftDock)` [N2] |
+| `AtDockDuration` | `undefined` | same | recompute as `delta(prev.TripEnd ?? prev.TripStart, resLeftDock)` [N2] |
 | `ScheduledDeparture` | `loc.ScheduledDeparture` | same | persist `resolvedScheduledDeparture` (`loc.ScheduledDeparture ?? prev.ScheduledDeparture`) so the row matches identity/TripDelay [N4] |
 | `LeftDock` | `loc.LeftDock` | forced `undefined` (reset at rollover start) | recompute to `resLeftDock` |
 | `LeftDockActual` | `loc.LeftDock` (cold-start fallback when already at sea) | forced `undefined` (new trip starts docked) | `prev.LeftDockActual ?? (justLeftDock ? (loc.LeftDock ?? loc.TimeStamp) : undefined)` [N3] |
@@ -64,21 +69,7 @@ Abbreviations used in table cells:
 - **N3**: `justLeftDock` is `didLeaveDock(prev, loc)` and only backfills `LeftDockActual` on transition.
 - **N4**: `resolvedScheduledDeparture` is `loc.ScheduledDeparture ?? prev.ScheduledDeparture`; continuing trips set `ScheduledDeparture` on the returned row to this value (not only `...prev` spread), matching prior `buildContinuingActiveTrip` behavior.
 
-## Legacy-to-target consistency check (alert)
-
-The six removed fields are not all semantically identical to their replacement target in current code:
-
-- `TripEnd` / `TripEnd` / `TripEnd` vs `TripEnd`: currently consistent at completion (`completeTrip` stamps all four to completion timestamp).
-- `TripStart` vs `TripStart`: currently aligned at creation paths (`buildNewActiveTrip` sets both to `loc.TimeStamp`), but continuing updates just preserve prior values and do not enforce equality.
-- `TripStart` vs `TripStart`: not equivalent today. First-seen trips set `TripStart=loc.TimeStamp` while `TripStart=undefined`; rollover trips set both to timestamp.
-- `TripStart` vs `TripStart`: not equivalent today. First-seen trips set `TripStart=loc.TimeStamp` while `TripStart=undefined`; rollover trips set both to timestamp.
-
-## Practical impact for simplification
-
-- The `TripEnd` consolidation is low-risk because current write-time behavior is already effectively unified.
-- Replacing `TripStart` and `TripStart` with `TripStart` no longer requires synthesizing a first-seen timestamp if cold-start `TripStart` is intentionally left `undefined`.
-
 ## Quick interpretation
 
-- Cold start and new trip both begin from `buildNewActiveTrip`; new trip then overlays prior-leg continuity and resets departure-tied fields.
+- Cold start and new trip are independent builders with explicit field ownership; no base-row overlay step.
 - In-progress updates preserve most lifecycle/history fields from `prev` and only refresh feed-driven or derived continuity fields.

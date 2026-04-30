@@ -216,6 +216,10 @@ describe("updateVesselTrip", () => {
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
     expect(result?.activeVesselTripUpdate.Eta).toBe(location.Eta);
+    expect(result?.activeVesselTripUpdate.TripKey).toBe(existingTrip.TripKey);
+    expect(result?.activeVesselTripUpdate.PrevTerminalAbbrev).toBe(
+      existingTrip.PrevTerminalAbbrev
+    );
     expect(result?.completedVesselTripUpdate).toBeUndefined();
   });
 
@@ -297,6 +301,16 @@ describe("updateVesselTrip", () => {
       existingTrip.TripKey
     );
     expect(result?.activeVesselTripUpdate.TripStart).toBe(completionTime);
+    expect(result?.activeVesselTripUpdate.PrevTerminalAbbrev).toBe(
+      result?.completedVesselTripUpdate?.DepartingTerminalAbbrev
+    );
+    expect(result?.activeVesselTripUpdate.PrevScheduledDeparture).toBe(
+      result?.completedVesselTripUpdate?.ScheduledDeparture
+    );
+    expect(result?.activeVesselTripUpdate.PrevLeftDock).toBe(
+      result?.completedVesselTripUpdate?.LeftDockActual ??
+        result?.completedVesselTripUpdate?.LeftDock
+    );
     expect(result?.activeVesselTripUpdate.LeftDock).toBeUndefined();
     expect(result?.activeVesselTripUpdate.LeftDockActual).toBeUndefined();
   });

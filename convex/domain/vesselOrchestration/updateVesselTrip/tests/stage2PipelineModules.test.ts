@@ -218,16 +218,13 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const activeTrip = buildActiveTrip({
-      previousTrip: undefined,
+      prev: undefined,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: false,
     });
 
     expect(activeTrip.TripKey).toBeString();
-    expect(activeTrip.TripStart).toBe(location.TimeStamp);
-    expect(activeTrip.TripStart).toBe(location.TimeStamp);
-    expect(activeTrip.TripStart).toBeUndefined();
     expect(activeTrip.TripStart).toBeUndefined();
   });
 
@@ -248,9 +245,9 @@ describe("stage-2 pipeline modules", () => {
     });
 
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: false,
     });
 
@@ -275,9 +272,9 @@ describe("stage-2 pipeline modules", () => {
       TimeStamp: ms("2026-03-13T06:31:45-07:00"),
     });
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: false,
     });
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
@@ -310,9 +307,9 @@ describe("stage-2 pipeline modules", () => {
       TimeStamp: ms("2026-03-13T06:47:00-07:00"),
     });
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: true,
     });
     const primarySegment = makeScheduledSegment({
@@ -363,9 +360,9 @@ describe("stage-2 pipeline modules", () => {
       InService: true,
     });
     const activeTrip = buildActiveTrip({
-      previousTrip,
+      prev: previousTrip,
       completedTrip: undefined,
-      location,
+      curr: location,
       isNewTrip: true,
     });
     const rolloverDeparture = makeDepartureEvent();
