@@ -1,31 +1,31 @@
 /**
- * Depart-next actualization helpers for `eventsPredicted`.
+ * Helpers for patching depart-next ML rows on `eventsPredicted`.
  */
 
 import type { MutationCtx } from "_generated/server";
-import type { DepartNextActualizationIntent } from "domain/vesselOrchestration/updateVesselActualizations";
-import { actualizeDepartNextMlPredictions } from "./mutations";
+import type { UpdateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
+import { patchDepartNextMlRowsForDepBoundary } from "./mutations";
 
-export type DepartNextActualizationPersistResult = {
+export type PatchDepartNextMlRowsResult = {
   updated: boolean;
   reason?: string;
 };
 
 /**
- * Applies one depart-next actualization intent to `eventsPredicted`.
+ * Applies {@link UpdateLeaveDockEventPatch} to matching depart-next ML rows.
  *
  * @param ctx - Convex mutation context
- * @param intent - Derived leave-dock actualization intent
+ * @param patch - Observed leave-dock boundary and departure instant
  * @returns Whether any prediction rows were patched
  */
-export const actualizeDepartNextPredictions = async (
+export const patchDepartNextMlRows = async (
   ctx: MutationCtx,
-  intent: DepartNextActualizationIntent
-): Promise<DepartNextActualizationPersistResult> => {
-  const anyUpdated = await actualizeDepartNextMlPredictions(
+  patch: UpdateLeaveDockEventPatch
+): Promise<PatchDepartNextMlRowsResult> => {
+  const anyUpdated = await patchDepartNextMlRowsForDepBoundary(
     ctx,
-    intent.depBoundaryKey,
-    intent.actualDepartMs
+    patch.depBoundaryKey,
+    patch.actualDepartMs
   );
   if (!anyUpdated) {
     return {

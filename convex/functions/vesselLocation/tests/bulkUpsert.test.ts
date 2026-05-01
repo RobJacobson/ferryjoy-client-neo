@@ -26,6 +26,7 @@ describe("performBulkUpsertVesselLocations", () => {
     );
     expect(result.summary.inserted).toBe(1);
     expect(result.summary.unchanged).toBe(0);
+    expect(result.activeTripsForChanged).toEqual([]);
   });
 
   it("skips write when TimeStamp is unchanged", async () => {
@@ -51,6 +52,7 @@ describe("performBulkUpsertVesselLocations", () => {
     expect(insertMock).not.toHaveBeenCalled();
     expect(result.changedLocations).toHaveLength(0);
     expect(result.summary.unchanged).toBe(1);
+    expect(result.activeTripsForChanged).toEqual([]);
   });
 
   it("replaces when TimeStamp changes", async () => {
@@ -73,6 +75,7 @@ describe("performBulkUpsertVesselLocations", () => {
     expect(replaceMock).toHaveBeenCalledTimes(1);
     expect(result.changedLocations).toHaveLength(1);
     expect(result.summary.replaced).toBe(1);
+    expect(result.activeTripsForChanged).toEqual([]);
   });
 });
 
@@ -90,9 +93,21 @@ const createMutationCtx = (
 
   return {
     db: {
-      query: (_table: "vesselLocations") => ({
-        collect: async () => existingDocs,
-      }),
+      query: (table: "vesselLocations" | "activeVesselTrips") => {
+        if (table === "vesselLocations") {
+          return {
+            collect: async () => existingDocs,
+          };
+        }
+        return {
+          withIndex: (
+            _name: "by_vessel_abbrev",
+            _fn: (q: { eq: (a: string, b: string) => unknown }) => unknown
+          ) => ({
+            first: async () => null,
+          }),
+        };
+      },
       replace: replaceMock,
       insert: insertMock,
     },

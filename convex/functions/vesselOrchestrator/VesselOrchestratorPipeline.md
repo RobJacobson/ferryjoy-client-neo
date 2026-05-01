@@ -5,32 +5,35 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Entry point
 
-- Action: `updateVesselOrchestrator` in `actions.ts`
+- Action: `updateVesselOrchestrator` in `actions/updateVesselOrchestrator.ts`
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
-  - one `bulkUpsertVesselLocations` for locations
+  - one `bulkUpsertVesselLocations` for locations **and** subset `activeVesselTrips` reads (same transaction)
   - one atomic `persistVesselUpdates` write per changed vessel whose trip stage returns updates
 
 ## Single-ping stages
 
-1. **Load baseline read model**
-  - Function: `loadOrchestratorSnapshot` (`pipeline/loadSnapshot`)
-   - Reads: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips`
-   - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
-   - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
+1. **Load identity read model**
+  - Function: `loadOrchestratorSnapshot` (`actions/ping/loadSnapshot`)
+  - Query: `getOrchestratorIdentities` (`queries/orchestratorSnapshotQueries.ts`)
+  - Reads: `vesselsIdentity`, `terminalsIdentity`
+  - Output: `{ vesselsIdentity, terminalsIdentity }`
+  - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
-2. **Fetch, normalize, augment, and persist live locations**
-  - Function: `runUpdateVesselLocations` (`pipeline/updateVesselLocations`)
-   - External input: WSF vessel locations
-   - Output: changed `ConvexVesselLocation[]` rows after dedupe
-   - Phase contract: this stage derives `AtDockObserved`; downstream trip
+2. **Fetch, normalize, augment, persist locations, and load active trips for changed vessels**
+  - Function: `runUpdateVesselLocations` (`actions/ping/updateVesselLocations`)
+  - Mutation: `bulkUpsertVesselLocations` (`functions/vesselLocation/mutations.ts`)
+  - External input: WSF vessel locations
+  - Output: **`{ changedLocations, activeTripsForChanged }`** from the mutation; orchestrator builds **`activeTripsByVesselAbbrev`** for the per-vessel loop
+  - Phase contract: this stage derives `AtDockObserved`; downstream trip
      `AtDock` is persisted from that observed phase
-   - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
-   - Failure policy: per-vessel upsert failures are logged and do not abort
+  - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`); when there are changed rows, **`loadActiveTripsForChanged`** runs in the **same mutation** after writes (`activeVesselTrips` by `by_vessel_abbrev`, `.first()` per distinct changed abbrev)
+  - Semantics: `existingActiveTrip` for Stage 4 reflects DB state **after** this ping’s location writes for those vessels
+  - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 
 3. **Build schedule continuity access**
-  - Function: `createUpdateVesselTripDbAccess` (`pipeline/updateVesselTrip`)
+  - Function: `createUpdateVesselTripDbAccess` (`actions/ping/updateVesselTrip`)
   - Behavior: key-backed segment lookup first; current/next-day rollover rows
     only when key continuity is unavailable or stale
   - Output: `UpdateVesselTripDbAccess`
@@ -39,19 +42,19 @@ hot path in `convex/functions/vesselOrchestrator`.
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
-     2. Domain **`updateVesselActualizations`** derives optional depart-next actualization intent from leave-dock transitions
-     3. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestsForTripUpdate`**)
+     2. Domain **`updateLeaveDockEventPatch`** (`domain/vesselOrchestration/updateLeaveDockEventPatch`) produces an optional **`updateLeaveDockEventPatch`** payload on observed leave-dock transitions
+     3. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestForTripUpdate`**)
      4. Domain **`updateVesselPredictions`** takes `{ tripUpdate, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
      5. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
-    6. **`persistVesselUpdates`** applies trip, prediction, timeline, and optional depart-next actualization writes in one mutation transaction
+     6. **`persistVesselUpdates`** applies trip, prediction, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants
 
 - One WSF fetch per ping.
-- One baseline orchestrator read-model query per ping.
-- One locations mutation per ping plus one atomic per-vessel persistence
-  mutation whose trip stage returns a non-null `VesselTripUpdate`.
+- One identity read-model query per ping (`getOrchestratorIdentities`).
+- One locations mutation per ping (`bulkUpsertVesselLocations`) that includes active-trip reads for changed abbrevs when `changedLocations` is non-empty; **no** separate `getActiveTripsForVesselAbbrevs` query.
+- One atomic per-vessel persistence mutation whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and new-trip-gated: primary
   `NextScheduleKey` lookup first, rollover fallback only when needed.

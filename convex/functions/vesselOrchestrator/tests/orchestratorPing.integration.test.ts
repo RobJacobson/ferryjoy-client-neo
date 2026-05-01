@@ -54,7 +54,6 @@ const orchestratorSnapshot = {
       Longitude: -122.92935,
     },
   ],
-  activeTrips: [],
 };
 
 const makeTrip = (
@@ -160,16 +159,25 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
 
     const mutationCalls: unknown[] = [];
+    let runQueryCalls = 0;
     const ctx = {
-      runQuery: async () => ({
-        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
-        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-        activeTrips: [],
-      }),
+      runQuery: async () => {
+        runQueryCalls += 1;
+        if (runQueryCalls === 1) {
+          return {
+            vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
-          ? [makeNormalizedCheLocation()]
+          ? {
+              changedLocations: [makeNormalizedCheLocation()],
+              activeTripsForChanged: [],
+            }
           : null;
       },
     } as unknown as ActionCtx;
@@ -178,6 +186,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
+    // Identities, then prediction preload query (active trips come from bulk upsert mutation).
+    expect(runQueryCalls).toBe(2);
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
     expect(timelineSpy).toHaveBeenCalledTimes(1);
@@ -190,7 +200,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(vesselUpdateArgs.activeVesselTrip.AtDockDepartNext).toBeUndefined();
   });
 
-  it("runs explicit trip actualization stage after persist writes", async () => {
+  it("passes updateLeaveDockEventPatch to persist after leave-dock transition", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
@@ -221,16 +231,25 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
 
     const mutationCalls: unknown[] = [];
+    let runQueryCalls = 0;
     const ctx = {
-      runQuery: async () => ({
-        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
-        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-        activeTrips: [existingActiveTrip],
-      }),
+      runQuery: async () => {
+        runQueryCalls += 1;
+        if (runQueryCalls === 1) {
+          return {
+            vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
-          ? [makeNormalizedCheLocation()]
+          ? {
+              changedLocations: [makeNormalizedCheLocation()],
+              activeTripsForChanged: [existingActiveTrip],
+            }
           : null;
       },
     } as unknown as ActionCtx;
@@ -239,17 +258,18 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
+    expect(runQueryCalls).toBe(2);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
-      departNextActualization: {
+      updateLeaveDockEventPatch: {
         vesselAbbrev: string;
         depBoundaryKey: string;
         actualDepartMs: number;
       };
     };
     expect(vesselUpdateArgs.activeVesselTrip.VesselAbbrev).toBe("CHE");
-    expect(vesselUpdateArgs.departNextActualization).toEqual({
+    expect(vesselUpdateArgs.updateLeaveDockEventPatch).toEqual({
       vesselAbbrev: "CHE",
       depBoundaryKey: "CHE--2026-03-13--05:30--ANA-ORI--dep-dock",
       actualDepartMs: ms("2026-03-13T06:40:00.000-07:00"),
@@ -273,11 +293,10 @@ describe("updateVesselOrchestrator ping integration", () => {
       runQuery: async () => ({
         vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
         terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-        activeTrips: [],
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return [];
+        return { changedLocations: [], activeTripsForChanged: [] };
       },
     } as unknown as ActionCtx;
 
@@ -332,12 +351,28 @@ describe("updateVesselOrchestrator ping integration", () => {
     );
 
     const mutationCalls: unknown[] = [];
+    let runQueryCalls = 0;
     const ctx = {
-      runQuery: async () => orchestratorSnapshot,
+      runQuery: async () => {
+        runQueryCalls += 1;
+        if (runQueryCalls === 1) {
+          return {
+            vesselsIdentity: orchestratorSnapshot.vesselsIdentity,
+            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         if (mutationCalls.length === 1) {
-          return [makeNormalizedCheLocation(), makeNormalizedTacLocation()];
+          return {
+            changedLocations: [
+              makeNormalizedCheLocation(),
+              makeNormalizedTacLocation(),
+            ],
+            activeTripsForChanged: [],
+          };
         }
         return null;
       },
@@ -347,6 +382,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
+    expect(runQueryCalls).toBe(2);
     expect(mutationCalls.length).toBe(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
