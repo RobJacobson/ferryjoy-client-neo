@@ -17,9 +17,9 @@ crons.interval(
   internal.functions.vesselPings.actions.fetchAndStoreVesselPings
 );
 
-crons.interval(
+crons.cron(
   "capture vessel location history",
-  { minutes: 1 }, // every minute
+  "* * * * *", // every minute UTC
   internal.functions.vesselLocationsHistoric.actions
     .captureHistoricVesselLocations
 );
@@ -49,9 +49,9 @@ crons.cron(
 // Conservative same-day refresh for operational schedule changes such as
 // cancellations or vessel reassignments that can stale the seeded day
 // skeleton after the overnight sync.
-crons.interval(
+crons.cron(
   "refresh current sailing day scheduled trips",
-  { minutes: 15 },
+  "0 * * * *", // every hour at minute 0 UTC
   internal.functions.scheduledTrips.actions.syncScheduledTripsWindowed,
   { daysToSync: scheduledTripsConfig.intervalRefreshSyncDays }
 );
