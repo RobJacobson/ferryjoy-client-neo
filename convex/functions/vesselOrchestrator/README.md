@@ -125,7 +125,7 @@ This table can therefore contain both:
 Purpose:
 
 - maintain `activeVesselTrips` and `completedVesselTrips` for lifecycle state
-- orchestrator persistence consumes sparse **`VesselTripUpdate`** rows (**`existingActiveTrip`**, **`activeVesselTripUpdate`**, **`completedVesselTripUpdate`**); downstream domain stages derive prediction inputs and timeline handoffs from that shape
+- orchestrator persistence consumes sparse **`VesselTripUpdate`** rows (**`existingVesselTrip`**, **`activeVesselTrip`**, **`completedVesselTrip`**); downstream domain stages derive prediction inputs and timeline handoffs from that shape
 
 Trip lifecycle stays prediction-free at compute time. **`updateVesselTrip`** emits only substantive row changes. Predictions and timeline consume **`VesselTripUpdate`** in domain code (**`buildPredictionStagePlan`**, **`timelineHandoffFromTripUpdate`**); pipeline-stage persistence then applies durable writes in explicit per-unit order.
 

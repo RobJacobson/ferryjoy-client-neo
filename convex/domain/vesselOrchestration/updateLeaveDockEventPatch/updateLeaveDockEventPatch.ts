@@ -40,7 +40,7 @@ export type UpdateLeaveDockEventPatch = {
 export const updateLeaveDockEventPatch = (
   tripUpdate: VesselTripUpdate
 ): UpdateLeaveDockEventPatch | null => {
-  const activeTrip = tripUpdate.activeVesselTripUpdate;
+  const activeTrip = tripUpdate.activeVesselTrip;
   const leftDockActual = activeTrip.LeftDockActual;
   // Require departure instant and schedule key to target dep-dock ML rows.
   if (leftDockActual === undefined || !activeTrip.ScheduleKey) {
@@ -49,7 +49,7 @@ export const updateLeaveDockEventPatch = (
 
   // Restrict to leave-dock edge pings so routine at-sea ticks do not re-patch.
   const { didJustLeaveDock } = currentTripDockEvents(
-    tripUpdate.existingActiveTrip,
+    tripUpdate.existingVesselTrip,
     activeTrip
   );
   if (!didJustLeaveDock) {

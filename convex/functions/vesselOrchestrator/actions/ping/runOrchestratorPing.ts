@@ -153,17 +153,17 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        */
       await runPersistVesselUpdatesWithTripDeltas(
         ctx,
-        tripUpdate.existingActiveTrip,
+        tripUpdate.existingVesselTrip,
         {
           vesselAbbrev: tripUpdate.vesselAbbrev,
           activeVesselTrip: stripVesselTripPredictions(
-            tripUpdate.activeVesselTripUpdate
+            tripUpdate.activeVesselTrip
           ),
           completedVesselTrip:
-            tripUpdate.completedVesselTripUpdate === undefined
+            tripUpdate.completedVesselTrip === undefined
               ? undefined
               : stripVesselTripPredictions(
-                  tripUpdate.completedVesselTripUpdate
+                  tripUpdate.completedVesselTrip
                 ),
           predictionRows: Array.from(predictionRows),
           actualEvents: Array.from(timelineRows.actualEvents),

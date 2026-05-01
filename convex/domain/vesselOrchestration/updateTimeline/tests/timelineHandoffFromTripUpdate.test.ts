@@ -53,14 +53,14 @@ describe("timelineHandoffFromTripUpdate", () => {
     });
     const result = timelineHandoffFromTripUpdate({
       vesselAbbrev: "CHE",
-      existingActiveTrip: existing,
-      activeVesselTripUpdate: replacement,
-      completedVesselTripUpdate: completed,
+      existingVesselTrip: existing,
+      activeVesselTrip: replacement,
+      completedVesselTrip: completed,
     });
     expect(result.completedTripFacts).toHaveLength(1);
-    expect(result.completedTripFacts[0]?.tripToComplete).toEqual(completed);
-    expect(result.completedTripFacts[0]?.scheduleTrip).toEqual(replacement);
-    expect(result.completedTripFacts[0]?.tripToComplete.TripEnd).toBe(
+    expect(result.completedTripFacts[0]?.completedVesselTrip).toEqual(completed);
+    expect(result.completedTripFacts[0]?.activeVesselTrip).toEqual(replacement);
+    expect(result.completedTripFacts[0]?.completedVesselTrip.TripEnd).toBe(
       ms("2026-03-13T06:45:00-07:00")
     );
     expect(result.currentBranch.pendingActualWrite).toBeUndefined();
@@ -78,9 +78,9 @@ describe("timelineHandoffFromTripUpdate", () => {
     });
     const result = timelineHandoffFromTripUpdate({
       vesselAbbrev: "TAC",
-      existingActiveTrip: existing,
-      activeVesselTripUpdate: active,
-      completedVesselTripUpdate: undefined,
+      existingVesselTrip: existing,
+      activeVesselTrip: active,
+      completedVesselTrip: undefined,
     });
     expect(result.completedTripFacts).toEqual([]);
     expect(result.currentBranch.pendingActualWrite?.didJustLeaveDock).toBe(
@@ -115,9 +115,9 @@ describe("timelineHandoffFromTripUpdate", () => {
 
     const result = timelineHandoffFromTripUpdate({
       vesselAbbrev: "CHE",
-      existingActiveTrip: existing,
-      activeVesselTripUpdate: replacement,
-      completedVesselTripUpdate: completed,
+      existingVesselTrip: existing,
+      activeVesselTrip: replacement,
+      completedVesselTrip: completed,
     });
 
     expect(result.completedTripFacts).toHaveLength(1);

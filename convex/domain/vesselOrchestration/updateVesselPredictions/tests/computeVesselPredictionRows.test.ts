@@ -76,9 +76,9 @@ describe("updateVesselPredictions", () => {
     const output = await updateVesselPredictions({
       predictionStagePlan: buildPredictionStagePlan({
         vesselAbbrev: trip.VesselAbbrev,
-        existingActiveTrip: undefined,
-        activeVesselTripUpdate: trip,
-        completedVesselTripUpdate: undefined,
+        existingVesselTrip: undefined,
+        activeVesselTrip: trip,
+        completedVesselTrip: undefined,
       }),
       predictionContext: richContext,
     });
@@ -107,9 +107,9 @@ describe("updateVesselPredictions", () => {
     const output = await updateVesselPredictions({
       predictionStagePlan: buildPredictionStagePlan({
         vesselAbbrev: trip.VesselAbbrev,
-        existingActiveTrip: trip,
-        activeVesselTripUpdate: replacementTrip,
-        completedVesselTripUpdate: completedTrip,
+        existingVesselTrip: trip,
+        activeVesselTrip: replacementTrip,
+        completedVesselTrip: completedTrip,
       }),
       predictionContext: richContext,
     });
@@ -138,9 +138,9 @@ describe("updateVesselPredictions", () => {
     const output = await updateVesselPredictions({
       predictionStagePlan: buildPredictionStagePlan({
         vesselAbbrev: trip.VesselAbbrev,
-        existingActiveTrip: undefined,
-        activeVesselTripUpdate: trip,
-        completedVesselTripUpdate: undefined,
+        existingVesselTrip: undefined,
+        activeVesselTrip: trip,
+        completedVesselTrip: undefined,
       }),
       predictionContext: {},
     });

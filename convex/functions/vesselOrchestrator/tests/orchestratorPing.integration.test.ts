@@ -140,8 +140,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       "updateVesselTrip"
     ).mockResolvedValue({
       vesselAbbrev: "CHE",
-      existingActiveTrip: undefined,
-      activeVesselTripUpdate: activeTripWithMl,
+      existingVesselTrip: undefined,
+      activeVesselTrip: activeTripWithMl,
     });
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
@@ -212,8 +212,8 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
     spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue({
       vesselAbbrev: "CHE",
-      existingActiveTrip,
-      activeVesselTripUpdate: makeTrip("CHE", {
+      existingVesselTrip: existingActiveTrip,
+      activeVesselTrip: makeTrip("CHE", {
         AtDock: false,
         LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
       }),
@@ -329,8 +329,8 @@ describe("updateVesselOrchestrator ping integration", () => {
         }
         return {
           vesselAbbrev: "TAC",
-          existingActiveTrip: undefined,
-          activeVesselTripUpdate: makeTrip("TAC"),
+          existingVesselTrip: undefined,
+          activeVesselTrip: makeTrip("TAC"),
         };
       }
     );

@@ -10,12 +10,15 @@ import type {
 
 /**
  * One completed arrival at dock: rows ready for timeline and prediction overlay.
+ *
+ * Field names align with `VesselTripUpdate`: prior active row, completed
+ * closeout row, replacement active row; optional same shape with ML merged for projection.
  */
 export type CompletedArrivalHandoff = {
-  existingTrip: ConvexVesselTrip;
-  tripToComplete: ConvexVesselTrip;
-  scheduleTrip: ConvexVesselTrip;
-  newTrip?: ConvexVesselTripWithML;
+  existingVesselTrip: ConvexVesselTrip;
+  completedVesselTrip: ConvexVesselTrip;
+  activeVesselTrip: ConvexVesselTrip;
+  activeVesselTripWithMl?: ConvexVesselTripWithML;
 };
 
 type DockWriteIntentBase = {

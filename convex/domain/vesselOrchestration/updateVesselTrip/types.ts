@@ -12,16 +12,16 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 /**
  * Canonical Stage 2 per-vessel write intents for the orchestrator pipeline.
  *
- * `activeVesselTripUpdate` is always the next **active** row to persist. When a
- * leg completes, that value is the replacement trip; `completedVesselTripUpdate`
- * is set for the row being archived. When a field is undefined, no write of
- * that kind is emitted.
+ * `activeVesselTrip` is always the next **active** row to persist. When a leg
+ * completes, that value is the replacement trip; `completedVesselTrip` is set
+ * for the row being archived. When a field is undefined, no write of that kind
+ * is emitted.
  */
 export type VesselTripUpdate = {
   vesselAbbrev: ConvexVesselLocation["VesselAbbrev"];
-  existingActiveTrip?: ConvexVesselTrip;
-  activeVesselTripUpdate: ConvexVesselTrip;
-  completedVesselTripUpdate?: ConvexVesselTrip;
+  existingVesselTrip?: ConvexVesselTrip;
+  activeVesselTrip: ConvexVesselTrip;
+  completedVesselTrip?: ConvexVesselTrip;
 };
 
 export type GetScheduleRolloverDockEventsArgs = {

@@ -24,12 +24,12 @@ const buildCompletedOverlay = (
   handoff: CompletedArrivalHandoff,
   finalPredictedTrip: ConvexVesselTripWithML
 ): MlTimelineOverlay => ({
-  vesselAbbrev: handoff.tripToComplete.VesselAbbrev,
+  vesselAbbrev: handoff.completedVesselTrip.VesselAbbrev,
   branch: "completed",
   completedHandoffKey: buildCompletedHandoffKey(
-    handoff.tripToComplete.VesselAbbrev,
-    handoff.tripToComplete,
-    handoff.scheduleTrip
+    handoff.completedVesselTrip.VesselAbbrev,
+    handoff.completedVesselTrip,
+    handoff.activeVesselTrip
   ),
   finalPredictedTrip,
 });

@@ -28,7 +28,7 @@ hot path in `convex/functions/vesselOrchestrator`.
   - Phase contract: this stage derives `AtDockObserved`; downstream trip
      `AtDock` is persisted from that observed phase
   - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`); when there are changed rows, **`loadActiveTripsForChanged`** runs in the **same mutation** after writes (`activeVesselTrips` by `by_vessel_abbrev`, `.first()` per distinct changed abbrev)
-  - Semantics: `existingActiveTrip` for Stage 4 reflects DB state **after** this ping’s location writes for those vessels
+  - Semantics: `existingVesselTrip` for Stage 4 reflects DB state **after** this ping’s location writes for those vessels
   - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 

@@ -67,9 +67,9 @@ const updateVesselTrip = async (
     // Return the completed vessel trip update (if any) and the active vessel trip update (if any).
     return {
       vesselAbbrev: vesselLocation.VesselAbbrev,
-      existingActiveTrip,
-      activeVesselTripUpdate: activeVesselTrip,
-      completedVesselTripUpdate: completedVesselTrip,
+      existingVesselTrip: existingActiveTrip,
+      activeVesselTrip,
+      completedVesselTrip,
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

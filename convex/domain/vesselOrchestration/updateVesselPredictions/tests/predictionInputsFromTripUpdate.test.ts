@@ -42,9 +42,9 @@ describe("predictionInputsFromTripUpdate", () => {
     const activeTrip = makeTrip("CHE");
     const result = predictionInputsFromTripUpdate({
       vesselAbbrev: "CHE",
-      existingActiveTrip: undefined,
-      activeVesselTripUpdate: activeTrip,
-      completedVesselTripUpdate: undefined,
+      existingVesselTrip: undefined,
+      activeVesselTrip: activeTrip,
+      completedVesselTrip: undefined,
     });
     expect(result.activeTrip).toEqual(activeTrip);
     expect(result.completedHandoff).toBeUndefined();
@@ -63,14 +63,14 @@ describe("predictionInputsFromTripUpdate", () => {
     });
     const result = predictionInputsFromTripUpdate({
       vesselAbbrev: "CHE",
-      existingActiveTrip: existingTrip,
-      activeVesselTripUpdate: replacementTrip,
-      completedVesselTripUpdate: completedTrip,
+      existingVesselTrip: existingTrip,
+      activeVesselTrip: replacementTrip,
+      completedVesselTrip: completedTrip,
     });
     expect(result.activeTrip).toEqual(replacementTrip);
-    expect(result.completedHandoff?.existingTrip).toEqual(existingTrip);
-    expect(result.completedHandoff?.tripToComplete).toEqual(completedTrip);
-    expect(result.completedHandoff?.tripToComplete.TripEnd).toBe(
+    expect(result.completedHandoff?.existingVesselTrip).toEqual(existingTrip);
+    expect(result.completedHandoff?.completedVesselTrip).toEqual(completedTrip);
+    expect(result.completedHandoff?.completedVesselTrip.TripEnd).toBe(
       ms("2026-03-13T06:45:00-07:00")
     );
   });

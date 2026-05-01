@@ -28,7 +28,7 @@ folder (primarily [`handoffTypes.ts`](./handoffTypes.ts)); this table is the
 
 | Type | Produced when | Consumed by | Notes |
 | --- | --- | --- | --- |
-| `CompletedArrivalHandoff` | Derived inside **`buildPredictionStagePlan`** / completion facts when **`VesselTripUpdate`** has **`existingActiveTrip`** + **`completedVesselTripUpdate`** | Prediction (`updateVesselPredictions`), then timeline assembly | `scheduleTrip` is pre-ML; the same ML-enriched replacement trip is used for completed/current overlays before **`buildDockWritesFromTripHandoff`** completes facts. |
+| `CompletedArrivalHandoff` | Derived inside **`buildPredictionStagePlan`** / completion facts when **`VesselTripUpdate`** has **`existingVesselTrip`** + **`completedVesselTrip`** | Prediction (`updateVesselPredictions`), then timeline assembly | **`activeVesselTrip`** is pre-ML; the same ML-enriched replacement is attached as **`activeVesselTripWithMl`** for completed/current overlays before **`buildDockWritesFromTripHandoff`** completes facts. |
 | `ActualDockWriteIntent` | **`timelineHandoffFromTripUpdate`** when active-trip lifecycle events imply an actual dock write | Timeline current branch (`pendingActualWrite`) | Gated by **`successfulVesselAbbrev`** in assembler. |
 | `PredictedDockWriteIntent` | **`timelineHandoffFromTripUpdate`** when an active trip update exists | Timeline current branch (`pendingPredictedWrite`) | Carries `existingTrip` + `scheduleTrip` for projection. |
 | `ActiveTripWriteOutcome` | **`timelineHandoffFromTripUpdate`** (`currentBranch`) | **`updateTimeline`** internal handoff | Reflects sparse write intents for the ping; derived from **`VesselTripUpdate`**, not a separate action “write plan” bundle. |

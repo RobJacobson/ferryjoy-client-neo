@@ -20,17 +20,17 @@ import type { PersistedTripTimelineHandoff } from "./handoffTypes";
 export const timelineHandoffFromTripUpdate = (
   tripUpdate: VesselTripUpdate
 ): PersistedTripTimelineHandoff => {
-  const existingActiveTrip = tripUpdate.existingActiveTrip;
-  const activeTrip = tripUpdate.activeVesselTripUpdate;
-  const completedTrip = tripUpdate.completedVesselTripUpdate;
+  const existingActiveTrip = tripUpdate.existingVesselTrip;
+  const activeTrip = tripUpdate.activeVesselTrip;
+  const completedTrip = tripUpdate.completedVesselTrip;
   const completedTripFacts =
     existingActiveTrip === undefined || completedTrip === undefined
       ? []
       : [
           {
-            existingTrip: existingActiveTrip,
-            tripToComplete: completedTrip,
-            scheduleTrip: activeTrip,
+            existingVesselTrip: existingActiveTrip,
+            completedVesselTrip: completedTrip,
+            activeVesselTrip: activeTrip,
           },
         ];
   const dockEvents = currentTripDockEvents(existingActiveTrip, activeTrip);

@@ -73,7 +73,7 @@ Owns authoritative lifecycle trip rows for one ping.
 Public surface:
 
 - `updateVesselTrip` → **`VesselTripUpdate | null`** (null when no substantive durable change)
-- `VesselTripUpdate` — sparse rows: **`existingActiveTrip`**, **`activeVesselTripUpdate`**, **`completedVesselTripUpdate`**
+- `VesselTripUpdate` — sparse rows: **`existingVesselTrip`**, **`activeVesselTrip`**, **`completedVesselTrip`**
 
 Internal one-vessel flow:
 

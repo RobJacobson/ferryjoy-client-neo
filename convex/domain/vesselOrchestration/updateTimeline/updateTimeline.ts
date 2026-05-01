@@ -35,7 +35,7 @@ const buildCurrentMlByVessel = (
  *
  * @param handoff - Trip persistence output before timeline dock writes
  * @param mlTimelineOverlays - ML overlay from predictions stage
- * @returns Handoff with `newTrip` / `finalProposed` fields populated
+ * @returns Handoff with `activeVesselTripWithMl` / `finalProposed` fields populated
  */
 const applyMlOverlays = (
   handoff: PersistedTripTimelineHandoff,
@@ -64,16 +64,16 @@ const applyMlOverlays = (
 
   return {
     completedTripFacts: handoff.completedTripFacts.map((fact) => {
-      const newTrip = completedMlByKey.get(
+      const activeVesselTripWithMl = completedMlByKey.get(
         buildCompletedHandoffKey(
-          fact.tripToComplete.VesselAbbrev,
-          fact.tripToComplete,
-          fact.scheduleTrip
+          fact.completedVesselTrip.VesselAbbrev,
+          fact.completedVesselTrip,
+          fact.activeVesselTrip
         )
       );
       return {
         ...fact,
-        newTrip,
+        activeVesselTripWithMl,
       };
     }),
     currentBranch: {
