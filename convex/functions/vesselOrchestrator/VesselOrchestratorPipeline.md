@@ -13,29 +13,40 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Single-ping stages
 
-1. **Load baseline read model**
+1. **Load identity read model**
   - Function: `loadOrchestratorSnapshot` (`pipeline/loadSnapshot`)
-   - Reads: `vesselsIdentity`, `terminalsIdentity`, `activeVesselTrips`
-   - Output: `{ vesselsIdentity, terminalsIdentity, activeTrips }`
-   - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
+  - Query: `getOrchestratorIdentities` (`queries.ts`)
+  - Reads: `vesselsIdentity`, `terminalsIdentity`
+  - Output: `{ vesselsIdentity, terminalsIdentity }`
+  - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
 2. **Fetch, normalize, augment, and persist live locations**
   - Function: `runUpdateVesselLocations` (`pipeline/updateVesselLocations`)
-   - External input: WSF vessel locations
-   - Output: changed `ConvexVesselLocation[]` rows after dedupe
-   - Phase contract: this stage derives `AtDockObserved`; downstream trip
+  - External input: WSF vessel locations
+  - Output: changed `ConvexVesselLocation[]` rows after dedupe
+  - Phase contract: this stage derives `AtDockObserved`; downstream trip
      `AtDock` is persisted from that observed phase
-   - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
-   - Failure policy: per-vessel upsert failures are logged and do not abort
+  - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
+  - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 
-3. **Build schedule continuity access**
+3. **Load active trips for changed vessels (post–location-write)**
+  - Query: `getActiveTripsForVesselAbbrevs` (`queries.ts`)
+  - Input: distinct `VesselAbbrev` values from Stage 2 changed rows (skip entire
+    stage when there are no changed rows)
+  - Reads: `activeVesselTrips` by `by_vessel_abbrev` (`.first()` per abbrev)
+  - Output: array of stored active trips found; orchestrator builds
+    `activeTripsByVesselAbbrev` for the per-vessel loop
+  - Semantics: `existingActiveTrip` for Stage 4 reflects DB state **after**
+    this ping’s location writes for those vessels
+
+4. **Build schedule continuity access**
   - Function: `createUpdateVesselTripDbAccess` (`pipeline/updateVesselTrip`)
   - Behavior: key-backed segment lookup first; current/next-day rollover rows
     only when key continuity is unavailable or stale
   - Output: `UpdateVesselTripDbAccess`
 
-4. **Sequential per-vessel sparse pipeline (changed rows only)**
+5. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
@@ -49,7 +60,9 @@ hot path in `convex/functions/vesselOrchestrator`.
 ## Invariants
 
 - One WSF fetch per ping.
-- One baseline orchestrator read-model query per ping.
+- One identity read-model query per ping (`getOrchestratorIdentities`).
+- When Stage 2 returns at least one changed location, one subset active-trip
+  query per ping (`getActiveTripsForVesselAbbrevs`); otherwise zero.
 - One locations mutation per ping plus one atomic per-vessel persistence
   mutation whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.

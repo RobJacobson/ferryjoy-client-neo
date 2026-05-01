@@ -54,7 +54,6 @@ const orchestratorSnapshot = {
       Longitude: -122.92935,
     },
   ],
-  activeTrips: [],
 };
 
 const makeTrip = (
@@ -160,12 +159,18 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
 
     const mutationCalls: unknown[] = [];
+    let runQueryCalls = 0;
     const ctx = {
-      runQuery: async () => ({
-        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
-        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-        activeTrips: [],
-      }),
+      runQuery: async () => {
+        runQueryCalls += 1;
+        if (runQueryCalls === 1) {
+          return {
+            vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
@@ -178,6 +183,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
+    // Identities, active trips for changed vessels, then prediction preload query.
+    expect(runQueryCalls).toBe(3);
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
     expect(timelineSpy).toHaveBeenCalledTimes(1);
@@ -221,12 +228,18 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
 
     const mutationCalls: unknown[] = [];
+    let runQueryCalls = 0;
     const ctx = {
-      runQuery: async () => ({
-        vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
-        terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-        activeTrips: [existingActiveTrip],
-      }),
+      runQuery: async () => {
+        runQueryCalls += 1;
+        if (runQueryCalls === 1) {
+          return {
+            vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
+            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+          };
+        }
+        return [existingActiveTrip];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
@@ -239,6 +252,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
+    expect(runQueryCalls).toBe(3);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
@@ -273,7 +287,6 @@ describe("updateVesselOrchestrator ping integration", () => {
       runQuery: async () => ({
         vesselsIdentity: orchestratorSnapshot.vesselsIdentity.slice(0, 1),
         terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
-        activeTrips: [],
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
@@ -332,8 +345,18 @@ describe("updateVesselOrchestrator ping integration", () => {
     );
 
     const mutationCalls: unknown[] = [];
+    let runQueryCalls = 0;
     const ctx = {
-      runQuery: async () => orchestratorSnapshot,
+      runQuery: async () => {
+        runQueryCalls += 1;
+        if (runQueryCalls === 1) {
+          return {
+            vesselsIdentity: orchestratorSnapshot.vesselsIdentity,
+            terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
+          };
+        }
+        return [];
+      },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         if (mutationCalls.length === 1) {
@@ -347,6 +370,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
+    expect(runQueryCalls).toBe(3);
     expect(mutationCalls.length).toBe(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };

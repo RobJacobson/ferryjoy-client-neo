@@ -12,7 +12,7 @@ On the shipped path these rows are written through explicit stage-level persiste
 
 ## Production call chain
 
-1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + persist), then process per-vessel changed rows.
+1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load identities (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + persist), load subset active trips (**`getActiveTripsForVesselAbbrevs`**) when there are changed rows, then process per-vessel changed rows.
 2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
 3. **`loadPredictionContext`** ([`pipeline/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.ts)) queries production model parameters when **`predictionModelLoadRequestForTripUpdate`** returns a request.
 4. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.

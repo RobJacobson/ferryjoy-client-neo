@@ -45,7 +45,6 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
             Longitude: -122.92935,
           },
         ],
-        activeTrips: [],
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
@@ -106,7 +105,6 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
             Longitude: -122.92935,
           },
         ],
-        activeTrips: [],
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);

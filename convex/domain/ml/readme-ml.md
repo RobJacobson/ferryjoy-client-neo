@@ -368,19 +368,25 @@ Predictions are computed in the vessel orchestrator action `updateVesselOrchestr
 
 - `PredictionSource`), not as the five optional prediction fields on `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped before write; public `vesselTrips` queries **enrich** stored rows with joins from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses `PredictionSource: "wsf_eta"` when projected.
 
-The orchestrator fetches vessel locations once, loads **`vesselsIdentity`**,
-**`terminalsIdentity`**, and **storage-native** `activeVesselTrips` in one
-internal query
-([`getOrchestratorModelData`](../../functions/vesselOrchestrator/queries.ts) —
-it does **not** load `vesselLocations`), then runs
-[`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts):
-normalize the feed, apply location dedupe/write via public
-[`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts), run
-trip compute for changed location rows in the action (with
-**`UpdateVesselTripDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts` for targeted
-`eventsScheduled` continuity), then **`loadPredictionContext`** (when domain preload
-requests apply) and domain **`updateVesselPredictions`** (`{ tripUpdate, predictionContext }`).
-Domain **`updateTimeline`** runs in action memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived inside **`timelineHandoffFromTripUpdate`**); then stage-level persistence helpers apply trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted` rows in explicit per-vessel order. Per-tick trip lifecycle logic lives in `convex/domain/vesselOrchestration/updateVesselTrip/` and is driven by the per-vessel loop in `functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts`.
+Within one ping, [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts)
+loads **`vesselsIdentity`** and **`terminalsIdentity`** via
+[`getOrchestratorIdentities`](../../functions/vesselOrchestrator/queries.ts)
+(that query does **not** load `vesselLocations` or `activeVesselTrips`), fetches
+WSF vessel locations once, normalizes the feed, applies location dedupe/write via
+internal [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts),
+then loads **subset** `activeVesselTrips` for changed vessels via
+[`getActiveTripsForVesselAbbrevs`](../../functions/vesselOrchestrator/queries.ts)
+(post–location-write). For each changed location row it runs trip compute in the
+action (with **`UpdateVesselTripDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts`
+for targeted `eventsScheduled` continuity), then **`loadPredictionContext`** (when
+domain preload requests apply) and domain **`updateVesselPredictions`**
+(`{ tripUpdate, predictionContext }`). Domain **`updateTimeline`** runs in action
+memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived
+inside **`timelineHandoffFromTripUpdate`**); then stage-level persistence helpers apply
+trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted` rows in
+explicit per-vessel order. Per-tick trip lifecycle logic lives in
+`convex/domain/vesselOrchestration/updateVesselTrip/` and is driven by the per-vessel
+loop in `functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 

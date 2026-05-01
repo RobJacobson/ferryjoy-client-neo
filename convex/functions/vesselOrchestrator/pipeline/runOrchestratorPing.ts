@@ -1,13 +1,15 @@
 /**
  * Vessel orchestrator pipeline for one ping.
  *
- * The hot path keeps one baseline snapshot query, one WSF fetch, a per-vessel
- * trip loop over the normalized feed for this tick, one locations-only
- * mutation, and one atomic persistence mutation per changed vessel.
+ * The hot path keeps one identities snapshot query, one WSF fetch, a per-vessel
+ * trip loop over changed locations only, one locations-only mutation, a subset
+ * active-trip query after locations, and one atomic persistence mutation per
+ * vessel that produces trip updates.
  *
  * The public Convex action entry is `updateVesselOrchestrator` in `../actions.ts`.
  */
 
+import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
@@ -26,9 +28,9 @@ import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
  * Executes one ping pipeline after the action shell handles top-level errors.
  *
  * This internal runner preserves the invariant that one WSF batch drives one
- * consistent orchestrator pass. It first builds a baseline snapshot from the
- * query module, then runs location normalization/dedupe, then executes sparse
- * per-vessel domain compute and persistence. Keeping this flow in one
+ * consistent orchestrator pass. It loads identities, runs location
+ * normalization/dedupe, loads active trips for changed vessels (post-write),
+ * then executes sparse per-vessel domain compute and persistence. Keeping this flow in one
  * function makes control-flow intent explicit while keeping domain details
  * encapsulated in `domain/vesselOrchestration/*` and the persistence
  * mutation boundary.
@@ -37,7 +39,7 @@ import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
  * @returns Resolves when this ping has processed all changed vessels
  */
 export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
-  // Load one baseline snapshot so all stages run against a consistent read model.
+  // Load identities for normalization (no active trips — those load after Stage 1).
   const snapshot = await loadOrchestratorSnapshot(ctx);
 
   // Stamp the ping once so downstream timeline rows share the same tick time.
@@ -57,14 +59,28 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
     vesselsIdentity: snapshot.vesselsIdentity,
   });
 
+  // `existingActiveTrip` is read after Stage 1 writes so it matches durable
+  // `vesselLocations` for these vessels for this tick (unlike a pre-write full-table snapshot).
+  const activeTripsByVesselAbbrev =
+    dedupedLocationUpdates.length === 0
+      ? new Map()
+      : new Map(
+          (
+            await ctx.runQuery(
+              internal.functions.vesselOrchestrator.queries
+                .getActiveTripsForVesselAbbrevs,
+              {
+                vesselAbbrevs: dedupedLocationUpdates.map(
+                  (loc) => loc.VesselAbbrev
+                ),
+              }
+            )
+          ).map((trip) => [trip.VesselAbbrev, trip] as const)
+        );
+
   // Trip enrichment reads are only used in Stage 2
   // (`updateVesselTrip`). Stages 3–5 do not use this adapter.
   const tripDbAccess = createUpdateVesselTripDbAccess(ctx);
-
-  // Index active trips once to avoid repeated linear scans inside the hot loop.
-  const activeTripsByVesselAbbrev = new Map(
-    snapshot.activeTrips.map((trip) => [trip.VesselAbbrev, trip] as const)
-  );
 
   // Keep per-vessel isolation so one bad branch does not abort the whole ping.
   for (const vesselLocation of dedupedLocationUpdates) {

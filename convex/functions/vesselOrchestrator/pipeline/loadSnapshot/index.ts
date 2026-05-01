@@ -1,4 +1,4 @@
 export {
-  loadOrchestratorSnapshot,
+  loadSnapshot as loadOrchestratorSnapshot,
   type OrchestratorSnapshot,
-} from "./load";
+} from "./loadSnapshot";

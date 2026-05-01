@@ -8,9 +8,10 @@ Each orchestrator ping runs in this order:
 
 ```text
 updateVesselOrchestrator (functions/vesselOrchestrator/actions.ts)
-  -> load identities + active trips (getOrchestratorModelData via loadOrchestratorSnapshot; fail fast if identity tables empty)
+  -> load identities only (getOrchestratorIdentities via loadOrchestratorSnapshot; fail fast if identity tables empty)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
   -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
+  -> getActiveTripsForVesselAbbrevs (subset active trips after location write; skip when no changed rows)
   -> createUpdateVesselTripDbAccess for the ping (targeted updateVesselTrip reads via ctx.runQuery)
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
@@ -130,7 +131,7 @@ is derived inside **`updateTimeline`** from the same shape
 - `functions/vesselOrchestrator/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/pipeline/*`
-  - baseline snapshot (**`loadOrchestratorSnapshot`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), locations stage (**`updateVesselLocations`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
+  - identity snapshot (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), locations stage (**`updateVesselLocations`**), subset active trips (**`getActiveTripsForVesselAbbrevs`** after location write), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
 - `functions/vesselOrchestrator/mutations.ts`
   - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`

@@ -6,25 +6,26 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 export type OrchestratorSnapshot = {
   vesselsIdentity: ReadonlyArray<VesselIdentity>;
   terminalsIdentity: ReadonlyArray<TerminalIdentity>;
-  activeTrips: ReadonlyArray<ConvexVesselTrip>;
 };
 
 /**
- * Loads identity and active-trip baseline rows needed for one ping.
+ * Loads vessel and terminal identity rows needed for one ping (Stage 1 normalization).
+ *
+ * Active trips for the trip loop are loaded separately after location writes;
+ * see {@link getActiveTripsForVesselAbbrevs} in `queries.ts`.
  *
  * @param ctx - Convex action context used for the internal read-model query
- * @returns Snapshot used by location and trip stages
+ * @returns Identity snapshot for location normalization
  */
-export const loadOrchestratorSnapshot = async (
+export const loadSnapshot = async (
   ctx: ActionCtx
 ): Promise<OrchestratorSnapshot> => {
   const snapshot = await ctx.runQuery(
-    internal.functions.vesselOrchestrator.queries.getOrchestratorModelData
+    internal.functions.vesselOrchestrator.queries.getOrchestratorIdentities
   );
   if (
     snapshot.vesselsIdentity.length === 0 ||
