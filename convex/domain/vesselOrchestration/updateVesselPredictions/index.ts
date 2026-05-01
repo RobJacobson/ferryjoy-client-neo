@@ -5,7 +5,7 @@
  * **Public surface**
  * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
  * - {@link predictionInputsFromTripUpdate} — derive prediction inputs from a `VesselTripUpdate`
- * - {@link predictionModelLoadRequestsForTripUpdate} — terminal-pair preload requests
+ * - {@link predictionModelLoadRequestForTripUpdate} — terminal-pair preload request
  * - {@link predictionModelTypesForTrip} — model types applicable to a trip's phase
  *
  * Other helpers (`applyVesselPredictions`, `appendPredictions`, policy gates, etc.)
@@ -20,7 +20,7 @@ export type {
 } from "./contracts";
 export {
   type PredictionModelLoadRequest,
-  predictionModelLoadRequestsForTripUpdate,
+  predictionModelLoadRequestForTripUpdate,
 } from "./predictionContextRequests";
 export {
   type PredictionInputsFromTripUpdate,

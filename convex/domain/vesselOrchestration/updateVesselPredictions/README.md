@@ -27,7 +27,7 @@ leave-dock actualization for one ping. On the **orchestrator** path **`updateVes
 
 ## Imports
 
-Public API: [`index.ts`](./index.ts) — **`updateVesselPredictions`**, **`predictionInputsFromTripUpdate`**, **`predictionModelLoadRequestsForTripUpdate`**, contract types, and **`predictionModelTypesForTrip`** (phase routing). Other modules in this folder are internal; colocated tests import them via relative paths. Timeline assembly lives under [`../updateTimeline`](../updateTimeline).
+Public API: [`index.ts`](./index.ts) — **`updateVesselPredictions`**, **`predictionInputsFromTripUpdate`**, **`predictionModelLoadRequestForTripUpdate`**, contract types, and **`predictionModelTypesForTrip`** (phase routing). Other modules in this folder are internal; colocated tests import them via relative paths. Timeline assembly lives under [`../updateTimeline`](../updateTimeline).
 
 Primary runner implementation now lives in
 [`updateVesselPredictions.ts`](./updateVesselPredictions.ts).

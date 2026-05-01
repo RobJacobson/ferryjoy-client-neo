@@ -14,7 +14,7 @@ On the shipped path these rows are written through explicit stage-level persiste
 
 1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load snapshot (**`loadOrchestratorSnapshot`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + persist), then process per-vessel changed rows.
 2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
-3. **`loadPredictionContext`** ([`pipeline/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.ts)) queries production model parameters when **`predictionModelLoadRequestsForTripUpdate`** returns requests.
+3. **`loadPredictionContext`** ([`pipeline/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.ts)) queries production model parameters when **`predictionModelLoadRequestForTripUpdate`** returns a request.
 4. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
 5. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`completedHandoffKey.ts`](./completedHandoffKey.ts)).
 6. Stage-level persistence runs in order: optional completed-trip insert, active-trip upsert, prediction upserts, timeline actual writes, then timeline predicted writes.

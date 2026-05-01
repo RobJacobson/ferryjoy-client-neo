@@ -157,12 +157,12 @@ const productionModelParametersSchema = v.object({
 });
 
 /**
- * Bulk preload for one orchestrator ping: loads only the requested production
- * model docs and returns them as a plain-data lookup by pair and model type.
+ * Preload for one orchestrator ping branch: loads production model docs for a
+ * single terminal pair and returns them as a plain-data lookup by pair and model type.
  */
 export const getProductionModelParametersForPing = internalQuery({
   args: {
-    requests: v.array(
+    request: v.optional(
       v.object({
         pairKey: v.string(),
         modelTypes: v.array(modelTypeValidator),
@@ -175,53 +175,43 @@ export const getProductionModelParametersForPing = internalQuery({
   ),
   handler: async (ctx, args) => {
     const prodVersionTag = await getProductionVersionTagValue(ctx);
-    if (!prodVersionTag || args.requests.length === 0) {
+    if (!prodVersionTag || args.request === undefined) {
       return {};
     }
 
-    const requestMap = new Map(
-      args.requests.map((request) => [
-        request.pairKey,
-        [...new Set(request.modelTypes)],
-      ])
-    );
+    const { pairKey, modelTypes: rawModelTypes } = args.request;
+    const modelTypes = [...new Set(rawModelTypes)];
 
-    const entries = await Promise.all(
-      [...requestMap.entries()].map(async ([pairKey, modelTypes]) => {
-        const models = await Promise.all(
-          modelTypes.map(async (modelType) => {
-            const doc = await ctx.db
-              .query("modelParameters")
-              .withIndex("by_pair_type_tag", (q) =>
-                q
-                  .eq("pairKey", pairKey)
-                  .eq("modelType", modelType)
-                  .eq("versionTag", prodVersionTag)
-              )
-              .first();
+    const models = await Promise.all(
+      modelTypes.map(async (modelType) => {
+        const doc = await ctx.db
+          .query("modelParameters")
+          .withIndex("by_pair_type_tag", (q) =>
+            q
+              .eq("pairKey", pairKey)
+              .eq("modelType", modelType)
+              .eq("versionTag", prodVersionTag)
+          )
+          .first();
 
-            return [
-              modelType,
-              doc === null
-                ? null
-                : {
-                    featureKeys: doc.featureKeys,
-                    coefficients: doc.coefficients,
-                    intercept: doc.intercept,
-                    testMetrics: {
-                      mae: doc.testMetrics.mae,
-                      stdDev: doc.testMetrics.stdDev,
-                    },
-                  },
-            ] as const;
-          })
-        );
-
-        return [pairKey, Object.fromEntries(models)] as const;
+        return [
+          modelType,
+          doc === null
+            ? null
+            : {
+                featureKeys: doc.featureKeys,
+                coefficients: doc.coefficients,
+                intercept: doc.intercept,
+                testMetrics: {
+                  mae: doc.testMetrics.mae,
+                  stdDev: doc.testMetrics.stdDev,
+                },
+              },
+        ] as const;
       })
     );
 
-    return Object.fromEntries(entries);
+    return { [pairKey]: Object.fromEntries(models) };
   },
 });
 

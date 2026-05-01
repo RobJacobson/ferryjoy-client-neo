@@ -42,8 +42,8 @@ describe("prediction stage off-ramp policy", () => {
   it("skips prediction model context query when there are no preload requests", async () => {
     const requestSpy = spyOn(
       vesselPredictions,
-      "predictionModelLoadRequestsForTripUpdate"
-    ).mockReturnValue([]);
+      "predictionModelLoadRequestForTripUpdate"
+    ).mockReturnValue(null);
     const runQuery = mock(async () => ({}));
     const ctx = { runQuery } as unknown as ActionCtx;
     const tripUpdate = {

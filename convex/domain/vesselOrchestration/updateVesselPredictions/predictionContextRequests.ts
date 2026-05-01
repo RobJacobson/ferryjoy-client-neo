@@ -1,5 +1,5 @@
 /**
- * Derive model-load requests for the predictions context preload.
+ * Derive the model-load request for the predictions context preload.
  *
  * Lives in the predictions domain so callers (action layer) only need to
  * forward the resulting requests to their Convex query — no derivation logic
@@ -18,36 +18,34 @@ export type PredictionModelLoadRequest = {
 };
 
 /**
- * Builds terminal-pair model-load requests for one ping branch.
+ * Builds the terminal-pair model-load request for one ping branch, if any.
  *
- * Empty when the trip update has no candidate trip or the candidate yields
+ * `null` when the trip update has no candidate trip or the candidate yields
  * no applicable model types for its phase.
  *
  * @param tripUpdate - Sparse trip update rows for this ping branch
- * @returns Requests keyed by terminal pair with the model types to preload
+ * @returns Single preload request for the derived pair, or `null` to skip
  */
-export const predictionModelLoadRequestsForTripUpdate = (
+export const predictionModelLoadRequestForTripUpdate = (
   tripUpdate: VesselTripUpdate
-): Array<PredictionModelLoadRequest> => {
+): PredictionModelLoadRequest | null => {
   const { activeTrip, completedHandoff } =
     predictionInputsFromTripUpdate(tripUpdate);
   const candidateTrip = completedHandoff?.scheduleTrip ?? activeTrip;
   if (candidateTrip === undefined) {
-    return [];
+    return null;
   }
   const modelTypes = predictionModelTypesForTrip(candidateTrip);
   if (modelTypes.length === 0) {
-    return [];
+    return null;
   }
   const departing = candidateTrip.DepartingTerminalAbbrev;
   const arriving = candidateTrip.ArrivingTerminalAbbrev;
   if (departing === undefined || arriving === undefined) {
-    return [];
+    return null;
   }
-  return [
-    {
-      pairKey: formatTerminalPairKey(departing, arriving),
-      modelTypes,
-    },
-  ];
+  return {
+    pairKey: formatTerminalPairKey(departing, arriving),
+    modelTypes,
+  };
 };

@@ -37,7 +37,7 @@ Naming matches [`architecture.md`](../../domain/vesselOrchestration/architecture
 
 - **Live `vesselLocations`** — standalone `bulkUpsertVesselLocations` mutation (`locations` arg: full normalized fleet; `collect()` + compare by `VesselAbbrev` / `TimeStamp`; per-vessel write failures logged without aborting remaining rows) returning only inserted/replaced rows to the action.
 - **updateVesselTrip** — the per-vessel loop calls `updateVesselTrip` (returns **`VesselTripUpdate | null`**); trip-table rows are persisted through the aggregate per-vessel mutation.
-- **loadPredictionContext** + **updateVesselPredictions** — **`loadPredictionContext`** issues the model-parameter query when **`predictionModelLoadRequestsForTripUpdate`** returns requests; **`updateVesselPredictions`** from **`domain/vesselOrchestration/updateVesselPredictions`** computes prediction proposals + ML overlays per changed vessel.
+- **loadPredictionContext** + **updateVesselPredictions** — **`loadPredictionContext`** issues the model-parameter query when **`predictionModelLoadRequestForTripUpdate`** returns a request; **`updateVesselPredictions`** from **`domain/vesselOrchestration/updateVesselPredictions`** computes prediction proposals + ML overlays per changed vessel.
 - **updateTimeline** — **`updateTimeline`** from **`domain/vesselOrchestration/updateTimeline`** runs in `pipeline/runOrchestratorPing.ts` with **`tripUpdate`** + same-ping **`mlTimelineOverlays`**; timeline rows are applied in the same per-vessel mutation as trip/prediction writes.
 
 ```text
@@ -292,7 +292,7 @@ The timeline overlay path is designed to stay lightweight:
 - `pipeline/loadSnapshot/index.ts` — **`loadOrchestratorSnapshot`** baseline read model for one ping.
 - `pipeline/updateVesselPredictions/index.ts` — **`loadPredictionContext`**: Convex query for **`getProductionModelParametersForPing`** when domain preload requests are non-empty.
 - `domain/vesselOrchestration/updateVesselTrip/` — **`updateVesselTrip`**, **`VesselTripUpdate`**.
-- `domain/vesselOrchestration/updateVesselPredictions/` — **`updateVesselPredictions`**, **`predictionInputsFromTripUpdate`**, **`predictionModelLoadRequestsForTripUpdate`**.
+- `domain/vesselOrchestration/updateVesselPredictions/` — **`updateVesselPredictions`**, **`predictionInputsFromTripUpdate`**, **`predictionModelLoadRequestForTripUpdate`**.
 - `domain/vesselOrchestration/updateTimeline/` — **`updateTimeline`**, **`timelineHandoffFromTripUpdate`**.
 - `queries.ts` — `getOrchestratorModelData` bundled DB read for one ping.
 - `mutations.ts` — aggregate per-vessel persistence boundary (`persistVesselUpdates`).

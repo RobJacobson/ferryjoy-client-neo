@@ -40,7 +40,7 @@ hot path in `convex/functions/vesselOrchestrator`.
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
      2. Domain **`updateLeaveDockEventPatch`** (`domain/vesselOrchestration/updateLeaveDockEventPatch`) produces an optional **`updateLeaveDockEventPatch`** payload on observed leave-dock transitions
-     3. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestsForTripUpdate`**)
+     3. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestForTripUpdate`**)
      4. Domain **`updateVesselPredictions`** takes `{ tripUpdate, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
      5. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
      6. **`persistVesselUpdates`** applies trip, prediction, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
