@@ -112,6 +112,7 @@ import type * as domain_vesselOrchestration_updateVesselPredictions_index from "
 import type * as domain_vesselOrchestration_updateVesselPredictions_predictionContextRequests from "../domain/vesselOrchestration/updateVesselPredictions/predictionContextRequests.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_predictionInputsFromTripUpdate from "../domain/vesselOrchestration/updateVesselPredictions/predictionInputsFromTripUpdate.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_predictionPolicy from "../domain/vesselOrchestration/updateVesselPredictions/predictionPolicy.js";
+import type * as domain_vesselOrchestration_updateVesselPredictions_predictionStagePlan from "../domain/vesselOrchestration/updateVesselPredictions/predictionStagePlan.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_updateVesselPredictions from "../domain/vesselOrchestration/updateVesselPredictions/updateVesselPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_index from "../domain/vesselOrchestration/updateVesselTrip/index.js";
@@ -369,6 +370,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselPredictions/predictionContextRequests": typeof domain_vesselOrchestration_updateVesselPredictions_predictionContextRequests;
   "domain/vesselOrchestration/updateVesselPredictions/predictionInputsFromTripUpdate": typeof domain_vesselOrchestration_updateVesselPredictions_predictionInputsFromTripUpdate;
   "domain/vesselOrchestration/updateVesselPredictions/predictionPolicy": typeof domain_vesselOrchestration_updateVesselPredictions_predictionPolicy;
+  "domain/vesselOrchestration/updateVesselPredictions/predictionStagePlan": typeof domain_vesselOrchestration_updateVesselPredictions_predictionStagePlan;
   "domain/vesselOrchestration/updateVesselPredictions/updateVesselPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_updateVesselPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip;
   "domain/vesselOrchestration/updateVesselTrip/index": typeof domain_vesselOrchestration_updateVesselTrip_index;

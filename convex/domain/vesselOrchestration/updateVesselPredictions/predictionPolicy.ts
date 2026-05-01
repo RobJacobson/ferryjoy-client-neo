@@ -5,6 +5,10 @@
  * that model family. There is no event/timer gate on the orchestrator path.
  */
 
+import {
+  PREDICTION_SPECS,
+  type PredictionSpec,
+} from "domain/ml/prediction/vesselTripPredictions";
 import type { ModelType } from "domain/ml/shared/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
@@ -19,20 +23,19 @@ export const isAtDockPhase = (trip: PredictionPhaseTrip): boolean =>
 export const isAtSeaPhase = (trip: PredictionPhaseTrip): boolean =>
   trip.AtDock === false;
 
-const AT_DOCK_MODEL_TYPES = [
-  "at-dock-depart-curr",
-  "at-dock-arrive-next",
-  "at-dock-depart-next",
-] as const satisfies readonly ModelType[];
-
-const AT_SEA_MODEL_TYPES = [
-  "at-sea-arrive-next",
-  "at-sea-depart-next",
-] as const satisfies readonly ModelType[];
+export const predictionSpecsForTrip = (
+  trip: PredictionPhaseTrip
+): PredictionSpec[] =>
+  Object.values(PREDICTION_SPECS).filter((spec) => {
+    if (isAtDockPhase(trip)) {
+      return spec.phase === "at-dock";
+    }
+    if (isAtSeaPhase(trip)) {
+      return spec.phase === "at-sea";
+    }
+    return false;
+  });
 
 export const predictionModelTypesForTrip = (
   trip: PredictionPhaseTrip
-): ModelType[] => [
-  ...(isAtDockPhase(trip) ? AT_DOCK_MODEL_TYPES : []),
-  ...(isAtSeaPhase(trip) ? AT_SEA_MODEL_TYPES : []),
-];
+): ModelType[] => predictionSpecsForTrip(trip).map((spec) => spec.modelType);

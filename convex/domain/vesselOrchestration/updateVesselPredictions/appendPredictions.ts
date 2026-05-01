@@ -68,8 +68,34 @@ const preloadModelsForSpecs = async (
   return (await loadModelsForPairBatch(modelAccess, pairKey, modelTypes)) ?? {};
 };
 
+const loadedModelsForSpecs = (
+  productionModelsByPair:
+    | Readonly<Record<string, Partial<Record<ModelType, ModelDoc | null>>>>
+    | undefined,
+  trip: ConvexVesselTripWithML,
+  specs: ReadonlyArray<PredictionSpec>
+): Partial<Record<ModelType, ModelDoc | null>> => {
+  if (
+    trip.ArrivingTerminalAbbrev === undefined ||
+    trip.DepartingTerminalAbbrev === undefined
+  ) {
+    return {};
+  }
+
+  const pairKey = formatTerminalPairKey(
+    trip.DepartingTerminalAbbrev,
+    trip.ArrivingTerminalAbbrev
+  );
+  return Object.fromEntries(
+    specs.map((spec) => [
+      spec.modelType,
+      productionModelsByPair?.[pairKey]?.[spec.modelType] ?? null,
+    ])
+  ) as Partial<Record<ModelType, ModelDoc | null>>;
+};
+
 const runPredictionsForSpecs = async (
-  modelAccess: VesselTripPredictionModelAccess,
+  modelAccess: VesselTripPredictionModelAccess | null,
   trip: ConvexVesselTripWithML,
   specs: ReadonlyArray<PredictionSpec>,
   preloadedModelsByType: Partial<Record<ModelType, ModelDoc | null>>
@@ -138,6 +164,40 @@ const computePredictions = async (
     );
     const results = await runPredictionsForSpecs(
       modelAccess,
+      trip,
+      specs,
+      preloadedModelsByType
+    );
+
+    return applySpecPredictionResults(trip, results);
+  } catch (error) {
+    console.error(
+      `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
+      error
+    );
+    return trip;
+  }
+};
+
+export const appendPredictionsFromLoadedModels = async (
+  productionModelsByPair:
+    | Readonly<Record<string, Partial<Record<ModelType, ModelDoc | null>>>>
+    | undefined,
+  trip: ConvexVesselTripWithML,
+  specs: ReadonlyArray<PredictionSpec>
+): Promise<ConvexVesselTripWithML> => {
+  try {
+    if (!hasRequiredInputsForSpecs(trip, specs)) {
+      return trip;
+    }
+
+    const preloadedModelsByType = loadedModelsForSpecs(
+      productionModelsByPair,
+      trip,
+      specs
+    );
+    const results = await runPredictionsForSpecs(
+      null,
       trip,
       specs,
       preloadedModelsByType

@@ -4,8 +4,8 @@
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
+import type { PredictionStagePlan } from "./predictionStagePlan";
 
 /**
  * Plain-data prediction preload blob expected by the Stage A public contract.
@@ -26,7 +26,7 @@ export type VesselPredictionContext = {
 export type VesselTripPredictionRow = VesselTripPredictionProposal;
 
 export type RunUpdateVesselPredictionsInput = {
-  tripUpdate: VesselTripUpdate;
+  predictionStagePlan: PredictionStagePlan;
   predictionContext: VesselPredictionContext;
 };
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  buildPredictionStagePlan,
+  updateVesselPredictions,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -71,12 +74,12 @@ describe("updateVesselPredictions", () => {
     const trip = makeTrip();
 
     const output = await updateVesselPredictions({
-      tripUpdate: {
+      predictionStagePlan: buildPredictionStagePlan({
         vesselAbbrev: trip.VesselAbbrev,
         existingActiveTrip: undefined,
         activeVesselTripUpdate: trip,
         completedVesselTripUpdate: undefined,
-      },
+      }),
       predictionContext: richContext,
     });
 
@@ -102,16 +105,17 @@ describe("updateVesselPredictions", () => {
     });
 
     const output = await updateVesselPredictions({
-      tripUpdate: {
+      predictionStagePlan: buildPredictionStagePlan({
         vesselAbbrev: trip.VesselAbbrev,
         existingActiveTrip: trip,
         activeVesselTripUpdate: replacementTrip,
         completedVesselTripUpdate: completedTrip,
-      },
+      }),
       predictionContext: richContext,
     });
 
     expect(output.mlTimelineOverlays).toHaveLength(2);
+    expect(output.predictionRows).toHaveLength(3);
     const completedOverlay = output.mlTimelineOverlays.find(
       (entry) => entry.branch === "completed"
     );
@@ -123,18 +127,21 @@ describe("updateVesselPredictions", () => {
     );
     expect(completedOverlay?.finalPredictedTrip).toBeDefined();
     expect(currentOverlay?.finalPredictedTrip).toBeDefined();
+    expect(completedOverlay?.finalPredictedTrip).toBe(
+      currentOverlay?.finalPredictedTrip
+    );
   });
 
   it("returns no prediction rows when the preload has no models", async () => {
     const trip = makeTrip();
 
     const output = await updateVesselPredictions({
-      tripUpdate: {
+      predictionStagePlan: buildPredictionStagePlan({
         vesselAbbrev: trip.VesselAbbrev,
         existingActiveTrip: undefined,
         activeVesselTripUpdate: trip,
         completedVesselTripUpdate: undefined,
-      },
+      }),
       predictionContext: {},
     });
 

@@ -4,6 +4,7 @@
  *
  * **Public surface**
  * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
+ * - {@link buildPredictionStagePlan} — one derivation for Stage 4 inputs
  * - {@link predictionInputsFromTripUpdate} — derive prediction inputs from a `VesselTripUpdate`
  * - {@link predictionModelLoadRequestForTripUpdate} — terminal-pair preload request
  * - {@link predictionModelTypesForTrip} — model types applicable to a trip's phase
@@ -26,7 +27,14 @@ export {
   type PredictionInputsFromTripUpdate,
   predictionInputsFromTripUpdate,
 } from "./predictionInputsFromTripUpdate";
-export { predictionModelTypesForTrip } from "./predictionPolicy";
+export {
+  predictionModelTypesForTrip,
+  predictionSpecsForTrip,
+} from "./predictionPolicy";
+export {
+  buildPredictionStagePlan,
+  type PredictionStagePlan,
+} from "./predictionStagePlan";
 export {
   type UpdateVesselPredictionsOutput,
   updateVesselPredictions,

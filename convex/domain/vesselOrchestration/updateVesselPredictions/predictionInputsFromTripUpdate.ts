@@ -8,6 +8,7 @@
 import type { CompletedArrivalHandoff } from "domain/vesselOrchestration/updateTimeline";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { buildPredictionStagePlan } from "./predictionStagePlan";
 
 export type PredictionInputsFromTripUpdate = {
   activeTrip: ConvexVesselTrip;
@@ -23,21 +24,9 @@ export type PredictionInputsFromTripUpdate = {
 export const predictionInputsFromTripUpdate = (
   tripUpdate: VesselTripUpdate
 ): PredictionInputsFromTripUpdate => {
-  const existingActiveTrip = tripUpdate.existingActiveTrip;
-  const activeTrip = tripUpdate.activeVesselTripUpdate;
-  const completedTrip = tripUpdate.completedVesselTripUpdate;
-  if (existingActiveTrip === undefined || completedTrip === undefined) {
-    return {
-      activeTrip,
-      completedHandoff: undefined,
-    };
-  }
+  const { activeTrip, completedHandoff } = buildPredictionStagePlan(tripUpdate);
   return {
     activeTrip,
-    completedHandoff: {
-      existingTrip: existingActiveTrip,
-      tripToComplete: completedTrip,
-      scheduleTrip: activeTrip,
-    },
+    completedHandoff,
   };
 };

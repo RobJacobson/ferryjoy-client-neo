@@ -9,7 +9,11 @@
  */
 
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
-import type { VesselTripPredictionModelAccess } from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type {
+  ProductionModelParameters,
+  VesselTripPredictionModelAccess,
+} from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type { ModelType } from "domain/ml/shared/types";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -17,8 +21,13 @@ import type {
 import {
   appendAtDockPredictions,
   appendAtSeaPredictions,
+  appendPredictionsFromLoadedModels,
 } from "./appendPredictions";
-import { isAtDockPhase, isAtSeaPhase } from "./predictionPolicy";
+import {
+  isAtDockPhase,
+  isAtSeaPhase,
+  predictionSpecsForTrip,
+} from "./predictionPolicy";
 
 /**
  * Trip state immediately before this ping’s `appendAtDockPredictions` /
@@ -50,4 +59,28 @@ export const applyVesselPredictions = async (
     : withAtDockPredictions;
 
   return actualizePredictionsOnLeaveDock(withAtSeaPredictions);
+};
+
+export const applyVesselPredictionsFromLoadedModels = async (
+  productionModelsByPair:
+    | Readonly<
+        Record<
+          string,
+          Partial<Record<ModelType, ProductionModelParameters | null>>
+        >
+      >
+    | undefined,
+  coreTrip: VesselTripCoreProposal
+): Promise<ConvexVesselTripWithML> => {
+  const specs = predictionSpecsForTrip(coreTrip);
+  const withPredictions =
+    specs.length === 0
+      ? coreTrip
+      : await appendPredictionsFromLoadedModels(
+          productionModelsByPair,
+          coreTrip,
+          specs
+        );
+
+  return actualizePredictionsOnLeaveDock(withPredictions);
 };

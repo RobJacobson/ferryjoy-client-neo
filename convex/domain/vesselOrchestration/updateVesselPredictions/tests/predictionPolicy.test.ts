@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { PREDICTION_SPECS } from "domain/ml/prediction/vesselTripPredictions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
@@ -45,11 +46,11 @@ describe("predictionPolicy", () => {
   it("routes at-dock predictions whenever the trip is physically docked", () => {
     const trip = makeTrip();
     expect(isAtDockPhase(trip)).toBe(true);
-    expect(predictionModelTypesForTrip(trip)).toEqual([
-      "at-dock-depart-curr",
-      "at-dock-arrive-next",
-      "at-dock-depart-next",
-    ]);
+    expect(predictionModelTypesForTrip(trip)).toEqual(
+      Object.values(PREDICTION_SPECS)
+        .filter((spec) => spec.phase === "at-dock")
+        .map((spec) => spec.modelType)
+    );
   });
 
   it("routes at-sea predictions whenever the trip is physically at sea", () => {
@@ -59,10 +60,11 @@ describe("predictionPolicy", () => {
       LeftDock: ms("2026-03-13T09:31:00-07:00"),
     });
     expect(isAtSeaPhase(trip)).toBe(true);
-    expect(predictionModelTypesForTrip(trip)).toEqual([
-      "at-sea-arrive-next",
-      "at-sea-depart-next",
-    ]);
+    expect(predictionModelTypesForTrip(trip)).toEqual(
+      Object.values(PREDICTION_SPECS)
+        .filter((spec) => spec.phase === "at-sea")
+        .map((spec) => spec.modelType)
+    );
   });
 
   it("returns no model types only when phase cannot be determined", () => {

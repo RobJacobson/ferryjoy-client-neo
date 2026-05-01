@@ -43,10 +43,11 @@ hot path in `convex/functions/vesselOrchestrator`.
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
      2. Domain **`updateLeaveDockEventPatch`** (`domain/vesselOrchestration/updateLeaveDockEventPatch`) produces an optional **`updateLeaveDockEventPatch`** payload on observed leave-dock transitions
-     3. **`loadPredictionContext`** runs a Convex query for production model parameters when terminal-pair preload requests apply (derived in domain via **`predictionModelLoadRequestForTripUpdate`**)
-     4. Domain **`updateVesselPredictions`** takes `{ tripUpdate, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
-     5. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
-     6. **`persistVesselUpdates`** applies trip, prediction, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
+     3. Domain **`buildPredictionStagePlan`** derives active/completed prediction inputs and the optional model preload request once from **`VesselTripUpdate`**
+     4. **`loadPredictionContext`** runs a Convex query for production model parameters when the stage plan has a model preload request
+     5. Domain **`updateVesselPredictions`** takes `{ predictionStagePlan, predictionContext }` and returns **`predictionRows`** + **`mlTimelineOverlays`**
+     6. Domain **`updateTimeline`** takes `{ pingStartedAt, tripUpdate, mlTimelineOverlays }`; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**) then projects **`actualEvents`** / **`predictedEvents`**
+     7. **`persistVesselUpdates`** applies trip, prediction, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants
@@ -58,7 +59,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and new-trip-gated: primary
   `NextScheduleKey` lookup first, rollover fallback only when needed.
-- Prediction model loading is gated per vessel by changed durable trip facts.
+- Prediction model loading is gated per vessel by a single Stage 4 plan derived
+  from changed durable trip facts.
 - Timeline projection runs in action memory using same-ping ML overlays, and
   `persistVesselUpdates` only applies supplied rows.
 - Location dedupe is mutation-side in `bulkUpsertVesselLocations`

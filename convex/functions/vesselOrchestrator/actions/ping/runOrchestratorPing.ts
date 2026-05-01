@@ -14,7 +14,10 @@
 import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
-import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import {
+  buildPredictionStagePlan,
+  updateVesselPredictions,
+} from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   stripVesselTripPredictions,
   updateVesselTrip,
@@ -56,11 +59,13 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
    * Why: all downstream trip/prediction/timeline work should run only for
    * vessels with new location evidence in this ping.
    */
-  const { changedLocations: dedupedLocationUpdates, activeTripsByVesselAbbrev } =
-    await runUpdateVesselLocations(ctx, {
-      terminalsIdentity: snapshot.terminalsIdentity,
-      vesselsIdentity: snapshot.vesselsIdentity,
-    });
+  const {
+    changedLocations: dedupedLocationUpdates,
+    activeTripsByVesselAbbrev,
+  } = await runUpdateVesselLocations(ctx, {
+    terminalsIdentity: snapshot.terminalsIdentity,
+    vesselsIdentity: snapshot.vesselsIdentity,
+  });
 
   // Trip enrichment reads are only used in Stage 2
   // (`updateVesselTrip`). Stages 3–5 do not use this adapter.
@@ -112,10 +117,14 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        * Why: keep prediction work targeted and ensure timeline projection uses
        * the exact ML output computed for this ping.
        */
-      const predictionContext = await loadPredictionContext(ctx, tripUpdate);
+      const predictionStagePlan = buildPredictionStagePlan(tripUpdate);
+      const predictionContext = await loadPredictionContext(
+        ctx,
+        predictionStagePlan.modelLoadRequest
+      );
       const { predictionRows, mlTimelineOverlays } =
         await updateVesselPredictions({
-          tripUpdate,
+          predictionStagePlan,
           predictionContext,
         });
 
