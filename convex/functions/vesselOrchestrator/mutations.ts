@@ -6,7 +6,7 @@ import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { eventsActualSchema } from "functions/events/eventsActual/schemas";
-import { actualizeDepartNextPredictions } from "functions/events/eventsPredicted/actualizations";
+import { patchDepartNextMlRows } from "functions/events/eventsPredicted/actualizations";
 import { upsertPredictedDockBatches } from "functions/events/eventsPredicted/mutations";
 import { predictedDockWriteBatchSchema } from "functions/events/eventsPredicted/schemas";
 import { upsertPredictionProposals } from "functions/vesselTripPredictions/mutations";
@@ -17,7 +17,7 @@ import {
 } from "functions/vesselTrips/mutations";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
-const departNextActualizationSchema = v.object({
+const updateLeaveDockEventPatchSchema = v.object({
   vesselAbbrev: v.string(),
   depBoundaryKey: v.string(),
   actualDepartMs: v.number(),
@@ -38,7 +38,7 @@ export const persistVesselUpdates = internalMutation({
     predictionRows: v.array(vesselTripPredictionProposalSchema),
     actualEvents: v.array(eventsActualSchema),
     predictedEvents: v.array(predictedDockWriteBatchSchema),
-    departNextActualization: v.optional(departNextActualizationSchema),
+    updateLeaveDockEventPatch: v.optional(updateLeaveDockEventPatchSchema),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -60,8 +60,8 @@ export const persistVesselUpdates = internalMutation({
       await upsertPredictedDockBatches(ctx, args.predictedEvents);
     }
 
-    if (args.departNextActualization !== undefined) {
-      await actualizeDepartNextPredictions(ctx, args.departNextActualization);
+    if (args.updateLeaveDockEventPatch !== undefined) {
+      await patchDepartNextMlRows(ctx, args.updateLeaveDockEventPatch);
     }
 
     return null;

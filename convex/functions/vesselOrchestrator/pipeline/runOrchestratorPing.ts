@@ -9,6 +9,7 @@
  */
 
 import type { ActionCtx } from "_generated/server";
+import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
@@ -17,7 +18,6 @@ import {
 } from "domain/vesselOrchestration/updateVesselTrip";
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
 import { runPersistVesselUpdatesWithTripDeltas } from "./runPersistVesselUpdatesWithTripDeltas";
-import { deriveVesselTripActualizationIntent } from "./updateVesselActualizations";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
 import { loadPredictionContext } from "./updateVesselPredictions";
 import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
@@ -94,13 +94,13 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       }
 
       /**
-       * Stage 2.5: updateVesselActualizations (intent)
+       * Stage 2.5: leave-dock event patch (domain)
        *
-       * Derive whether this leave-dock branch should actualize depart-next ML
-       * prediction rows for the current trip departure boundary.
+       * When this ping is the observed leave-dock transition, produce the
+       * dep-dock key and time used to patch AtDockDepartNext / AtSeaDepartNext
+       * rows on `eventsPredicted`.
        */
-      const tripActualizationIntent =
-        deriveVesselTripActualizationIntent(tripUpdate);
+      const leaveDockEventPatch = updateLeaveDockEventPatch(tripUpdate);
 
       /**
        * Stage 3: updateVesselPredictions
@@ -137,8 +137,8 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       /**
        * Stage 5: atomic per-vessel persistence
        *
-       * Persist trip, prediction, timeline, and optional depart-next
-       * actualization rows in one mutation transaction. If any write fails, this
+       * Persist trip, prediction, timeline, and optional `updateLeaveDockEventPatch`
+       * payload in one mutation transaction. If any write fails, this
        * vessel branch rolls back as a unit and the next tick can retry from the
        * latest durable state.
        */
@@ -159,10 +159,8 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
           predictionRows: Array.from(predictionRows),
           actualEvents: Array.from(timelineRows.actualEvents),
           predictedEvents: Array.from(timelineRows.predictedEvents),
-          departNextActualization:
-            tripActualizationIntent === null
-              ? undefined
-              : tripActualizationIntent,
+          updateLeaveDockEventPatch:
+            leaveDockEventPatch === null ? undefined : leaveDockEventPatch,
         }
       );
     } catch (error) {

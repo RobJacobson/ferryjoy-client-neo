@@ -15,16 +15,10 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 const EPOCH_MS_TRIP_FIELD_KEYS = new Set<string>([
   "TripStart",
   "TripEnd",
-  "TripStart",
-  "TripEnd",
-  "TripEnd",
-  "TripStart",
-  "TripStart",
   "ScheduledDeparture",
   "LeftDock",
   "LeftDockActual",
   "Eta",
-  "TripEnd",
   "PrevScheduledDeparture",
   "PrevLeftDock",
   "NextScheduledDeparture",
@@ -52,7 +46,7 @@ export const runPersistVesselUpdatesWithTripDeltas = async (
     predictionRows: VesselTripPredictionProposal[];
     actualEvents: ConvexActualDockEvent[];
     predictedEvents: ConvexPredictedDockWriteBatch[];
-    departNextActualization?: {
+    updateLeaveDockEventPatch?: {
       vesselAbbrev: string;
       depBoundaryKey: string;
       actualDepartMs: number;

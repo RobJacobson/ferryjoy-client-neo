@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { deriveDepartNextActualizationIntent } from "../deriveDepartNextActualizationIntent";
+import { updateLeaveDockEventPatch } from "../updateLeaveDockEventPatch";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -56,9 +56,9 @@ const makeTripUpdate = (
   ...overrides,
 });
 
-describe("deriveDepartNextActualizationIntent", () => {
-  it("returns intent for active-only AtDock true->false transitions with feed-derived LeftDockActual and schedule key", () => {
-    const result = deriveDepartNextActualizationIntent(makeTripUpdate());
+describe("updateLeaveDockEventPatch", () => {
+  it("returns patch for active-only AtDock true->false with LeftDockActual and schedule key", () => {
+    const result = updateLeaveDockEventPatch(makeTripUpdate());
 
     expect(result).toEqual({
       vesselAbbrev: "TAC",
@@ -68,7 +68,7 @@ describe("deriveDepartNextActualizationIntent", () => {
   });
 
   it("returns null when transition is not didJustLeaveDock", () => {
-    const result = deriveDepartNextActualizationIntent(
+    const result = updateLeaveDockEventPatch(
       makeTripUpdate({
         existingActiveTrip: makeTrip("TAC", { AtDock: false }),
       })
@@ -78,7 +78,7 @@ describe("deriveDepartNextActualizationIntent", () => {
   });
 
   it("returns null when LeftDockActual is missing", () => {
-    const result = deriveDepartNextActualizationIntent(
+    const result = updateLeaveDockEventPatch(
       makeTripUpdate({
         activeVesselTripUpdate: makeTrip("TAC", {
           AtDock: false,
@@ -91,7 +91,7 @@ describe("deriveDepartNextActualizationIntent", () => {
   });
 
   it("returns null when ScheduleKey is missing", () => {
-    const result = deriveDepartNextActualizationIntent(
+    const result = updateLeaveDockEventPatch(
       makeTripUpdate({
         activeVesselTripUpdate: makeTrip("TAC", {
           AtDock: false,

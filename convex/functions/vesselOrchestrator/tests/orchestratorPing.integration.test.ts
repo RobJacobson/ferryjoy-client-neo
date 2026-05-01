@@ -190,7 +190,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(vesselUpdateArgs.activeVesselTrip.AtDockDepartNext).toBeUndefined();
   });
 
-  it("runs explicit trip actualization stage after persist writes", async () => {
+  it("passes updateLeaveDockEventPatch to persist after leave-dock transition", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
@@ -242,14 +242,14 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
-      departNextActualization: {
+      updateLeaveDockEventPatch: {
         vesselAbbrev: string;
         depBoundaryKey: string;
         actualDepartMs: number;
       };
     };
     expect(vesselUpdateArgs.activeVesselTrip.VesselAbbrev).toBe("CHE");
-    expect(vesselUpdateArgs.departNextActualization).toEqual({
+    expect(vesselUpdateArgs.updateLeaveDockEventPatch).toEqual({
       vesselAbbrev: "CHE",
       depBoundaryKey: "CHE--2026-03-13--05:30--ANA-ORI--dep-dock",
       actualDepartMs: ms("2026-03-13T06:40:00.000-07:00"),

@@ -16,7 +16,7 @@ type PersistVesselUpdatesHandler = (
     predictionRows: VesselTripPredictionProposal[];
     actualEvents: ConvexActualDockEvent[];
     predictedEvents: ConvexPredictedDockWriteBatch[];
-    departNextActualization?: {
+    updateLeaveDockEventPatch?: {
       vesselAbbrev: string;
       depBoundaryKey: string;
       actualDepartMs: number;
@@ -174,7 +174,7 @@ describe("persistVesselUpdates", () => {
     ]);
   });
 
-  it("persists completed, active, prediction, timeline, and actualization writes in order", async () => {
+  it("persists completed, active, prediction, timeline, and updateLeaveDockEventPatch in order", async () => {
     const writes: string[] = [];
 
     await handler(makeCtx(writes), {
@@ -186,7 +186,7 @@ describe("persistVesselUpdates", () => {
       predictionRows: [makePrediction("CHE")],
       actualEvents: [makeActualEvent("CHE")],
       predictedEvents: [makePredictedBatch("CHE")],
-      departNextActualization: {
+      updateLeaveDockEventPatch: {
         vesselAbbrev: "CHE",
         depBoundaryKey: "CHE--2026-03-13--05:30--ANA-ORI--dep-dock",
         actualDepartMs: ms("2026-03-13T05:29:38-07:00"),

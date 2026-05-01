@@ -176,14 +176,14 @@ const shouldPreserveDepartNextMlRow = (row: Doc<"eventsPredicted">): boolean =>
 
 /**
  * Patches depart-next ML predictions for one departure boundary when rows
- * exist and have not yet been actualized.
+ * exist and have not yet been stamped with an `Actual` timestamp.
  *
  * @param ctx - Mutation context
  * @param depKey - Departure boundary key
  * @param actualMs - Observed departure timestamp (epoch ms)
  * @returns True when at least one prediction row was updated
  */
-export const actualizeDepartNextMlPredictions = async (
+export const patchDepartNextMlRowsForDepBoundary = async (
   ctx: MutationCtx,
   depKey: string,
   actualMs: number
@@ -216,13 +216,13 @@ export const actualizeDepartNextMlPredictions = async (
 };
 
 /**
- * Applies depart-next actualization for one explicit orchestrator intent.
+ * Patches depart-next ML rows from an explicit leave-dock patch payload.
  *
  * @param ctx - Convex internal mutation context
- * @param args - Derived depart-next actualization intent fields
+ * @param args - Boundary key and observed departure instant
  * @returns Whether any row changed and optional no-op reason
  */
-export const actualizeDepartNextFromIntent = internalMutation({
+export const patchDepartNextMlFromLeaveDock = internalMutation({
   args: {
     vesselAbbrev: v.string(),
     depBoundaryKey: v.string(),
@@ -233,7 +233,7 @@ export const actualizeDepartNextFromIntent = internalMutation({
     reason: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    const anyUpdated = await actualizeDepartNextMlPredictions(
+    const anyUpdated = await patchDepartNextMlRowsForDepBoundary(
       ctx,
       args.depBoundaryKey,
       args.actualDepartMs

@@ -88,6 +88,8 @@ import type * as domain_timelineRows_index from "../domain/timelineRows/index.js
 import type * as domain_timelineRows_mergeTimelineRows from "../domain/timelineRows/mergeTimelineRows.js";
 import type * as domain_timelineRows_scheduledSegmentResolvers from "../domain/timelineRows/scheduledSegmentResolvers.js";
 import type * as domain_vesselOrchestration_index from "../domain/vesselOrchestration/index.js";
+import type * as domain_vesselOrchestration_updateLeaveDockEventPatch_index from "../domain/vesselOrchestration/updateLeaveDockEventPatch/index.js";
+import type * as domain_vesselOrchestration_updateLeaveDockEventPatch_updateLeaveDockEventPatch from "../domain/vesselOrchestration/updateLeaveDockEventPatch/updateLeaveDockEventPatch.js";
 import type * as domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip from "../domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip.js";
 import type * as domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff from "../domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff.js";
 import type * as domain_vesselOrchestration_updateTimeline_completedHandoffKey from "../domain/vesselOrchestration/updateTimeline/completedHandoffKey.js";
@@ -98,8 +100,6 @@ import type * as domain_vesselOrchestration_updateTimeline_projectionWire from "
 import type * as domain_vesselOrchestration_updateTimeline_timelineEventAssembler from "../domain/vesselOrchestration/updateTimeline/timelineEventAssembler.js";
 import type * as domain_vesselOrchestration_updateTimeline_timelineHandoffFromTripUpdate from "../domain/vesselOrchestration/updateTimeline/timelineHandoffFromTripUpdate.js";
 import type * as domain_vesselOrchestration_updateTimeline_updateTimeline from "../domain/vesselOrchestration/updateTimeline/updateTimeline.js";
-import type * as domain_vesselOrchestration_updateVesselActualizations_deriveDepartNextActualizationIntent from "../domain/vesselOrchestration/updateVesselActualizations/deriveDepartNextActualizationIntent.js";
-import type * as domain_vesselOrchestration_updateVesselActualizations_index from "../domain/vesselOrchestration/updateVesselActualizations/index.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_addAtDockObserved from "../domain/vesselOrchestration/updateVesselLocations/addAtDockObserved.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_contracts from "../domain/vesselOrchestration/updateVesselLocations/contracts.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_index from "../domain/vesselOrchestration/updateVesselLocations/index.js";
@@ -196,8 +196,6 @@ import type * as functions_vesselOrchestrator_mutations from "../functions/vesse
 import type * as functions_vesselOrchestrator_pipeline_loadSnapshot_index from "../functions/vesselOrchestrator/pipeline/loadSnapshot/index.js";
 import type * as functions_vesselOrchestrator_pipeline_runOrchestratorPing from "../functions/vesselOrchestrator/pipeline/runOrchestratorPing.js";
 import type * as functions_vesselOrchestrator_pipeline_runPersistVesselUpdatesWithTripDeltas from "../functions/vesselOrchestrator/pipeline/runPersistVesselUpdatesWithTripDeltas.js";
-import type * as functions_vesselOrchestrator_pipeline_updateVesselActualizations_deriveVesselTripActualizationIntent from "../functions/vesselOrchestrator/pipeline/updateVesselActualizations/deriveVesselTripActualizationIntent.js";
-import type * as functions_vesselOrchestrator_pipeline_updateVesselActualizations_index from "../functions/vesselOrchestrator/pipeline/updateVesselActualizations/index.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_index from "../functions/vesselOrchestrator/pipeline/updateVesselLocations/index.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_persist from "../functions/vesselOrchestrator/pipeline/updateVesselLocations/persist.js";
 import type * as functions_vesselOrchestrator_pipeline_updateVesselLocations_run from "../functions/vesselOrchestrator/pipeline/updateVesselLocations/run.js";
@@ -342,6 +340,8 @@ declare const fullApi: ApiFromModules<{
   "domain/timelineRows/mergeTimelineRows": typeof domain_timelineRows_mergeTimelineRows;
   "domain/timelineRows/scheduledSegmentResolvers": typeof domain_timelineRows_scheduledSegmentResolvers;
   "domain/vesselOrchestration/index": typeof domain_vesselOrchestration_index;
+  "domain/vesselOrchestration/updateLeaveDockEventPatch/index": typeof domain_vesselOrchestration_updateLeaveDockEventPatch_index;
+  "domain/vesselOrchestration/updateLeaveDockEventPatch/updateLeaveDockEventPatch": typeof domain_vesselOrchestration_updateLeaveDockEventPatch_updateLeaveDockEventPatch;
   "domain/vesselOrchestration/updateTimeline/actualDockWritesFromTrip": typeof domain_vesselOrchestration_updateTimeline_actualDockWritesFromTrip;
   "domain/vesselOrchestration/updateTimeline/buildDockWritesFromTripHandoff": typeof domain_vesselOrchestration_updateTimeline_buildDockWritesFromTripHandoff;
   "domain/vesselOrchestration/updateTimeline/completedHandoffKey": typeof domain_vesselOrchestration_updateTimeline_completedHandoffKey;
@@ -352,8 +352,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateTimeline/timelineEventAssembler": typeof domain_vesselOrchestration_updateTimeline_timelineEventAssembler;
   "domain/vesselOrchestration/updateTimeline/timelineHandoffFromTripUpdate": typeof domain_vesselOrchestration_updateTimeline_timelineHandoffFromTripUpdate;
   "domain/vesselOrchestration/updateTimeline/updateTimeline": typeof domain_vesselOrchestration_updateTimeline_updateTimeline;
-  "domain/vesselOrchestration/updateVesselActualizations/deriveDepartNextActualizationIntent": typeof domain_vesselOrchestration_updateVesselActualizations_deriveDepartNextActualizationIntent;
-  "domain/vesselOrchestration/updateVesselActualizations/index": typeof domain_vesselOrchestration_updateVesselActualizations_index;
   "domain/vesselOrchestration/updateVesselLocations/addAtDockObserved": typeof domain_vesselOrchestration_updateVesselLocations_addAtDockObserved;
   "domain/vesselOrchestration/updateVesselLocations/contracts": typeof domain_vesselOrchestration_updateVesselLocations_contracts;
   "domain/vesselOrchestration/updateVesselLocations/index": typeof domain_vesselOrchestration_updateVesselLocations_index;
@@ -450,8 +448,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselOrchestrator/pipeline/loadSnapshot/index": typeof functions_vesselOrchestrator_pipeline_loadSnapshot_index;
   "functions/vesselOrchestrator/pipeline/runOrchestratorPing": typeof functions_vesselOrchestrator_pipeline_runOrchestratorPing;
   "functions/vesselOrchestrator/pipeline/runPersistVesselUpdatesWithTripDeltas": typeof functions_vesselOrchestrator_pipeline_runPersistVesselUpdatesWithTripDeltas;
-  "functions/vesselOrchestrator/pipeline/updateVesselActualizations/deriveVesselTripActualizationIntent": typeof functions_vesselOrchestrator_pipeline_updateVesselActualizations_deriveVesselTripActualizationIntent;
-  "functions/vesselOrchestrator/pipeline/updateVesselActualizations/index": typeof functions_vesselOrchestrator_pipeline_updateVesselActualizations_index;
   "functions/vesselOrchestrator/pipeline/updateVesselLocations/index": typeof functions_vesselOrchestrator_pipeline_updateVesselLocations_index;
   "functions/vesselOrchestrator/pipeline/updateVesselLocations/persist": typeof functions_vesselOrchestrator_pipeline_updateVesselLocations_persist;
   "functions/vesselOrchestrator/pipeline/updateVesselLocations/run": typeof functions_vesselOrchestrator_pipeline_updateVesselLocations_run;
