@@ -94,7 +94,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       }
 
       /**
-       * Stage 2.5: leave-dock event patch (domain)
+       * Stage 3: leave-dock event patch (domain)
        *
        * When this ping is the observed leave-dock transition, produce the
        * dep-dock key and time used to patch AtDockDepartNext / AtSeaDepartNext
@@ -103,7 +103,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const leaveDockEventPatch = updateLeaveDockEventPatch(tripUpdate);
 
       /**
-       * Stage 3: updateVesselPredictions
+       * Stage 4: updateVesselPredictions
        *
        * Use `tripUpdate` as the truth of what changed, load only the model
        * context needed for this vessel, then compute prediction proposals and
@@ -120,7 +120,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         });
 
       /**
-       * Stage 4: updateTimeline
+       * Stage 5: updateTimeline
        *
        * Combine ping time + trip deltas + ML overlays to project timeline event
        * rows (`actualEvents`, `predictedEvents`) for this vessel.
@@ -135,7 +135,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       });
 
       /**
-       * Stage 5: atomic per-vessel persistence
+       * Stage 6: atomic per-vessel persistence
        *
        * Persist trip, prediction, timeline, and optional `updateLeaveDockEventPatch`
        * payload in one mutation transaction. If any write fails, this
