@@ -8,7 +8,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Action: `updateVesselOrchestrator` in `actions.ts`
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
-  - one `bulkUpsertVesselLocations` for locations
+  - one `bulkUpsertVesselLocations` for locations **and** subset `activeVesselTrips` reads (same transaction)
   - one atomic `persistVesselUpdates` write per changed vessel whose trip stage returns updates
 
 ## Single-ping stages
@@ -20,33 +20,25 @@ hot path in `convex/functions/vesselOrchestrator`.
   - Output: `{ vesselsIdentity, terminalsIdentity }`
   - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
-2. **Fetch, normalize, augment, and persist live locations**
+2. **Fetch, normalize, augment, persist locations, and load active trips for changed vessels**
   - Function: `runUpdateVesselLocations` (`pipeline/updateVesselLocations`)
+  - Mutation: `bulkUpsertVesselLocations` (`functions/vesselLocation/mutations.ts`)
   - External input: WSF vessel locations
-  - Output: changed `ConvexVesselLocation[]` rows after dedupe
+  - Output: **`{ changedLocations, activeTripsForChanged }`** from the mutation; orchestrator builds **`activeTripsByVesselAbbrev`** for the per-vessel loop
   - Phase contract: this stage derives `AtDockObserved`; downstream trip
      `AtDock` is persisted from that observed phase
-  - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`)
+  - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`); when there are changed rows, **`loadActiveTripsForChanged`** runs in the **same mutation** after writes (`activeVesselTrips` by `by_vessel_abbrev`, `.first()` per distinct changed abbrev)
+  - Semantics: `existingActiveTrip` for Stage 4 reflects DB state **after** this ping’s location writes for those vessels
   - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 
-3. **Load active trips for changed vessels (post–location-write)**
-  - Query: `getActiveTripsForVesselAbbrevs` (`queries.ts`)
-  - Input: distinct `VesselAbbrev` values from Stage 2 changed rows (skip entire
-    stage when there are no changed rows)
-  - Reads: `activeVesselTrips` by `by_vessel_abbrev` (`.first()` per abbrev)
-  - Output: array of stored active trips found; orchestrator builds
-    `activeTripsByVesselAbbrev` for the per-vessel loop
-  - Semantics: `existingActiveTrip` for Stage 4 reflects DB state **after**
-    this ping’s location writes for those vessels
-
-4. **Build schedule continuity access**
+3. **Build schedule continuity access**
   - Function: `createUpdateVesselTripDbAccess` (`pipeline/updateVesselTrip`)
   - Behavior: key-backed segment lookup first; current/next-day rollover rows
     only when key continuity is unavailable or stale
   - Output: `UpdateVesselTripDbAccess`
 
-5. **Sequential per-vessel sparse pipeline (changed rows only)**
+4. **Sequential per-vessel sparse pipeline (changed rows only)**
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
@@ -61,10 +53,8 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 - One WSF fetch per ping.
 - One identity read-model query per ping (`getOrchestratorIdentities`).
-- When Stage 2 returns at least one changed location, one subset active-trip
-  query per ping (`getActiveTripsForVesselAbbrevs`); otherwise zero.
-- One locations mutation per ping plus one atomic per-vessel persistence
-  mutation whose trip stage returns a non-null `VesselTripUpdate`.
+- One locations mutation per ping (`bulkUpsertVesselLocations`) that includes active-trip reads for changed abbrevs when `changedLocations` is non-empty; **no** separate `getActiveTripsForVesselAbbrevs` query.
+- One atomic per-vessel persistence mutation whose trip stage returns a non-null `VesselTripUpdate`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and new-trip-gated: primary
   `NextScheduleKey` lookup first, rollover fallback only when needed.

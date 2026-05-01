@@ -10,8 +10,7 @@ Each orchestrator ping runs in this order:
 updateVesselOrchestrator (functions/vesselOrchestrator/actions.ts)
   -> load identities only (getOrchestratorIdentities via loadOrchestratorSnapshot; fail fast if identity tables empty)
   -> fetch and normalize vessel locations (WSF + mapWsfVesselLocations)
-  -> bulkUpsertVesselLocations (dedupe + locations-only upsert; returns changed rows)
-  -> getActiveTripsForVesselAbbrevs (subset active trips after location write; skip when no changed rows)
+  -> bulkUpsertVesselLocations (dedupe + upsert; returns changed rows + activeTripsForChanged in same transaction)
   -> createUpdateVesselTripDbAccess for the ping (targeted updateVesselTrip reads via ctx.runQuery)
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
@@ -22,8 +21,7 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions.ts)
 ```
 
 The trip and prediction stages run in the action per changed location row.
-Location dedupe runs in `bulkUpsertVesselLocations`, and the action consumes only
-that mutation's changed-row return. Timeline projection (`updateTimeline`) runs
+Location dedupe and post-write **`activeTripsForChanged`** reads run in `bulkUpsertVesselLocations`; the action consumes that mutation's **`changedLocations`** and **`activeTripsForChanged`** return. Timeline projection (`updateTimeline`) runs
 in the action **before** persistence; `persistVesselUpdates` applies trip
 lifecycle writes, prediction proposals, projected actual/predicted dock rows,
 and optional depart-next actualization in one transaction per vessel.
@@ -131,7 +129,7 @@ is derived inside **`updateTimeline`** from the same shape
 - `functions/vesselOrchestrator/actions.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/pipeline/*`
-  - identity snapshot (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), locations stage (**`updateVesselLocations`**), subset active trips (**`getActiveTripsForVesselAbbrevs`** after location write), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
+  - identity snapshot (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), locations stage (**`updateVesselLocations`** / **`bulkUpsertVesselLocations`** including **`activeTripsForChanged`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
 - `functions/vesselOrchestrator/mutations.ts`
   - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`

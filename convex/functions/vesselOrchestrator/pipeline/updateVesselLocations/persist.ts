@@ -8,18 +8,25 @@ import type {
   ConvexVesselLocation,
   ConvexVesselLocationIncoming,
 } from "functions/vesselLocation/schemas";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+
+export type PersistVesselLocationBatchResult = {
+  changedLocations: ReadonlyArray<ConvexVesselLocation>;
+  activeTripsForChanged: ReadonlyArray<ConvexVesselTrip>;
+};
 
 /**
- * Persists the full normalized location batch and returns changed rows only.
+ * Persists the full normalized location batch and returns changed rows plus
+ * active trips for those vessels (same transaction as the upserts).
  *
  * @param ctx - Convex action context
  * @param locations - Normalized incoming rows for this ingest tick (no `AtDockObserved`)
- * @returns Inserted/replaced location rows after mutation-side dedupe
+ * @returns Changed locations and matching active trip rows after mutation-side dedupe
  */
 export const persistVesselLocationBatch = async (
   ctx: ActionCtx,
   locations: ReadonlyArray<ConvexVesselLocationIncoming>
-): Promise<ReadonlyArray<ConvexVesselLocation>> =>
+): Promise<PersistVesselLocationBatchResult> =>
   ctx.runMutation(
     internal.functions.vesselLocation.mutations.bulkUpsertVesselLocations,
     {

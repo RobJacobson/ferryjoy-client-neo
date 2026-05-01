@@ -4,7 +4,4 @@
 
 export { updateVesselOrchestrator } from "./actions";
 export { persistVesselUpdates } from "./mutations";
-export {
-  getActiveTripsForVesselAbbrevs,
-  getOrchestratorIdentities,
-} from "./queries";
+export { getOrchestratorIdentities } from "./queries";

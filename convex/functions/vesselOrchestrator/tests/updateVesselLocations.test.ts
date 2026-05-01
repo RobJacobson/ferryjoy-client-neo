@@ -48,7 +48,7 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return [];
+        return { changedLocations: [], activeTripsForChanged: [] };
       },
     } as unknown as ActionCtx;
 
@@ -108,7 +108,7 @@ describe("functions/vesselOrchestrator updateVesselOrchestrator location stage",
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return [];
+        return { changedLocations: [], activeTripsForChanged: [] };
       },
     } as unknown as ActionCtx;
 

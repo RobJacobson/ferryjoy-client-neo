@@ -373,10 +373,9 @@ loads **`vesselsIdentity`** and **`terminalsIdentity`** via
 [`getOrchestratorIdentities`](../../functions/vesselOrchestrator/queries.ts)
 (that query does **not** load `vesselLocations` or `activeVesselTrips`), fetches
 WSF vessel locations once, normalizes the feed, applies location dedupe/write via
-internal [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts),
-then loads **subset** `activeVesselTrips` for changed vessels via
-[`getActiveTripsForVesselAbbrevs`](../../functions/vesselOrchestrator/queries.ts)
-(post–location-write). For each changed location row it runs trip compute in the
+internal [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts)
+(which returns **`changedLocations`** and **`activeTripsForChanged`** in the same transaction).
+For each changed location row it runs trip compute in the
 action (with **`UpdateVesselTripDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts`
 for targeted `eventsScheduled` continuity), then **`loadPredictionContext`** (when
 domain preload requests apply) and domain **`updateVesselPredictions`**

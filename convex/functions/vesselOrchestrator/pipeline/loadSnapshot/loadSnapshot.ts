@@ -15,8 +15,8 @@ export type OrchestratorSnapshot = {
 /**
  * Loads vessel and terminal identity rows needed for one ping (Stage 1 normalization).
  *
- * Active trips for the trip loop are loaded separately after location writes;
- * see {@link getActiveTripsForVesselAbbrevs} in `queries.ts`.
+ * Active trips for changed vessels are loaded inside **`bulkUpsertVesselLocations`**
+ * (same mutation as location writes); see `functions/vesselLocation/mutations.ts`.
  *
  * @param ctx - Convex action context used for the internal read-model query
  * @returns Identity snapshot for location normalization

@@ -174,7 +174,10 @@ describe("updateVesselOrchestrator ping integration", () => {
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
-          ? [makeNormalizedCheLocation()]
+          ? {
+              changedLocations: [makeNormalizedCheLocation()],
+              activeTripsForChanged: [],
+            }
           : null;
       },
     } as unknown as ActionCtx;
@@ -183,8 +186,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    // Identities, active trips for changed vessels, then prediction preload query.
-    expect(runQueryCalls).toBe(3);
+    // Identities, then prediction preload query (active trips come from bulk upsert mutation).
+    expect(runQueryCalls).toBe(2);
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
     expect(timelineSpy).toHaveBeenCalledTimes(1);
@@ -238,12 +241,15 @@ describe("updateVesselOrchestrator ping integration", () => {
             terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
           };
         }
-        return [existingActiveTrip];
+        return [];
       },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
-          ? [makeNormalizedCheLocation()]
+          ? {
+              changedLocations: [makeNormalizedCheLocation()],
+              activeTripsForChanged: [existingActiveTrip],
+            }
           : null;
       },
     } as unknown as ActionCtx;
@@ -252,7 +258,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(3);
+    expect(runQueryCalls).toBe(2);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
@@ -290,7 +296,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       }),
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
-        return [];
+        return { changedLocations: [], activeTripsForChanged: [] };
       },
     } as unknown as ActionCtx;
 
@@ -360,7 +366,13 @@ describe("updateVesselOrchestrator ping integration", () => {
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         if (mutationCalls.length === 1) {
-          return [makeNormalizedCheLocation(), makeNormalizedTacLocation()];
+          return {
+            changedLocations: [
+              makeNormalizedCheLocation(),
+              makeNormalizedTacLocation(),
+            ],
+            activeTripsForChanged: [],
+          };
         }
         return null;
       },
@@ -370,7 +382,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(3);
+    expect(runQueryCalls).toBe(2);
     expect(mutationCalls.length).toBe(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };

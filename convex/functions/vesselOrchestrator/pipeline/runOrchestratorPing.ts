@@ -2,14 +2,13 @@
  * Vessel orchestrator pipeline for one ping.
  *
  * The hot path keeps one identities snapshot query, one WSF fetch, a per-vessel
- * trip loop over changed locations only, one locations-only mutation, a subset
- * active-trip query after locations, and one atomic persistence mutation per
+ * trip loop over changed locations only, one locations mutation (includes
+ * post-write active-trip reads for changed vessels), and one atomic persistence mutation per
  * vessel that produces trip updates.
  *
  * The public Convex action entry is `updateVesselOrchestrator` in `../actions.ts`.
  */
 
-import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
@@ -29,7 +28,8 @@ import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
  *
  * This internal runner preserves the invariant that one WSF batch drives one
  * consistent orchestrator pass. It loads identities, runs location
- * normalization/dedupe, loads active trips for changed vessels (post-write),
+ * normalization/dedupe; active trips for changed vessels are loaded inside
+ * **`bulkUpsertVesselLocations`** (same transaction as location writes),
  * then executes sparse per-vessel domain compute and persistence. Keeping this flow in one
  * function makes control-flow intent explicit while keeping domain details
  * encapsulated in `domain/vesselOrchestration/*` and the persistence
@@ -54,29 +54,11 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
    * Why: all downstream trip/prediction/timeline work should run only for
    * vessels with new location evidence in this ping.
    */
-  const dedupedLocationUpdates = await runUpdateVesselLocations(ctx, {
-    terminalsIdentity: snapshot.terminalsIdentity,
-    vesselsIdentity: snapshot.vesselsIdentity,
-  });
-
-  // `existingActiveTrip` is read after Stage 1 writes so it matches durable
-  // `vesselLocations` for these vessels for this tick (unlike a pre-write full-table snapshot).
-  const activeTripsByVesselAbbrev =
-    dedupedLocationUpdates.length === 0
-      ? new Map()
-      : new Map(
-          (
-            await ctx.runQuery(
-              internal.functions.vesselOrchestrator.queries
-                .getActiveTripsForVesselAbbrevs,
-              {
-                vesselAbbrevs: dedupedLocationUpdates.map(
-                  (loc) => loc.VesselAbbrev
-                ),
-              }
-            )
-          ).map((trip) => [trip.VesselAbbrev, trip] as const)
-        );
+  const { changedLocations: dedupedLocationUpdates, activeTripsByVesselAbbrev } =
+    await runUpdateVesselLocations(ctx, {
+      terminalsIdentity: snapshot.terminalsIdentity,
+      vesselsIdentity: snapshot.vesselsIdentity,
+    });
 
   // Trip enrichment reads are only used in Stage 2
   // (`updateVesselTrip`). Stages 3–5 do not use this adapter.

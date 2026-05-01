@@ -6,6 +6,11 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { withAtDockObserved } from "domain/vesselOrchestration/updateVesselLocations";
+import {
+  type ConvexVesselTrip,
+  vesselTripStoredSchema,
+} from "functions/vesselTrips/schemas";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 import { vesselIdentitySchema } from "../vessels/schemas";
 import type {
   ConvexVesselLocation,
@@ -26,6 +31,8 @@ export type VesselLocationDedupeSummary = {
 export type VesselLocationBulkUpsertResult = {
   changedLocations: ReadonlyArray<ConvexVesselLocation>;
   summary: VesselLocationDedupeSummary;
+  /** Active trips for changed `VesselAbbrev` values, after location writes (orchestrator Stage 1). */
+  activeTripsForChanged: ReadonlyArray<ConvexVesselTrip>;
 };
 
 /**
@@ -95,10 +102,40 @@ export async function performBulkUpsertVesselLocations(
     }
   }
 
+  const activeTripsForChanged =
+    changedLocations.length === 0
+      ? []
+      : await loadActiveTripsForChanged(ctx, changedLocations);
+
   return {
     changedLocations,
     summary,
+    activeTripsForChanged,
   };
+}
+
+/**
+ * Indexed reads of `activeVesselTrips` for distinct abbrevs in the changed set.
+ * Runs in the same mutation as location upserts so trip rows match post-write state.
+ */
+async function loadActiveTripsForChanged(
+  ctx: MutationCtx,
+  changedLocations: ReadonlyArray<ConvexVesselLocation>
+): Promise<Array<ConvexVesselTrip>> {
+  const uniqueAbbrevs = [
+    ...new Set(changedLocations.map((loc) => loc.VesselAbbrev)),
+  ];
+  const trips = await Promise.all(
+    uniqueAbbrevs.map((abbrev) =>
+      ctx.db
+        .query("activeVesselTrips")
+        .withIndex("by_vessel_abbrev", (q) => q.eq("VesselAbbrev", abbrev))
+        .first()
+    )
+  );
+  return trips
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .map(stripConvexMeta);
 }
 
 /**
@@ -108,14 +145,20 @@ export async function performBulkUpsertVesselLocations(
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the location snapshot payload
- * @returns Rows that were inserted/replaced after timestamp dedupe
+ * @returns Changed location rows and active trips for those vessels (post-write)
  */
 export const bulkUpsertVesselLocations = internalMutation({
   args: { locations: v.array(vesselLocationIncomingValidationSchema) },
-  returns: v.array(vesselLocationValidationSchema),
+  returns: v.object({
+    changedLocations: v.array(vesselLocationValidationSchema),
+    activeTripsForChanged: v.array(vesselTripStoredSchema),
+  }),
   handler: async (ctx, args) => {
     const result = await performBulkUpsertVesselLocations(ctx, args.locations);
-    return [...result.changedLocations];
+    return {
+      changedLocations: [...result.changedLocations],
+      activeTripsForChanged: [...result.activeTripsForChanged],
+    };
   },
 });
 
