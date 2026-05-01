@@ -1,5 +1,6 @@
 /**
- * Internal queries for key-first vessel-trip schedule resolution.
+ * Internal schedule reads for vessel-trip continuity: segment resolution from
+ * `eventsScheduled` and sailing-day rollover pools used by `updateVesselTrip`.
  */
 
 import { internalQuery } from "_generated/server";
@@ -25,7 +26,16 @@ const inferredScheduledSegmentSchema = v.object({
 });
 
 /**
- * Primary schedule lookup: resolve a known segment key into an inferred segment.
+ * Resolves a schedule segment from a known `scheduleKey` via dep-dock row.
+ *
+ * Looks up the departure boundary on `eventsScheduled`, loads same-day dock
+ * events for that vessel and sailing day, then infers the segment shape used
+ * for `NextScheduleKey` / continuity in the trip pipeline. Returns null when
+ * the dep-dock row is missing.
+ *
+ * @param ctx - Convex query context
+ * @param args - `scheduleKey` for the segment being resolved
+ * @returns Inferred segment fields or null when no dep-dock event exists
  */
 export const getScheduledSegmentByScheduleKeyInternal = internalQuery({
   args: {
@@ -61,7 +71,15 @@ export const getScheduledSegmentByScheduleKeyInternal = internalQuery({
 });
 
 /**
- * Fallback schedule lookup: load current and next sailing-day dock rows.
+ * Loads current and next sailing-day scheduled dock rows for rollover logic.
+ *
+ * Used when key-first segment lookup cannot supply continuity. Derives the
+ * current sailing day from the sample timestamp and loads that day plus the
+ * following calendar day for the same vessel abbrev.
+ *
+ * @param ctx - Convex query context
+ * @param args - `vesselAbbrev` and epoch-ms `timestamp` for sailing-day math
+ * @returns Current/next sailing-day strings and matching scheduled dock rows
  */
 export const getScheduleRolloverDockEventsInternal = internalQuery({
   args: {

@@ -19,9 +19,15 @@ export type PersistVesselLocationBatchResult = {
  * Persists the full normalized location batch and returns changed rows plus
  * active trips for those vessels (same transaction as the upserts).
  *
+ * Thin `runMutation` wrapper around `bulkUpsertVesselLocations` so the location
+ * stage keeps a single persistence choke point. `AtDockObserved` continuity is
+ * owned inside that mutation; callers pass pre-normalized rows only.
+ *
  * @param ctx - Convex action context
- * @param locations - Normalized incoming rows for this ingest tick (no `AtDockObserved`)
- * @returns Changed locations and matching active trip rows after mutation-side dedupe
+ * @param locations - Normalized incoming rows for this ingest tick (no
+ *   `AtDockObserved`)
+ * @returns Changed locations and matching active trip rows after mutation-side
+ *   dedupe
  */
 export const persistVesselLocationBatch = async (
   ctx: ActionCtx,

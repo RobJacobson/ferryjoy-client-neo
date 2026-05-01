@@ -5,7 +5,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 
 ## Entry point
 
-- Action: `updateVesselOrchestrator` in `actions.ts`
+- Action: `updateVesselOrchestrator` in `actions/updateVesselOrchestrator.ts`
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - one `bulkUpsertVesselLocations` for locations **and** subset `activeVesselTrips` reads (same transaction)
@@ -14,14 +14,14 @@ hot path in `convex/functions/vesselOrchestrator`.
 ## Single-ping stages
 
 1. **Load identity read model**
-  - Function: `loadOrchestratorSnapshot` (`pipeline/loadSnapshot`)
-  - Query: `getOrchestratorIdentities` (`queries.ts`)
+  - Function: `loadOrchestratorSnapshot` (`actions/ping/loadSnapshot`)
+  - Query: `getOrchestratorIdentities` (`queries/orchestratorSnapshotQueries.ts`)
   - Reads: `vesselsIdentity`, `terminalsIdentity`
   - Output: `{ vesselsIdentity, terminalsIdentity }`
   - Precondition: empty `vesselsIdentity` or `terminalsIdentity` throws (fatal setup; ping cannot proceed)
 
 2. **Fetch, normalize, augment, persist locations, and load active trips for changed vessels**
-  - Function: `runUpdateVesselLocations` (`pipeline/updateVesselLocations`)
+  - Function: `runUpdateVesselLocations` (`actions/ping/updateVesselLocations`)
   - Mutation: `bulkUpsertVesselLocations` (`functions/vesselLocation/mutations.ts`)
   - External input: WSF vessel locations
   - Output: **`{ changedLocations, activeTripsForChanged }`** from the mutation; orchestrator builds **`activeTripsByVesselAbbrev`** for the per-vessel loop
@@ -33,7 +33,7 @@ hot path in `convex/functions/vesselOrchestrator`.
      writes for other vessels in the same batch
 
 3. **Build schedule continuity access**
-  - Function: `createUpdateVesselTripDbAccess` (`pipeline/updateVesselTrip`)
+  - Function: `createUpdateVesselTripDbAccess` (`actions/ping/updateVesselTrip`)
   - Behavior: key-backed segment lookup first; current/next-day rollover rows
     only when key continuity is unavailable or stale
   - Output: `UpdateVesselTripDbAccess`

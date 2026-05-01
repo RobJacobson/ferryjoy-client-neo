@@ -26,6 +26,11 @@ const updateLeaveDockEventPatchSchema = v.object({
 /**
  * Persists all durable writes for one changed vessel in a single transaction.
  *
+ * Trip upserts, prediction proposals, actual/predicted timeline rows, and
+ * optional depart-next patches apply together or not at all for that vessel.
+ * Callers assemble payloads in the action; this mutation performs ordered
+ * writes only (no domain recompute).
+ *
  * @param ctx - Convex mutation context
  * @param args - Persistence-ready rows produced by one vessel pipeline branch
  * @returns `null`

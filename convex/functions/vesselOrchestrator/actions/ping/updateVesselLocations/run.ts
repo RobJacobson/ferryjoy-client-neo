@@ -26,9 +26,15 @@ export type RunUpdateVesselLocationsResult = {
 /**
  * Ingest one vessel-location snapshot for an orchestrator ping.
  *
+ * Fetches raw WSF rows, normalizes with identity tables, then delegates to
+ * `persistVesselLocationBatch` so dedupe and post-write active-trip reads stay
+ * inside `bulkUpsertVesselLocations`. Downstream trip work should use only
+ * `changedLocations` and the returned map, not the full normalized batch.
+ *
  * @param ctx - Convex action context used for mutation calls
  * @param args - Identity rows required for raw-feed normalization
- * @returns Changed locations and active-trip map keyed by `VesselAbbrev` (post-write)
+ * @returns Changed locations and active-trip map keyed by `VesselAbbrev`
+ *   (post-write)
  */
 export const runUpdateVesselLocations = async (
   ctx: ActionCtx,

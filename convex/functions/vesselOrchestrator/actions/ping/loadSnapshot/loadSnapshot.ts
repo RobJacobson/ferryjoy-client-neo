@@ -13,10 +13,13 @@ export type OrchestratorSnapshot = {
 };
 
 /**
- * Loads vessel and terminal identity rows needed for one ping (Stage 1 normalization).
+ * Loads vessel and terminal identity rows needed for one ping (Stage 1
+ * normalization).
  *
- * Active trips for changed vessels are loaded inside **`bulkUpsertVesselLocations`**
- * (same mutation as location writes); see `functions/vesselLocation/mutations.ts`.
+ * Runs before the WSF fetch so normalization can resolve identities. Active
+ * trips for changed vessels load inside **`bulkUpsertVesselLocations`** (same
+ * mutation as location writes); see `functions/vesselLocation/mutations.ts`.
+ * Throws when either identity table is empty so bad deploys fail loudly.
  *
  * @param ctx - Convex action context used for the internal read-model query
  * @returns Identity snapshot for location normalization
@@ -25,7 +28,8 @@ export const loadSnapshot = async (
   ctx: ActionCtx
 ): Promise<OrchestratorSnapshot> => {
   const snapshot = await ctx.runQuery(
-    internal.functions.vesselOrchestrator.queries.getOrchestratorIdentities
+    internal.functions.vesselOrchestrator.queries.orchestratorSnapshotQueries
+      .getOrchestratorIdentities
   );
   if (
     snapshot.vesselsIdentity.length === 0 ||

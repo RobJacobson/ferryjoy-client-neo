@@ -6,15 +6,15 @@ Sparse **`eventsActual`** / **`eventsPredicted`** payloads for one ping: types, 
 
 Domain **`updateTimeline`** is pure projection: it takes **`RunUpdateVesselTimelineFromAssemblyInput`** (`pingStartedAt`, **`tripUpdate`** as **`VesselTripUpdate`**, **`mlTimelineOverlays`**). It derives **`PersistedTripTimelineHandoff`** via **`timelineHandoffFromTripUpdate`**, applies ML overlays onto that handoff in memory, runs **`buildDockWritesFromTripHandoff`**, and returns **`actualEvents`** / **`predictedEvents`** for persistence. Lower-level projection from an already-built handoff is available as **`projectTimelineFromHandoff`** in **`updateTimeline.ts`** (used by focused tests).
 
-On the shipped path these rows are written through explicit stage-level persistence helpers. **`functions/vesselOrchestrator/actions.ts`** runs **`updateTimeline`** inside **`runOrchestratorPing`** after trip and prediction persistence, then persists timeline rows through dedicated actual/predicted writes for each changed vessel.
+On the shipped path these rows are written through explicit stage-level persistence helpers. **`functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`** runs **`updateTimeline`** inside **`runOrchestratorPing`** after trip and prediction persistence, then persists timeline rows through dedicated actual/predicted writes for each changed vessel.
 
 **`vesselTripPredictions`** proposal upserts run as their own stage-level write before timeline persistence; timeline assembly consumes the handoff + ML overlays in action memory, not a reload from the prediction table.
 
 ## Production call chain
 
-1. [`actions.ts`](../../../functions/vesselOrchestrator/actions.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load identities (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + **`bulkUpsertVesselLocations`**, which returns **`activeTripsForChanged`** in the same mutation), then process per-vessel changed rows.
+1. [`updateVesselOrchestrator.ts`](../../../functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load identities (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + **`bulkUpsertVesselLocations`**, which returns **`activeTripsForChanged`** in the same mutation), then process per-vessel changed rows.
 2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
-3. **`loadPredictionContext`** ([`pipeline/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/pipeline/updateVesselPredictions/index.ts)) queries production model parameters when **`predictionModelLoadRequestForTripUpdate`** returns a request.
+3. **`loadPredictionContext`** ([`actions/ping/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/actions/ping/updateVesselPredictions/index.ts)) queries production model parameters when **`predictionModelLoadRequestForTripUpdate`** returns a request.
 4. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
 5. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`completedHandoffKey.ts`](./completedHandoffKey.ts)).
 6. Stage-level persistence runs in order: optional completed-trip insert, active-trip upsert, prediction upserts, timeline actual writes, then timeline predicted writes.
@@ -52,7 +52,7 @@ Further renames or public type aliases are optional: this table is the intended 
 
 ## Imports
 
-- **`functions/vesselOrchestrator/actions.ts`** + stage-level persist helpers — production caller path: action-side **`updateTimeline`**, then explicit per-vessel timeline persistence after trip/prediction persists.
+- **`functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`** + stage-level persist helpers — production caller path: action-side **`updateTimeline`**, then explicit per-vessel timeline persistence after trip/prediction persists.
 - Lifecycle and prediction code import handshake DTOs from this folder (via
   `updateTimeline/handoffTypes.ts` and `updateTimeline` barrel exports).
 - **`domain/vesselOrchestration/updateVesselTrip/index.ts`** re-exports key symbols for queries and shared callers.

@@ -1,5 +1,6 @@
 /**
- * Internal read models for the vessel orchestrator action.
+ * Orchestrator identity read models: vessel and terminal rows used to normalize
+ * the WSF location feed before Stage 1 writes. No trip or location tables.
  */
 
 import { internalQuery } from "_generated/server";
@@ -14,10 +15,16 @@ const orchestratorIdentitiesSchema = v.object({
 });
 
 /**
- * Loads vessel and terminal identity rows for one orchestrator ping (no trips).
+ * Loads vessel and terminal identity rows for one orchestrator ping.
+ *
+ * Runs once per ping before the WSF fetch so normalization can resolve vessel
+ * names, IDs, and passenger-terminal geography. Does not load `vesselLocations`
+ * or `activeVesselTrips`; active trips for changed vessels are read inside
+ * `bulkUpsertVesselLocations` after location writes. Fails fast upstream if
+ * either identity table is empty (seed or identity sync required).
  *
  * @param ctx - Convex query context for database reads
- * @returns Identity rows for location normalization
+ * @returns Plain identity rows without Convex document metadata
  */
 export const getOrchestratorIdentities = internalQuery({
   args: {},

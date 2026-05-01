@@ -1,12 +1,14 @@
 /**
- * Vessel orchestrator pipeline for one ping.
+ * Vessel orchestrator ping runner: one WSF batch through locations, then
+ * per-vessel trip → prediction → timeline → persistence.
  *
- * The hot path keeps one identities snapshot query, one WSF fetch, a per-vessel
- * trip loop over changed locations only, one locations mutation (includes
- * post-write active-trip reads for changed vessels), and one atomic persistence mutation per
- * vessel that produces trip updates.
+ * The hot path keeps one identities snapshot query, one WSF fetch, a
+ * per-vessel trip loop over changed locations only, one locations mutation
+ * (includes post-write active-trip reads for changed vessels), and one atomic
+ * persistence mutation per vessel that produces trip updates.
  *
- * The public Convex action entry is `updateVesselOrchestrator` in `../actions.ts`.
+ * The public Convex action entry is `updateVesselOrchestrator` in
+ * `../updateVesselOrchestrator.ts`.
  */
 
 import type { ActionCtx } from "_generated/server";

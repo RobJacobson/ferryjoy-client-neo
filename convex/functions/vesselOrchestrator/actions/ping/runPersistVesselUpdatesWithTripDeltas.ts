@@ -1,7 +1,7 @@
 /**
  * Action-side wrapper: computes active-trip field deltas for logging, then
  * invokes the internal `persistVesselUpdates` mutation (see
- * `functions/vesselOrchestrator/mutations`).
+ * `functions/vesselOrchestrator/mutations/orchestratorPersistMutations`).
  */
 
 import { internal } from "_generated/api";
@@ -27,7 +27,8 @@ const EPOCH_MS_TRIP_FIELD_KEYS = new Set<string>([
 /**
  * Logs field-level diffs between the prior active trip and the new
  * `activeVesselTrip` (see {@link buildActiveTripFieldDeltaLogObject}), then runs
- * `ctx.runMutation` for `internal.functions.vesselOrchestrator.mutations.persistVesselUpdates`
+ * `ctx.runMutation` for
+ * `internal.functions.vesselOrchestrator.mutations.orchestratorPersistMutations.persistVesselUpdates`
  * with the same `args`.
  *
  * @param ctx - Convex action context; used to invoke the internal mutation
@@ -66,7 +67,8 @@ export const runPersistVesselUpdatesWithTripDeltas = async (
   );
 
   return ctx.runMutation(
-    internal.functions.vesselOrchestrator.mutations.persistVesselUpdates,
+    internal.functions.vesselOrchestrator.mutations
+      .orchestratorPersistMutations.persistVesselUpdates,
     args
   );
 };

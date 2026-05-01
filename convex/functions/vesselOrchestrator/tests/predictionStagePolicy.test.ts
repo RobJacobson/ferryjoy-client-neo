@@ -3,7 +3,7 @@ import type { ActionCtx } from "_generated/server";
 import * as vesselPredictions from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { loadPredictionContext } from "../pipeline/updateVesselPredictions";
+import { loadPredictionContext } from "../actions/ping/updateVesselPredictions";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

@@ -364,19 +364,19 @@ Sync applies the full transform pipeline after adapter ingress: `convex/adapters
 
 ### How predictions are generated in VesselTrips
 
-Predictions are computed in the vessel orchestrator action `updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions.ts`), then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
+Predictions are computed in the vessel orchestrator action `updateVesselOrchestrator` (entrypoint: `convex/functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`), then **persisted as `eventsPredicted` rows** (composite key `Key` + `PredictionType`
 
 - `PredictionSource`), not as the five optional prediction fields on `activeVesselTrips` / `completedVesselTrips`. Trip table payloads are stripped before write; public `vesselTrips` queries **enrich** stored rows with joins from `eventsPredicted` so subscribers still see `vesselTripSchema` with minimal prediction objects. WSF ETA from the feed stays on `trip.Eta`; a separate `eventsPredicted` row uses `PredictionSource: "wsf_eta"` when projected.
 
-Within one ping, [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions.ts)
+Within one ping, [`updateVesselOrchestrator`](../../functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts)
 loads **`vesselsIdentity`** and **`terminalsIdentity`** via
-[`getOrchestratorIdentities`](../../functions/vesselOrchestrator/queries.ts)
+[`getOrchestratorIdentities`](../../functions/vesselOrchestrator/queries/orchestratorSnapshotQueries.ts)
 (that query does **not** load `vesselLocations` or `activeVesselTrips`), fetches
 WSF vessel locations once, normalizes the feed, applies location dedupe/write via
 internal [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.ts)
 (which returns **`changedLocations`** and **`activeTripsForChanged`** in the same transaction).
 For each changed location row it runs trip compute in the
-action (with **`UpdateVesselTripDbAccess`** from `pipeline/updateVesselTrip/scheduleDbAccess.ts`
+action (with **`UpdateVesselTripDbAccess`** from `actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`
 for targeted `eventsScheduled` continuity), then **`loadPredictionContext`** (when
 domain preload requests apply) and domain **`updateVesselPredictions`**
 (`{ tripUpdate, predictionContext }`). Domain **`updateTimeline`** runs in action
@@ -385,7 +385,7 @@ inside **`timelineHandoffFromTripUpdate`**); then stage-level persistence helper
 trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted` rows in
 explicit per-vessel order. Per-tick trip lifecycle logic lives in
 `convex/domain/vesselOrchestration/updateVesselTrip/` and is driven by the per-vessel
-loop in `functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts`.
+loop in `functions/vesselOrchestrator/actions/ping/runOrchestratorPing.ts`.
 
 #### 1) Schedule segment enrichment (tick path + optional query joins)
 
@@ -434,7 +434,7 @@ We patch **`eventsPredicted`** rows with `Actual` and `DeltaTotal` (epoch ms) wh
 - Depart-next ML rows on `eventsPredicted` when a trip leaves dock: `updateLeaveDockEventPatch` in `runOrchestratorPing`, applied in `persistVesselUpdates` via `patchDepartNextMlRows` / `patchDepartNextMlRowsForDepBoundary`.
   - Trigger: `convex/domain/vesselOrchestration/updateLeaveDockEventPatch/updateLeaveDockEventPatch.ts`
   - Implementation: `convex/functions/events/eventsPredicted/actualizations.ts` (`patchDepartNextMlRows`), `mutations.ts` (`patchDepartNextMlRowsForDepBoundary`, optional `patchDepartNextMlFromLeaveDock`)
-  - Orchestrator: `convex/functions/vesselOrchestrator/pipeline/runOrchestratorPing.ts` (`updateLeaveDockEventPatch` + `persistVesselUpdates`)
+  - Orchestrator: `convex/functions/vesselOrchestrator/actions/ping/runOrchestratorPing.ts` (`updateLeaveDockEventPatch` + `persistVesselUpdates`)
 
 #### Feature Engineering Pipeline
 
