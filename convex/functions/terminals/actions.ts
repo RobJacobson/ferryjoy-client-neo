@@ -10,8 +10,8 @@ import { v } from "convex/values";
 import type { TerminalIdentity } from "./schemas";
 
 /**
- * Internal cron entry: fetch WSF terminal basics and replace the backend
- * `terminalsIdentity` snapshot.
+ * Internal cron entry: fetch WSF terminal basics and replace **`terminalsIdentity`**
+ * (concise identity rows only, not schedules or topology).
  *
  * @param ctx - Convex internal action context
  * @returns `null` after the backend snapshot refresh completes
@@ -42,19 +42,19 @@ export const runSyncBackendTerminals = action({
 });
 
 /**
- * Load the backend terminal snapshot for one action tick.
+ * Read **`terminalsIdentity`** for one action tick (identity fields only).
  *
  * If the table is empty, bootstrap it immediately from WSF basics so callers
  * do not need to wait for the hourly refresh cron.
  *
  * @param ctx - Convex action context for database operations
- * @returns Backend terminals for the current action
+ * @returns Terminal identity rows for the current action
  */
 export async function loadTerminalIdentities(
   ctx: ActionCtx
 ): Promise<Array<TerminalIdentity>> {
   let terminals: Array<TerminalIdentity> = await ctx.runQuery(
-    internal.functions.terminals.queries.getAllBackendTerminalsInternal
+    internal.functions.terminals.queries.getAllTerminalIdentities
   );
 
   if (terminals.length > 0) {
@@ -64,7 +64,7 @@ export async function loadTerminalIdentities(
   await syncBackendTerminalTable(ctx);
 
   terminals = await ctx.runQuery(
-    internal.functions.terminals.queries.getAllBackendTerminalsInternal
+    internal.functions.terminals.queries.getAllTerminalIdentities
   );
 
   if (terminals.length === 0) {

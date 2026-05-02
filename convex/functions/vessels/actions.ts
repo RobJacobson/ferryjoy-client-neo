@@ -10,8 +10,8 @@ import { v } from "convex/values";
 import type { VesselIdentity } from "./schemas";
 
 /**
- * Internal cron entry: fetch WSF vessel basics and replace the backend
- * `vessels` snapshot.
+ * Internal cron entry: fetch WSF vessel basics and replace **`vesselsIdentity`**
+ * (concise identity rows only, not live locations or trips).
  *
  * @param ctx - Convex internal action context
  * @returns `null` after the backend snapshot refresh completes
@@ -42,19 +42,19 @@ export const runSyncBackendVessels = action({
 });
 
 /**
- * Load the backend vessel snapshot for one action tick.
+ * Read **`vesselsIdentity`** for one action tick (identity fields only).
  *
  * If the table is empty, bootstrap it immediately from WSF basics so callers
  * do not need to wait for the hourly refresh cron.
  *
  * @param ctx - Convex action context for database operations
- * @returns Backend vessels for the current action
+ * @returns Vessel identity rows for the current action
  */
 export async function loadVesselIdentities(
   ctx: ActionCtx
 ): Promise<Array<VesselIdentity>> {
   let vessels: Array<VesselIdentity> = await ctx.runQuery(
-    internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
+    internal.functions.vesselLocation.queries.getAllVesselIdentities
   );
 
   if (vessels.length > 0) {
@@ -64,7 +64,7 @@ export async function loadVesselIdentities(
   await syncBackendVesselTable(ctx);
 
   vessels = await ctx.runQuery(
-    internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
+    internal.functions.vesselLocation.queries.getAllVesselIdentities
   );
 
   if (vessels.length === 0) {

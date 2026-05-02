@@ -20,7 +20,7 @@ export const fetchAndStoreVesselPings = internalAction({
   handler: async (ctx) => {
     try {
       const vessels = (await ctx.runQuery(
-        internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
+        internal.functions.vesselLocation.queries.getAllVesselIdentities
       )) satisfies ReadonlyArray<VesselIdentity>;
 
       const vesselPings = await fetchWsfVesselPings(vessels);

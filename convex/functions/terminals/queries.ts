@@ -1,5 +1,6 @@
 /**
- * Query handlers for backend and frontend terminal identity snapshots.
+ * Query handlers for **`terminalsIdentity`** (concise terminal identity rows) and
+ * public frontend snapshots — not full terminal operational or schedule data.
  */
 
 import { internalQuery, query } from "_generated/server";
@@ -8,12 +9,13 @@ import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { terminalIdentitySchema } from "./schemas";
 
 /**
- * Fetch all backend terminal rows.
+ * All rows from **`terminalsIdentity`**: canonical terminal identity fields only
+ * (abbrev, names, geography, etc.), not schedules or derived topology.
  *
  * @param ctx - Convex internal query context
- * @returns Backend terminal rows without Convex metadata
+ * @returns Terminal identity rows without Convex metadata
  */
-export const getAllBackendTerminalsInternal = internalQuery({
+export const getAllTerminalIdentities = internalQuery({
   args: {},
   returns: v.array(terminalIdentitySchema),
   handler: async (ctx) => {
@@ -23,10 +25,10 @@ export const getAllBackendTerminalsInternal = internalQuery({
 });
 
 /**
- * Fetch one backend terminal row by abbreviation.
+ * One **`terminalsIdentity`** row by abbreviation.
  *
  * @param args.terminalAbbrev - Terminal abbreviation to resolve
- * @returns Backend terminal row without Convex metadata, or `null`
+ * @returns Terminal identity row without Convex metadata, or `null`
  */
 export const getBackendTerminalByAbbrevInternal = internalQuery({
   args: {

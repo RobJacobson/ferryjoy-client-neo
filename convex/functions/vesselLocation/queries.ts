@@ -1,5 +1,6 @@
 /**
- * Query handlers for current vessel location and backend vessel snapshots.
+ * Query handlers for live vessel locations and the **`vesselsIdentity`** snapshot
+ * (concise vessel identity rows, not full vessel operational records).
  */
 
 import { internalQuery, query } from "_generated/server";
@@ -67,12 +68,13 @@ export const getCurrentVesselLocations = internalQuery({
 });
 
 /**
- * Fetch all backend vessel rows.
+ * All rows from **`vesselsIdentity`**: canonical vessel identity fields only
+ * (abbrev, names, IDs, etc.), not location or trip state.
  *
  * @param ctx - Convex internal query context
- * @returns Backend vessel rows without Convex metadata
+ * @returns Vessel identity rows without Convex metadata
  */
-export const getAllBackendVesselsInternal = internalQuery({
+export const getAllVesselIdentities = internalQuery({
   args: {},
   returns: v.array(vesselIdentitySchema),
   handler: async (ctx) => {
