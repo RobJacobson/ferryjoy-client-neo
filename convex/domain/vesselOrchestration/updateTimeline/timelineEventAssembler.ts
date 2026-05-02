@@ -28,20 +28,21 @@ import type {
 import { mergePingEventWrites, type PingEventWrites } from "./projectionWire";
 
 /**
- * Replacement row for predicted timeline writes after **updateVesselPredictions**.
+ * Replacement row for predicted timeline writes after
+ * **getVesselTripPredictionsFromTripUpdate**.
  *
  * @param fact - Boundary fact from the trip applier (must be ML-merged first)
  * @returns ML-shaped new trip for `buildPredictedDockWriteBatch`
  */
-const completedBoundaryNewTripForTimeline = (
+const completedBoundaryActiveTripWithMlForTimeline = (
   fact: CompletedArrivalHandoff
 ): ConvexVesselTripWithML => {
-  if (fact.newTrip === undefined) {
+  if (fact.activeVesselTripWithMl === undefined) {
     throw new Error(
-      "CompletedArrivalHandoff.newTrip is required before timeline projection; run updateVesselPredictions merge first."
+      "CompletedArrivalHandoff.activeVesselTripWithMl is required before timeline projection; merge predicted trips from getVesselTripPredictionsFromTripUpdate first."
     );
   }
-  return fact.newTrip;
+  return fact.activeVesselTripWithMl;
 };
 
 /**
@@ -144,14 +145,16 @@ const pingEventWritesFromCompletedFact = (
   updatedAt: number
 ): PingEventWrites => ({
   actualDockWrites: [
-    buildDepartureActualDockWriteForTrip(fact.tripToComplete),
-    buildArrivalActualDockWriteForTrip(fact.tripToComplete),
+    buildDepartureActualDockWriteForTrip(fact.completedVesselTrip),
+    buildArrivalActualDockWriteForTrip(fact.completedVesselTrip),
   ]
     .filter((write): write is NonNullable<typeof write> => write !== null)
     .map((write) => buildActualDockEventFromWrite(write, updatedAt)),
   predictedDockWriteBatches: [
-    buildPredictedDockClearBatch(fact.existingTrip),
-    buildPredictedDockWriteBatch(completedBoundaryNewTripForTimeline(fact)),
+    buildPredictedDockClearBatch(fact.existingVesselTrip),
+    buildPredictedDockWriteBatch(
+      completedBoundaryActiveTripWithMlForTimeline(fact)
+    ),
   ].filter((batch): batch is ConvexPredictedDockWriteBatch => Boolean(batch)),
 });
 

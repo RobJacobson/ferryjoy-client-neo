@@ -90,8 +90,8 @@ describe("updateVesselTrip stage-2 policy", () => {
     );
 
     expect(tripStage).not.toBeNull();
-    expect(tripStage?.existingActiveTrip).toBeDefined();
-    expect(tripStage?.activeVesselTripUpdate).toBeDefined();
+    expect(tripStage?.existingVesselTrip).toBeDefined();
+    expect(tripStage?.activeVesselTrip).toBeDefined();
   });
 
   it("returns null when a vessel trip update emits no writes", async () => {
@@ -120,8 +120,8 @@ describe("updateVesselTrip stage-2 policy", () => {
         }
         return {
           vesselAbbrev: "TAC",
-          activeVesselTripUpdate: healthyActiveTrip,
-          completedVesselTripUpdate: undefined,
+          activeVesselTrip: healthyActiveTrip,
+          completedVesselTrip: undefined,
         };
       }
     );

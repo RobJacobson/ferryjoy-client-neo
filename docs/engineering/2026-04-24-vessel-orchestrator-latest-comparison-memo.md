@@ -1,6 +1,6 @@
 # Vessel Orchestrator Latest Before/After Engineering Memo
 
-**Current code (authoritative):** The shipped orchestrator entrypoint is [`convex/functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`](../../convex/functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts) (`updateVesselOrchestrator`). Per changed vessel it runs domain **`updateVesselTrip`** → trip persists (`persistCompletedVesselTrip`, `persistActiveVesselTrip`) → **`loadPredictionContext`** ([`actions/ping/updateVesselPredictions/index.ts`](../../convex/functions/vesselOrchestrator/actions/ping/updateVesselPredictions/index.ts)) → **`updateVesselPredictions`** → prediction persist (`persistPredictionRows`) → **`updateTimeline`** → timeline persists (`persistActualTimelineEvents`, `persistPredictedTimelineEvents`) → optional actualization persist (`persistVesselTripActualizationIntent`). Timeline input is **`VesselTripUpdate`** (**`timelineHandoffFromTripUpdate`** inside **`updateTimeline`**). Schedule reads are wired via **`actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`**. See [`../../convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md) and [`../../convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md). The sections below are a **dated** before/after record; filenames and mutation names in the narrative may not match today’s tree.
+**Current code (authoritative):** The shipped orchestrator entrypoint is [`convex/functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`](../../convex/functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts) (`updateVesselOrchestrator`). Per changed vessel it runs domain **`updateVesselTrip`** → optional **`updateLeaveDockEventPatch`** → **`getVesselTripPredictionsFromTripUpdate`** (prediction model parameters via **`loadPredictionModelParameters`** / **`getPredictionModelParameters`** when **`getPredictionModelParametersFromTripUpdate`** is non-null) → prediction persist (`persistPredictionRows`) → **`updateTimeline`** → timeline persists (`persistActualTimelineEvents`, `persistPredictedTimelineEvents`) → optional actualization persist (`persistVesselTripActualizationIntent`). Timeline input is **`VesselTripUpdate`** plus **`predictedTripTimelineHandoffs`** (**`timelineHandoffFromTripUpdate`** inside **`updateTimeline`**). Schedule reads are wired via **`actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`**. See [`../../convex/functions/vesselOrchestrator/README.md`](../../convex/functions/vesselOrchestrator/README.md) and [`../../convex/domain/vesselOrchestration/architecture.md`](../../convex/domain/vesselOrchestration/architecture.md). The sections below are a **dated** before/after record; filenames and mutation names in the narrative may not match today’s tree.
 **Historical note:** treat the section details below as snapshot analysis from the date above, not as a living runtime contract.
 
 **Date:** 2026-04-25 (revised; first published 2026-04-24; updated 2026-04-25 PM)  
@@ -71,7 +71,7 @@ The most important design conclusion is:
 | Top-level orchestration   | Fetch, convert, fan out location/trip branches, apply timeline writes             | Load identities + trips, fetch/normalize feed, locations-only mutation, then compute trip/prediction and persist timeline bundle | Latest is sequential, with improved payload isolation and clear stage ownership |
 | `updateVesselLocations`   | Upsert all converted locations every tick                                         | Full feed sent to internal `bulkUpsertVesselLocations`; **`performBulkUpsertVesselLocations`** (`collect()` + compare by `VesselAbbrev` / `TimeStamp`) inside location mutation | Aligns with classic mutation-side dedupe while avoiding bundled cross-stage payloads   |
 | `updateVesselTrip`       | Lifecycle, schedule enrichment, ML, persistence, and timeline intents intertwined | Per-vessel pure compute with targeted schedule access; persistence separated                                                  | Stronger domain boundary, still more files/types than before                                   |
-| `updateVesselPredictions` | Embedded inside trip building                                                     | Separate stage gated by changed trip facts                                                                                    | Clear win; keep this separation                                                                |
+| `getVesselTripPredictionsFromTripUpdate` | Embedded inside trip building                                                     | Separate stage gated by changed trip facts                                                                                    | Clear win; keep this separation                                                                |
 | `updateVesselTimeline`    | Built from trip lifecycle messages and applied after trip writes                  | Built after trip persistence from persisted facts plus ML computations                                                        | More correct, still the densest handoff area                                                   |
 | Hot-path schedule reads   | Targeted schedule queries when needed                                             | Targeted `eventsScheduled` queries when needed                                                                      | Recovers the old workload-friendly granularity while preserving cleaner trip logic             |
 | Summary tables            | None                                                                              | No location-update summary table; no production schedule snapshot table                                                       | Latest removed the two most questionable summary tables                                        |
@@ -411,7 +411,7 @@ Remaining opportunities:
 - trip-field inference logging is useful, but `resolveTripFieldsForTripRow.ts` is doing resolution, diagnostics, message formatting, and next-leg attachment; split only if it reduces real reading burden
 - keep the orchestrator-visible per-vessel loop; it is simpler than hiding the whole ping behind another batch adapter
 
-## 6. `updateVesselPredictions` Pipeline
+## 6. Vessel-trip predictions pipeline (`getVesselTripPredictionsFromTripUpdate`)
 
 ### 6.1 Happy Path Control Flow: Before
 
@@ -443,12 +443,11 @@ Primary flow:
   - include completed handoffs only for changed vessels
 - `runPredictionStage`
   - return immediately if no active trips or completed handoffs need prediction
-  - `loadPredictionContext`
-    - group requested model types by terminal pair
-    - load production model parameters once per pair
-  - `updateVesselPredictions`
+  - `loadPredictionModelParameters` / `getPredictionModelParameters`
+    - load prediction model parameters for the terminal pair and phase model types
+  - `getVesselTripPredictionsFromTripUpdate`
     - build prediction rows
-    - build `MlTimelineOverlay[]` handoffs for timeline projection
+    - build `PredictedTripTimelineHandoff[]` handoffs for timeline projection
 - later in persistence:
   - `batchUpsertProposalsInDb` only when prediction rows exist
 
@@ -465,8 +464,8 @@ Normal expected branches:
 | Before function           | Role                                               | Latest function                                      | Role                                        |
 | ------------------------- | -------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
 | `buildTrip`               | Implicitly owned prediction routing                | `runPredictionStage`                                 | Orchestrator-owned prediction stage         |
-| prediction append helpers | Phase-specific ML enrichment inside trip lifecycle | `updateVesselPredictions` / `applyVesselPredictions` | Same ML routing on clean pre-ML trip inputs |
-| in-memory trip proposal   | Trip and ML result were the same object            | `MlTimelineOverlay`                                  | Explicit ML handoff for timeline merge      |
+| prediction append helpers | Phase-specific ML enrichment inside trip lifecycle | `getVesselTripPredictionsFromTripUpdate` / `applyVesselPredictionsFromLoadedModels` | Same phase routing on clean pre-enrichment trip inputs |
+| in-memory trip proposal   | Trip and ML result were the same object            | `PredictedTripTimelineHandoff` | Explicit prediction handoff for timeline merge |
 
 
 ### 6.4 Data Flow And Side Effects
@@ -487,7 +486,7 @@ This remains a clear win.
 
 The latest branch also improved the stage ownership by moving the prediction gate helpers into `predictionStage.ts` and keeping the action focused on flow.
 
-The main thing to watch is that `MlTimelineOverlay` should not grow into a second trip state object. It is healthy as a narrow timeline/prediction handoff. If future code starts treating it as another canonical trip shape, complexity will creep back in.
+The main thing to watch is that `PredictedTripTimelineHandoff` should not grow into a second trip state object. It is healthy as a narrow timeline/prediction handoff. If future code starts treating it as another canonical trip shape, complexity will creep back in.
 
 Recommended direction:
 
@@ -523,9 +522,9 @@ Primary flow:
   - returns successful completed facts and current-branch messages
   - gates current messages on successful active-trip upserts
 - `runPredictionStage`
-  - returns `MlTimelineOverlay[]`
+  - returns `PredictedTripTimelineHandoff[]`
 - `updateTimeline`
-  - merges `mlTimelineOverlays` into `tripHandoffForTimeline` via `mergeMlOverlayIntoTripHandoffForTimeline`
+  - merges `predictedTripTimelineHandoffs` onto the persisted handoff from **`timelineHandoffFromTripUpdate`** (see **`applyPredictedTripTimelineHandoffs`** in **`projectTimelineFromHandoff.ts`**)
   - `buildDockWritesFromTripHandoff`
     - `buildPingEventWritesFromCompletedFacts`
     - `buildPingEventWritesFromCurrentMessages`
@@ -550,7 +549,7 @@ Expected non-error branches:
 | ------------------------ | -------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------- |
 | `timelineEventAssembler` | Assemble effects from trip lifecycle outputs | `updateTimeline`          | Assemble from persisted facts plus ML handoffs          |
 | `applyTickEventWrites`   | Persist actual/predicted timeline writes     | `persistTimelineEventWrites`                   | Action computes timeline rows; persistence mutation writes final rows |
-| final proposed trip      | Implicitly carried lifecycle and ML state    | `tripHandoffForTimeline` + `MlTimelineOverlay` | Explicit lifecycle and ML merge boundary                |
+| final proposed trip      | Implicitly carried lifecycle and ML state    | `tripHandoffForTimeline` + `PredictedTripTimelineHandoff` | Explicit lifecycle and ML merge boundary                |
 
 
 ### 7.4 Data Flow And Side Effects
@@ -579,7 +578,7 @@ This is also the place where the code still feels the heaviest. The names are re
 - `ActualDockWriteIntent`
 - `PredictedDockWriteIntent`
 - `ActiveTripWriteOutcome`
-- `MlTimelineOverlay`
+- `PredictedTripTimelineHandoff`
 - `TripHandoffForTimeline`
 - `TripPersistOutcome`
 
@@ -789,7 +788,7 @@ Recommended improvements:
   - Do this in one pass with type aliases first, then symbol renames, to minimize churn.
 2. Reduce translation layers between trip persistence and timeline projection.
   - Consolidate overlapping shapes (`TripPersistOutcome`, `ActiveTripWriteOutcome`, current branch message DTOs) into one canonical persist result contract.
-  - Keep only one ML overlay contract (`MlTimelineOverlay`) and remove parallel aliases.
+  - Keep only one ML overlay contract (`PredictedTripTimelineHandoff`) and remove parallel aliases.
 3. Split `resolveTripFieldsForTripRow` into two files by ownership, not by arbitrary size.
   - Keep deterministic field resolution in one module.
   - Move diagnostics/log formatting helpers into a separate module so core logic reads linearly.

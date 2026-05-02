@@ -1,38 +1,12 @@
-/**
- * {@link appendAtDockPredictions} re-runs phase-valid models on every ping.
- */
-
 import { describe, expect, it } from "bun:test";
-import type {
-  ProductionModelParameters,
-  VesselTripPredictionModelAccess,
-} from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ModelType } from "domain/ml/shared/types";
-import { appendAtDockPredictions } from "domain/vesselOrchestration/updateVesselPredictions/appendPredictions";
-import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import { PREDICTION_SPECS } from "domain/ml/prediction/vesselTripPredictions";
+import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
+import { appendPredictionsFromLoadedModels } from "../appendPredictions";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
-const makePrediction = (PredTime: number) => ({
-  PredTime,
-  MinTime: PredTime - 60_000,
-  MaxTime: PredTime + 60_000,
-  MAE: 1,
-  StdDev: 1,
-  Actual: undefined,
-  DeltaTotal: undefined,
-  DeltaRange: undefined,
-});
-
-const stubModel: ProductionModelParameters = {
-  featureKeys: [],
-  coefficients: [],
-  intercept: 0,
-  testMetrics: { mae: 1, stdDev: 1 },
-};
-
-const makeAtDockTrip = (): ConvexVesselTripWithPredictions => ({
+const makeTrip = (): ConvexVesselTripWithML => ({
   VesselAbbrev: "CHE",
   DepartingTerminalAbbrev: "ORI",
   ArrivingTerminalAbbrev: "LOP",
@@ -58,29 +32,30 @@ const makeAtDockTrip = (): ConvexVesselTripWithPredictions => ({
   PrevLeftDock: ms("2026-03-13T08:12:00-07:00"),
   NextScheduleKey: "CHE--2026-03-13--10:15--LOP-ANA",
   NextScheduledDeparture: ms("2026-03-13T10:15:00-07:00"),
-  AtDockDepartCurr: makePrediction(ms("2026-03-13T09:33:00-07:00")),
-  AtDockArriveNext: makePrediction(ms("2026-03-13T10:05:00-07:00")),
-  AtDockDepartNext: makePrediction(ms("2026-03-13T10:22:00-07:00")),
-  AtSeaArriveNext: undefined,
-  AtSeaDepartNext: undefined,
 });
 
-describe("appendAtDockPredictions", () => {
-  it("re-runs at-dock specs when slots already hold full predictions (batch load once)", async () => {
-    let batchCalls = 0;
-    const modelAccess: VesselTripPredictionModelAccess = {
-      loadModelForProductionPair: async () => stubModel,
-      loadModelsForProductionPairBatch: async (_pairKey, modelTypes) => {
-        batchCalls++;
-        return Object.fromEntries(
-          modelTypes.map((t) => [t, stubModel])
-        ) as Record<ModelType, ProductionModelParameters | null>;
+describe("appendPredictionsFromLoadedModels", () => {
+  it("uses a preloaded model for a single runnable spec", async () => {
+    const trip = makeTrip();
+    const spec = PREDICTION_SPECS["at-dock"][0];
+
+    const out = await appendPredictionsFromLoadedModels(
+      {
+        "ORI->LOP": {
+          "at-dock-depart-curr": {
+            featureKeys: [],
+            coefficients: [],
+            intercept: 3,
+            testMetrics: { mae: 1, stdDev: 1 },
+          },
+        },
       },
-    };
+      trip,
+      [spec]
+    );
 
-    const trip = makeAtDockTrip();
-    await appendAtDockPredictions(modelAccess, trip);
-
-    expect(batchCalls).toBe(1);
+    expect(out.AtDockDepartCurr?.PredTime).toBe(
+      ms("2026-03-13T09:33:00-07:00")
+    );
   });
 });

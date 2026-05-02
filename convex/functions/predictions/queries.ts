@@ -157,10 +157,10 @@ const productionModelParametersSchema = v.object({
 });
 
 /**
- * Preload for one orchestrator ping branch: loads production model docs for a
- * single terminal pair and returns them as a plain-data lookup by pair and model type.
+ * Loads prediction model parameter docs for one terminal pair (active production
+ * version tag) and returns a plain lookup keyed by pair and model type.
  */
-export const getProductionModelParametersForPing = internalQuery({
+export const getPredictionModelParameters = internalQuery({
   args: {
     request: v.optional(
       v.object({

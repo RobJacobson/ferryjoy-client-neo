@@ -1,33 +1,64 @@
 # updateVesselPredictions (orchestrator concern)
 
-ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
-leave-dock actualization for one ping. On the **orchestrator** path **`updateVesselOrchestrator`** calls **`updateVesselPredictions`** in the action per-vessel loop with input **`{ tripUpdate, predictionContext }`** (**`tripUpdate`** comes from **`updateVesselTrip`**). Persistence stays outside this domain function and runs through stage-level helpers in the pipeline (trip writes first, then prediction writes, then timeline writes).
+Prediction model-backed enrichment of the active trip and
+`vesselTripPredictions` proposal rows. On the orchestrator path
+**`runOrchestratorPing`** calls
+**`getVesselTripPredictionsForTripUpdate`**, which delegates to
+**`getVesselTripPredictionsFromTripUpdate`** with **`loadPredictionModelParameters`**
+bound to **`ActionCtx`**. That flow derives when to load parameters, loads weights
+when needed, runs inference once on **`tripUpdate.activeVesselTrip`**, and returns
+proposal rows plus the enriched active trip. Persistence and timeline handoff
+construction stay outside this domain layer.
+
+```text
+VesselTripUpdate
+  -> getVesselTripPredictionsFromTripUpdate(tripUpdate, { loadPredictionModelParameters })
+  -> enrichedActiveVesselTrip + predictionRows
+```
+
+Completion ticks predict the replacement active trip once. **`updateTimeline`**
+reuses that same enriched trip for completed/current overlay projection, while
+**`predictionRows`** are generated once here from the enriched trip.
+
+## Stage 4 control flow
+
+| Step | Module / function | Main input | Main output | Synopsis |
+| --- | --- | --- | --- | --- |
+| 1 | `actions/ping/runOrchestratorPing.ts` Stage 4 | Non-null `VesselTripUpdate` | `enrichedActiveVesselTrip`, `predictionRows` | Calls **`getVesselTripPredictionsForTripUpdate`**, which wires **`loadPredictionModelParameters`** to **`ActionCtx`**. |
+| 2 | `getPredictionModelParametersFromTripUpdate` | `VesselTripUpdate` | `PredictionModelParametersRequest \| null` | Uses runnable specs on **`activeVesselTrip`**, verifies terminal abbrevs, builds the terminal-pair key for **`getPredictionModelParameters`**. |
+| 3 | `getRunnablePredictionSpecsFromTrip` / `getPredictionSpecsFromTrip` (`tripDockStatePredictionSpecs.ts`) | Candidate trip | `PredictionSpec[]` | Routes by **`AtDock`** and applies readiness, departure-actual, and anchor-time gates. |
+| 4 | `loadPredictionModelParameters` (`actions/ping/updateVesselPredictions/load.ts`) | `ActionCtx`, request | **`PredictionModelParametersByPairKey`** | Runs **`getPredictionModelParameters`** when the domain supplies a non-null request. |
+| 5 | `getPredictionModelParameters` (`functions/predictions/queries.ts`) | `{ pairKey, modelTypes }` | `{ [pairKey]: { [modelType]: model \| null } }` | Reads the active production version tag and returns inference-ready parameters. |
+| 6 | `getVesselTripPredictionsFromTripUpdate` (`getVesselTripPredictionsFromTripUpdate.ts`) | `tripUpdate`, deps | **`VesselTripPredictionsFromTripUpdateResult`** | Best-effort loads parameters, applies **`applyVesselPredictionsFromLoadedModels`**, builds proposal rows. |
+| 7 | `applyVesselPredictionsFromLoadedModels` (`applyVesselPredictions.ts`) | Loaded models, trip | `ConvexVesselTripWithML` | Phase-valid specs, **`appendPredictionsFromLoadedModels`**, then leave-dock actualization. |
+| 8 | `appendPredictionsFromLoadedModels` (`appendPredictions.ts`) | Preloaded models, trip, specs | `ConvexVesselTripWithML` | Runs **`predictFromSpec`** for each spec using preloaded docs. |
+| 9 | `predictFromSpec` (`domain/ml/prediction/vesselTripPredictions.ts`) | Trip, spec, optional model doc | `ConvexPrediction \| null` | Feature extraction, linear model, timestamps for prediction fields. |
+| 10 | `vesselTripPredictionProposalsFromMlTrip` | Enriched trip | **`VesselTripPredictionProposal[]`** | One proposal per populated prediction field. |
 
 ## Canonical code
 
-- **Implementation:** [`./applyVesselPredictions.ts`](./applyVesselPredictions.ts) — `applyVesselPredictions`, handoff type `VesselTripCoreProposal`.
-- **Phase selection:** [`./predictionPolicy.ts`](./predictionPolicy.ts) — simple helpers that decide which prediction family applies to the current trip phase.
-- **Prediction specs / `computePredictions`:** [`./appendPredictions.ts`](./appendPredictions.ts) — do not duplicate.
-- **Strip for DB:** [`../shared/orchestratorPersist/stripTripPredictionsForStorage.ts`](../shared/orchestratorPersist/stripTripPredictionsForStorage.ts) — used from lifecycle mutations where persistence must omit ML blobs.
+- **Entry:** [`./getVesselTripPredictionsFromTripUpdate.ts`](./getVesselTripPredictionsFromTripUpdate.ts)
+- **Orchestrator wiring:** [`../../../functions/vesselOrchestrator/actions/ping/updateVesselPredictions/getVesselTripPredictionsForTripUpdate.ts`](../../../functions/vesselOrchestrator/actions/ping/updateVesselPredictions/getVesselTripPredictionsForTripUpdate.ts)
+- **Parameter request:** [`./getPredictionModelParametersFromTripUpdate.ts`](./getPredictionModelParametersFromTripUpdate.ts)
+- **Runnable spec routing:** [`./tripDockStatePredictionSpecs.ts`](./tripDockStatePredictionSpecs.ts)
+- **Loaded-model apply:** [`./applyVesselPredictions.ts`](./applyVesselPredictions.ts), [`./appendPredictions.ts`](./appendPredictions.ts)
+- **Strip for DB:** [`../updateVesselTrip/pipeline/stripTripPredictionsForStorage.ts`](../updateVesselTrip/pipeline/stripTripPredictionsForStorage.ts)
 
 ## Handoff types
 
-- **`VesselTripCoreProposal`** — Trip **immediately before this ping’s**
-  `appendArriveDock` / `appendLeaveDock` phases. The row may still carry **prior**
-  ML or joined minimal fields from storage; the boundary is not a stripped row.
-- **`MlTimelineOverlay`** — defined in [`../shared/pingHandshake/types.ts`](../shared/pingHandshake/types.ts); same-ping ML merge input for timeline (alongside prediction table rows).
+- **`ConvexVesselTrip`** (schedule + lifecycle from **`updateVesselTrip`**) —
+  trip immediately before prediction enrichment in **`applyVesselPredictionsFromLoadedModels`**.
+- **`ConvexVesselTripWithML`** — enriched active trip returned to the orchestrator
+  and passed into **`updateTimeline`**.
 
-## Persistence vs overlay
+## Persistence vs timeline merge
 
-- **Persist:** mutations use `stripTripPredictionsForStorage` on proposed trips
-  where applicable (`processCurrentTrips`, `processCompletedTrips`).
-- **Overlay / timeline:** comparisons use the **full** proposed trip (including
-  ML) so timeline messaging sees enriched fields — do not strip before overlay
-  diff.
+- **Persist:** mutations use **`stripTripPredictionsForStorage`** on proposed
+  trips where applicable.
+- **Timeline:** uses the full enriched trip from Stage 4 so predicted events
+  match the same row used for **`predictionRows`**.
 
 ## Imports
 
-Public API: [`index.ts`](./index.ts) — **`updateVesselPredictions`**, **`predictionInputsFromTripUpdate`**, **`predictionModelLoadRequestForTripUpdate`**, contract types, and **`predictionModelTypesForTrip`** (phase routing). Other modules in this folder are internal; colocated tests import them via relative paths. Timeline assembly lives under [`../updateTimeline`](../updateTimeline).
-
-Primary runner implementation now lives in
-[`updateVesselPredictions.ts`](./updateVesselPredictions.ts).
+Public API: [`index.ts`](./index.ts). Other modules in this folder are internal;
+colocated tests may import implementation files directly.

@@ -42,17 +42,17 @@ const makeTripUpdate = (
   overrides: Partial<VesselTripUpdate> = {}
 ): VesselTripUpdate => ({
   vesselAbbrev: "TAC",
-  existingActiveTrip: makeTrip("TAC", {
+  existingVesselTrip: makeTrip("TAC", {
     AtDock: true,
     LeftDock: undefined,
     LeftDockActual: undefined,
   }),
-  activeVesselTripUpdate: makeTrip("TAC", {
+  activeVesselTrip: makeTrip("TAC", {
     AtDock: false,
     LeftDock: ms("2026-03-13T06:40:00.789-07:00"),
     LeftDockActual: ms("2026-03-13T06:40:00.789-07:00"),
   }),
-  completedVesselTripUpdate: undefined,
+  completedVesselTrip: undefined,
   ...overrides,
 });
 
@@ -70,7 +70,7 @@ describe("updateLeaveDockEventPatch", () => {
   it("returns null when transition is not didJustLeaveDock", () => {
     const result = updateLeaveDockEventPatch(
       makeTripUpdate({
-        existingActiveTrip: makeTrip("TAC", { AtDock: false }),
+        existingVesselTrip: makeTrip("TAC", { AtDock: false }),
       })
     );
 
@@ -80,7 +80,7 @@ describe("updateLeaveDockEventPatch", () => {
   it("returns null when LeftDockActual is missing", () => {
     const result = updateLeaveDockEventPatch(
       makeTripUpdate({
-        activeVesselTripUpdate: makeTrip("TAC", {
+        activeVesselTrip: makeTrip("TAC", {
           AtDock: false,
           LeftDockActual: undefined,
         }),
@@ -93,7 +93,7 @@ describe("updateLeaveDockEventPatch", () => {
   it("returns null when ScheduleKey is missing", () => {
     const result = updateLeaveDockEventPatch(
       makeTripUpdate({
-        activeVesselTripUpdate: makeTrip("TAC", {
+        activeVesselTrip: makeTrip("TAC", {
           AtDock: false,
           ScheduleKey: undefined,
         }),

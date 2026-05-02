@@ -140,15 +140,15 @@ describe("updateVesselOrchestrator ping integration", () => {
       "updateVesselTrip"
     ).mockResolvedValue({
       vesselAbbrev: "CHE",
-      existingActiveTrip: undefined,
-      activeVesselTripUpdate: activeTripWithMl,
+      existingVesselTrip: undefined,
+      activeVesselTrip: activeTripWithMl,
     });
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
+      enrichedActiveVesselTrip: activeTripWithMl,
       predictionRows: [],
-      mlTimelineOverlays: [],
     });
     const timelineSpy = spyOn(
       updateTimelineModule,
@@ -186,11 +186,14 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    // Identities, then prediction preload query (active trips come from bulk upsert mutation).
-    expect(runQueryCalls).toBe(2);
+    // Identities snapshot only; prediction stage uses a mocked domain branch here.
+    expect(runQueryCalls).toBe(1);
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
     expect(timelineSpy).toHaveBeenCalledTimes(1);
+    expect(timelineSpy.mock.calls[0]?.[0]).toMatchObject({
+      enrichedActiveVesselTrip: activeTripWithMl,
+    });
 
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
@@ -212,18 +215,21 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
     spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue({
       vesselAbbrev: "CHE",
-      existingActiveTrip,
-      activeVesselTripUpdate: makeTrip("CHE", {
+      existingVesselTrip: existingActiveTrip,
+      activeVesselTrip: makeTrip("CHE", {
         AtDock: false,
         LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
       }),
     });
     spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
+      enrichedActiveVesselTrip: makeTrip("CHE", {
+        AtDock: false,
+        LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
+      }),
       predictionRows: [],
-      mlTimelineOverlays: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],
@@ -258,7 +264,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(2);
+    expect(runQueryCalls).toBe(1);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
@@ -284,7 +290,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue(null);
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     );
     const timelineSpy = spyOn(updateTimelineModule, "updateTimeline");
 
@@ -329,17 +335,17 @@ describe("updateVesselOrchestrator ping integration", () => {
         }
         return {
           vesselAbbrev: "TAC",
-          existingActiveTrip: undefined,
-          activeVesselTripUpdate: makeTrip("TAC"),
+          existingVesselTrip: undefined,
+          activeVesselTrip: makeTrip("TAC"),
         };
       }
     );
     spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
+      enrichedActiveVesselTrip: makeTrip("TAC"),
       predictionRows: [],
-      mlTimelineOverlays: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],
@@ -382,7 +388,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(2);
+    expect(runQueryCalls).toBe(1);
     expect(mutationCalls.length).toBe(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };

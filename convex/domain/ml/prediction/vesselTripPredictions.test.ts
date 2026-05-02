@@ -153,11 +153,14 @@ describe("predictFromSpec", () => {
       LeftDock: ms("2026-03-13T10:25:00-07:00"),
     });
 
-    const result = await predictFromSpec(
-      forbidModelAccess,
-      trip,
-      PREDICTION_SPECS.AtSeaArriveNext
+    const spec = PREDICTION_SPECS["at-sea"].find(
+      (s) => s.field === "AtSeaArriveNext"
     );
+    if (spec === undefined) {
+      throw new Error("AtSeaArriveNext spec missing from PREDICTION_SPECS");
+    }
+
+    const result = await predictFromSpec(forbidModelAccess, trip, spec);
 
     expect(result).toBeNull();
   });

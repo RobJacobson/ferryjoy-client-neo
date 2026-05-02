@@ -1,37 +1,30 @@
 /**
- * Stage-level loaders for update-vessel-predictions.
+ * Convex query adapter for loading prediction model parameters used by
+ * `getVesselTripPredictionsFromTripUpdate`.
  */
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
-import {
-  predictionModelLoadRequestForTripUpdate,
-  type VesselPredictionContext,
+import type {
+  PredictionModelParametersByPairKey,
+  PredictionModelParametersRequest,
 } from "domain/vesselOrchestration/updateVesselPredictions";
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 
 /**
- * Loads production prediction context for the current ping branch.
+ * Loads prediction model parameter documents for one orchestrator branch via
+ * **`getPredictionModelParameters`**.
  *
- * When domain **`predictionModelLoadRequestForTripUpdate`** returns null, skips
- * the Convex query entirely. Otherwise loads model parameters keyed by terminal
- * pair for **`updateVesselPredictions`** in the same action branch.
- *
- * @param ctx - Convex action context used for the model parameter query
- * @param tripUpdate - Sparse trip update rows for this ping branch
- * @returns Prediction context keyed by terminal pair, or empty context
+ * @param ctx - Convex action context used for the internal query
+ * @param request - Terminal pair and model types aligned with the domain
+ *   request from **`getPredictionModelParametersFromTripUpdate`**
+ * @returns Plain lookup keyed by pair string and model type, suitable for
+ *   **`applyVesselPredictionsFromLoadedModels`**
  */
-export const loadPredictionContext = async (
+export const loadPredictionModelParameters = async (
   ctx: ActionCtx,
-  tripUpdate: VesselTripUpdate
-): Promise<VesselPredictionContext> => {
-  const request = predictionModelLoadRequestForTripUpdate(tripUpdate);
-  if (request === null) {
-    return {};
-  }
-  const productionModelsByPair = await ctx.runQuery(
-    internal.functions.predictions.queries.getProductionModelParametersForPing,
+  request: PredictionModelParametersRequest
+): Promise<PredictionModelParametersByPairKey> =>
+  ctx.runQuery(
+    internal.functions.predictions.queries.getPredictionModelParameters,
     { request }
   );
-  return { productionModelsByPair };
-};

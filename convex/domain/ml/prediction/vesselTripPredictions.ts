@@ -12,8 +12,15 @@ import type {
 } from "../../../functions/vesselTrips/schemas";
 import { floorToSecond, getRoundedMinutesDelta } from "../../../shared/time";
 import type { ModelType } from "../shared/types";
-import { isMissingTrainedModelError, predictTripValue } from "./predictTrip";
-import type { VesselTripPredictionModelAccess } from "./vesselTripPredictionModelAccess";
+import {
+  isMissingTrainedModelError,
+  predictTripValue,
+  predictTripValueWithModel,
+} from "./predictTrip";
+import type {
+  ProductionModelParameters,
+  VesselTripPredictionModelAccess,
+} from "./vesselTripPredictionModelAccess";
 
 const MINUTES_TO_MS = 60 * 1000;
 
@@ -27,50 +34,65 @@ export type PredictionField =
   | "AtSeaArriveNext"
   | "AtSeaDepartNext";
 
+export type PredictionPhase = "at-dock" | "at-sea";
+
 /**
  * Declarative description of how to compute one prediction field.
  */
 export type PredictionSpec = {
   field: PredictionField;
+  phase: PredictionPhase;
   modelType: ModelType;
   requiresDepartureActual: boolean;
   getAnchorMs: (trip: ConvexVesselTripWithML) => number | null;
 };
 
 /**
- * Registry of supported trip prediction fields and their model wiring.
+ * Supported prediction specs by vessel phase (`AtDock` routes dock vs sea).
  */
-export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
-  AtDockDepartCurr: {
-    field: "AtDockDepartCurr",
-    modelType: "at-dock-depart-curr",
-    requiresDepartureActual: false,
-    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
-  },
-  AtDockArriveNext: {
-    field: "AtDockArriveNext",
-    modelType: "at-dock-arrive-next",
-    requiresDepartureActual: false,
-    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
-  },
-  AtDockDepartNext: {
-    field: "AtDockDepartNext",
-    modelType: "at-dock-depart-next",
-    requiresDepartureActual: false,
-    getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
-  },
-  AtSeaArriveNext: {
-    field: "AtSeaArriveNext",
-    modelType: "at-sea-arrive-next",
-    requiresDepartureActual: true,
-    getAnchorMs: (trip) => trip.LeftDockActual ?? null,
-  },
-  AtSeaDepartNext: {
-    field: "AtSeaDepartNext",
-    modelType: "at-sea-depart-next",
-    requiresDepartureActual: true,
-    getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
-  },
+export const PREDICTION_SPECS: Record<
+  PredictionPhase,
+  readonly PredictionSpec[]
+> = {
+  "at-dock": [
+    {
+      field: "AtDockDepartCurr",
+      phase: "at-dock",
+      modelType: "at-dock-depart-curr",
+      requiresDepartureActual: false,
+      getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+    },
+    {
+      field: "AtDockArriveNext",
+      phase: "at-dock",
+      modelType: "at-dock-arrive-next",
+      requiresDepartureActual: false,
+      getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+    },
+    {
+      field: "AtDockDepartNext",
+      phase: "at-dock",
+      modelType: "at-dock-depart-next",
+      requiresDepartureActual: false,
+      getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
+    },
+  ],
+  "at-sea": [
+    {
+      field: "AtSeaArriveNext",
+      phase: "at-sea",
+      modelType: "at-sea-arrive-next",
+      requiresDepartureActual: true,
+      getAnchorMs: (trip) => trip.LeftDockActual ?? null,
+    },
+    {
+      field: "AtSeaDepartNext",
+      phase: "at-sea",
+      modelType: "at-sea-depart-next",
+      requiresDepartureActual: true,
+      getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
+    },
+  ],
 };
 
 /**
@@ -246,15 +268,10 @@ export const actualizePredictionsOnTripComplete = (
  * @returns Prediction result or null if not ready / cannot be computed
  */
 export const predictFromSpec = async (
-  modelAccess: VesselTripPredictionModelAccess,
+  modelAccess: VesselTripPredictionModelAccess | null,
   trip: ConvexVesselTripWithML,
   spec: PredictionSpec,
-  preloadedModel?: {
-    featureKeys: string[];
-    coefficients: number[];
-    intercept: number;
-    testMetrics: { mae: number; stdDev: number };
-  } | null
+  preloadedModel?: ProductionModelParameters | null
 ): Promise<ConvexPrediction | null> => {
   if (!isPredictionReadyTrip(trip)) {
     return null;
@@ -278,16 +295,21 @@ export const predictFromSpec = async (
   }
 
   try {
-    const {
-      predictedValue: predictedMinutes,
-      mae,
-      stdDev,
-    } = await predictTripValue(
-      modelAccess,
-      trip,
-      spec.modelType,
-      preloadedModel
-    );
+    if (preloadedModel === null) {
+      return null;
+    }
+
+    const prediction =
+      preloadedModel === undefined
+        ? modelAccess === null
+          ? null
+          : await predictTripValue(modelAccess, trip, spec.modelType)
+        : predictTripValueWithModel(trip, spec.modelType, preloadedModel);
+    if (prediction === null) {
+      return null;
+    }
+
+    const { predictedValue: predictedMinutes, mae, stdDev } = prediction;
 
     const predictedMs = anchorMs + predictedMinutes * MINUTES_TO_MS;
 

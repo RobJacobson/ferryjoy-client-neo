@@ -1,5 +1,6 @@
 /**
- * Handoff DTOs between trip persistence, prediction overlays, and timeline projection.
+ * Handoff DTOs between trip persistence, prediction-enriched trips, and timeline
+ * projection.
  */
 
 import type { CurrentTripDockEvents } from "domain/vesselOrchestration/updateVesselTrip";
@@ -9,13 +10,18 @@ import type {
 } from "functions/vesselTrips/schemas";
 
 /**
- * One completed arrival at dock: rows ready for timeline and prediction overlay.
+ * One completed arrival at dock: rows ready for timeline and optional
+ * prediction-enriched replacement trip for projection.
+ *
+ * Field names align with `VesselTripUpdate`: prior active row, completed
+ * closeout row, replacement active row; optional same shape with predictions
+ * merged for projection.
  */
 export type CompletedArrivalHandoff = {
-  existingTrip: ConvexVesselTrip;
-  tripToComplete: ConvexVesselTrip;
-  scheduleTrip: ConvexVesselTrip;
-  newTrip?: ConvexVesselTripWithML;
+  existingVesselTrip: ConvexVesselTrip;
+  completedVesselTrip: ConvexVesselTrip;
+  activeVesselTrip: ConvexVesselTrip;
+  activeVesselTripWithMl?: ConvexVesselTripWithML;
 };
 
 type DockWriteIntentBase = {
@@ -36,12 +42,27 @@ export type ActiveTripWriteOutcome = {
   pendingPredictedWrite?: PredictedDockWriteIntent;
 };
 
-export type MlTimelineOverlay = {
+/**
+ * Per-branch prediction-enriched trip passed from the vessel-trip prediction pass
+ * into timeline assembly so predicted dock events use the same trip row the
+ * models produced (completed closeout vs current active branch).
+ */
+export type CurrentPredictedTripTimelineHandoff = {
   vesselAbbrev: string;
-  branch: "completed" | "current";
-  completedHandoffKey?: string;
-  finalPredictedTrip?: ConvexVesselTripWithML;
+  branch: "current";
+  finalPredictedTrip: ConvexVesselTripWithML;
 };
+
+export type CompletedPredictedTripTimelineHandoff = {
+  vesselAbbrev: string;
+  branch: "completed";
+  completedHandoffKey: string;
+  finalPredictedTrip: ConvexVesselTripWithML;
+};
+
+export type PredictedTripTimelineHandoff =
+  | CurrentPredictedTripTimelineHandoff
+  | CompletedPredictedTripTimelineHandoff;
 
 export type PersistedTripTimelineHandoff = {
   completedTripFacts: CompletedArrivalHandoff[];

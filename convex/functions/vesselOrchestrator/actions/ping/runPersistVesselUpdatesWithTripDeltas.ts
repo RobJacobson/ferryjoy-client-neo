@@ -67,8 +67,8 @@ export const runPersistVesselUpdatesWithTripDeltas = async (
   );
 
   return ctx.runMutation(
-    internal.functions.vesselOrchestrator.mutations
-      .orchestratorPersistMutations.persistVesselUpdates,
+    internal.functions.vesselOrchestrator.mutations.orchestratorPersistMutations
+      .persistVesselUpdates,
     args
   );
 };

@@ -7,7 +7,7 @@
  * `updateTimeline`), with ML-enriched trips where projection
  * needs them. Same-ping assembly must not reload `vesselTripPredictions` from the
  * DB; ML overlay application runs in `updateTimeline` after
- * `updateVesselPredictions`.
+ * `getVesselTripPredictionsFromTripUpdate`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselOrchestrator` / `updateTimeline` caller
  *

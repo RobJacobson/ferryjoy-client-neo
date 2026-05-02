@@ -165,12 +165,10 @@ describe("updateVesselTrip", () => {
     const result = await updateVesselTrip(location, undefined, dbAccess);
 
     expect(result).not.toBeNull();
-    expect(result?.completedVesselTripUpdate).toBeUndefined();
-    expect(result?.activeVesselTripUpdate.TripKey).toBeString();
-    expect(result?.activeVesselTripUpdate.TripStart).toBeUndefined();
-    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(
-      location.LeftDock
-    );
+    expect(result?.completedVesselTrip).toBeUndefined();
+    expect(result?.activeVesselTrip.TripKey).toBeString();
+    expect(result?.activeVesselTrip.TripStart).toBeUndefined();
+    expect(result?.activeVesselTrip.LeftDockActual).toBe(location.LeftDock);
   });
 
   it("returns null for continuing timestamp-only churn", async () => {
@@ -215,12 +213,12 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.activeVesselTripUpdate.Eta).toBe(location.Eta);
-    expect(result?.activeVesselTripUpdate.TripKey).toBe(existingTrip.TripKey);
-    expect(result?.activeVesselTripUpdate.PrevTerminalAbbrev).toBe(
+    expect(result?.activeVesselTrip.Eta).toBe(location.Eta);
+    expect(result?.activeVesselTrip.TripKey).toBe(existingTrip.TripKey);
+    expect(result?.activeVesselTrip.PrevTerminalAbbrev).toBe(
       existingTrip.PrevTerminalAbbrev
     );
-    expect(result?.completedVesselTripUpdate).toBeUndefined();
+    expect(result?.completedVesselTrip).toBeUndefined();
   });
 
   it("stamps LeftDockActual from LeftDock on dock-to-sea transition", async () => {
@@ -242,11 +240,9 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.completedVesselTripUpdate).toBeUndefined();
-    expect(result?.activeVesselTripUpdate.AtDock).toBe(false);
-    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(
-      location.LeftDock
-    );
+    expect(result?.completedVesselTrip).toBeUndefined();
+    expect(result?.activeVesselTrip.AtDock).toBe(false);
+    expect(result?.activeVesselTrip.LeftDockActual).toBe(location.LeftDock);
   });
 
   it("falls back LeftDockActual to TimeStamp when LeftDock is missing", async () => {
@@ -267,9 +263,7 @@ describe("updateVesselTrip", () => {
     const { dbAccess } = makeDbAccess({ throwOnAnyCall: true });
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
-    expect(result?.activeVesselTripUpdate.LeftDockActual).toBe(
-      location.TimeStamp
-    );
+    expect(result?.activeVesselTrip.LeftDockActual).toBe(location.TimeStamp);
   });
 
   it("completes previous trip and starts replacement on terminal change", async () => {
@@ -287,32 +281,28 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.completedVesselTripUpdate).toBeDefined();
-    expect(result?.activeVesselTripUpdate).toBeDefined();
-    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
-    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
-    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
-    expect(result?.completedVesselTripUpdate?.TripEnd).toBe(completionTime);
-    expect(result?.completedVesselTripUpdate?.ArrivingTerminalAbbrev).toBe(
-      "ORI"
+    expect(result?.completedVesselTrip).toBeDefined();
+    expect(result?.activeVesselTrip).toBeDefined();
+    expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
+    expect(result?.completedVesselTrip?.ArrivingTerminalAbbrev).toBe("ORI");
+    expect(result?.activeVesselTrip.DepartingTerminalAbbrev).toBe("ORI");
+    expect(result?.activeVesselTrip.TripKey).not.toBe(existingTrip.TripKey);
+    expect(result?.activeVesselTrip.TripStart).toBe(completionTime);
+    expect(result?.activeVesselTrip.PrevTerminalAbbrev).toBe(
+      result?.completedVesselTrip?.DepartingTerminalAbbrev
     );
-    expect(result?.activeVesselTripUpdate.DepartingTerminalAbbrev).toBe("ORI");
-    expect(result?.activeVesselTripUpdate.TripKey).not.toBe(
-      existingTrip.TripKey
+    expect(result?.activeVesselTrip.PrevScheduledDeparture).toBe(
+      result?.completedVesselTrip?.ScheduledDeparture
     );
-    expect(result?.activeVesselTripUpdate.TripStart).toBe(completionTime);
-    expect(result?.activeVesselTripUpdate.PrevTerminalAbbrev).toBe(
-      result?.completedVesselTripUpdate?.DepartingTerminalAbbrev
+    expect(result?.activeVesselTrip.PrevLeftDock).toBe(
+      result?.completedVesselTrip?.LeftDockActual ??
+        result?.completedVesselTrip?.LeftDock
     );
-    expect(result?.activeVesselTripUpdate.PrevScheduledDeparture).toBe(
-      result?.completedVesselTripUpdate?.ScheduledDeparture
-    );
-    expect(result?.activeVesselTripUpdate.PrevLeftDock).toBe(
-      result?.completedVesselTripUpdate?.LeftDockActual ??
-        result?.completedVesselTripUpdate?.LeftDock
-    );
-    expect(result?.activeVesselTripUpdate.LeftDock).toBeUndefined();
-    expect(result?.activeVesselTripUpdate.LeftDockActual).toBeUndefined();
+    expect(result?.activeVesselTrip.LeftDock).toBeUndefined();
+    expect(result?.activeVesselTrip.LeftDockActual).toBeUndefined();
   });
 
   it("trusts terminal change even when AtDockObserved is false", async () => {
@@ -327,8 +317,8 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.completedVesselTripUpdate).toBeDefined();
-    expect(result?.activeVesselTripUpdate.DepartingTerminalAbbrev).toBe("ORI");
+    expect(result?.completedVesselTrip).toBeDefined();
+    expect(result?.activeVesselTrip.DepartingTerminalAbbrev).toBe("ORI");
   });
 
   it("does not schedule-read for continuing incomplete WSF fields", async () => {
@@ -382,16 +372,16 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.activeVesselTripUpdate.ArrivingTerminalAbbrev).toBe("LOP");
-    expect(result?.activeVesselTripUpdate.ScheduledDeparture).toBe(
+    expect(result?.activeVesselTrip.ArrivingTerminalAbbrev).toBe("LOP");
+    expect(result?.activeVesselTrip.ScheduledDeparture).toBe(
       primarySegment.DepartingTime
     );
-    expect(result?.activeVesselTripUpdate.ScheduleKey).toBe(primarySegment.Key);
-    expect(result?.activeVesselTripUpdate.SailingDay).toBe("2026-03-13");
-    expect(result?.activeVesselTripUpdate.NextScheduleKey).toBe(
+    expect(result?.activeVesselTrip.ScheduleKey).toBe(primarySegment.Key);
+    expect(result?.activeVesselTrip.SailingDay).toBe("2026-03-13");
+    expect(result?.activeVesselTrip.NextScheduleKey).toBe(
       "CHE--2026-03-13--08:00--LOP-SHW"
     );
-    expect(result?.activeVesselTripUpdate.NextScheduledDeparture).toBe(
+    expect(result?.activeVesselTrip.NextScheduledDeparture).toBe(
       primarySegment.NextDepartingTime
     );
     expect(counters.getScheduledSegmentByScheduleKey).toBe(1);
@@ -420,10 +410,10 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.activeVesselTripUpdate.ScheduleKey).toBe(
+    expect(result?.activeVesselTrip.ScheduleKey).toBe(
       "CHE--2026-03-13--07:00--ORI-LOP"
     );
-    expect(result?.activeVesselTripUpdate.ArrivingTerminalAbbrev).toBe("LOP");
+    expect(result?.activeVesselTrip.ArrivingTerminalAbbrev).toBe("LOP");
     expect(counters.getScheduledSegmentByScheduleKey).toBe(0);
     expect(counters.getScheduleRolloverDockEvents).toBe(1);
   });
@@ -458,10 +448,10 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.activeVesselTripUpdate.ScheduleKey).toBe(
+    expect(result?.activeVesselTrip.ScheduleKey).toBe(
       "CHE--2026-03-13--07:00--ORI-LOP"
     );
-    expect(result?.activeVesselTripUpdate.ArrivingTerminalAbbrev).toBe("LOP");
+    expect(result?.activeVesselTrip.ArrivingTerminalAbbrev).toBe("LOP");
     expect(counters.getScheduledSegmentByScheduleKey).toBe(1);
     expect(counters.getScheduleRolloverDockEvents).toBe(1);
   });
@@ -491,8 +481,8 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.activeVesselTripUpdate.ArrivingTerminalAbbrev).toBe("LOP");
-    expect(result?.activeVesselTripUpdate.ScheduleKey).toBe(primarySegment.Key);
+    expect(result?.activeVesselTrip.ArrivingTerminalAbbrev).toBe("LOP");
+    expect(result?.activeVesselTrip.ScheduleKey).toBe(primarySegment.Key);
   });
 
   it("skips schedule lookup for out-of-service replacement trips", async () => {
@@ -509,8 +499,8 @@ describe("updateVesselTrip", () => {
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
 
-    expect(result?.completedVesselTripUpdate).toBeDefined();
-    expect(result?.activeVesselTripUpdate).toBeDefined();
+    expect(result?.completedVesselTrip).toBeDefined();
+    expect(result?.activeVesselTrip).toBeDefined();
     expect(counters.getScheduledSegmentByScheduleKey).toBe(0);
     expect(counters.getScheduleRolloverDockEvents).toBe(0);
   });

@@ -1,5 +1,2 @@
-/**
- * Barrel for prediction-context loading on the orchestrator ping path.
- */
-
-export { loadPredictionContext } from "./load";
+export { getVesselTripPredictionsForTripUpdate } from "./getVesselTripPredictionsForTripUpdate";
+export { loadPredictionModelParameters } from "./load";

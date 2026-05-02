@@ -267,6 +267,39 @@ export const isMissingTrainedModelError = (error: unknown): boolean =>
   error instanceof Error &&
   error.message.startsWith(MISSING_TRAINED_MODEL_MESSAGE_PREFIX);
 
+export const predictTripValueWithModel = (
+  trip: ConvexVesselTripWithML,
+  modelType: ModelType,
+  model: ModelDoc
+): {
+  predictedValue: number;
+  mae: number;
+  stdDev: number;
+} => {
+  // Convert trip data to ML format and extract features
+  const window = toTrainingWindow(trip);
+  const modelDefinition = models[modelType];
+  const record = createFeatureRecord(window);
+  const featureValues = modelDefinition.extractFeatures(record);
+
+  // Create feature vector in the same order as model training
+  const featureArray = model.featureKeys.map((key) => featureValues[key] ?? 0);
+
+  // Apply linear regression: prediction = coefficients · features + intercept
+  const predictedValue = predictWithModel(
+    featureArray,
+    model.coefficients,
+    model.intercept
+  );
+
+  // Return prediction with uncertainty metrics (MAE and Std Dev from training)
+  return {
+    predictedValue: roundToPrecision(predictedValue, 1), // Round to 1 decimal place
+    mae: roundToPrecision(model.testMetrics.mae, 1), // Mean Absolute Error
+    stdDev: roundToPrecision(model.testMetrics.stdDev, 1), // Standard deviation of errors
+  };
+};
+
 export const predictTripValue = async (
   source: MutationCtx | VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML,
@@ -295,28 +328,7 @@ export const predictTripValue = async (
     );
   }
 
-  // Convert trip data to ML format and extract features
-  const window = toTrainingWindow(trip);
-  const modelDefinition = models[modelType];
-  const record = createFeatureRecord(window);
-  const featureValues = modelDefinition.extractFeatures(record);
-
-  // Create feature vector in the same order as model training
-  const featureArray = model.featureKeys.map((key) => featureValues[key] ?? 0);
-
-  // Apply linear regression: prediction = coefficients · features + intercept
-  const predictedValue = predictWithModel(
-    featureArray,
-    model.coefficients,
-    model.intercept
-  );
-
-  // Return prediction with uncertainty metrics (MAE and Std Dev from training)
-  return {
-    predictedValue: roundToPrecision(predictedValue, 1), // Round to 1 decimal place
-    mae: roundToPrecision(model.testMetrics.mae, 1), // Mean Absolute Error
-    stdDev: roundToPrecision(model.testMetrics.stdDev, 1), // Standard deviation of errors
-  };
+  return predictTripValueWithModel(trip, modelType, model);
 };
 
 /**

@@ -14,9 +14,8 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions/updateVesselOrche
   -> createUpdateVesselTripDbAccess for the ping (targeted updateVesselTrip reads via ctx.runQuery)
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
-       loadPredictionContext (Convex query when model preload applies)
-       updateVesselPredictions ({ tripUpdate, predictionContext })
-       updateTimeline ({ pingStartedAt, tripUpdate, mlTimelineOverlays })
+       getVesselTripPredictionsFromTripUpdate (injected loadPredictionModelParameters → getPredictionModelParameters when needed)
+       updateTimeline ({ pingStartedAt, tripUpdate, enrichedActiveVesselTrip })
        persistVesselUpdates (one atomic mutation for trip, predictions, timeline, actualization)
 ```
 
@@ -72,7 +71,7 @@ Owns authoritative lifecycle trip rows for one ping.
 Public surface:
 
 - `updateVesselTrip` → **`VesselTripUpdate | null`** (null when no substantive durable change)
-- `VesselTripUpdate` — sparse rows: **`existingActiveTrip`**, **`activeVesselTripUpdate`**, **`completedVesselTripUpdate`**
+- `VesselTripUpdate` — sparse rows: **`existingVesselTrip`**, **`activeVesselTrip`**, **`completedVesselTrip`**
 
 Internal one-vessel flow:
 
@@ -118,9 +117,7 @@ Trip stage output to downstream domain callers:
 
 - **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
 
-Prediction inputs are derived inside **`updateVesselPredictions`** from
-**`VesselTripUpdate`** (**`predictionInputsFromTripUpdate`**). Timeline handoff
-is derived inside **`updateTimeline`** from the same shape
+Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTripUpdate`** and return **`enrichedActiveVesselTrip`**. Timeline handoff and prediction overlays are derived inside **`updateTimeline`** from the same trip shape plus that enriched trip
 (**`timelineHandoffFromTripUpdate`**) with DTOs in
 **`updateTimeline/handoffTypes.ts`**.
 
@@ -129,7 +126,7 @@ is derived inside **`updateTimeline`** from the same shape
 - `functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
 - `functions/vesselOrchestrator/actions/ping/*`
-  - identity snapshot (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), locations stage (**`updateVesselLocations`** / **`bulkUpsertVesselLocations`** including **`activeTripsForChanged`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), prediction context loading (**`updateVesselPredictions/index.ts`**)
+  - identity snapshot (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), locations stage (**`updateVesselLocations`** / **`bulkUpsertVesselLocations`** including **`activeTripsForChanged`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), prediction-parameter load (**`loadPredictionModelParameters`** in **`actions/ping/updateVesselPredictions/load.ts`**)
 - `functions/vesselOrchestrator/mutations/orchestratorPersistMutations.ts`
   - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`

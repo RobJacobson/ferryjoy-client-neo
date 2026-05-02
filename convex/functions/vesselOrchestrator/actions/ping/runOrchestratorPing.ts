@@ -14,7 +14,6 @@
 import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
-import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
   stripVesselTripPredictions,
   updateVesselTrip,
@@ -22,7 +21,7 @@ import {
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
 import { runPersistVesselUpdatesWithTripDeltas } from "./runPersistVesselUpdatesWithTripDeltas";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
-import { loadPredictionContext } from "./updateVesselPredictions";
+import { getVesselTripPredictionsForTripUpdate } from "./updateVesselPredictions";
 import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
 
 /**
@@ -56,11 +55,13 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
    * Why: all downstream trip/prediction/timeline work should run only for
    * vessels with new location evidence in this ping.
    */
-  const { changedLocations: dedupedLocationUpdates, activeTripsByVesselAbbrev } =
-    await runUpdateVesselLocations(ctx, {
-      terminalsIdentity: snapshot.terminalsIdentity,
-      vesselsIdentity: snapshot.vesselsIdentity,
-    });
+  const {
+    changedLocations: dedupedLocationUpdates,
+    activeTripsByVesselAbbrev,
+  } = await runUpdateVesselLocations(ctx, {
+    terminalsIdentity: snapshot.terminalsIdentity,
+    vesselsIdentity: snapshot.vesselsIdentity,
+  });
 
   // Trip enrichment reads are only used in Stage 2
   // (`updateVesselTrip`). Stages 3–5 do not use this adapter.
@@ -103,27 +104,20 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const leaveDockEventPatch = updateLeaveDockEventPatch(tripUpdate);
 
       /**
-       * Stage 4: updateVesselPredictions
+       * Stage 4: vessel-trip predictions
        *
-       * Use `tripUpdate` as the truth of what changed, load only the model
-       * context needed for this vessel, then compute prediction proposals and
-       * same-ping ML overlays.
-       *
-       * Why: keep prediction work targeted and ensure timeline projection uses
-       * the exact ML output computed for this ping.
+       * Derives prediction-parameter load needs from `tripUpdate`, loads weights
+       * when required, enriches the active trip, and returns persistence
+       * proposals. Model loading is best-effort because ML is derived data.
        */
-      const predictionContext = await loadPredictionContext(ctx, tripUpdate);
-      const { predictionRows, mlTimelineOverlays } =
-        await updateVesselPredictions({
-          tripUpdate,
-          predictionContext,
-        });
+      const { predictionRows, enrichedActiveVesselTrip } =
+        await getVesselTripPredictionsForTripUpdate(ctx, tripUpdate);
 
       /**
        * Stage 5: updateTimeline
        *
-       * Combine ping time + trip deltas + ML overlays to project timeline event
-       * rows (`actualEvents`, `predictedEvents`) for this vessel.
+       * Combine ping time + trip deltas + the enriched active trip to project
+       * timeline event rows (`actualEvents`, `predictedEvents`) for this vessel.
        *
        * Why: timeline writes should be derived from the same trip and prediction
        * evidence that this ping just computed, not from a separate read pass.
@@ -131,7 +125,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const timelineRows = updateTimeline({
         pingStartedAt,
         tripUpdate,
-        mlTimelineOverlays,
+        enrichedActiveVesselTrip,
       });
 
       /**
@@ -144,18 +138,16 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        */
       await runPersistVesselUpdatesWithTripDeltas(
         ctx,
-        tripUpdate.existingActiveTrip,
+        tripUpdate.existingVesselTrip,
         {
           vesselAbbrev: tripUpdate.vesselAbbrev,
           activeVesselTrip: stripVesselTripPredictions(
-            tripUpdate.activeVesselTripUpdate
+            tripUpdate.activeVesselTrip
           ),
           completedVesselTrip:
-            tripUpdate.completedVesselTripUpdate === undefined
+            tripUpdate.completedVesselTrip === undefined
               ? undefined
-              : stripVesselTripPredictions(
-                  tripUpdate.completedVesselTripUpdate
-                ),
+              : stripVesselTripPredictions(tripUpdate.completedVesselTrip),
           predictionRows: Array.from(predictionRows),
           actualEvents: Array.from(timelineRows.actualEvents),
           predictedEvents: Array.from(timelineRows.predictedEvents),
