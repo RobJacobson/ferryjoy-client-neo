@@ -58,7 +58,9 @@ describe("timelineHandoffFromTripUpdate", () => {
       completedVesselTrip: completed,
     });
     expect(result.completedTripFacts).toHaveLength(1);
-    expect(result.completedTripFacts[0]?.completedVesselTrip).toEqual(completed);
+    expect(result.completedTripFacts[0]?.completedVesselTrip).toEqual(
+      completed
+    );
     expect(result.completedTripFacts[0]?.activeVesselTrip).toEqual(replacement);
     expect(result.completedTripFacts[0]?.completedVesselTrip.TripEnd).toBe(
       ms("2026-03-13T06:45:00-07:00")

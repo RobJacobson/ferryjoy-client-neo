@@ -168,9 +168,7 @@ describe("updateVesselTrip", () => {
     expect(result?.completedVesselTrip).toBeUndefined();
     expect(result?.activeVesselTrip.TripKey).toBeString();
     expect(result?.activeVesselTrip.TripStart).toBeUndefined();
-    expect(result?.activeVesselTrip.LeftDockActual).toBe(
-      location.LeftDock
-    );
+    expect(result?.activeVesselTrip.LeftDockActual).toBe(location.LeftDock);
   });
 
   it("returns null for continuing timestamp-only churn", async () => {
@@ -244,9 +242,7 @@ describe("updateVesselTrip", () => {
 
     expect(result?.completedVesselTrip).toBeUndefined();
     expect(result?.activeVesselTrip.AtDock).toBe(false);
-    expect(result?.activeVesselTrip.LeftDockActual).toBe(
-      location.LeftDock
-    );
+    expect(result?.activeVesselTrip.LeftDockActual).toBe(location.LeftDock);
   });
 
   it("falls back LeftDockActual to TimeStamp when LeftDock is missing", async () => {
@@ -267,9 +263,7 @@ describe("updateVesselTrip", () => {
     const { dbAccess } = makeDbAccess({ throwOnAnyCall: true });
 
     const result = await updateVesselTrip(location, existingTrip, dbAccess);
-    expect(result?.activeVesselTrip.LeftDockActual).toBe(
-      location.TimeStamp
-    );
+    expect(result?.activeVesselTrip.LeftDockActual).toBe(location.TimeStamp);
   });
 
   it("completes previous trip and starts replacement on terminal change", async () => {
@@ -293,13 +287,9 @@ describe("updateVesselTrip", () => {
     expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
     expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
     expect(result?.completedVesselTrip?.TripEnd).toBe(completionTime);
-    expect(result?.completedVesselTrip?.ArrivingTerminalAbbrev).toBe(
-      "ORI"
-    );
+    expect(result?.completedVesselTrip?.ArrivingTerminalAbbrev).toBe("ORI");
     expect(result?.activeVesselTrip.DepartingTerminalAbbrev).toBe("ORI");
-    expect(result?.activeVesselTrip.TripKey).not.toBe(
-      existingTrip.TripKey
-    );
+    expect(result?.activeVesselTrip.TripKey).not.toBe(existingTrip.TripKey);
     expect(result?.activeVesselTrip.TripStart).toBe(completionTime);
     expect(result?.activeVesselTrip.PrevTerminalAbbrev).toBe(
       result?.completedVesselTrip?.DepartingTerminalAbbrev

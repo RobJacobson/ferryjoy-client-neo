@@ -3,36 +3,52 @@
  * then derive table proposals.
  */
 
-import type {
-  CompletedArrivalHandoff,
-  MlTimelineOverlay,
+import {
+  buildCompletedHandoffKey,
+  type CompletedArrivalHandoff,
+  type MlTimelineOverlay,
 } from "domain/vesselOrchestration/updateTimeline";
-import { buildCompletedHandoffKey } from "domain/vesselOrchestration/updateTimeline";
-import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
+import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+import type {
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import { applyVesselPredictionsFromLoadedModels } from "./applyVesselPredictions";
 import type {
   RunUpdateVesselPredictionsInput,
   RunUpdateVesselPredictionsOutput,
-} from "./contracts";
+} from "./types";
 import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
 export type UpdateVesselPredictionsOutput = RunUpdateVesselPredictionsOutput & {
   mlTimelineOverlays: ReadonlyArray<MlTimelineOverlay>;
 };
 
+/**
+ * Only call when `tripUpdate` has both `existingVesselTrip` and
+ * `completedVesselTrip` (see caller guard).
+ */
 const buildCompletedOverlay = (
-  handoff: CompletedArrivalHandoff,
+  tripUpdate: VesselTripUpdate,
   finalPredictedTrip: ConvexVesselTripWithML
-): MlTimelineOverlay => ({
-  vesselAbbrev: handoff.completedVesselTrip.VesselAbbrev,
-  branch: "completed",
-  completedHandoffKey: buildCompletedHandoffKey(
-    handoff.completedVesselTrip.VesselAbbrev,
-    handoff.completedVesselTrip,
-    handoff.activeVesselTrip
-  ),
-  finalPredictedTrip,
-});
+): MlTimelineOverlay => {
+  const handoff: CompletedArrivalHandoff = {
+    existingVesselTrip: tripUpdate.existingVesselTrip as ConvexVesselTrip,
+    completedVesselTrip: tripUpdate.completedVesselTrip as ConvexVesselTrip,
+    activeVesselTrip: tripUpdate.activeVesselTrip,
+  };
+
+  return {
+    vesselAbbrev: handoff.completedVesselTrip.VesselAbbrev,
+    branch: "completed",
+    completedHandoffKey: buildCompletedHandoffKey(
+      handoff.completedVesselTrip.VesselAbbrev,
+      handoff.completedVesselTrip,
+      handoff.activeVesselTrip
+    ),
+    finalPredictedTrip,
+  };
+};
 
 const buildCurrentOverlay = (
   finalPredictedTrip: ConvexVesselTripWithML
@@ -54,18 +70,21 @@ const buildCurrentOverlay = (
 export const updateVesselPredictions = async (
   input: RunUpdateVesselPredictionsInput
 ): Promise<UpdateVesselPredictionsOutput> => {
-  const { activeTrip, completedHandoff } = input.predictionStagePlan;
+  const tripUpdate = input.tripUpdate;
+  const activeTrip = tripUpdate.activeVesselTrip;
+  const hasUndefinedCompletedLegField =
+    tripUpdate.existingVesselTrip === undefined ||
+    tripUpdate.completedVesselTrip === undefined;
   const finalPredictedTrip = await applyVesselPredictionsFromLoadedModels(
     input.predictionContext.productionModelsByPair,
     activeTrip
   );
-  const mlTimelineOverlays =
-    completedHandoff === undefined
-      ? [buildCurrentOverlay(finalPredictedTrip)]
-      : [
-          buildCompletedOverlay(completedHandoff, finalPredictedTrip),
-          buildCurrentOverlay(finalPredictedTrip),
-        ];
+  const mlTimelineOverlays = hasUndefinedCompletedLegField
+    ? [buildCurrentOverlay(finalPredictedTrip)]
+    : [
+        buildCompletedOverlay(tripUpdate, finalPredictedTrip),
+        buildCurrentOverlay(finalPredictedTrip),
+      ];
   const predictionRows =
     vesselTripPredictionProposalsFromMlTrip(finalPredictedTrip);
 

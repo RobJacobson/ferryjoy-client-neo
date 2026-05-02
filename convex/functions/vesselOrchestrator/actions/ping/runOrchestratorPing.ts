@@ -15,7 +15,7 @@ import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import {
-  buildPredictionStagePlan,
+  predictionModelLoadRequestForTripUpdate,
   updateVesselPredictions,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
@@ -117,14 +117,13 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        * Why: keep prediction work targeted and ensure timeline projection uses
        * the exact ML output computed for this ping.
        */
-      const predictionStagePlan = buildPredictionStagePlan(tripUpdate);
       const predictionContext = await loadPredictionContext(
         ctx,
-        predictionStagePlan.modelLoadRequest
+        predictionModelLoadRequestForTripUpdate(tripUpdate)
       );
       const { predictionRows, mlTimelineOverlays } =
         await updateVesselPredictions({
-          predictionStagePlan,
+          tripUpdate,
           predictionContext,
         });
 
@@ -162,9 +161,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
           completedVesselTrip:
             tripUpdate.completedVesselTrip === undefined
               ? undefined
-              : stripVesselTripPredictions(
-                  tripUpdate.completedVesselTrip
-                ),
+              : stripVesselTripPredictions(tripUpdate.completedVesselTrip),
           predictionRows: Array.from(predictionRows),
           actualEvents: Array.from(timelineRows.actualEvents),
           predictedEvents: Array.from(timelineRows.predictedEvents),

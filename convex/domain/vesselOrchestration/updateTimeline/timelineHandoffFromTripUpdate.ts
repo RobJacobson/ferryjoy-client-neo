@@ -24,15 +24,15 @@ export const timelineHandoffFromTripUpdate = (
   const activeTrip = tripUpdate.activeVesselTrip;
   const completedTrip = tripUpdate.completedVesselTrip;
   const completedTripFacts =
-    existingActiveTrip === undefined || completedTrip === undefined
-      ? []
-      : [
+    existingActiveTrip !== undefined && completedTrip !== undefined
+      ? [
           {
             existingVesselTrip: existingActiveTrip,
             completedVesselTrip: completedTrip,
             activeVesselTrip: activeTrip,
           },
-        ];
+        ]
+      : [];
   const dockEvents = currentTripDockEvents(existingActiveTrip, activeTrip);
   const pendingActualWrite =
     !dockEvents.didJustLeaveDock && !dockEvents.didJustArriveAtDock

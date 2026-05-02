@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  buildPredictionStagePlan,
-  updateVesselPredictions,
-} from "domain/vesselOrchestration/updateVesselPredictions";
+import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -74,12 +71,12 @@ describe("updateVesselPredictions", () => {
     const trip = makeTrip();
 
     const output = await updateVesselPredictions({
-      predictionStagePlan: buildPredictionStagePlan({
+      tripUpdate: {
         vesselAbbrev: trip.VesselAbbrev,
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
-      }),
+      },
       predictionContext: richContext,
     });
 
@@ -105,12 +102,12 @@ describe("updateVesselPredictions", () => {
     });
 
     const output = await updateVesselPredictions({
-      predictionStagePlan: buildPredictionStagePlan({
+      tripUpdate: {
         vesselAbbrev: trip.VesselAbbrev,
         existingVesselTrip: trip,
         activeVesselTrip: replacementTrip,
         completedVesselTrip: completedTrip,
-      }),
+      },
       predictionContext: richContext,
     });
 
@@ -136,12 +133,12 @@ describe("updateVesselPredictions", () => {
     const trip = makeTrip();
 
     const output = await updateVesselPredictions({
-      predictionStagePlan: buildPredictionStagePlan({
+      tripUpdate: {
         vesselAbbrev: trip.VesselAbbrev,
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
-      }),
+      },
       predictionContext: {},
     });
 

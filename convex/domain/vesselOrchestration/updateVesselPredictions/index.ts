@@ -4,8 +4,6 @@
  *
  * **Public surface**
  * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
- * - {@link buildPredictionStagePlan} — one derivation for Stage 4 inputs
- * - {@link predictionInputsFromTripUpdate} — derive prediction inputs from a `VesselTripUpdate`
  * - {@link predictionModelLoadRequestForTripUpdate} — terminal-pair preload request
  * - {@link predictionModelTypesForTrip} — model types applicable to a trip's phase
  *
@@ -13,28 +11,20 @@
  * are internal to this folder; tests may import them via relative paths.
  */
 
-export type {
-  RunUpdateVesselPredictionsInput,
-  RunUpdateVesselPredictionsOutput,
-  VesselPredictionContext,
-  VesselTripPredictionRow,
-} from "./contracts";
 export {
   type PredictionModelLoadRequest,
   predictionModelLoadRequestForTripUpdate,
 } from "./predictionContextRequests";
 export {
-  type PredictionInputsFromTripUpdate,
-  predictionInputsFromTripUpdate,
-} from "./predictionInputsFromTripUpdate";
-export {
   predictionModelTypesForTrip,
   predictionSpecsForTrip,
 } from "./predictionPolicy";
-export {
-  buildPredictionStagePlan,
-  type PredictionStagePlan,
-} from "./predictionStagePlan";
+export type {
+  RunUpdateVesselPredictionsInput,
+  RunUpdateVesselPredictionsOutput,
+  VesselPredictionContext,
+  VesselTripPredictionRow,
+} from "./types";
 export {
   type UpdateVesselPredictionsOutput,
   updateVesselPredictions,

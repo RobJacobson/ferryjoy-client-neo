@@ -14,9 +14,9 @@ On the shipped path these rows are written through explicit stage-level persiste
 
 1. [`updateVesselOrchestrator.ts`](../../../functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load identities (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + **`bulkUpsertVesselLocations`**, which returns **`activeTripsForChanged`** in the same mutation), then process per-vessel changed rows.
 2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
-3. **`buildPredictionStagePlan`** (`domain/vesselOrchestration/updateVesselPredictions`) derives active/completed prediction inputs and an optional production-model preload request once from **`VesselTripUpdate`**.
-4. **`loadPredictionContext`** ([`actions/ping/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/actions/ping/updateVesselPredictions/index.ts)) queries production model parameters when the stage plan has a **`modelLoadRequest`**.
-5. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ predictionStagePlan, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
+3. **`predictionModelLoadRequestForTripUpdate`** (`domain/vesselOrchestration/updateVesselPredictions`) derives an optional production-model preload request from **`VesselTripUpdate`**.
+4. **`loadPredictionContext`** ([`actions/ping/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/actions/ping/updateVesselPredictions/index.ts)) queries production model parameters when that request is non-null.
+5. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
 6. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`completedHandoffKey.ts`](./completedHandoffKey.ts)).
 7. Stage-level persistence runs in order: optional completed-trip insert, active-trip upsert, prediction upserts, timeline actual writes, then timeline predicted writes.
 
@@ -28,7 +28,7 @@ folder (primarily [`handoffTypes.ts`](./handoffTypes.ts)); this table is the
 
 | Type | Produced when | Consumed by | Notes |
 | --- | --- | --- | --- |
-| `CompletedArrivalHandoff` | Derived inside **`buildPredictionStagePlan`** / completion facts when **`VesselTripUpdate`** has **`existingVesselTrip`** + **`completedVesselTrip`** | Prediction (`updateVesselPredictions`), then timeline assembly | **`activeVesselTrip`** is pre-ML; the same ML-enriched replacement is attached as **`activeVesselTripWithMl`** for completed/current overlays before **`buildDockWritesFromTripHandoff`** completes facts. |
+| `CompletedArrivalHandoff` | **`timelineHandoffFromTripUpdate`** / **`updateVesselPredictions`** when **`existingVesselTrip`** and **`completedVesselTrip`** are both present on **`VesselTripUpdate`** | Prediction (`updateVesselPredictions`), then timeline assembly | **`activeVesselTrip`** is pre-ML; the same ML-enriched replacement is attached as **`activeVesselTripWithMl`** for completed/current overlays before **`buildDockWritesFromTripHandoff`** completes facts. |
 | `ActualDockWriteIntent` | **`timelineHandoffFromTripUpdate`** when active-trip lifecycle events imply an actual dock write | Timeline current branch (`pendingActualWrite`) | Gated by **`successfulVesselAbbrev`** in assembler. |
 | `PredictedDockWriteIntent` | **`timelineHandoffFromTripUpdate`** when an active trip update exists | Timeline current branch (`pendingPredictedWrite`) | Carries `existingTrip` + `scheduleTrip` for projection. |
 | `ActiveTripWriteOutcome` | **`timelineHandoffFromTripUpdate`** (`currentBranch`) | **`updateTimeline`** internal handoff | Reflects sparse write intents for the ping; derived from **`VesselTripUpdate`**, not a separate action “write plan” bundle. |

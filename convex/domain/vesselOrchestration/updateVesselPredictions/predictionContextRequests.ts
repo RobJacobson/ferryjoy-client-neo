@@ -6,13 +6,15 @@
  * leaks into orchestrator action code.
  */
 
+import { formatTerminalPairKey } from "domain/ml/shared/config";
+import type { ModelType } from "domain/ml/shared/types";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
-import {
-  buildPredictionStagePlan,
-  type PredictionModelLoadRequest,
-} from "./predictionStagePlan";
+import { predictionModelTypesForTrip } from "./predictionPolicy";
 
-export type { PredictionModelLoadRequest } from "./predictionStagePlan";
+export type PredictionModelLoadRequest = {
+  pairKey: string;
+  modelTypes: Array<ModelType>;
+};
 
 /**
  * Builds the terminal-pair model-load request for one ping branch, if any.
@@ -25,5 +27,20 @@ export type { PredictionModelLoadRequest } from "./predictionStagePlan";
  */
 export const predictionModelLoadRequestForTripUpdate = (
   tripUpdate: VesselTripUpdate
-): PredictionModelLoadRequest | null =>
-  buildPredictionStagePlan(tripUpdate).modelLoadRequest;
+): PredictionModelLoadRequest | null => {
+  const active = tripUpdate.activeVesselTrip;
+  const modelTypes = predictionModelTypesForTrip(active);
+  const departing = active.DepartingTerminalAbbrev;
+  const arriving = active.ArrivingTerminalAbbrev;
+  if (
+    modelTypes.length === 0 ||
+    departing === undefined ||
+    arriving === undefined
+  ) {
+    return null;
+  }
+  return {
+    pairKey: formatTerminalPairKey(departing, arriving),
+    modelTypes,
+  };
+};
