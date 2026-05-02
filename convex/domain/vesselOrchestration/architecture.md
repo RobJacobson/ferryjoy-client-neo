@@ -14,7 +14,7 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions/updateVesselOrche
   -> createUpdateVesselTripDbAccess for the ping (targeted updateVesselTrip reads via ctx.runQuery)
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
-       predictionModelLoadRequestForTripUpdate + loadPredictionContext (Convex query when preload applies)
+       predictionPreloadFromVesselTripUpdate + loadPredictionContext (Convex query when preload applies)
        updateVesselPredictions ({ tripUpdate, predictionContext })
        updateTimeline ({ pingStartedAt, tripUpdate, mlTimelineOverlays })
        persistVesselUpdates (one atomic mutation for trip, predictions, timeline, actualization)
@@ -118,7 +118,7 @@ Trip stage output to downstream domain callers:
 
 - **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
 
-Predictions consume **`VesselTripUpdate`** directly (**`predictionModelLoadRequestForTripUpdate`**, **`updateVesselPredictions`**). Timeline handoff is derived inside **`updateTimeline`** from the same shape
+Predictions consume **`VesselTripUpdate`** directly (**`predictionPreloadFromVesselTripUpdate`**, **`updateVesselPredictions`**). Timeline handoff is derived inside **`updateTimeline`** from the same shape
 (**`timelineHandoffFromTripUpdate`**) with DTOs in
 **`updateTimeline/handoffTypes.ts`**.
 

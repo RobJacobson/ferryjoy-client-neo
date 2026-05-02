@@ -15,7 +15,7 @@ import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import {
-  predictionModelLoadRequestForTripUpdate,
+  predictionPreloadFromVesselTripUpdate,
   updateVesselPredictions,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import {
@@ -117,9 +117,11 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        * Why: keep prediction work targeted and ensure timeline projection uses
        * the exact ML output computed for this ping.
        */
+      const predictionPreloadRequest =
+        predictionPreloadFromVesselTripUpdate(tripUpdate);
       const predictionContext = await loadPredictionContext(
         ctx,
-        predictionModelLoadRequestForTripUpdate(tripUpdate)
+        predictionPreloadRequest
       );
       const { predictionRows, mlTimelineOverlays } =
         await updateVesselPredictions({

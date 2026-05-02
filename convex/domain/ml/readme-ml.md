@@ -377,7 +377,7 @@ internal [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.
 (which returns **`changedLocations`** and **`activeTripsForChanged`** in the same transaction).
 For each changed location row it runs trip compute in the
 action (with **`UpdateVesselTripDbAccess`** from `actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`
-for targeted `eventsScheduled` continuity), then **`predictionModelLoadRequestForTripUpdate`**,
+for targeted `eventsScheduled` continuity), then **`predictionPreloadFromVesselTripUpdate`**,
 **`loadPredictionContext`** (when that request is non-null), and domain
 **`updateVesselPredictions`** (`{ tripUpdate, predictionContext }`).
 Domain **`updateTimeline`** runs in action

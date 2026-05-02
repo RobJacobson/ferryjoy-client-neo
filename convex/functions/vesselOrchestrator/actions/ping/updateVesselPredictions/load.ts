@@ -5,7 +5,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type {
-  PredictionModelLoadRequest,
+  PredictionPreloadRequest,
   VesselPredictionContext,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 
@@ -17,12 +17,12 @@ import type {
  * **`updateVesselPredictions`** in the same action branch.
  *
  * @param ctx - Convex action context used for the model parameter query
- * @param request - Precomputed model preload request for this ping branch
+ * @param request - Terminal pair + model types for this ping branch, if any
  * @returns Prediction context keyed by terminal pair, or empty context
  */
 export const loadPredictionContext = async (
   ctx: ActionCtx,
-  request: PredictionModelLoadRequest | null | undefined
+  request: PredictionPreloadRequest | null | undefined
 ): Promise<VesselPredictionContext> => {
   if (request === null || request === undefined) {
     return {};

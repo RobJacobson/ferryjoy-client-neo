@@ -14,7 +14,7 @@ On the shipped path these rows are written through explicit stage-level persiste
 
 1. [`updateVesselOrchestrator.ts`](../../../functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts) — **`updateVesselOrchestrator`** / **`runOrchestratorPing`**: load identities (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), update locations (**`runUpdateVesselLocations`**: fetch + normalize + `AtDockObserved` + **`bulkUpsertVesselLocations`**, which returns **`activeTripsForChanged`** in the same mutation), then process per-vessel changed rows.
 2. Per changed vessel: **`updateVesselTrip`** → **`VesselTripUpdate | null`** (skip when null).
-3. **`predictionModelLoadRequestForTripUpdate`** (`domain/vesselOrchestration/updateVesselPredictions`) derives an optional production-model preload request from **`VesselTripUpdate`**.
+3. **`predictionPreloadFromVesselTripUpdate`** (`domain/vesselOrchestration/updateVesselPredictions`) derives an optional production-model preload request from **`VesselTripUpdate`**.
 4. **`loadPredictionContext`** ([`actions/ping/updateVesselPredictions/index.ts`](../../../functions/vesselOrchestrator/actions/ping/updateVesselPredictions/index.ts)) queries production model parameters when that request is non-null.
 5. **`updateVesselPredictions`** (`domain/vesselOrchestration/updateVesselPredictions`) with **`{ tripUpdate, predictionContext }`** → **`predictionRows`**, **`mlTimelineOverlays`**.
 6. **`updateTimeline`** (this folder) with **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** → **`actualEvents`**, **`predictedEvents`** (handoff derived inside **`timelineHandoffFromTripUpdate`**; ML merge uses **`buildCompletedHandoffKey`** from [`completedHandoffKey.ts`](./completedHandoffKey.ts)).

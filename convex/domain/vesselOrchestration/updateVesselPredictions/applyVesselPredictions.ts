@@ -24,9 +24,9 @@ import {
   appendPredictionsFromLoadedModels,
 } from "./appendPredictions";
 import {
-  isAtDockPhase,
-  isAtSeaPhase,
-  predictionSpecsForTrip,
+  isTripAtDock,
+  isTripAtSea,
+  predictionSpecsForTripPhase,
 } from "./predictionPolicy";
 
 /**
@@ -51,10 +51,10 @@ export const applyVesselPredictions = async (
   modelAccess: VesselTripPredictionModelAccess,
   coreTrip: VesselTripCoreProposal
 ): Promise<ConvexVesselTripWithML> => {
-  const withAtDockPredictions = isAtDockPhase(coreTrip)
+  const withAtDockPredictions = isTripAtDock(coreTrip)
     ? await appendAtDockPredictions(modelAccess, coreTrip)
     : coreTrip;
-  const withAtSeaPredictions = isAtSeaPhase(withAtDockPredictions)
+  const withAtSeaPredictions = isTripAtSea(withAtDockPredictions)
     ? await appendAtSeaPredictions(modelAccess, withAtDockPredictions)
     : withAtDockPredictions;
 
@@ -72,7 +72,7 @@ export const applyVesselPredictionsFromLoadedModels = async (
     | undefined,
   coreTrip: VesselTripCoreProposal
 ): Promise<ConvexVesselTripWithML> => {
-  const specs = predictionSpecsForTrip(coreTrip);
+  const specs = predictionSpecsForTripPhase(coreTrip);
   const withPredictions =
     specs.length === 0
       ? coreTrip

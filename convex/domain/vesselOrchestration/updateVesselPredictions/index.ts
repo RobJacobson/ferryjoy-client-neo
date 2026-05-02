@@ -4,20 +4,20 @@
  *
  * **Public surface**
  * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
- * - {@link predictionModelLoadRequestForTripUpdate} — terminal-pair preload request
- * - {@link predictionModelTypesForTrip} — model types applicable to a trip's phase
+ * - {@link predictionPreloadFromVesselTripUpdate} — terminal-pair preload request
+ * - {@link modelTypesForTripPhase} — model types for the trip's at-dock / at-sea phase
  *
  * Other helpers (`applyVesselPredictions`, `appendPredictions`, policy gates, etc.)
  * are internal to this folder; tests may import them via relative paths.
  */
 
 export {
-  type PredictionModelLoadRequest,
-  predictionModelLoadRequestForTripUpdate,
+  type PredictionPreloadRequest,
+  predictionPreloadFromVesselTripUpdate,
 } from "./predictionContextRequests";
 export {
-  predictionModelTypesForTrip,
-  predictionSpecsForTrip,
+  modelTypesForTripPhase,
+  predictionSpecsForTripPhase,
 } from "./predictionPolicy";
 export type {
   RunUpdateVesselPredictionsInput,

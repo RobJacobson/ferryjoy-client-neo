@@ -9,38 +9,50 @@
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { ModelType } from "domain/ml/shared/types";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
-import { predictionModelTypesForTrip } from "./predictionPolicy";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { modelTypesForTripPhase } from "./predictionPolicy";
 
-export type PredictionModelLoadRequest = {
+/**
+ * Arguments for loading production model parameters for one terminal pair
+ * (`getProductionModelParametersForPing`).
+ */
+export type PredictionPreloadRequest = {
   pairKey: string;
   modelTypes: Array<ModelType>;
 };
 
 /**
- * Builds the terminal-pair model-load request for one ping branch, if any.
- *
- * `null` when the trip update has no candidate trip or the candidate yields
- * no applicable model types for its phase.
+ * Builds the preload payload for production model parameters from a ping's
+ * trip update, if the active trip has a route and at least one phase model.
  *
  * @param tripUpdate - Sparse trip update rows for this ping branch
- * @returns Single preload request for the derived pair, or `null` to skip
+ * @returns Pair key + model types for the query, or `null` to skip loading
  */
-export const predictionModelLoadRequestForTripUpdate = (
+export const predictionPreloadFromVesselTripUpdate = (
   tripUpdate: VesselTripUpdate
-): PredictionModelLoadRequest | null => {
+): PredictionPreloadRequest | null => {
   const active = tripUpdate.activeVesselTrip;
-  const modelTypes = predictionModelTypesForTrip(active);
-  const departing = active.DepartingTerminalAbbrev;
-  const arriving = active.ArrivingTerminalAbbrev;
-  if (
-    modelTypes.length === 0 ||
-    departing === undefined ||
-    arriving === undefined
-  ) {
+  const pairKey = terminalPairKeyForPredictionPreload(active);
+  const modelTypes = modelTypesForTripPhase(active);
+  if (pairKey === null || modelTypes.length === 0) {
     return null;
   }
-  return {
-    pairKey: formatTerminalPairKey(departing, arriving),
-    modelTypes,
-  };
+  return { pairKey, modelTypes };
+};
+
+/**
+ * Canonical terminal-pair string when both endpoints exist on the trip row.
+ *
+ * @param active - Active vessel trip row carrying departing/arriving abbrevs
+ * @returns Canonical pair string, or `null` when the route is incomplete
+ */
+const terminalPairKeyForPredictionPreload = (
+  active: ConvexVesselTrip
+): string | null => {
+  const departing = active.DepartingTerminalAbbrev;
+  const arriving = active.ArrivingTerminalAbbrev;
+  if (departing === undefined || arriving === undefined) {
+    return null;
+  }
+  return formatTerminalPairKey(departing, arriving);
 };

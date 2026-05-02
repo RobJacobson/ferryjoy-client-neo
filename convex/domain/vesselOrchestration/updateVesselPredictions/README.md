@@ -2,7 +2,7 @@
 
 ML attachment for vessel trips: at-dock predictions, at-sea predictions, and
 leave-dock actualization for one ping. On the **orchestrator** path
-**`runOrchestratorPing`** derives a **`predictionModelLoadRequestForTripUpdate`**
+**`runOrchestratorPing`** derives a **`predictionPreloadFromVesselTripUpdate`**
 from **`VesselTripUpdate`**, preloads production models when that request is
 non-null, then calls **`updateVesselPredictions`** with
 **`{ tripUpdate, predictionContext }`**. Persistence stays outside this domain
@@ -10,7 +10,7 @@ function and runs through the orchestrator aggregate mutation.
 
 ```text
 VesselTripUpdate
-  -> predictionModelLoadRequestForTripUpdate
+  -> predictionPreloadFromVesselTripUpdate
   -> loadPredictionContext(modelLoadRequest)
   -> updateVesselPredictions({ tripUpdate, predictionContext })
   -> predictionRows + mlTimelineOverlays
@@ -26,9 +26,9 @@ trip.
 | Step | Module / function | Main input | Main output | Synopsis |
 | --- | --- | --- | --- | --- |
 | 1 | `actions/ping/runOrchestratorPing.ts` Stage 4 block | Non-null `VesselTripUpdate` from `updateVesselTrip` | `predictionRows`, `mlTimelineOverlays` | Orchestrates the prediction stage: derive preload request, load model context, compute prediction proposals and same-ping timeline overlays. |
-| 2 | `predictionModelLoadRequestForTripUpdate` (`predictionContextRequests.ts`) | `VesselTripUpdate` | `PredictionModelLoadRequest \| null` | Uses `predictionModelTypesForTrip` on `activeVesselTrip`, verifies terminal abbrevs, builds the terminal-pair key for the production model query. |
-| 3 | `predictionModelTypesForTrip` / `predictionSpecsForTrip` (`predictionPolicy.ts`) | Candidate trip | `ModelType[]` / `PredictionSpec[]` | Routes by physical phase: at-dock trips use at-dock specs, at-sea trips use at-sea specs. Model types are derived from `PREDICTION_SPECS`. |
-| 4 | `loadPredictionContext` (`actions/ping/updateVesselPredictions/load.ts`) | `ActionCtx`, `PredictionModelLoadRequest \| null \| undefined` | `VesselPredictionContext` | Skips the Convex query when no request exists; otherwise calls `getProductionModelParametersForPing` and returns production model parameters keyed by pair and model type. |
+| 2 | `predictionPreloadFromVesselTripUpdate` (`predictionContextRequests.ts`) | `VesselTripUpdate` | `PredictionPreloadRequest \| null` | Uses `modelTypesForTripPhase` on `activeVesselTrip`, verifies terminal abbrevs, builds the terminal-pair key for the production model query. |
+| 3 | `modelTypesForTripPhase` / `predictionSpecsForTripPhase` (`predictionPolicy.ts`) | Candidate trip | `ModelType[]` / `PredictionSpec[]` | Routes by physical phase: at-dock trips use at-dock specs, at-sea trips use at-sea specs. Model types are derived from `PREDICTION_SPECS`. |
+| 4 | `loadPredictionContext` (`actions/ping/updateVesselPredictions/load.ts`) | `ActionCtx`, `PredictionPreloadRequest \| null \| undefined` | `VesselPredictionContext` | Skips the Convex query when no request exists; otherwise calls `getProductionModelParametersForPing` and returns production model parameters keyed by pair and model type. |
 | 5 | `getProductionModelParametersForPing` (`functions/predictions/queries.ts`) | `{ pairKey, modelTypes }` | `{ [pairKey]: { [modelType]: model \| null } }` | Reads the active production version tag, dedupes requested model types, loads matching `modelParameters`, and returns plain inference-ready model parameters. |
 | 6 | `updateVesselPredictions` (`updateVesselPredictions.ts`) | `{ tripUpdate, predictionContext }` | `{ predictionRows, mlTimelineOverlays }` | Applies loaded-model predictions to `tripUpdate.activeVesselTrip` once, then emits timeline overlays and proposal rows from that enriched trip. |
 | 7 | `applyVesselPredictionsFromLoadedModels` (`applyVesselPredictions.ts`) | Preloaded models, active/replacement trip | `ConvexVesselTripWithML` | Looks up phase-valid specs, applies predictions from already-loaded model docs, then actualizes `AtDockDepartCurr` if a leave-dock actual is present. |
@@ -42,7 +42,7 @@ trip.
 
 - **Implementation:** [`./applyVesselPredictions.ts`](./applyVesselPredictions.ts) — `applyVesselPredictions`, handoff type `VesselTripCoreProposal`.
 - **Preload request:** [`./predictionContextRequests.ts`](./predictionContextRequests.ts) —
-  `predictionModelLoadRequestForTripUpdate` and `PredictionModelLoadRequest`.
+  `predictionPreloadFromVesselTripUpdate` and `PredictionPreloadRequest`.
 - **Phase selection:** [`./predictionPolicy.ts`](./predictionPolicy.ts) —
   simple helpers that decide which prediction specs apply to the current trip
   phase. Model types are derived from `PREDICTION_SPECS`.
@@ -70,7 +70,7 @@ trip.
 ## Imports
 
 Public API: [`index.ts`](./index.ts) — **`updateVesselPredictions`**,
-**`predictionModelLoadRequestForTripUpdate`**, contract types, and phase
+**`predictionPreloadFromVesselTripUpdate`**, contract types, and phase
 routing helpers. Other modules in this folder are internal; colocated tests
 import them via relative paths. Timeline assembly lives under
 [`../updateTimeline`](../updateTimeline).

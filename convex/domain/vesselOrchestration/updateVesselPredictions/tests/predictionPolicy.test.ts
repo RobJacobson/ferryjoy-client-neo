@@ -3,9 +3,9 @@ import { PREDICTION_SPECS } from "domain/ml/prediction/vesselTripPredictions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import {
-  isAtDockPhase,
-  isAtSeaPhase,
-  predictionModelTypesForTrip,
+  isTripAtDock,
+  isTripAtSea,
+  modelTypesForTripPhase,
 } from "../predictionPolicy";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -45,8 +45,8 @@ const makeTrip = (
 describe("predictionPolicy", () => {
   it("routes at-dock predictions whenever the trip is physically docked", () => {
     const trip = makeTrip();
-    expect(isAtDockPhase(trip)).toBe(true);
-    expect(predictionModelTypesForTrip(trip)).toEqual(
+    expect(isTripAtDock(trip)).toBe(true);
+    expect(modelTypesForTripPhase(trip)).toEqual(
       Object.values(PREDICTION_SPECS)
         .filter((spec) => spec.phase === "at-dock")
         .map((spec) => spec.modelType)
@@ -59,8 +59,8 @@ describe("predictionPolicy", () => {
       LeftDockActual: ms("2026-03-13T09:31:00-07:00"),
       LeftDock: ms("2026-03-13T09:31:00-07:00"),
     });
-    expect(isAtSeaPhase(trip)).toBe(true);
-    expect(predictionModelTypesForTrip(trip)).toEqual(
+    expect(isTripAtSea(trip)).toBe(true);
+    expect(modelTypesForTripPhase(trip)).toEqual(
       Object.values(PREDICTION_SPECS)
         .filter((spec) => spec.phase === "at-sea")
         .map((spec) => spec.modelType)
@@ -71,8 +71,8 @@ describe("predictionPolicy", () => {
     const trip = makeTrip({
       AtDock: undefined as unknown as boolean,
     });
-    expect(isAtDockPhase(trip)).toBe(false);
-    expect(isAtSeaPhase(trip)).toBe(false);
-    expect(predictionModelTypesForTrip(trip)).toEqual([]);
+    expect(isTripAtDock(trip)).toBe(false);
+    expect(isTripAtSea(trip)).toBe(false);
+    expect(modelTypesForTripPhase(trip)).toEqual([]);
   });
 });

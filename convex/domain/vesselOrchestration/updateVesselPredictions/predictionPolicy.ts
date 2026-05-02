@@ -15,27 +15,50 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 /** Trip shape needed to decide which prediction family can run this ping. */
 type PredictionPhaseTrip = ConvexVesselTrip;
 
-/** Route dock-phase predictions by physical phase only (every-ping model). */
-export const isAtDockPhase = (trip: PredictionPhaseTrip): boolean =>
+/**
+ * Whether the trip row is physically at dock (`PREDICTION_SPECS` at-dock family).
+ *
+ * @param trip - Vessel trip row (`AtDock === true`)
+ * @returns True when dock-phase prediction specs apply
+ */
+export const isTripAtDock = (trip: PredictionPhaseTrip): boolean =>
   trip.AtDock === true;
 
-/** Route sea-phase predictions by physical phase only (every-ping model). */
-export const isAtSeaPhase = (trip: PredictionPhaseTrip): boolean =>
+/**
+ * Whether the trip row is underway — not at dock (`PREDICTION_SPECS` at-sea family).
+ *
+ * @param trip - Vessel trip row (`AtDock === false`)
+ * @returns True when at-sea prediction specs apply
+ */
+export const isTripAtSea = (trip: PredictionPhaseTrip): boolean =>
   trip.AtDock === false;
 
-export const predictionSpecsForTrip = (
+/**
+ * Prediction specs that apply to this trip row given its at-dock / at-sea phase.
+ *
+ * @param trip - Vessel trip row whose `AtDock` flag selects the spec family
+ * @returns Specs whose `phase` matches the trip’s physical state
+ */
+export const predictionSpecsForTripPhase = (
   trip: PredictionPhaseTrip
 ): PredictionSpec[] =>
   Object.values(PREDICTION_SPECS).filter((spec) => {
-    if (isAtDockPhase(trip)) {
+    if (isTripAtDock(trip)) {
       return spec.phase === "at-dock";
     }
-    if (isAtSeaPhase(trip)) {
+    if (isTripAtSea(trip)) {
       return spec.phase === "at-sea";
     }
     return false;
   });
 
-export const predictionModelTypesForTrip = (
+/**
+ * Model types to run for this trip row, derived from its prediction phase.
+ *
+ * @param trip - Vessel trip row passed to phase filtering
+ * @returns `modelType` values from {@link predictionSpecsForTripPhase}
+ */
+export const modelTypesForTripPhase = (
   trip: PredictionPhaseTrip
-): ModelType[] => predictionSpecsForTrip(trip).map((spec) => spec.modelType);
+): ModelType[] =>
+  predictionSpecsForTripPhase(trip).map((spec) => spec.modelType);
