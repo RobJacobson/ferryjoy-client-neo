@@ -28,7 +28,8 @@ import type {
 import { mergePingEventWrites, type PingEventWrites } from "./projectionWire";
 
 /**
- * Replacement row for predicted timeline writes after **updateVesselPredictions**.
+ * Replacement row for predicted timeline writes after
+ * **getVesselTripPredictionsFromTripUpdate**.
  *
  * @param fact - Boundary fact from the trip applier (must be ML-merged first)
  * @returns ML-shaped new trip for `buildPredictedDockWriteBatch`
@@ -38,7 +39,7 @@ const completedBoundaryActiveTripWithMlForTimeline = (
 ): ConvexVesselTripWithML => {
   if (fact.activeVesselTripWithMl === undefined) {
     throw new Error(
-      "CompletedArrivalHandoff.activeVesselTripWithMl is required before timeline projection; run updateVesselPredictions merge first."
+      "CompletedArrivalHandoff.activeVesselTripWithMl is required before timeline projection; merge predicted trips from getVesselTripPredictionsFromTripUpdate first."
     );
   }
   return fact.activeVesselTripWithMl;

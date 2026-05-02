@@ -145,10 +145,10 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
       predictionRows: [],
-      mlTimelineOverlays: [],
+      predictedTripTimelineHandoffs: [],
     });
     const timelineSpy = spyOn(
       updateTimelineModule,
@@ -186,8 +186,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    // Identities, then prediction preload query (active trips come from bulk upsert mutation).
-    expect(runQueryCalls).toBe(2);
+    // Identities snapshot only; prediction stage uses a mocked domain branch here.
+    expect(runQueryCalls).toBe(1);
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
     expect(timelineSpy).toHaveBeenCalledTimes(1);
@@ -220,10 +220,10 @@ describe("updateVesselOrchestrator ping integration", () => {
     });
     spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
       predictionRows: [],
-      mlTimelineOverlays: [],
+      predictedTripTimelineHandoffs: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],
@@ -258,7 +258,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(2);
+    expect(runQueryCalls).toBe(1);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
@@ -284,7 +284,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue(null);
     const predictionSpy = spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     );
     const timelineSpy = spyOn(updateTimelineModule, "updateTimeline");
 
@@ -336,10 +336,10 @@ describe("updateVesselOrchestrator ping integration", () => {
     );
     spyOn(
       updateVesselPredictionsModule,
-      "updateVesselPredictions"
+      "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
       predictionRows: [],
-      mlTimelineOverlays: [],
+      predictedTripTimelineHandoffs: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],
@@ -382,7 +382,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(2);
+    expect(runQueryCalls).toBe(1);
     expect(mutationCalls.length).toBe(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };

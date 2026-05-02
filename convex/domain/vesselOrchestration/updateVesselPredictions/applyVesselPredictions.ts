@@ -1,81 +1,43 @@
 /**
- * **updateVesselPredictions** (domain): ML attachment for one vessel-trip ping.
+ * Applies phase-valid predictions from loaded prediction model parameters and
+ * actualizes leave-dock prediction fields when an actual departure exists.
  *
  * Callers should invoke this with schedule/lifecycle trip rows from
  * **`updateVesselTrip`** (schedule-enriched `ConvexVesselTrip`). Canonical
- * prediction logic lives in {@link ./appendPredictions}; this module routes by
- * physical phase (`AtDock` vs `AtSea`) and then applies leave-dock
- * actualization.
+ * prediction logic lives in {@link ./appendPredictions}; routing by physical
+ * dock vs underway branch uses {@link ./tripDockStatePredictionSpecs}.
  */
 
 import { actualizePredictionsOnLeaveDock } from "domain/ml/prediction";
 import type {
-  ProductionModelParameters,
-  VesselTripPredictionModelAccess,
-} from "domain/ml/prediction/vesselTripPredictionModelAccess";
-import type { ModelType } from "domain/ml/shared/types";
-import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import {
-  appendAtDockPredictions,
-  appendAtSeaPredictions,
-  appendPredictionsFromLoadedModels,
-} from "./appendPredictions";
-import { predictionSpecsForTripPhase } from "./predictionPolicy";
+import { appendPredictionsFromLoadedModels } from "./appendPredictions";
+import type { PredictionModelParametersByPairKey } from "./types";
+import { getPredictionSpecsFromTrip } from "./tripDockStatePredictionSpecs";
 
 /**
- * Trip state immediately before this ping’s `appendAtDockPredictions` /
- * `appendAtSeaPredictions` (and leave-dock actualize): schedule + lifecycle
- * fields from **updateVesselTrip**, storage-shaped only.
- */
-export type VesselTripCoreProposal = ConvexVesselTrip;
-
-/**
- * Append at-dock / at-sea predictions and actualize on leave-dock.
+ * Applies loaded-model predictions for the trip's current phase, then
+ * actualizes on leave-dock when applicable.
  *
- * Order is fixed: at-dock attempts → at-sea attempts → leave-dock
- * actualization. Predictions re-run every ping whenever the trip is in the
- * matching physical phase; unchanged results are deduped at persistence time.
- *
- * @param modelAccess - Production ML model reads for this ping
- * @param coreTrip - Schedule-enriched proposal (see {@link VesselTripCoreProposal})
- * @returns Trip with ML fields applied for this ping
+ * @param predictionModelParametersByPairKey - Parameters keyed by terminal pair
+ *   from **`getPredictionModelParameters`**, or `undefined` when no load ran
+ * @param coreTrip - Schedule-enriched **`ConvexVesselTrip`** from **updateVesselTrip**
+ * @returns Trip with prediction fields and any leave-dock actualization applied
  */
-export const applyVesselPredictions = async (
-  modelAccess: VesselTripPredictionModelAccess,
-  coreTrip: VesselTripCoreProposal
-): Promise<ConvexVesselTripWithML> => {
-  const withAtDockPredictions =
-    coreTrip.AtDock === true
-      ? await appendAtDockPredictions(modelAccess, coreTrip)
-      : coreTrip;
-  const withAtSeaPredictions =
-    withAtDockPredictions.AtDock === false
-      ? await appendAtSeaPredictions(modelAccess, withAtDockPredictions)
-      : withAtDockPredictions;
-
-  return actualizePredictionsOnLeaveDock(withAtSeaPredictions);
-};
-
 export const applyVesselPredictionsFromLoadedModels = async (
-  productionModelsByPair:
-    | Readonly<
-        Record<
-          string,
-          Partial<Record<ModelType, ProductionModelParameters | null>>
-        >
-      >
+  predictionModelParametersByPairKey:
+    | PredictionModelParametersByPairKey
     | undefined,
-  coreTrip: VesselTripCoreProposal
+  coreTrip: ConvexVesselTrip
 ): Promise<ConvexVesselTripWithML> => {
-  const specs = predictionSpecsForTripPhase(coreTrip);
+  const specs = getPredictionSpecsFromTrip(coreTrip);
   const withPredictions =
     specs.length === 0
       ? coreTrip
       : await appendPredictionsFromLoadedModels(
-          productionModelsByPair,
+          predictionModelParametersByPairKey,
           coreTrip,
           specs
         );

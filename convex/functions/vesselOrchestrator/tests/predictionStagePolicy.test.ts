@@ -1,14 +1,64 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { ActionCtx } from "_generated/server";
-import { loadPredictionContext } from "../actions/ping/updateVesselPredictions";
+import {
+  getVesselTripPredictionsFromTripUpdate,
+  type PredictionModelParametersByPairKey,
+} from "domain/vesselOrchestration/updateVesselPredictions";
+import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
 
-describe("prediction stage off-ramp policy", () => {
-  it("skips prediction model context query when there are no preload requests", async () => {
-    const runQuery = mock(async () => ({}));
-    const ctx = { runQuery } as unknown as ActionCtx;
+const ms = (iso: string) => new Date(iso).getTime();
 
-    const predictionContext = await loadPredictionContext(ctx, null);
-    expect(predictionContext).toEqual({});
-    expect(runQuery).toHaveBeenCalledTimes(0);
+/**
+ * Minimal at-dock trip with a deliberately incomplete route so the domain
+ * skips loading prediction model parameters.
+ *
+ * @returns Active vessel trip row shaped for the policy test only
+ */
+const tripMissingRoutePair = (): ConvexVesselTripWithPredictions =>
+  ({
+    VesselAbbrev: "CHE",
+    DepartingTerminalAbbrev: "ORI",
+    ArrivingTerminalAbbrev: undefined,
+    RouteAbbrev: "ana-sj",
+    TripKey: generateTripKey("CHE", ms("2026-03-13T09:00:00-07:00")),
+    ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
+    SailingDay: "2026-03-13",
+    PrevTerminalAbbrev: "SHI",
+    TripStart: ms("2026-03-13T09:00:00-07:00"),
+    TripEnd: undefined,
+    AtDock: true,
+    AtDockDuration: 10,
+    ScheduledDeparture: ms("2026-03-13T09:30:00-07:00"),
+    LeftDock: undefined,
+    LeftDockActual: undefined,
+    TripDelay: 4,
+    Eta: undefined,
+    AtSeaDuration: undefined,
+    TotalDuration: undefined,
+    InService: true,
+    TimeStamp: ms("2026-03-13T09:10:00-07:00"),
+    PrevScheduledDeparture: ms("2026-03-13T08:10:00-07:00"),
+    PrevLeftDock: ms("2026-03-13T08:12:00-07:00"),
+    NextScheduleKey: undefined,
+    NextScheduledDeparture: undefined,
+  }) as ConvexVesselTripWithPredictions;
+
+describe("prediction stage fetch policy", () => {
+  it("does not load prediction model parameters when the route pair cannot be derived", async () => {
+    const loadPredictionModelParameters = mock(
+      async (): Promise<PredictionModelParametersByPairKey> => {
+        throw new Error("load should not run");
+      }
+    );
+
+    await getVesselTripPredictionsFromTripUpdate(
+      {
+        vesselAbbrev: "CHE",
+        activeVesselTrip: tripMissingRoutePair(),
+      },
+      { loadPredictionModelParameters }
+    );
+
+    expect(loadPredictionModelParameters).toHaveBeenCalledTimes(0);
   });
 });

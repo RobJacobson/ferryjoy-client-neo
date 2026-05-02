@@ -1,31 +1,30 @@
 /**
- * **updateVesselPredictions** — ML attachment and `vesselTripPredictions` row DTOs
- * for one ping. Compare-then-write is in `functions/vesselTripPredictions`.
+ * **updateVesselPredictions** — Prediction model–backed trip enrichment,
+ * `vesselTripPredictions` proposal rows, and same-update timeline handoffs for
+ * `updateTimeline`.
  *
  * **Public surface**
- * - {@link updateVesselPredictions} — same pass plus timeline ML handoff (orchestrator)
- * - {@link predictionPreloadFromVesselTripUpdate} — terminal-pair preload request
- * - {@link modelTypesForTripPhase} — model types for the trip's at-dock / at-sea phase
+ * - {@link getVesselTripPredictionsFromTripUpdate} — domain entry (inject
+ *   **`loadPredictionModelParameters`** for Convex or tests)
+ * - {@link getPredictionModelParametersFromTripUpdate} — optional query
+ *   request derived from `VesselTripUpdate`
+ * - {@link getPredictionModelTypesFromTrip}, {@link getPredictionSpecsFromTrip} —
+ *   at-dock vs at-sea spec routing (single source for load + inference)
  *
- * Other helpers (`applyVesselPredictions`, `appendPredictions`, policy gates, etc.)
- * are internal to this folder; tests may import them via relative paths.
+ * Internal helpers (`appendPredictions`, `applyVesselPredictionsFromLoadedModels`,
+ * dock-state spec routing, etc.) stay inside this folder; tests may import them via
+ * relative paths.
  */
 
+export { getPredictionModelParametersFromTripUpdate } from "./getPredictionModelParametersFromTripUpdate";
+export { getVesselTripPredictionsFromTripUpdate } from "./getVesselTripPredictionsFromTripUpdate";
 export {
-  type PredictionPreloadRequest,
-  predictionPreloadFromVesselTripUpdate,
-} from "./predictionContextRequests";
-export {
-  modelTypesForTripPhase,
-  predictionSpecsForTripPhase,
-} from "./predictionPolicy";
+  getPredictionModelTypesFromTrip,
+  getPredictionSpecsFromTrip,
+} from "./tripDockStatePredictionSpecs";
 export type {
-  RunUpdateVesselPredictionsInput,
-  RunUpdateVesselPredictionsOutput,
-  VesselPredictionContext,
-  VesselTripPredictionRow,
+  PredictionModelParametersByPairKey,
+  PredictionModelParametersRequest,
+  VesselTripPredictionDeps,
+  VesselTripPredictionsFromTripUpdateResult,
 } from "./types";
-export {
-  type UpdateVesselPredictionsOutput,
-  updateVesselPredictions,
-} from "./updateVesselPredictions";

@@ -15,17 +15,13 @@ import type { ActionCtx } from "_generated/server";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
 import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import {
-  predictionPreloadFromVesselTripUpdate,
-  updateVesselPredictions,
-} from "domain/vesselOrchestration/updateVesselPredictions";
-import {
   stripVesselTripPredictions,
   updateVesselTrip,
 } from "domain/vesselOrchestration/updateVesselTrip";
 import { loadOrchestratorSnapshot } from "./loadSnapshot";
 import { runPersistVesselUpdatesWithTripDeltas } from "./runPersistVesselUpdatesWithTripDeltas";
 import { runUpdateVesselLocations } from "./updateVesselLocations";
-import { loadPredictionContext } from "./updateVesselPredictions";
+import { getVesselTripPredictionsForTripUpdate } from "./updateVesselPredictions";
 import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
 
 /**
@@ -108,32 +104,20 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const leaveDockEventPatch = updateLeaveDockEventPatch(tripUpdate);
 
       /**
-       * Stage 4: updateVesselPredictions
+       * Stage 4: vessel-trip predictions
        *
-       * Use `tripUpdate` as the truth of what changed, load only the model
-       * context needed for this vessel, then compute prediction proposals and
-       * same-ping ML overlays.
-       *
-       * Why: keep prediction work targeted and ensure timeline projection uses
-       * the exact ML output computed for this ping.
+       * Derives prediction-parameter load needs from `tripUpdate`, loads weights
+       * when required, enriches the active trip, and returns persistence proposals
+       * plus same-tick timeline handoffs for merge in Stage 5.
        */
-      const predictionPreloadRequest =
-        predictionPreloadFromVesselTripUpdate(tripUpdate);
-      const predictionContext = await loadPredictionContext(
-        ctx,
-        predictionPreloadRequest
-      );
-      const { predictionRows, mlTimelineOverlays } =
-        await updateVesselPredictions({
-          tripUpdate,
-          predictionContext,
-        });
+      const { predictionRows, predictedTripTimelineHandoffs } =
+        await getVesselTripPredictionsForTripUpdate(ctx, tripUpdate);
 
       /**
        * Stage 5: updateTimeline
        *
-       * Combine ping time + trip deltas + ML overlays to project timeline event
-       * rows (`actualEvents`, `predictedEvents`) for this vessel.
+       * Combine ping time + trip deltas + predicted-trip handoffs to project
+       * timeline event rows (`actualEvents`, `predictedEvents`) for this vessel.
        *
        * Why: timeline writes should be derived from the same trip and prediction
        * evidence that this ping just computed, not from a separate read pass.
@@ -141,7 +125,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const timelineRows = updateTimeline({
         pingStartedAt,
         tripUpdate,
-        mlTimelineOverlays,
+        predictedTripTimelineHandoffs,
       });
 
       /**

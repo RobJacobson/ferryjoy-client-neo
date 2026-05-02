@@ -377,11 +377,12 @@ internal [`bulkUpsertVesselLocations`](../../functions/vesselLocation/mutations.
 (which returns **`changedLocations`** and **`activeTripsForChanged`** in the same transaction).
 For each changed location row it runs trip compute in the
 action (with **`UpdateVesselTripDbAccess`** from `actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`
-for targeted `eventsScheduled` continuity), then **`predictionPreloadFromVesselTripUpdate`**,
-**`loadPredictionContext`** (when that request is non-null), and domain
-**`updateVesselPredictions`** (`{ tripUpdate, predictionContext }`).
+for targeted `eventsScheduled` continuity), then domain
+**`getVesselTripPredictionsFromTripUpdate`**, which loads prediction model parameters via
+**`loadPredictionModelParameters`** when
+**`getPredictionModelParametersFromTripUpdate`** is non-null.
 Domain **`updateTimeline`** runs in action
-memory from **`{ pingStartedAt, tripUpdate, mlTimelineOverlays }`** (handoff derived
+memory from **`{ pingStartedAt, tripUpdate, predictedTripTimelineHandoffs }`** (handoff derived
 inside **`timelineHandoffFromTripUpdate`**); then stage-level persistence helpers apply
 trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted` rows in
 explicit per-vessel order. Per-tick trip lifecycle logic lives in

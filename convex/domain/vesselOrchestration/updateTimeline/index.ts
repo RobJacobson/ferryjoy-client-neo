@@ -1,12 +1,13 @@
 /**
  * Orchestrator concern **updateTimeline**: sparse `eventsActual` /
- * `eventsPredicted` writes for one ping. Canonical implementation lives in this
- * folder (`timelineEventAssembler`, `buildDockWritesFromTripHandoff`).
+ * `eventsPredicted` writes for one ping. **`updateTimeline.ts`** is the assembly
+ * entry; **`projectTimelineFromHandoff.ts`** projects from a pre-built handoff.
+ * Lower layers: **`timelineEventAssembler`**, **`buildDockWritesFromTripHandoff`**.
  *
- * Stage A contracts: `contracts.ts`. Canonical domain entry is
- * {@link updateTimeline} (`RunUpdateVesselTimelineFromAssemblyInput` → output).
- * Ping write types and handoff DTOs live in this folder.
- * Tests may import `updateTimeline` internals directly.
+ * Stage A contracts: `contracts.ts`. Public entry is {@link updateTimeline}
+ * (`RunUpdateVesselTimelineFromAssemblyInput` → output). Ping write types and
+ * handoff DTOs live in this folder. Tests may import internals directly (e.g.
+ * **`projectTimelineFromHandoff`**).
  */
 
 export {
@@ -22,9 +23,9 @@ export type {
   ActiveTripWriteOutcome,
   ActualDockWriteIntent,
   CompletedArrivalHandoff,
-  MlTimelineOverlay,
   PersistedTripTimelineHandoff,
   PredictedDockWriteIntent,
+  PredictedTripTimelineHandoff,
 } from "./handoffTypes";
 export { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";
 export { updateTimeline } from "./updateTimeline";

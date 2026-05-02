@@ -2,18 +2,14 @@
  * Prediction enrichment helpers for vessel-trip updates.
  *
  * Adds the ML predictions that are valid for the trip's current phase.
- * Predictions re-run on every ping for the active phase, and persistence dedupes
+ * Predictions re-run whenever the orchestrator applies an update for the active
+ * phase, and persistence dedupes
  * unchanged proposal rows.
  */
 
-import { loadModelsForPairBatch } from "domain/ml/prediction/predictTrip";
-import type {
-  ProductionModelParameters,
-  VesselTripPredictionModelAccess,
-} from "domain/ml/prediction/vesselTripPredictionModelAccess";
+import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import {
   isPredictionReadyTrip,
-  PREDICTION_SPECS,
   type PredictionSpec,
   predictFromSpec,
 } from "domain/ml/prediction/vesselTripPredictions";
@@ -28,6 +24,14 @@ type SpecPredictionResult = {
   prediction: Awaited<ReturnType<typeof predictFromSpec>>;
 };
 
+/**
+ * Returns whether the trip satisfies readiness and per-spec inputs for the
+ * given prediction specs.
+ *
+ * @param trip - Current vessel trip row (may already carry prediction fields)
+ * @param specs - Prediction specs to evaluate prerequisites for
+ * @returns True when every required gate passes for these specs
+ */
 const hasRequiredInputsForSpecs = (
   trip: ConvexVesselTripWithML,
   specs: ReadonlyArray<PredictionSpec>
@@ -47,29 +51,17 @@ const hasRequiredInputsForSpecs = (
   return true;
 };
 
-const preloadModelsForSpecs = async (
-  modelAccess: VesselTripPredictionModelAccess,
-  trip: ConvexVesselTripWithML,
-  specs: ReadonlyArray<PredictionSpec>
-): Promise<Partial<Record<ModelType, ModelDoc | null>>> => {
-  if (
-    specs.length <= 1 ||
-    trip.ArrivingTerminalAbbrev === undefined ||
-    trip.DepartingTerminalAbbrev === undefined
-  ) {
-    return {};
-  }
-
-  const pairKey = formatTerminalPairKey(
-    trip.DepartingTerminalAbbrev,
-    trip.ArrivingTerminalAbbrev
-  );
-  const modelTypes = specs.map((spec) => spec.modelType);
-  return (await loadModelsForPairBatch(modelAccess, pairKey, modelTypes)) ?? {};
-};
-
+/**
+ * Maps already-loaded prediction model parameter docs by model type for the trip's
+ * terminal pair.
+ *
+ * @param predictionModelParametersByPairKey - Lookup from pair key to model-type docs
+ * @param trip - Trip whose departing/arriving abbrevs define the pair key
+ * @param specs - Spec list whose model types are pulled from the lookup
+ * @returns Partial record of model type to parameters for `predictFromSpec`
+ */
 const loadedModelsForSpecs = (
-  productionModelsByPair:
+  predictionModelParametersByPairKey:
     | Readonly<Record<string, Partial<Record<ModelType, ModelDoc | null>>>>
     | undefined,
   trip: ConvexVesselTripWithML,
@@ -89,13 +81,21 @@ const loadedModelsForSpecs = (
   return Object.fromEntries(
     specs.map((spec) => [
       spec.modelType,
-      productionModelsByPair?.[pairKey]?.[spec.modelType] ?? null,
+      predictionModelParametersByPairKey?.[pairKey]?.[spec.modelType] ?? null,
     ])
   ) as Partial<Record<ModelType, ModelDoc | null>>;
 };
 
+/**
+ * Runs inference for each spec using preloaded parameter docs for this pair.
+ *
+ * @param trip - Current vessel trip state
+ * @param specs - Specs to run in parallel
+ * @param preloadedModelsByType - Model parameters keyed by model type for this
+ *   pair (used when `specs.length > 1` to batch cache hits)
+ * @returns One result per spec in input order
+ */
 const runPredictionsForSpecs = async (
-  modelAccess: VesselTripPredictionModelAccess | null,
   trip: ConvexVesselTripWithML,
   specs: ReadonlyArray<PredictionSpec>,
   preloadedModelsByType: Partial<Record<ModelType, ModelDoc | null>>
@@ -104,7 +104,7 @@ const runPredictionsForSpecs = async (
     specs.map(async (spec) => ({
       spec,
       prediction: await predictFromSpec(
-        modelAccess,
+        null,
         trip,
         spec,
         specs.length > 1 ? preloadedModelsByType[spec.modelType] : undefined
@@ -112,6 +112,14 @@ const runPredictionsForSpecs = async (
     }))
   );
 
+/**
+ * Merges non-null prediction outputs onto the trip row by prediction field
+ * name.
+ *
+ * @param trip - Trip before applying this batch of outputs
+ * @param results - Spec plus nullable prediction from `predictFromSpec`
+ * @returns Trip shallow-merged with any non-null prediction fields
+ */
 const applySpecPredictionResults = (
   trip: ConvexVesselTripWithML,
   results: ReadonlyArray<SpecPredictionResult>
@@ -134,53 +142,17 @@ const applySpecPredictionResults = (
 };
 
 /**
- * Compute predictions for a specific set of prediction specs.
+ * Applies predictions from prediction model parameters already loaded for this
+ * terminal pair (orchestrator path).
  *
- * Core prediction logic that:
- * - Re-runs every phase-valid spec on each ping
- * - Validates trip readiness via isPredictionReadyTrip
- * - Checks required fields (e.g., canonical departure actual for at-sea predictions)
- * - Batches model loading when multiple predictions needed for efficiency
- *
- * @param modelAccess - Production model parameters (orchestrator `runQuery`)
+ * @param predictionModelParametersByPairKey - Keyed by pair string from
+ *   **`getPredictionModelParameters`**
  * @param trip - Current vessel trip state
- * @param specs - Prediction specs to attempt (e.g., at-dock or at-sea)
+ * @param specs - Specs from **`getPredictionSpecsFromTrip`** for this dock vs sea state
  * @returns Trip with prediction fields applied
  */
-const computePredictions = async (
-  modelAccess: VesselTripPredictionModelAccess,
-  trip: ConvexVesselTripWithML,
-  specs: ReadonlyArray<PredictionSpec>
-): Promise<ConvexVesselTripWithML> => {
-  try {
-    if (!hasRequiredInputsForSpecs(trip, specs)) {
-      return trip;
-    }
-
-    const preloadedModelsByType = await preloadModelsForSpecs(
-      modelAccess,
-      trip,
-      specs
-    );
-    const results = await runPredictionsForSpecs(
-      modelAccess,
-      trip,
-      specs,
-      preloadedModelsByType
-    );
-
-    return applySpecPredictionResults(trip, results);
-  } catch (error) {
-    console.error(
-      `[Prediction] Failed to compute predictions for ${trip.VesselAbbrev}:`,
-      error
-    );
-    return trip;
-  }
-};
-
 export const appendPredictionsFromLoadedModels = async (
-  productionModelsByPair:
+  predictionModelParametersByPairKey:
     | Readonly<Record<string, Partial<Record<ModelType, ModelDoc | null>>>>
     | undefined,
   trip: ConvexVesselTripWithML,
@@ -192,12 +164,11 @@ export const appendPredictionsFromLoadedModels = async (
     }
 
     const preloadedModelsByType = loadedModelsForSpecs(
-      productionModelsByPair,
+      predictionModelParametersByPairKey,
       trip,
       specs
     );
     const results = await runPredictionsForSpecs(
-      null,
       trip,
       specs,
       preloadedModelsByType
@@ -211,44 +182,4 @@ export const appendPredictionsFromLoadedModels = async (
     );
     return trip;
   }
-};
-
-/**
- * Enrich trip with at-dock predictions when vessel is at dock.
- *
- * Predicts AtDockDepartCurr, AtDockArriveNext, and AtDockDepartNext when
- * vessel is at dock and trip has required canonical origin-arrival context
- * (isPredictionReadyTrip). The orchestrator re-runs these predictions on every
- * ping while the trip stays in the at-dock phase.
- *
- * @param modelAccess - Production model parameters (orchestrator `runQuery`)
- * @param trip - Current vessel trip state
- * @returns Trip enriched with at-dock prediction fields
- */
-export const appendAtDockPredictions = async (
-  modelAccess: VesselTripPredictionModelAccess,
-  trip: ConvexVesselTripWithML
-): Promise<ConvexVesselTripWithML> => {
-  return computePredictions(modelAccess, trip, [
-    ...PREDICTION_SPECS["at-dock"],
-  ]);
-};
-
-/**
- * Enrich trip with at-sea predictions when vessel is at sea.
- *
- * Predicts AtSeaArriveNext and AtSeaDepartNext when vessel is underway
- * (has canonical departure state) and trip has required context
- * (isPredictionReadyTrip). The orchestrator re-runs these predictions on every
- * ping while the trip stays in the at-sea phase.
- *
- * @param modelAccess - Production model parameters (orchestrator `runQuery`)
- * @param trip - Current vessel trip state
- * @returns Trip enriched with at-sea prediction fields
- */
-export const appendAtSeaPredictions = async (
-  modelAccess: VesselTripPredictionModelAccess,
-  trip: ConvexVesselTripWithML
-): Promise<ConvexVesselTripWithML> => {
-  return computePredictions(modelAccess, trip, [...PREDICTION_SPECS["at-sea"]]);
 };

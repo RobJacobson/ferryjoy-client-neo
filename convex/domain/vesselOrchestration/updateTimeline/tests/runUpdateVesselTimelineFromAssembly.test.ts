@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import { projectTimelineFromHandoff } from "../updateTimeline";
+import { projectTimelineFromHandoff } from "../projectTimelineFromHandoff";
 
 const ms = (iso: string) => new Date(iso).getTime();
 

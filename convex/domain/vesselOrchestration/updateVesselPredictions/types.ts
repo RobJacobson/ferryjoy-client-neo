@@ -1,41 +1,50 @@
 /**
- * Canonical Stage A public contracts for the predictions concern.
+ * Public contracts for vessel-trip predictions: prediction-parameter lookup
+ * shapes and the combined result passed to persistence and timeline assembly.
  */
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+import type { PredictedTripTimelineHandoff } from "domain/vesselOrchestration/updateTimeline";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 
 /**
- * Plain-data prediction preload blob expected by the Stage A public contract.
+ * Prediction model parameters keyed by canonical terminal pair, then model type.
+ * Matches the plain object returned by **`getPredictionModelParameters`**.
  *
- * The functions layer fills this (e.g. production model parameters keyed by
- * terminal pair); domain receives only this POJO, not Convex query ports.
+ * Values use **`ProductionModelParameters`** from the ML access layer (stored
+ * coefficient/feature rows).
  */
-export type VesselPredictionContext = {
-  productionModelsByPair?: Readonly<
-    Record<string, Partial<Record<ModelType, ProductionModelParameters | null>>>
-  >;
+export type PredictionModelParametersByPairKey = Readonly<
+  Record<string, Partial<Record<ModelType, ProductionModelParameters | null>>>
+>;
+
+/**
+ * Arguments for **`getPredictionModelParameters`**: which terminal pair and
+ * which prediction model types to load for the active trip’s dock vs underway
+ * state.
+ */
+export type PredictionModelParametersRequest = {
+  pairKey: string;
+  modelTypes: Array<ModelType>;
 };
 
 /**
- * Canonical persisted-row story for Stage A. The current implementation emits
- * proposal rows first and the functions layer owns compare-then-write.
+ * Small port used by {@link getVesselTripPredictionsFromTripUpdate} so domain
+ * stays free of `ActionCtx`. **`getVesselTripPredictionsForTripUpdate`** (orchestrator) wires this
+ * using Convex actions; unit tests supply an in-memory stub.
  */
-export type VesselTripPredictionRow = VesselTripPredictionProposal;
-
-export type RunUpdateVesselPredictionsInput = {
-  tripUpdate: VesselTripUpdate;
-  predictionContext: VesselPredictionContext;
+export type VesselTripPredictionDeps = {
+  loadPredictionModelParameters: (
+    request: PredictionModelParametersRequest
+  ) => Promise<PredictionModelParametersByPairKey>;
 };
 
 /**
- * Pure prediction pipeline output: rows suitable for dedupe/upsert in
- * `functions/vesselOrchestrator` / `batchUpsertProposals`.
- *
- * Timeline ML merge handoffs are returned only from `updateVesselPredictions`.
+ * Outcome of enriching the active trip from prediction parameters and deriving
+ * persistence rows plus same-update timeline handoffs.
  */
-export type RunUpdateVesselPredictionsOutput = {
-  predictionRows: ReadonlyArray<VesselTripPredictionRow>;
+export type VesselTripPredictionsFromTripUpdateResult = {
+  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
+  predictedTripTimelineHandoffs: ReadonlyArray<PredictedTripTimelineHandoff>;
 };

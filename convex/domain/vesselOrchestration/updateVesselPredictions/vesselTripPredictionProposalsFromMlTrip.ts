@@ -23,7 +23,7 @@ const PREDICTION_FIELD_NAMES = [
  * Builds proposal payloads for each non-absent ML field on the trip. Skips
  * undefined slots so `batchUpsertProposals` only receives real predictions.
  *
- * @param trip - Post-`applyVesselPredictions` trip (`TripKey` required)
+ * @param trip - Trip after prediction enrichment (`TripKey` required)
  * @returns Zero or more proposals for this vessel/trip natural keys
  */
 export const vesselTripPredictionProposalsFromMlTrip = (

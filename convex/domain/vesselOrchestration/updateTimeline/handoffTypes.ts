@@ -1,5 +1,6 @@
 /**
- * Handoff DTOs between trip persistence, prediction overlays, and timeline projection.
+ * Handoff DTOs between trip persistence, prediction-enriched trips, and timeline
+ * projection.
  */
 
 import type { CurrentTripDockEvents } from "domain/vesselOrchestration/updateVesselTrip";
@@ -9,10 +10,12 @@ import type {
 } from "functions/vesselTrips/schemas";
 
 /**
- * One completed arrival at dock: rows ready for timeline and prediction overlay.
+ * One completed arrival at dock: rows ready for timeline and optional
+ * prediction-enriched replacement trip for projection.
  *
  * Field names align with `VesselTripUpdate`: prior active row, completed
- * closeout row, replacement active row; optional same shape with ML merged for projection.
+ * closeout row, replacement active row; optional same shape with predictions
+ * merged for projection.
  */
 export type CompletedArrivalHandoff = {
   existingVesselTrip: ConvexVesselTrip;
@@ -39,7 +42,12 @@ export type ActiveTripWriteOutcome = {
   pendingPredictedWrite?: PredictedDockWriteIntent;
 };
 
-export type MlTimelineOverlay = {
+/**
+ * Per-branch prediction-enriched trip passed from the vessel-trip prediction pass
+ * into timeline assembly so predicted dock events use the same trip row the
+ * models produced (completed closeout vs current active branch).
+ */
+export type PredictedTripTimelineHandoff = {
   vesselAbbrev: string;
   branch: "completed" | "current";
   completedHandoffKey?: string;

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { updateVesselPredictions } from "domain/vesselOrchestration/updateVesselPredictions";
+import { describe, expect, it, mock } from "bun:test";
+import { getVesselTripPredictionsFromTripUpdate } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 
@@ -41,50 +41,58 @@ const makeTrip = (
   ...overrides,
 });
 
-const richContext = {
-  productionModelsByPair: {
-    "ORI->LOP": {
-      "at-dock-depart-curr": {
-        featureKeys: [],
-        coefficients: [],
-        intercept: 3,
-        testMetrics: { mae: 1, stdDev: 1 },
-      },
-      "at-dock-arrive-next": {
-        featureKeys: [],
-        coefficients: [],
-        intercept: 20,
-        testMetrics: { mae: 1, stdDev: 1 },
-      },
-      "at-dock-depart-next": {
-        featureKeys: [],
-        coefficients: [],
-        intercept: 45,
-        testMetrics: { mae: 1, stdDev: 1 },
-      },
+const predictionModelParametersByPairKey = {
+  "ORI->LOP": {
+    "at-dock-depart-curr": {
+      featureKeys: [],
+      coefficients: [],
+      intercept: 3,
+      testMetrics: { mae: 1, stdDev: 1 },
+    },
+    "at-dock-arrive-next": {
+      featureKeys: [],
+      coefficients: [],
+      intercept: 20,
+      testMetrics: { mae: 1, stdDev: 1 },
+    },
+    "at-dock-depart-next": {
+      featureKeys: [],
+      coefficients: [],
+      intercept: 45,
+      testMetrics: { mae: 1, stdDev: 1 },
     },
   },
 };
 
-describe("updateVesselPredictions", () => {
-  it("computes prediction rows and timeline ML handoffs from active trips", async () => {
+const depsWithModels = {
+  loadPredictionModelParameters: mock(async () =>
+    Promise.resolve(predictionModelParametersByPairKey)
+  ),
+};
+
+const depsEmptyModels = {
+  loadPredictionModelParameters: mock(async () => Promise.resolve({})),
+};
+
+describe("getVesselTripPredictionsFromTripUpdate", () => {
+  it("computes prediction rows and timeline handoffs from active trips", async () => {
     const trip = makeTrip();
 
-    const output = await updateVesselPredictions({
-      tripUpdate: {
+    const output = await getVesselTripPredictionsFromTripUpdate(
+      {
         vesselAbbrev: trip.VesselAbbrev,
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
       },
-      predictionContext: richContext,
-    });
+      depsWithModels
+    );
 
-    expect(output.mlTimelineOverlays).toHaveLength(1);
+    expect(output.predictedTripTimelineHandoffs).toHaveLength(1);
     expect(output.predictionRows).toHaveLength(3);
     expect(
-      output.mlTimelineOverlays[0]?.finalPredictedTrip?.AtDockDepartCurr
-        ?.PredTime
+      output.predictedTripTimelineHandoffs[0]?.finalPredictedTrip
+        ?.AtDockDepartCurr?.PredTime
     ).toBe(ms("2026-03-13T09:33:00-07:00"));
   });
 
@@ -101,48 +109,50 @@ describe("updateVesselPredictions", () => {
       LeftDockActual: undefined,
     });
 
-    const output = await updateVesselPredictions({
-      tripUpdate: {
+    const output = await getVesselTripPredictionsFromTripUpdate(
+      {
         vesselAbbrev: trip.VesselAbbrev,
         existingVesselTrip: trip,
         activeVesselTrip: replacementTrip,
         completedVesselTrip: completedTrip,
       },
-      predictionContext: richContext,
-    });
+      depsWithModels
+    );
 
-    expect(output.mlTimelineOverlays).toHaveLength(2);
+    expect(output.predictedTripTimelineHandoffs).toHaveLength(2);
     expect(output.predictionRows).toHaveLength(3);
-    const completedOverlay = output.mlTimelineOverlays.find(
+    const completedHandoff = output.predictedTripTimelineHandoffs.find(
       (entry) => entry.branch === "completed"
     );
-    const currentOverlay = output.mlTimelineOverlays.find(
+    const currentHandoff = output.predictedTripTimelineHandoffs.find(
       (entry) => entry.branch === "current"
     );
-    expect(completedOverlay?.completedHandoffKey).toBe(
+    expect(completedHandoff?.completedHandoffKey).toBe(
       `${completedTrip.VesselAbbrev}::${completedTrip.ScheduleKey}`
     );
-    expect(completedOverlay?.finalPredictedTrip).toBeDefined();
-    expect(currentOverlay?.finalPredictedTrip).toBeDefined();
-    expect(completedOverlay?.finalPredictedTrip).toBe(
-      currentOverlay?.finalPredictedTrip
+    expect(completedHandoff?.finalPredictedTrip).toBeDefined();
+    expect(currentHandoff?.finalPredictedTrip).toBeDefined();
+    expect(completedHandoff?.finalPredictedTrip).toBe(
+      currentHandoff?.finalPredictedTrip
     );
   });
 
-  it("returns no prediction rows when the preload has no models", async () => {
+  it("returns no prediction rows when prediction model parameters are empty", async () => {
     const trip = makeTrip();
 
-    const output = await updateVesselPredictions({
-      tripUpdate: {
+    const output = await getVesselTripPredictionsFromTripUpdate(
+      {
         vesselAbbrev: trip.VesselAbbrev,
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
       },
-      predictionContext: {},
-    });
+      depsEmptyModels
+    );
 
     expect(output.predictionRows).toEqual([]);
-    expect(output.mlTimelineOverlays[0]?.finalPredictedTrip).toEqual(trip);
+    expect(output.predictedTripTimelineHandoffs[0]?.finalPredictedTrip).toEqual(
+      trip
+    );
   });
 });
