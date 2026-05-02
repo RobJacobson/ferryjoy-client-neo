@@ -7,9 +7,10 @@ import { v } from "convex/values";
 import { terminalIdentitySchema } from "./schemas";
 
 /**
- * Upsert terminal rows keyed by `TerminalAbbrev`. When a row already exists
- * for an abbreviation it is replaced; otherwise a new row is inserted. Rows
- * not included in the incoming batch are left unchanged.
+ * Reconciles `terminalsIdentity` from one upstream identity snapshot batch.
+ *
+ * Replaces or inserts per `TerminalAbbrev`; rows missing from the batch are
+ * preserved so a partial fetch never deletes terminals absent from that payload.
  *
  * @param ctx - Convex internal mutation context
  * @param args - Incoming terminal snapshot rows

@@ -22,7 +22,7 @@ const proposal = (): VesselTripPredictionProposal => ({
 });
 
 /**
- * Simulates {@link batchUpsertProposals} counting logic for assertions.
+ * Simulates `batchUpsertProposals` counting logic for assertions.
  *
  * @param existingByKey - Preloaded row per natural key, or null
  * @param proposals - Batch input

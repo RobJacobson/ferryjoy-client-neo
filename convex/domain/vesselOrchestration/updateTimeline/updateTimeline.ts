@@ -3,11 +3,11 @@
  * → actual/predicted timeline event writes.
  */
 
+import { buildCompletedHandoffKey } from "./completedHandoffKey";
 import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
-import { buildCompletedHandoffKey } from "./completedHandoffKey";
 import type { PredictedTripTimelineHandoff } from "./handoffTypes";
 import { projectTimelineFromHandoff } from "./projectTimelineFromHandoff";
 import { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";

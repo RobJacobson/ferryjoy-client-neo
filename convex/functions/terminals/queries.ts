@@ -1,5 +1,5 @@
 /**
- * Query handlers for **`terminalsIdentity`** (concise terminal identity rows) and
+ * Query handlers for `terminalsIdentity` (concise terminal identity rows) and
  * public frontend snapshots — not full terminal operational or schedule data.
  */
 
@@ -9,8 +9,10 @@ import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { terminalIdentitySchema } from "./schemas";
 
 /**
- * All rows from **`terminalsIdentity`**: canonical terminal identity fields only
- * (abbrev, names, geography, etc.), not schedules or derived topology.
+ * Lists all `terminalsIdentity` rows (canonical identity fields only).
+ *
+ * Excludes schedules and derived topology; strips `_id` / `_creationTime` for
+ * stable wire shapes in orchestrator snapshot loads.
  *
  * @param ctx - Convex internal query context
  * @returns Terminal identity rows without Convex metadata
@@ -25,8 +27,12 @@ export const getAllTerminalIdentities = internalQuery({
 });
 
 /**
- * One **`terminalsIdentity`** row by abbreviation.
+ * Loads one `terminalsIdentity` row by `TerminalAbbrev`.
  *
+ * Uses `by_terminal_abbrev` with `unique()` so duplicate-index bugs throw instead
+ * of returning ambiguous data.
+ *
+ * @param ctx - Convex internal query context
  * @param args.terminalAbbrev - Terminal abbreviation to resolve
  * @returns Terminal identity row without Convex metadata, or `null`
  */
@@ -48,7 +54,11 @@ export const getBackendTerminalByAbbrevInternal = internalQuery({
 });
 
 /**
- * Public frontend snapshot query for canonical terminal identity data.
+ * Public snapshot of canonical terminal identity data for the app.
+ *
+ * Empty table returns `null`, not `[]`: `useLayeredDataset` only applies Convex
+ * when `convexData` is an array, so `null` preserves bundled assets and KV cache;
+ * `[]` would overwrite them as “authoritative.” Falsy also fails asset generation.
  *
  * @param ctx - Convex public query context
  * @returns Terminal snapshot rows without Convex metadata, or `null` when empty

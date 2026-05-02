@@ -13,7 +13,10 @@ import {
 } from "./sync";
 
 /**
- * Manually reseed the current sailing day's vessel timeline rows.
+ * Manually reseeds vessel timeline boundary events for today’s sailing day.
+ *
+ * Resolves “today” with `getSailingDay` in Pacific service-day terms, then runs
+ * `reseedVesselTimelineForDate` for that string.
  *
  * @param ctx - Convex public action context
  * @returns Scheduled and actual row counts written for today
@@ -27,7 +30,10 @@ export const syncVesselTimelineManual = action({
 });
 
 /**
- * Manually reseed vessel timeline rows for a specific sailing day.
+ * Manually reseeds vessel timeline boundary events for one sailing day string.
+ *
+ * Public operator entry; forwards `targetDate` to `reseedVesselTimelineForDate`
+ * without additional scheduling guards.
  *
  * @param ctx - Convex public action context
  * @param args - Action arguments containing the target sailing day
@@ -42,7 +48,10 @@ export const syncVesselTimelineForDateManual = action({
 });
 
 /**
- * Reseed a sliding window of sailing days for timeline recovery or backfill.
+ * Reseeds a sliding window of consecutive sailing days starting from today.
+ *
+ * Internal cron/backfill path; optional `daysToSync` overrides the default window
+ * width inside `syncWindowedVesselTimeline`.
  *
  * @param ctx - Convex internal action context
  * @param args - Action arguments containing an optional day-count override
@@ -55,7 +64,10 @@ export const syncVesselTimelineWindowed = internalAction({
 });
 
 /**
- * Run the windowed reseed only during the Pacific 3am sailing-day boundary.
+ * Runs the windowed reseed only near the Pacific 3am sailing-day boundary.
+ *
+ * Skips outside that hour to avoid duplicate heavy work; when hour is 3,
+ * delegates to `syncWindowedVesselTimeline` and merges skip metadata otherwise.
  *
  * @param ctx - Convex internal action context
  * @param args - Action arguments containing an optional day-count override

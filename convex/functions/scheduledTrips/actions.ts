@@ -41,8 +41,10 @@ const purgeScheduledTripsResult = v.object({
 });
 
 /**
- * Operator/manual sync for the current WSF sailing day (replaces that day in DB).
- * Run via `bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSync '{}'`.
+ * Operator/manual sync for the current WSF sailing day.
+ *
+ * Replaces that day’s `scheduledTrips` slice via `syncScheduledTripsForDate`.
+ * Runnable with `bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSync '{}'`.
  *
  * @param ctx - Convex action context
  * @returns Per-day sync counts for the sailing day
@@ -57,8 +59,9 @@ export const runManualScheduledTripsSync = internalAction({
 });
 
 /**
- * Operator/manual sync for a specific sailing day (YYYY-MM-DD).
- * Run via `bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSyncForDate '{"targetDate":"YYYY-MM-DD"}'`.
+ * Operator/manual sync for one sailing day given by `targetDate`.
+ *
+ * Same pipeline as the “today” manual sync but for backfill or recovery runs.
  *
  * @param ctx - Convex action context
  * @param args.targetDate - Target sailing day in YYYY-MM-DD format
@@ -75,10 +78,11 @@ export const runManualScheduledTripsSyncForDate = internalAction({
 });
 
 /**
- * Windowed scheduled-trips sync for consecutive sailing days starting at today’s
- * sailing day. Crons pass `scheduledTripsConfig.dailySyncDays` (daily) or
+ * Windowed scheduled-trips sync for consecutive sailing days from today.
+ *
+ * Crons pass `scheduledTripsConfig.dailySyncDays` (daily) or
  * `scheduledTripsConfig.intervalRefreshSyncDays` (15-minute refresh); see
- * `constants.ts`.
+ * `constants.ts` for defaults and batch sizing.
  *
  * @param ctx - Convex internal action context
  * @param args.daysToSync - Number of consecutive days to sync (defaults to
@@ -98,8 +102,10 @@ export const syncScheduledTripsWindowed = internalAction({
 });
 
 /**
- * Purges scheduledTrips with DepartingTime older than the cutoff (default: now − 24h).
- * Intended for the daily cron at 11:00 UTC.
+ * Purges `scheduledTrips` rows with `DepartingTime` before a cutoff.
+ *
+ * Default cutoff follows `scheduledTripsConfig.purgeLookbackMs` from “now”.
+ * Intended for the daily cron; loops batched deletes until no rows remain.
  *
  * @param ctx - Convex internal action context
  * @param args.cutoffMs - Optional explicit cutoff for testing (epoch ms)

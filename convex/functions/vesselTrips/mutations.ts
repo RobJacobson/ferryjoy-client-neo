@@ -13,12 +13,15 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { vesselTripStoredSchema } from "functions/vesselTrips/schemas";
 
 /**
- * Complete an active trip and start a new one via {@link rolloverCompletedAndActiveInDb}.
+ * Archives one active leg to `completedVesselTrips` and persists the next active row.
  *
- * @param ctx - Convex context
+ * Wraps `rolloverCompletedAndActiveInDb` with `ConvexError` translation for API
+ * stability on failure.
+ *
+ * @param ctx - Convex internal mutation context
  * @param args.completedTrip - The completed vessel trip to archive
  * @param args.newTrip - The new vessel trip to start
- * @returns Null on success
+ * @returns `null` on success
  */
 export const completeAndStartNewTrip = internalMutation({
   args: {
@@ -52,10 +55,13 @@ export const completeAndStartNewTrip = internalMutation({
 });
 
 /**
- * Upsert a vessel trip batch (best-effort per vessel).
+ * Best-effort batch upsert of active trips (internal mutation entry).
  *
- * @param ctx - Convex context
- * @param args.activeUpserts - Active trips to upsert (one per vessel)
+ * Delegates to `upsertVesselTripsBatchInDb` so each vessel failure is captured
+ * in `perVessel` without aborting siblings.
+ *
+ * @param ctx - Convex internal mutation context
+ * @param args.activeUpserts - Active trips to upsert (typically one per vessel)
  * @returns Status list per vessel
  */
 export const upsertVesselTripsBatch = internalMutation({
@@ -76,11 +82,13 @@ export const upsertVesselTripsBatch = internalMutation({
 });
 
 /**
- * Inserts one completed trip row.
+ * Inserts one completed trip row (internal mutation wrapper).
+ *
+ * Validates `TripEnd` via `insertCompletedVesselTrip` before insert.
  *
  * @param ctx - Convex mutation context
  * @param args.completedTrip - Completed trip row for archival table
- * @returns `null`
+ * @returns `null` after insert
  */
 export const insertCompletedVesselTripRow = internalMutation({
   args: {
@@ -94,11 +102,13 @@ export const insertCompletedVesselTripRow = internalMutation({
 });
 
 /**
- * Upserts one active trip row by vessel abbreviation.
+ * Upserts one active trip row keyed by `VesselAbbrev` (internal mutation wrapper).
+ *
+ * Delegates to `upsertActiveVesselTrip` for replace-or-insert semantics.
  *
  * @param ctx - Convex mutation context
  * @param args.activeTrip - Active trip row for replacement/insert
- * @returns `null`
+ * @returns `null` after upsert
  */
 export const upsertActiveVesselTripRow = internalMutation({
   args: {
@@ -111,6 +121,16 @@ export const upsertActiveVesselTripRow = internalMutation({
   },
 });
 
+/**
+ * Best-effort upsert of many active trips in one mutation helper.
+ *
+ * Preloads all active rows into a vessel→id map, then replaces or inserts per
+ * upsert while catching errors per vessel for batch reporting.
+ *
+ * @param ctx - Convex mutation context
+ * @param activeUpserts - Candidate active rows (typically one per vessel)
+ * @returns Per-vessel ok flag and optional error message
+ */
 export const upsertVesselTripsBatchInDb = async (
   ctx: MutationCtx,
   activeUpserts: ConvexVesselTrip[]
@@ -155,10 +175,13 @@ export const upsertVesselTripsBatchInDb = async (
 };
 
 /**
- * Inserts one row into `completedVesselTrips`.
+ * Inserts one row into `completedVesselTrips` after validation.
+ *
+ * Requires `TripEnd` so archived legs always have coverage end metadata.
  *
  * @param ctx - Mutation context
  * @param completedTrip - Completed trip document to archive
+ * @returns Resolves when the insert completes
  */
 export const insertCompletedVesselTrip = async (
   ctx: MutationCtx,
@@ -169,10 +192,13 @@ export const insertCompletedVesselTrip = async (
 };
 
 /**
- * Upserts one row in `activeVesselTrips` by matching `trip.VesselAbbrev`.
+ * Upserts one row in `activeVesselTrips` by `VesselAbbrev`.
+ *
+ * Replaces the first matching row when present; otherwise inserts a new active leg.
  *
  * @param ctx - Mutation context
  * @param trip - Active trip row to persist
+ * @returns Resolves when replace or insert completes
  */
 export const upsertActiveVesselTrip = async (
   ctx: MutationCtx,
@@ -196,9 +222,13 @@ export const upsertActiveVesselTrip = async (
 /**
  * Archives the completed leg and persists the next active row for that vessel.
  *
+ * Sequential insert-then-upsert so the completed row exists before the active row
+ * is replaced for the same vessel key.
+ *
  * @param ctx - Mutation context
  * @param completedTrip - Leg moving to `completedVesselTrips`
  * @param activeTrip - Replacement active row for that vessel
+ * @returns Resolves when both writes complete
  */
 export const rolloverCompletedAndActiveInDb = async (
   ctx: MutationCtx,
@@ -210,12 +240,16 @@ export const rolloverCompletedAndActiveInDb = async (
 };
 
 /**
- * Persists one stripped active trip row, replacing when the vessel already has a row.
+ * Replaces or inserts one active trip using a preloaded id map.
+ *
+ * Updates `activeByVessel` after insert so subsequent rows in the same batch see
+ * fresh ids without re-querying the table.
  *
  * @param ctx - Mutation context
  * @param stored - Trip fields without embedded ML blobs
- * @param vesselAbbrev - Vessel key (must match stored.VesselAbbrev)
+ * @param vesselAbbrev - Vessel key (must match `stored.VesselAbbrev`)
  * @param activeByVessel - Live map of vessel → active row id; updated on insert
+ * @returns Resolves when the write completes
  */
 const replaceOrInsertActiveTripForVessel = async (
   ctx: MutationCtx,
@@ -233,10 +267,13 @@ const replaceOrInsertActiveTripForVessel = async (
 };
 
 /**
- * Ensure completed trips carry a coverage end before archival.
+ * Asserts a completed trip row has `TripEnd` before archival.
+ *
+ * Throws `ConvexError` with `INVALID_COMPLETED_TRIP` when the end timestamp is
+ * absent so bad data never reaches `completedVesselTrips`.
  *
  * @param completedTrip - Candidate completed trip row
- * @returns Nothing; throws when `TripEnd` is missing
+ * @returns `undefined` when valid; never returns when invalid
  */
 const assertCompletedTripHasEndTime = (
   completedTrip: ConvexVesselTrip

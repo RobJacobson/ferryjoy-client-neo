@@ -18,10 +18,13 @@ type RunAllSetupResult = {
 };
 
 /**
- * Runs key-value setup mutations in sequence.
+ * Runs key-value setup mutations in sequence for backend bootstrap.
+ *
+ * Currently invokes `setupInitialSyncDate` so scheduled-trips tooling has a
+ * baseline `lastScheduledTripsSyncDate` before first sync.
  *
  * @param ctx - Convex action context
- * @returns Result from scheduled-trips sync-date setup
+ * @returns Result object containing scheduled-trips sync-date setup outcome
  */
 export const runAllSetup = internalAction({
   args: {},

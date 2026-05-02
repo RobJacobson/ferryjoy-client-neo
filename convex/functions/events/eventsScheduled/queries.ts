@@ -13,6 +13,9 @@ import { eventsScheduledSchema } from "./schemas";
 /**
  * Loads all scheduled dock events for one vessel and sailing day.
  *
+ * Strips Convex metadata via `stripConvexMeta` so callers receive validator-shaped
+ * documents for timeline and route snapshot code.
+ *
  * @param ctx - Convex query context
  * @param args.vesselAbbrev - Vessel abbreviation
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format
@@ -36,6 +39,10 @@ export const queryScheduledDockEventsForVesselSailingDay = async (
 /**
  * Loads all scheduled dock events for one vessel and sailing day.
  *
+ * Exposes the same read through generated args/returns validators so actions and
+ * crons can call it without importing the helper directly.
+ *
+ * @param ctx - Convex query context
  * @param args.vesselAbbrev - Vessel abbreviation
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format
  * @returns Same-day scheduled dock events for that vessel
@@ -53,6 +60,10 @@ export const getScheduledDockEventsForSailingDay = internalQuery({
 /**
  * Loads one scheduled departure dock event by its stable segment key.
  *
+ * Resolves `dep-dock` boundary keys via `buildBoundaryKey` so trip continuity
+ * lookups align with `eventsScheduled` indexing.
+ *
+ * @param ctx - Convex query context
  * @param args.segmentKey - Canonical segment key shared with `vesselTrips`
  * @returns The matching departure row, or `null`
  */

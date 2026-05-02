@@ -7,31 +7,32 @@ import type { MutationCtx } from "_generated/server";
 import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
- * Upsert the scheduled-event backbone rows for one sailing day using the
- * supplied slice as the complete source of truth.
+ * Reconciles scheduled backbone rows for one sailing day from a full slice.
+ *
+ * Deletes keys absent from `nextRows`, inserts missing rows, and replaces only
+ * when `scheduledRowsEqual` fails so unchanged schedule data does not rewrite.
  *
  * @param ctx - Convex mutation context
  * @param SailingDay - Service day being fully replaced
  * @param nextRows - Replacement scheduled boundary rows for the sailing day
+ * @returns Resolves when deletes and upserts finish (no value)
  */
 export const upsertScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
   nextRows: ConvexScheduledDockEvent[]
 ): Promise<void> => {
-  // Load all existing rows for the sailing day
+  // Full-day replace needs the prior slice so we can delete keys absent from `nextRows`.
   const existingRows = await ctx.db
     .query("eventsScheduled")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
     .collect();
 
-  // Create a map of existing rows by key for quick lookup
   const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
 
-  // Create a set of keys from the new rows for quick lookup
   const nextKeys = new Set(nextRows.map((row) => row.Key));
 
-  // Delete rows that are no longer present in the new slice
+  // Remove schedule rows the adapter no longer reports for this day.
   await Promise.all(
     existingRows
       .filter((existing) => !nextKeys.has(existing.Key))
@@ -48,22 +49,24 @@ export const upsertScheduledRowsForSailingDay = async (
       continue;
     }
 
-    // If the row is present in the existing slice and is equal to the new row, skip it
+    // Avoid churning `_creationTime` and write bandwidth when the slice matches.
     if (scheduledRowsEqual(existing, nextRow)) {
       continue;
     }
 
-    // If the row is present in the existing slice and is not equal to the new row, update it
     await ctx.db.replace(existing._id, nextRow);
   }
 };
 
 /**
- * Compare scheduled backbone rows while ignoring Convex metadata fields.
+ * Returns whether two scheduled backbone rows match for persistence purposes.
+ *
+ * Compares user-visible fields only so `_id` / `_creationTime` differences do
+ * not force redundant `replace` calls during day reconciliation.
  *
  * @param left - Currently stored scheduled boundary row
  * @param right - Candidate scheduled boundary row
- * @returns True when no replacement write is needed
+ * @returns `true` when no replacement write is needed
  */
 const scheduledRowsEqual = (
   left: Doc<"eventsScheduled">,

@@ -18,9 +18,10 @@ const deleteScheduledTripsBatchResult = v.object({
 });
 
 /**
- * Atomically replaces all scheduled trips for one sailing day: delete existing
- * rows for that day, then insert the provided snapshot. Used by sync actions
- * so delete and insert run in a single mutation transaction.
+ * Atomically replaces all `scheduledTrips` for one sailing day.
+ *
+ * Deletes existing rows for that `SailingDay`, then inserts the adapter snapshot
+ * so sync actions never expose a partial day to readers mid-flight.
  *
  * @param ctx - Convex internal mutation context
  * @param args.sailingDay - WSF sailing day in YYYY-MM-DD format
@@ -71,8 +72,10 @@ export const replaceScheduledTripsForSailingDay = internalMutation({
 });
 
 /**
- * Delete a batch of scheduled trips that depart before a cutoff time.
- * Used by a daily internal purge job to keep ScheduledTrips bounded.
+ * Deletes one batch of `scheduledTrips` with `DepartingTime` before a cutoff.
+ *
+ * Used by the purge action in a loop; `hasMore` signals whether another batch
+ * should run. Caps batch size via `scheduledTripsConfig.purgeBatchLimitMax`.
  *
  * @param ctx - Convex mutation context
  * @param args.cutoffMs - Epoch ms cutoff; delete trips with DepartingTime < cutoffMs

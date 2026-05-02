@@ -7,8 +7,10 @@ import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 
 /**
- * Fetch historical vessel movement rows for the vessels referenced by the
- * scheduled segments on a sailing day.
+ * Fetches external vessel history rows for vessels on a schedule slice.
+ *
+ * Derives unique `VesselName` values from segments, then parallel-fetches each
+ * vessel for `targetDate` only and flattens results for hydration.
  *
  * @param scheduleSegments - Scheduled segments used to derive vessel names
  * @param targetDate - Sailing day in YYYY-MM-DD format

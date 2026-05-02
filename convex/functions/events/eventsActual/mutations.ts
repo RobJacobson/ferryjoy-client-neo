@@ -11,12 +11,13 @@ import { type ConvexActualDockEvent, eventsActualSchema } from "./schemas";
 /**
  * Applies normalized actual-time dock rows emitted by `vesselTrips`.
  *
- * These are already persistence-ready rows, so the mutation only dedupes,
- * compares, and upserts.
+ * Rows arrive persistence-ready; this entrypoint only dedupes by `EventKey`,
+ * compares with `actualDockRowsEqual`, and inserts or replaces to minimize write
+ * churn.
  *
  * @param ctx - Convex internal mutation context
  * @param args - Mutation arguments containing actual dock rows
- * @returns `null`
+ * @returns `null` after processing completes
  */
 export const projectActualDockWrites = internalMutation({
   args: {
@@ -30,7 +31,10 @@ export const projectActualDockWrites = internalMutation({
 });
 
 /**
- * Upserts rows by physical `EventKey`.
+ * Upserts normalized actual-dock rows keyed by physical `EventKey`.
+ *
+ * Collapses duplicate keys in the batch (last wins), then inserts or replaces
+ * only when `actualDockRowsEqual` reports a visible change.
  *
  * @param ctx - Convex mutation context
  * @param rows - Normalized actual dock rows
@@ -43,14 +47,13 @@ export const upsertActualDockRows = async (
   // Create a map of deduplicated rows by event key
   const dedupedByEventKey = new Map<string, ConvexActualDockEvent>();
 
-  // Deduplicate rows by event key
+  // Last write wins when the batch repeats the same physical `EventKey`.
   for (const row of rows) {
     dedupedByEventKey.set(row.EventKey, row);
   }
 
   // Insert or update rows that are present in the new slice
   for (const row of dedupedByEventKey.values()) {
-    // Load the existing row for the event key
     const existing = await ctx.db
       .query("eventsActual")
       .withIndex("by_event_key", (q) => q.eq("EventKey", row.EventKey))
@@ -73,14 +76,16 @@ export const upsertActualDockRows = async (
 };
 
 /**
- * Replaces `eventsActual` for one sailing day: supersede by `EventKey` from
- * `finalRows`, retain existing **physical-only** rows (`ScheduleKey` absent)
- * whose `EventKey` is absent from the new slice, delete stale schedule-aligned
- * rows and everything else on that day outside the survive set.
+ * Replaces the `eventsActual` slice for one sailing day from a full candidate set.
+ *
+ * Supersedes by `EventKey` from `finalRows`, retains legacy physical-only rows
+ * (no `ScheduleKey`) missing from the new slice, and deletes everything else on
+ * that day outside the survive set so schedule hydration stays authoritative.
  *
  * @param ctx - Convex mutation context
  * @param SailingDay - Service day
  * @param finalRows - Candidate rows from schedule hydration + live patches
+ * @returns Resolves when storage matches `finalRows` plus retained legacy rows
  */
 export const replaceActualRowsForSailingDay = async (
   ctx: MutationCtx,
@@ -99,7 +104,7 @@ export const replaceActualRowsForSailingDay = async (
   // Create a set of event keys from the new rows for quick lookup
   const surviveEventKeys = new Set(nextByEventKey.keys());
 
-  // Add event keys of existing rows that are not present in the new slice and are physical-only
+  // Preserve pre-schedule physical keys so hydration does not erase live-only history.
   for (const row of existingRows) {
     if (!nextByEventKey.has(row.EventKey) && row.ScheduleKey === undefined) {
       surviveEventKeys.add(row.EventKey);

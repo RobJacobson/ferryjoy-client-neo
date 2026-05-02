@@ -6,9 +6,12 @@
  */
 
 /**
- * Dedupe stored trip documents by physical TripKey (last write wins).
+ * Dedupes stored trip documents by physical `TripKey` (last write wins).
  *
- * @param docs - Trip rows that may contain duplicate TripKey values
+ * Iteration order yields stable “last in array wins” semantics for overlapping
+ * query results before prediction enrichment.
+ *
+ * @param docs - Trip rows that may contain duplicate `TripKey` values
  * @returns Deduplicated rows in arbitrary stable order
  */
 export const dedupeTripDocsByTripKey = <T extends { TripKey: string }>(
@@ -22,7 +25,10 @@ export const dedupeTripDocsByTripKey = <T extends { TripKey: string }>(
 };
 
 /**
- * Dedupe across multiple query batches that may overlap on TripKey.
+ * Dedupes trip documents across multiple batches that may share `TripKey` values.
+ *
+ * Later batches override earlier rows for the same key so multi-route collects
+ * collapse to one doc per physical trip.
  *
  * @param batches - One batch per route, terminal, etc.
  * @returns Deduplicated rows

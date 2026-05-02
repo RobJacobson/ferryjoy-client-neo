@@ -15,8 +15,10 @@ export const predictionSourceSchema = v.union(
 export type ConvexPredictionSource = Infer<typeof predictionSourceSchema>;
 
 /**
- * Shared field validators for **persisted** prediction rows and for each row
- * inside a {@link predictedDockWriteBatchSchema}.
+ * Shared Convex fields for persisted predictions and batch write rows.
+ *
+ * Reused by `eventsPredicted` documents and the row shape inside write batches
+ * so sparse upserts and storage use one definition.
  */
 const predictedDockSharedFields = {
   Key: v.string(),
@@ -34,7 +36,10 @@ const predictedDockSharedFields = {
 } as const;
 
 /**
- * Convex validator for one **persisted** `eventsPredicted` document.
+ * Convex validator for one persisted `eventsPredicted` document.
+ *
+ * Includes `UpdatedAt` and optional actualization fields on top of the shared
+ * prediction payload shape.
  */
 export const eventsPredictedSchema = v.object({
   ...predictedDockSharedFields,
@@ -50,7 +55,10 @@ export type ConvexPredictedDockWriteRow = Infer<
 >;
 
 /**
- * Batch write input: vessel/day scope, authoritative key set, replacement rows.
+ * Convex validator for one sparse predicted-dock write batch.
+ *
+ * `TargetKeys` scopes deletions; `Rows` carries replacement composite keys for
+ * that vessel/sailing-day slice.
  */
 export const predictedDockWriteBatchSchema = v.object({
   VesselAbbrev: v.string(),

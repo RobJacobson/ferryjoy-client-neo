@@ -15,9 +15,11 @@ type ReseedBoundaryEventsArgs = {
 };
 
 /**
- * Reseeds the structural scheduled backbone and hydrated actual rows for one
- * sailing day: loads trips and locations, builds row slices in domain, then
- * persists via event-table mutations.
+ * Reseeds scheduled and actual event-table rows for one sailing day.
+ *
+ * Loads trip indexes and live locations, builds `scheduledRows` / `actualRows`
+ * in `buildReseedTimelineSlice`, then calls `upsertScheduledRowsForSailingDay`
+ * and `replaceActualRowsForSailingDay` in order.
  *
  * @param ctx - Mutation context
  * @param args - Sailing day and normalized boundary events

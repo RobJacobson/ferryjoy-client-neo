@@ -8,12 +8,15 @@ import { upsertByKey } from "./helpers";
 import { keyValueStoreValueValidator } from "./schemas";
 
 /**
- * Inserts or replaces a row for the given key.
+ * Public internal mutation entry for generic `keyValueStore` upserts.
+ *
+ * Delegates to `upsertByKey` so actions and migrations share one write path with
+ * optional explicit `updatedAt` timestamps.
  *
  * @param ctx - Convex mutation context
  * @param args.key - Document key
  * @param args.value - Stored value
- * @param args.updatedAt - Optional epoch ms for updatedAt (defaults to now)
+ * @param args.updatedAt - Optional epoch ms for `updatedAt` (defaults to now)
  * @returns `null` after the upsert completes
  */
 export const upsert = internalMutation({

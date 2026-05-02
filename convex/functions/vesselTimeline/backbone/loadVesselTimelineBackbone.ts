@@ -11,8 +11,11 @@ import { buildTimelineBackbone } from "../../../domain/timelineBackbone";
 import { stripConvexMeta } from "../../../shared/stripConvexMeta";
 
 /**
- * Loads same-day event-table rows via `functions/even-0=ts/**` query helpers, then
- * builds the backbone payload used by the public query.
+ * Loads event-table inputs and builds the vessel timeline backbone payload.
+ *
+ * Parallel-reads scheduled, actual, and predicted helpers under one scope, strips
+ * metadata from actual/predicted docs, then calls `buildTimelineBackbone` for
+ * the wire shape consumed by `getVesselTimelineBackbone`.
  *
  * @param ctx - Convex query context
  * @param args - Vessel and sailing day scope

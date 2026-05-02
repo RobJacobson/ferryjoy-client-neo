@@ -8,7 +8,9 @@ import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { terminalTopologySchema } from "./schemas";
 
 /**
- * Fetch all backend terminals topology rows for internal callers.
+ * Lists all `terminalsTopology` rows for internal callers.
+ *
+ * Full collect with metadata stripped; used by actions during refresh and preload.
  *
  * @param ctx - Convex internal query context
  * @returns Rows without Convex metadata
@@ -23,7 +25,10 @@ export const getBackendTerminalsTopologyInternal = internalQuery({
 });
 
 /**
- * Public frontend snapshot query for the terminals topology dataset.
+ * Public snapshot of the terminals topology dataset for the app.
+ *
+ * Empty table returns `null`, not `[]` — same `useLayeredDataset` contract as
+ * the other frontend identity snapshots.
  *
  * @param ctx - Convex public query context
  * @returns Rows without Convex metadata, or `null` when missing

@@ -9,10 +9,12 @@ import { loadRouteTimelineSnapshotInputs } from "./loadRouteTimelineSnapshotInpu
 import { routeTimelineSnapshotSchema } from "./schemas";
 
 /**
- * Returns a route-scoped dock-visit snapshot for one sailing day: scheduled,
- * actual, and predicted overlays merged per vessel. Optional `VesselAbbrev`
- * and window bounds narrow scope metadata only; visit lists are not clipped in
- * Stage 3. Live vessel locations are not loaded.
+ * Returns a route-scoped dock-visit snapshot for one sailing day.
+ *
+ * Loads event inputs with `loadRouteTimelineSnapshotInputs`, then merges
+ * scheduled, actual, and predicted overlays in `buildRouteTimelineSnapshot`.
+ * Optional `VesselAbbrev` and window fields narrow `Scope` metadata only; visit
+ * lists are not time-clipped here, and live vessel locations are not loaded.
  *
  * @param ctx - Convex query context
  * @param args.RouteAbbrev - Operational route code

@@ -13,9 +13,10 @@ import { KEY_PRODUCTION_VERSION_TAG } from "functions/keyValueStore/schemas";
 import { modelParametersSchema } from "functions/predictions/schemas";
 
 /**
- * Store trained ML model parameters in the database.
- * For "dev-temp" versions, deletes existing "dev-temp" for the same bucket+type.
- * Other versions are preserved (versioning system handles multiple versions).
+ * Persists one trained `modelParameters` document.
+ *
+ * Replaces prior `dev-temp` rows for the same pair and `modelType` so ephemeral
+ * training runs do not accumulate; other `versionTag` values append as history.
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the model parameters to store
@@ -49,11 +50,14 @@ export const storeModelParametersMutation = mutation({
 });
 
 /**
- * Delete a specific model parameters record from the database
+ * Deletes one `modelParameters` row by document id.
+ *
+ * Used by training tooling to drop a single bad snapshot without touching other
+ * version tags or pairs.
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the model document id
- * @returns Success confirmation object
+ * @returns `{ success: true }` after deletion
  */
 export const deleteModelParametersMutation = mutation({
   args: { modelId: v.id("modelParameters") },
@@ -64,10 +68,13 @@ export const deleteModelParametersMutation = mutation({
 });
 
 /**
- * Delete all model parameters records from the database
+ * Deletes every row in `modelParameters` (destructive; for dev or reset tooling).
+ *
+ * Scans the full table; intended only for controlled environments where wiping
+ * all trained models is acceptable.
  *
  * @param ctx - Convex mutation context
- * @returns Object with the number of records deleted
+ * @returns `{ deleted: count }` for the removed documents
  */
 export const deleteAllModelParametersMutation = mutation({
   args: {},
@@ -81,12 +88,13 @@ export const deleteAllModelParametersMutation = mutation({
 });
 
 /**
- * Copy all models from one version tag to another.
- * Optionally deletes the source models (useful for dev-temp promotion).
+ * Clones every `modelParameters` row from `fromTag` to `toTag` by insert.
+ *
+ * Optionally removes source rows after copy (e.g. promote `dev-temp` without duplicates).
  *
  * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing source and destination version tags
- * @returns Object with count of models copied
+ * @param args - Source and destination version tags and optional source deletion
+ * @returns `{ copied: number }` for rows inserted under `toTag`
  */
 export const copyVersionTag = mutation({
   args: {
@@ -127,11 +135,13 @@ export const copyVersionTag = mutation({
 });
 
 /**
- * Rename a version tag by copying all models to a new tag and deleting the old tag.
+ * Moves all rows from `fromTag` to `toTag` (insert + delete each source row).
+ *
+ * Refuses when `fromTag` is the active production tag so live reads stay valid.
  *
  * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing source and destination version tags
- * @returns Object with count of models renamed
+ * @param args - Source and destination version tags
+ * @returns `{ renamed: number }` for rows moved
  */
 export const renameVersionTag = mutation({
   args: {
@@ -173,11 +183,13 @@ export const renameVersionTag = mutation({
 });
 
 /**
- * Delete all models for a specific version tag.
+ * Deletes every `modelParameters` row for one `versionTag`.
+ *
+ * Refuses when that tag is production-active so prediction queries keep a backing row set.
  *
  * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing the version tag to delete
- * @returns Object with count of models deleted
+ * @param args - Version tag to wipe
+ * @returns `{ deleted: number }` for removed rows
  */
 export const deleteVersion = mutation({
   args: {
@@ -206,11 +218,12 @@ export const deleteVersion = mutation({
 });
 
 /**
- * Set the active production version tag for predictions.
+ * Writes the production version tag to `keyValueStore` after verifying at least
+ * one `modelParameters` row exists for that tag.
  *
  * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing the production version tag
- * @returns Success confirmation
+ * @param args - Production version tag to activate
+ * @returns `{ success: true }` after the config row is updated
  */
 export const setProductionVersionTag = mutation({
   args: {
@@ -236,10 +249,13 @@ export const setProductionVersionTag = mutation({
 });
 
 /**
- * Get model configuration (internal helper).
+ * Reads the active production tag from `keyValueStore` for mutation guards.
+ *
+ * Centralizes the lookup so rename/delete/version mutations share the same rule:
+ * never orphan the configured production tag.
  *
  * @param ctx - Convex mutation context
- * @returns Model config with production version tag (null when unset)
+ * @returns Wrapper with `productionVersionTag` (string or null when unset)
  */
 async function getModelConfig(ctx: MutationCtx): Promise<{
   productionVersionTag: string | null;

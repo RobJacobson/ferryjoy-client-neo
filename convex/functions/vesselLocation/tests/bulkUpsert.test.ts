@@ -1,5 +1,5 @@
 /**
- * Tests {@link performBulkUpsertVesselLocations}: one table read, AtDockObserved,
+ * Tests `performBulkUpsertVesselLocations`: one table read, AtDockObserved,
  * timestamp dedupe.
  */
 

@@ -13,11 +13,14 @@ import type {
 } from "./schemas";
 
 /**
- * True when the stored row’s overlay projection matches the proposed prediction
- * (skip Convex write).
+ * Returns whether a stored prediction row matches the proposed ML payload.
  *
- * @param existing - Current DB row, or null when none exists
+ * Converts the existing row with `convexPredictionFromVesselTripPredictionRow`,
+ * then compares via `overlayPredictionProjectionsEqual` to honor overlay rules.
+ *
+ * @param existing - Current DB row, or `null` when none exists
  * @param proposed - Incoming ML payload for this slot
+ * @returns `true` when overlay projection matches (skip write)
  */
 export const vesselTripPredictionUnchangedForPersist = (
   existing: Doc<"vesselTripPredictions"> | null,
@@ -42,11 +45,15 @@ export type VesselTripPredictionUpsertDecision =
     };
 
 /**
- * Insert / replace / skip for one proposal using overlay-aligned equality.
+ * Decides insert, replace, or skip for one vessel-trip prediction proposal.
+ *
+ * Skips when `vesselTripPredictionUnchangedForPersist` is true; otherwise builds
+ * the stored row shape with the shared `updatedAt` timestamp.
  *
  * @param existing - Loaded row for this natural key, if any
  * @param proposal - Vessel, trip, field, and ML blob
  * @param updatedAt - Epoch ms for `UpdatedAt` (mutation clock)
+ * @returns Skip, insert, or replace decision for the proposal
  */
 export const decideVesselTripPredictionUpsert = (
   existing: Doc<"vesselTripPredictions"> | null,

@@ -10,11 +10,15 @@ import type { ConvexPrediction } from "functions/vesselTrips/schemas";
 import { deepEqual } from "shared/deepEqual";
 
 /**
- * Projects a prediction-shaped value to overlay/persist comparison fields only.
+ * Strips a prediction-shaped value to overlay and compare-then-write fields only.
  *
- * @param value - Full ML blob, joined minimal shape, or undefined
- * @returns Plain object with only defined PredTime / Actual / DeltaTotal, or
- *   undefined when none are present
+ * Keeps `PredTime`, `Actual`, and `DeltaTotal` so MAE, `MinTime`/`MaxTime`, and
+ * similar columns do not force persistence or overlay updates when the
+ * user-visible time and actualization state are unchanged.
+ *
+ * @param value - Full ML blob, joined minimal shape, or `undefined`
+ * @returns Plain object with only defined `PredTime`, `Actual`, and `DeltaTotal`,
+ *   or `undefined` when none of those fields are present
  */
 export const normalizeConvexPredictionForOverlayEquality = (
   value: unknown
@@ -40,11 +44,15 @@ export const normalizeConvexPredictionForOverlayEquality = (
 };
 
 /**
- * True when two prediction field values match for overlay and prediction-row
- * persistence (normalized PredTime / Actual / DeltaTotal).
+ * Returns whether two prediction-shaped values match after overlay normalization.
+ *
+ * Normalizes both sides with `normalizeConvexPredictionForOverlayEquality`, then
+ * compares with `deepEqual` so ordering and unrelated fields do not affect the
+ * outcome.
  *
  * @param a - First prediction-shaped value
  * @param b - Second prediction-shaped value
+ * @returns `true` when normalized `PredTime`, `Actual`, and `DeltaTotal` match
  */
 export const overlayPredictionProjectionsEqual = (
   a: unknown,
@@ -56,11 +64,13 @@ export const overlayPredictionProjectionsEqual = (
   );
 
 /**
- * Builds a full {@link ConvexPrediction} from a stored `vesselTripPredictions` row
- * shape (identity fields are ignored).
+ * Builds a full `ConvexPrediction` from a stored `vesselTripPredictions` row.
+ *
+ * Copies ML columns only; natural keys on the table are ignored because overlay
+ * comparison and timeline code consume the wire prediction shape, not row ids.
  *
  * @param row - Stored row fields including ML columns
- * @returns Convex prediction wire shape
+ * @returns `ConvexPrediction` for overlay equality and timeline handoff code
  */
 export const convexPredictionFromVesselTripPredictionRow = (row: {
   PredTime: number;

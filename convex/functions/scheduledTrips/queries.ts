@@ -9,11 +9,12 @@ import { scheduledTripSchema } from "functions/scheduledTrips/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Fetch direct scheduled trips for multiple routes and trip date.
- * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
- * Returns only TripType === "direct" trips.
+ * Loads direct scheduled trips for multiple routes on one sailing day.
  *
- * @param ctx - Convex context
+ * Used by `UnifiedTripsContext` for multi-route views; filters to
+ * `TripType === "direct"` after indexed reads per route.
+ *
+ * @param ctx - Convex query context
  * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
  * @param args.tripDate - Sailing day in YYYY-MM-DD format
  * @returns Array of direct scheduled trips (schema shape) for the routes and date

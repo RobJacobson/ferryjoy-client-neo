@@ -150,7 +150,7 @@ export const vesselTripStoredSchema = v.object({
  * Rows stored on `activeVesselTrips` / `completedVesselTrips` (no joined ML columns).
  *
  * Canonical minimum shape for preloaded `activeTrips` in **updateVesselTrip** and the
- * orchestrator snapshot. Client queries may return {@link ConvexVesselTripWithPredictions}
+ * orchestrator snapshot. Client queries may return `ConvexVesselTripWithPredictions`
  * (joined minimal predictions); the trips pipeline and persistence use this type only.
  *
  * Trip-field inference observability metadata such as
@@ -173,7 +173,7 @@ export const vesselTripSchema = v.object({
 /**
  * Public query/API vessel trip: stored fields plus minimal prediction fields
  * enriched from `eventsPredicted` (not the orchestrator tick bundle, which uses
- * storage-native {@link ConvexVesselTrip} rows).
+ * storage-native `ConvexVesselTrip` rows).
  */
 export type ConvexVesselTripWithPredictions = Infer<typeof vesselTripSchema>;
 

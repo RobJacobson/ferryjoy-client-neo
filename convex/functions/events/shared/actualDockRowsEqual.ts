@@ -6,12 +6,15 @@ import type { Doc } from "_generated/dataModel";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 
 /**
- * Returns whether a stored row matches the candidate for all user-visible
- * fields (excluding system fields and `UpdatedAt`).
+ * Returns whether a stored actual-dock row matches a candidate payload.
+ *
+ * Compares physical and schedule-alignment fields plus occurrence semantics so
+ * `upsertActualDockRows` can skip replaces when the visible state is unchanged.
+ * Ignores Convex system fields and `UpdatedAt` on purpose.
  *
  * @param left - Row currently stored in `eventsActual`
  * @param right - Candidate insert/replace payload including `UpdatedAt`
- * @returns True when no replace is needed
+ * @returns `true` when no replace is needed
  */
 export const actualDockRowsEqual = (
   left: Doc<"eventsActual">,

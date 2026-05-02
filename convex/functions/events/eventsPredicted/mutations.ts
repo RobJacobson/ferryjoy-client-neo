@@ -7,9 +7,9 @@ import type { MutationCtx } from "_generated/server";
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { DEPART_NEXT_ML_PREDICTION_TYPES } from "domain/events/predicted/departNextActualization";
+import { predictedDockCompositeKey } from "domain/events/predicted/schemas";
 import { buildVesselSailingDayScopeKey } from "shared/keys";
 import { getRoundedMinutesDelta } from "shared/time";
-import { predictedDockCompositeKey } from "./identity";
 import {
   type ConvexPredictedDockEvent,
   type ConvexPredictedDockWriteRow,
@@ -19,12 +19,13 @@ import {
 /**
  * Applies sparse predicted-time dock write batches emitted by `vesselTrips`.
  *
- * Rows are identified by `(Key, PredictionType, PredictionSource)`. Stale rows
- * in the batch's target key set are deleted when not present in `Rows`.
+ * Rows are identified by `(Key, PredictionType, PredictionSource)`; stale rows
+ * in each batch’s `TargetKeys` set are deleted when missing from `Rows`, with
+ * depart-next ML exceptions handled inside `upsertPredictedDockBatches`.
  *
  * @param ctx - Convex internal mutation context
  * @param args - Mutation arguments containing grouped prediction batches
- * @returns `null`
+ * @returns `null` after batches are reconciled
  */
 export const projectPredictedDockWriteBatches = internalMutation({
   args: {
@@ -37,6 +38,17 @@ export const projectPredictedDockWriteBatches = internalMutation({
   },
 });
 
+/**
+ * Reconciles predicted dock rows for one or more vessel/sailing-day scopes.
+ *
+ * Merges incoming batches per scope, deletes rows in `TargetKeys` omitted from
+ * the payload (except guarded depart-next ML rows), then inserts or replaces
+ * the remainder with a shared `UpdatedAt` clock.
+ *
+ * @param ctx - Convex mutation context
+ * @param batches - Sparse write groups from timeline / orchestrator persistence
+ * @returns Resolves when all scopes finish (no value)
+ */
 export const upsertPredictedDockBatches = async (
   ctx: MutationCtx,
   batches: ReadonlyArray<{
@@ -146,12 +158,14 @@ export const upsertPredictedDockBatches = async (
 };
 
 /**
- * Returns whether an existing predicted row matches the next write payload for
- * all user-visible fields (excluding system fields).
+ * Returns whether a stored predicted row matches a candidate replacement.
+ *
+ * Compares prediction identity, times, actualization, and deltas while ignoring
+ * Convex metadata so upserts skip when the visible prediction is unchanged.
  *
  * @param left - Row currently stored in `eventsPredicted`
  * @param right - Candidate replacement including `UpdatedAt`
- * @returns True when no replace is needed
+ * @returns `true` when no replace is needed
  */
 const predictedRowsEqual = (
   left: Doc<"eventsPredicted">,
@@ -168,6 +182,15 @@ const predictedRowsEqual = (
   left.Actual === right.Actual &&
   left.DeltaTotal === right.DeltaTotal;
 
+/**
+ * Returns whether sparse batch deletion should skip this predicted row.
+ *
+ * Depart-next ML rows stay until `Actual` is set so a tick that omits them does
+ * not erase in-flight predictions prematurely.
+ *
+ * @param row - Existing `eventsPredicted` document
+ * @returns `true` when deletion should be skipped
+ */
 const shouldPreserveDepartNextMlRow = (row: Doc<"eventsPredicted">): boolean =>
   row.PredictionSource === "ml" &&
   DEPART_NEXT_ML_PREDICTION_TYPES.includes(
@@ -175,13 +198,15 @@ const shouldPreserveDepartNextMlRow = (row: Doc<"eventsPredicted">): boolean =>
   );
 
 /**
- * Patches depart-next ML predictions for one departure boundary when rows
- * exist and have not yet been stamped with an `Actual` timestamp.
+ * Stamps depart-next ML predictions when a departure boundary is observed.
+ *
+ * For each guarded `PredictionType`, loads the `ml` row by key, skips rows
+ * already actualized, then patches `Actual` and rounded `DeltaTotal`.
  *
  * @param ctx - Mutation context
  * @param depKey - Departure boundary key
  * @param actualMs - Observed departure timestamp (epoch ms)
- * @returns True when at least one prediction row was updated
+ * @returns `true` when at least one prediction row was updated
  */
 export const patchDepartNextMlRowsForDepBoundary = async (
   ctx: MutationCtx,
@@ -216,7 +241,10 @@ export const patchDepartNextMlRowsForDepBoundary = async (
 };
 
 /**
- * Patches depart-next ML rows from an explicit leave-dock patch payload.
+ * Patches depart-next ML rows from a leave-dock patch (internal mutation entry).
+ *
+ * Wraps `patchDepartNextMlRowsForDepBoundary` and returns a structured result so
+ * callers can distinguish “no rows to update” from a successful patch.
  *
  * @param ctx - Convex internal mutation context
  * @param args - Boundary key and observed departure instant

@@ -66,6 +66,7 @@ type UseLayeredDatasetArgs<TData, TDerived> = Readonly<{
   assetData: TData;
   storageKey: string;
   storageSchema?: ZodType<TData>;
+  /** `useQuery`: undefined while loading; null when the snapshot query uses null for an empty table (so we do not apply []). */
   convexData: TData | null | undefined;
   derive: (data: TData) => TDerived;
 }>;
@@ -81,9 +82,9 @@ type LayeredDatasetValue<TData, TDerived> = Readonly<
 /**
  * Resolve one dataset from compiled assets, then local storage, then Convex.
  *
- * Assets are available synchronously for startup resilience. Storage hydration
- * is asynchronous and may upgrade the dataset while still offline. Convex
- * always wins once it arrives.
+ * Convex runs only when `convexData` is an array. `undefined` means the query is
+ * still loading; identity snapshot queries return `null` for an empty DB so this
+ * hook does not treat `[]` as authoritative over assets/storage.
  */
 export const useLayeredDataset = <TData, TDerived>({
   assetData,
@@ -123,6 +124,7 @@ export const useLayeredDataset = <TData, TDerived>({
   }, [storageKey, storageSchema]);
 
   useEffect(() => {
+    // Skip loading and empty-table nulls (see identity snapshot queries).
     if (convexData === undefined || convexData === null) {
       return;
     }

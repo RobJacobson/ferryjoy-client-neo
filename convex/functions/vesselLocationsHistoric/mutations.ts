@@ -7,7 +7,10 @@ import type { ConvexHistoricVesselLocation } from "./schemas";
 import { historicVesselLocationValidationSchema } from "./schemas";
 
 /**
- * Appends one minute-bucket snapshot of vessel locations to historic storage.
+ * Inserts a batch of historic vessel-location snapshot rows.
+ *
+ * Sequential inserts keep the mutation simple; volume is bounded by one capture
+ * tick’s vessel count.
  *
  * @param ctx - Convex mutation context
  * @param args.locations - Historic vessel-location rows to insert
@@ -32,10 +35,13 @@ export const insertSnapshotBatch = internalMutation({
 });
 
 /**
- * Deletes one batch of historic vessel-location rows older than the cutoff sailing day.
+ * Deletes one batch of historic rows with `SailingDay` before a cutoff.
+ *
+ * Uses `by_sailing_day` with `lt`; `hasMore` is true when the batch filled
+ * `limit` so the action can loop.
  *
  * @param ctx - Convex mutation context
- * @param args.cutoffSailingDay - Oldest sailing day to retain; older rows are deleted
+ * @param args.cutoffSailingDay - Oldest sailing day to retain; older rows delete
  * @param args.limit - Maximum number of rows to delete in this batch
  * @returns Batch deletion summary
  */

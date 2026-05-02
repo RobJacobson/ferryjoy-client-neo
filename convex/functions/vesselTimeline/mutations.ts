@@ -8,16 +8,16 @@ import { runReseedBoundaryEventsForSailingDay } from "./reseed";
 import { vesselTimelineEventRecordSchema } from "./schemas";
 
 /**
- * Reseeds the structural scheduled backbone and hydrated actual rows for one
- * sailing day.
+ * Reseeds scheduled and actual vessel-timeline boundary rows for one sailing day.
  *
- * Schedule sync owns this mutation. It treats the supplied day slice as the
- * complete truth for scheduled rows; `eventsActual` uses supersession by
- * `EventKey` and retains physical-only rows not in the new slice.
+ * Schedule sync drives this mutation: the `Events` slice is authoritative for
+ * that day’s scheduled backbone, while `eventsActual` replacement retains legacy
+ * physical-only keys as documented on `replaceActualRowsForSailingDay`.
  *
+ * @param ctx - Convex internal mutation context
  * @param args.SailingDay - Service day being fully replaced
  * @param args.Events - Boundary events already normalized in memory
- * @returns Counts for the rows represented by that replaced slice
+ * @returns Counts for scheduled vs actual rows written for that slice
  */
 export const reseedBoundaryEventsForSailingDay = internalMutation({
   args: {

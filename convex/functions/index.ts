@@ -1,7 +1,8 @@
 /**
- * Main export file for Convex functions
- * Exports function modules for use by other parts of the application
- * Note: Only exports server-side function modules, not schemas/types
+ * Aggregated Convex function namespaces for `api` / `internal` wiring.
+ *
+ * Re-exports area modules (`eventsActual`, `vesselTimeline`, …) as grouped
+ * objects only; types and validators live next to each module, not here.
  */
 
 export * as eventsActual from "functions/events/eventsActual";

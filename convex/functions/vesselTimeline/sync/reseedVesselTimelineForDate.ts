@@ -18,7 +18,10 @@ import type { TimelineSyncResult } from "./types";
 const LOG_PREFIX = "[SYNC VESSEL TIMELINE]";
 
 /**
- * Rebuild scheduled and actual vessel timeline rows for one sailing day.
+ * Rebuilds scheduled and actual vessel timeline rows for one sailing day.
+ *
+ * Fetches schedule via adapter, seeds domain events, hydrates with external
+ * history, then persists through `reseedBoundaryEventsForSailingDay`.
  *
  * @param ctx - Convex action context
  * @param targetDate - Sailing day in YYYY-MM-DD format

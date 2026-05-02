@@ -13,10 +13,12 @@ import {
 } from "./schemas";
 
 /**
- * Get all model parameters from the database
+ * Lists every stored `modelParameters` row (training metadata stripped).
  *
- * @param ctx - Convex context
- * @returns Array of all model parameters records without metadata
+ * Full table scan suitable for admin UIs and audits; not indexed by pair or tag.
+ *
+ * @param ctx - Convex query context
+ * @returns All model parameter docs without `_id` / `_creationTime`
  */
 export const getAllModelParameters = query({
   args: {},
@@ -37,12 +39,15 @@ export const getAllModelParameters = query({
 });
 
 /**
- * Get model parameters for production predictions.
- * Uses the active production version tag from config.
+ * Loads one production model row for a terminal pair and model type.
+ *
+ * Resolves the active `versionTag` from `keyValueStore`, then reads
+ * `by_pair_type_tag`; returns `null` when no production tag is configured or
+ * no row matches.
  *
  * @param ctx - Convex query context
  * @param args - Query arguments containing the pair key and model type
- * @returns The model parameters record or null if not found
+ * @returns The model parameters record or `null` if not found
  */
 export const getModelParametersForProduction = query({
   args: {
@@ -84,12 +89,13 @@ export const getModelParametersForProduction = query({
 });
 
 /**
- * Get model parameters for multiple model types in one query.
- * Uses the active production version tag from config.
- * Reduces Convex function calls when computing multiple predictions for a vessel.
+ * Batch-loads production model rows for several `modelTypes` on one `pairKey`.
+ *
+ * Uses the active production `versionTag` once, then issues one indexed read per
+ * type so orchestrator prediction stages avoid N separate client round-trips.
  *
  * @param ctx - Convex query context
- * @param args - Query arguments containing the pair key and requested model types
+ * @param args - Pair key and requested model types (deduped in the handler)
  * @returns Record mapping ModelType to model parameters.
  *          Each value is either a ModelDoc without Convex metadata (_id, _creationTime)
  *          or null if not found for that model type.
@@ -157,8 +163,15 @@ const productionModelParametersSchema = v.object({
 });
 
 /**
- * Loads prediction model parameter docs for one terminal pair (active production
- * version tag) and returns a plain lookup keyed by pair and model type.
+ * Loads trimmed coefficient payloads for one `pairKey` and requested `modelTypes`
+ * under the active production `versionTag` (or empty when tag/config missing).
+ *
+ * Shape matches domain `loadPredictionModelParameters` expectations: nested map
+ * `pairKey → modelType → { featureKeys, coefficients, intercept, testMetrics }`.
+ *
+ * @param ctx - Convex internal query context
+ * @param args.request - Optional `{ pairKey, modelTypes }`; empty request yields `{}`
+ * @returns Record keyed by pair, then by model type, with nulls for missing rows
  */
 export const getPredictionModelParameters = internalQuery({
   args: {
@@ -216,11 +229,14 @@ export const getPredictionModelParameters = internalQuery({
 });
 
 /**
- * Get all models for a specific version tag.
+ * Lists all `modelParameters` rows for one `versionTag` (metadata stripped).
+ *
+ * Uses `by_version_tag` for efficient retrieval when comparing or promoting a
+ * specific training snapshot.
  *
  * @param ctx - Convex query context
- * @param args - Query arguments containing the version tag
- * @returns Array of model parameters for the specified version tag without metadata
+ * @param args - Version tag to filter
+ * @returns Matching docs without `_id` / `_creationTime`
  */
 export const getModelParametersByTag = query({
   args: {
@@ -246,10 +262,13 @@ export const getModelParametersByTag = query({
 });
 
 /**
- * Get all unique version tags.
+ * Returns distinct `versionTag` values present in `modelParameters`, sorted.
  *
- * @param ctx - Convex context
- * @returns Array of unique version tags, sorted alphabetically
+ * Scans all model rows to build the set; suitable for low-cardinality admin lists,
+ * not hot-path prediction reads.
+ *
+ * @param ctx - Convex query context
+ * @returns Sorted unique version tags
  */
 export const getAllVersions = query({
   args: {},

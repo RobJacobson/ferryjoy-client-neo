@@ -23,8 +23,10 @@ type DaySyncResult = {
 };
 
 /**
- * Syncs scheduled trips for a range of consecutive days.
- * Simply calls syncScheduledTripsForDate for each day in the range.
+ * Syncs scheduled trips for a range of consecutive sailing days.
+ *
+ * Calls `syncScheduledTripsForDate` per day with `addDays`, aggregates delete/insert
+ * totals, and records per-day success or failure without aborting the window.
  *
  * @param ctx - Convex action context
  * @param startDate - Start date in YYYY-MM-DD format
@@ -87,13 +89,11 @@ export const syncScheduledTripsForDateRange = async (
 };
 
 /**
- * Syncs scheduled trips for a single date using the safe download-first approach.
+ * Syncs `scheduledTrips` for one sailing day using a download-first replace.
  *
- * Process:
- * 1. Fetch all active routes for the target date
- * 2. Download fresh schedule data for all routes (fail fast if any download fails)
- * 3. Only after successful download, delete all existing trips for the target date
- * 4. Insert all the fresh downloaded data
+ * Builds the full transformed trip list via `fetchAndTransformScheduledTrips`, then
+ * replaces the day atomically in `replaceScheduledTripsForSailingDay` so readers
+ * never see a partial delete.
  *
  * @param ctx - Convex action context for database operations
  * @param targetDate - Target trip date in YYYY-MM-DD format to synchronize
@@ -174,7 +174,11 @@ export const syncScheduledTripsForDate = async (
 };
 
 /**
- * Helper function to add days to a date string.
+ * Adds whole calendar days to a YYYY-MM-DD sailing-day string.
+ *
+ * Anchors at UTC noon so Pacific sailing-day arithmetic does not shift across
+ * DST or parse quirks from midnight UTC.
+ *
  * @param dateString - Date string in YYYY-MM-DD format
  * @param days - Number of days to add (can be negative)
  * @returns New date string in YYYY-MM-DD format

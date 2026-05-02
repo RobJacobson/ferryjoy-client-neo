@@ -8,11 +8,14 @@ import { v } from "convex/values";
 import { terminalTopologySchema } from "./schemas";
 
 /**
- * Replace the backend terminals topology rows.
+ * Replaces the full `terminalsTopology` table from one derived snapshot.
+ *
+ * Upserts by `TerminalAbbrev`, then deletes rows absent from the new set so the
+ * table always matches the latest adapter output exactly.
  *
  * @param ctx - Convex internal mutation context
  * @param args.rows - Derived terminals topology rows
- * @returns `null`
+ * @returns `null` after reconciliation completes
  */
 export const replaceBackendTerminalsTopology = internalMutation({
   args: {

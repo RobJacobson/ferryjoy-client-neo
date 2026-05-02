@@ -10,8 +10,10 @@ import { v } from "convex/values";
 import type { VesselIdentity } from "./schemas";
 
 /**
- * Internal cron entry: fetch WSF vessel basics and replace **`vesselsIdentity`**
- * (concise identity rows only, not live locations or trips).
+ * Internal cron entry for refreshing backend vessel identity rows.
+ *
+ * Fetches WSF vessel basics and replaces `vesselsIdentity` (no live locations or
+ * trips—those live in other tables).
  *
  * @param ctx - Convex internal action context
  * @returns `null` after the backend snapshot refresh completes
@@ -26,8 +28,10 @@ export const syncBackendVessels = internalAction({
 });
 
 /**
- * Public entry for `bunx convex run`, `convex:repopulate-vessels`, and
- * `convex:dev:with-repopulate`. Internal actions are not runnable from the CLI.
+ * Public action for manual vessel repopulation and dev bootstrap.
+ *
+ * Mirrors `syncBackendVessels` for CLI use; internal actions are not invokable
+ * via `bunx convex run`.
  *
  * @param ctx - Convex public action context
  * @returns `null` after the backend snapshot refresh completes
@@ -42,10 +46,10 @@ export const runSyncBackendVessels = action({
 });
 
 /**
- * Read **`vesselsIdentity`** for one action tick (identity fields only).
+ * Loads `vesselsIdentity` for one action tick (identity fields only).
  *
- * If the table is empty, bootstrap it immediately from WSF basics so callers
- * do not need to wait for the hourly refresh cron.
+ * When empty, runs `syncBackendVesselTable` once so orchestration does not stall
+ * before the scheduled cron fills the table.
  *
  * @param ctx - Convex action context for database operations
  * @returns Vessel identity rows for the current action
@@ -77,10 +81,10 @@ export async function loadVesselIdentities(
 }
 
 /**
- * Fetch WSF vessel basics and replace the backend `vesselsIdentity` snapshot.
+ * Fetches WSF vessel basics and replaces the `vesselsIdentity` snapshot.
  *
- * Shared by {@link syncBackendVessels}, {@link runSyncBackendVessels}, and
- * {@link loadVesselIdentities}.
+ * Shared by `syncBackendVessels`, `runSyncBackendVessels`, and
+ * `loadVesselIdentities` for a single adapter + mutation path.
  *
  * @param ctx - Convex action context
  * @returns `undefined` after the backend snapshot is fully replaced

@@ -10,8 +10,10 @@ import { v } from "convex/values";
 import type { TerminalIdentity } from "./schemas";
 
 /**
- * Internal cron entry: fetch WSF terminal basics and replace **`terminalsIdentity`**
- * (concise identity rows only, not schedules or topology).
+ * Internal cron entry for refreshing backend terminal identity rows.
+ *
+ * Fetches WSF terminal basics and replaces `terminalsIdentity` with concise
+ * identity fields only (no schedules or topology).
  *
  * @param ctx - Convex internal action context
  * @returns `null` after the backend snapshot refresh completes
@@ -26,8 +28,10 @@ export const syncBackendTerminals = internalAction({
 });
 
 /**
- * Public entry for `bunx convex run`, `convex:repopulate-terminals`, and dev
- * bootstrap. Internal actions are not runnable from the CLI.
+ * Public action for manual terminal repopulation and dev bootstrap.
+ *
+ * Mirrors `syncBackendTerminals` but is callable from the CLI; internal actions
+ * cannot be run with `bunx convex run`.
  *
  * @param ctx - Convex public action context
  * @returns `null` after the backend snapshot refresh completes
@@ -42,10 +46,10 @@ export const runSyncBackendTerminals = action({
 });
 
 /**
- * Read **`terminalsIdentity`** for one action tick (identity fields only).
+ * Loads `terminalsIdentity` for one action tick (identity fields only).
  *
- * If the table is empty, bootstrap it immediately from WSF basics so callers
- * do not need to wait for the hourly refresh cron.
+ * When the table is empty, runs `syncBackendTerminalTable` once so orchestrator
+ * and adapters do not block on the hourly cron before first use.
  *
  * @param ctx - Convex action context for database operations
  * @returns Terminal identity rows for the current action
@@ -77,10 +81,10 @@ export async function loadTerminalIdentities(
 }
 
 /**
- * Fetch WSF terminal basics and replace the backend `terminalsIdentity` snapshot.
+ * Fetches WSF terminal basics and replaces the `terminalsIdentity` snapshot.
  *
- * Shared by {@link syncBackendTerminals}, {@link runSyncBackendTerminals}, and
- * {@link loadTerminalIdentities}.
+ * Shared by `syncBackendTerminals`, `runSyncBackendTerminals`, and
+ * `loadTerminalIdentities` so every entrypoint applies the same adapter + mutation.
  *
  * @param ctx - Convex action context
  * @returns `undefined` after the backend snapshot is fully replaced

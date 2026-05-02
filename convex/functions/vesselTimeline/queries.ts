@@ -8,7 +8,10 @@ import { loadVesselTimelineBackbone } from "./backbone";
 import { vesselTimelineBackboneSchema } from "./schemas";
 
 /**
- * Returns the backend-owned VesselTimeline backbone for one vessel/day.
+ * Returns the vessel timeline backbone for one vessel and sailing day.
+ *
+ * Delegates to `loadVesselTimelineBackbone`, which reads the three event tables
+ * and runs domain `buildTimelineBackbone`.
  *
  * @param ctx - Convex query context
  * @param args.VesselAbbrev - Vessel abbreviation

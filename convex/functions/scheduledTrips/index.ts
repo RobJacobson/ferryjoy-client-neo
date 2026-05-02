@@ -1,7 +1,7 @@
 /**
  * ScheduledTrips Convex module — re-exports registered Convex entrypoints.
- * Import `sync/sync` helpers from `./sync` only where orchestration is needed
- * (e.g. `actions.ts`); see `README.md`.
+ * Import `sync` helpers from `./sync` only where orchestration is needed
+ * (for example `actions.ts`); see repository `README.md` for scripts context.
  */
 
 export * from "./actions";

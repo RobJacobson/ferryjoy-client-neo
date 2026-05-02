@@ -8,6 +8,9 @@ import type { ConvexActualDockEvent } from "./schemas";
 /**
  * Loads all actual dock events for one vessel and sailing day.
  *
+ * Uses the `by_vessel_and_sailing_day` index for a single scoped read used by
+ * timeline backbone and route snapshot builders.
+ *
  * @param ctx - Convex query context
  * @param args.vesselAbbrev - Vessel abbreviation
  * @param args.sailingDay - Sailing day in YYYY-MM-DD format

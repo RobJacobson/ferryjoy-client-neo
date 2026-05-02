@@ -20,11 +20,14 @@ const cleanupOldPingsBatchResult = v.object({
 });
 
 /**
- * Inserts each ping as its own document in `vesselPings`.
+ * Inserts a batch of vessel pings as individual documents.
+ *
+ * Public mutation used by the ingestion action; returns inserted ids in the same
+ * order as the input array for simple diagnostics.
  *
  * @param ctx - Convex mutation context
  * @param args - Batch of pings from ingestion
- * @returns Inserted document IDs
+ * @returns New `_id` values in insertion order
  */
 export const storeVesselPings = mutation({
   args: {
@@ -40,7 +43,10 @@ export const storeVesselPings = mutation({
 });
 
 /**
- * Deletes one bounded batch of vessel ping rows older than the retention window.
+ * Deletes one bounded batch of pings older than a cutoff timestamp.
+ *
+ * Uses `by_timestamp` with `lt`; when the batch fills `limit`, `hasMore` hints
+ * that the caller should schedule another pass.
  *
  * @param ctx - Convex internal mutation context
  * @param args - Optional cutoff and required batch limit for this run

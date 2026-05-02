@@ -22,10 +22,10 @@ const persistedActualDockFields = {
 } as const;
 
 /**
- * Convex validator for one **persisted** `eventsActual` document.
+ * Convex validator for one persisted `eventsActual` document.
  *
- * Identity is `EventKey` (physical). `EventType` is first-class. Optional
- * `ScheduleKey` is schedule alignment only.
+ * Physical identity is `EventKey`; `EventType` is first-class. Optional
+ * `ScheduleKey` ties the row to schedule continuity without replacing physical keys.
  */
 export const eventsActualSchema = v.object({
   ...persistedActualDockFields,

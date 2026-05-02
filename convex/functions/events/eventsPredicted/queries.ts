@@ -4,14 +4,17 @@
 
 import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
+import { predictedDockCompositeKey } from "domain/events/predicted/schemas";
 import {
   buildVesselSailingDayScopeKey,
   parseVesselSailingDayScopeKey,
 } from "shared/keys";
-import { predictedDockCompositeKey } from "./identity";
 
 /**
  * Loads all predicted dock events for one vessel and sailing day.
+ *
+ * Returns raw docs (metadata retained) for callers that need `_id` or join logic;
+ * strip at the API boundary when returning client shapes.
  *
  * @param ctx - Convex query context
  * @param args.vesselAbbrev - Vessel abbreviation
@@ -30,8 +33,10 @@ export const loadPredictedDockEventsForVesselSailingDay = async (
     .collect();
 
 /**
- * Batch-loads `eventsPredicted` rows for the vessel/sailing-day scopes present
- * on the given trips, keyed by composite prediction id within each scope.
+ * Batch-loads predicted rows for the vessel/sailing-day scopes implied by trips.
+ *
+ * Builds scope keys from `SailingDay`, loads each day once, then indexes rows by
+ * `predictedDockCompositeKey` for efficient joins in trip read paths.
  *
  * @param ctx - Convex query context
  * @param trips - Stored trip documents (active or completed)
