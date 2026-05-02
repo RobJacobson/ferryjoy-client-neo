@@ -1,5 +1,8 @@
 /**
- * Aggregate internal mutations for vessel-orchestrator persistence.
+ * Internal mutations for vessel-orchestrator aggregate persistence.
+ *
+ * `persistVesselUpdates` applies trip, prediction, timeline, and optional
+ * leave-dock patches in one transaction per vessel branch.
  */
 
 import { internalMutation } from "_generated/server";

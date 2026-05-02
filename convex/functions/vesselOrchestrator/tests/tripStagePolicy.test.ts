@@ -1,3 +1,9 @@
+/**
+ * Policy tests for domain `updateVesselTrip`: non-null sparse updates vs
+ * `null` when the domain emits no durable writes. Keeps trip gating explicit
+ * without running the full orchestrator ping.
+ */
+
 import { describe, expect, it, spyOn } from "bun:test";
 import type { UpdateVesselTripDbAccess } from "domain/vesselOrchestration/updateVesselTrip";
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
@@ -72,7 +78,7 @@ const makeLocationUpdate = (
   overrides: Partial<ConvexVesselLocation> = {}
 ): ConvexVesselLocation => makeLocation(vesselAbbrev, overrides);
 
-describe("updateVesselTrip stage-2 policy", () => {
+describe("updateVesselTrip sparse-write policy", () => {
   it("returns sparse writes for one changed location update", async () => {
     const dbAccess: UpdateVesselTripDbAccess = {
       getScheduledSegmentByScheduleKey: async () => null,

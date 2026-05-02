@@ -1,7 +1,9 @@
 /**
- * Orchestrator ingestion for live vessel positions: converts the upstream WSF
- * feed into canonical location rows, persists them with mutation-side dedupe,
- * and returns changed rows plus active trips for those vessels from the same mutation.
+ * Orchestrator ingestion for live vessel positions.
+ *
+ * Converts the WSF feed into canonical location rows, persists them with
+ * mutation-side dedupe, and returns changed rows plus active trips for those
+ * vessels from the same mutation.
  */
 
 import type { ActionCtx } from "_generated/server";
@@ -24,7 +26,7 @@ export type RunUpdateVesselLocationsResult = {
 };
 
 /**
- * Ingest one vessel-location snapshot for an orchestrator ping.
+ * Ingests one vessel-location snapshot for an orchestrator ping.
  *
  * Fetches raw WSF rows, normalizes with identity tables, then delegates to
  * `persistVesselLocationBatch` so dedupe and post-write active-trip reads stay

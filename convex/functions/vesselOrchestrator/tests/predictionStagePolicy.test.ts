@@ -1,3 +1,9 @@
+/**
+ * Tests `getVesselTripPredictionsFromTripUpdate` load policy: when the
+ * injected `loadPredictionModelParameters` runs vs stays cold (route pair,
+ * readiness, at-sea `LeftDockActual`).
+ */
+
 import { describe, expect, it, mock } from "bun:test";
 import {
   getVesselTripPredictionsFromTripUpdate,

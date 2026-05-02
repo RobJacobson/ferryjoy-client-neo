@@ -1,5 +1,8 @@
 /**
- * Barrel for orchestrator identity snapshot loading (ping Stage 0).
+ * Barrel for orchestrator identity snapshot loading.
+ *
+ * Runs before the WSF fetch; see `VesselOrchestratorPipeline.md` (load
+ * identity read model).
  */
 
 export {
