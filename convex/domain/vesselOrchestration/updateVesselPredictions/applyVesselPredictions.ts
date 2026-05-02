@@ -23,11 +23,7 @@ import {
   appendAtSeaPredictions,
   appendPredictionsFromLoadedModels,
 } from "./appendPredictions";
-import {
-  isTripAtDock,
-  isTripAtSea,
-  predictionSpecsForTripPhase,
-} from "./predictionPolicy";
+import { predictionSpecsForTripPhase } from "./predictionPolicy";
 
 /**
  * Trip state immediately before this ping’s `appendAtDockPredictions` /
@@ -51,12 +47,14 @@ export const applyVesselPredictions = async (
   modelAccess: VesselTripPredictionModelAccess,
   coreTrip: VesselTripCoreProposal
 ): Promise<ConvexVesselTripWithML> => {
-  const withAtDockPredictions = isTripAtDock(coreTrip)
-    ? await appendAtDockPredictions(modelAccess, coreTrip)
-    : coreTrip;
-  const withAtSeaPredictions = isTripAtSea(withAtDockPredictions)
-    ? await appendAtSeaPredictions(modelAccess, withAtDockPredictions)
-    : withAtDockPredictions;
+  const withAtDockPredictions =
+    coreTrip.AtDock === true
+      ? await appendAtDockPredictions(modelAccess, coreTrip)
+      : coreTrip;
+  const withAtSeaPredictions =
+    withAtDockPredictions.AtDock === false
+      ? await appendAtSeaPredictions(modelAccess, withAtDockPredictions)
+      : withAtDockPredictions;
 
   return actualizePredictionsOnLeaveDock(withAtSeaPredictions);
 };

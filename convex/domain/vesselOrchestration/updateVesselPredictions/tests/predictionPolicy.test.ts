@@ -2,11 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { PREDICTION_SPECS } from "domain/ml/prediction/vesselTripPredictions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import {
-  isTripAtDock,
-  isTripAtSea,
-  modelTypesForTripPhase,
-} from "../predictionPolicy";
+import { modelTypesForTripPhase } from "../predictionPolicy";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -45,11 +41,8 @@ const makeTrip = (
 describe("predictionPolicy", () => {
   it("routes at-dock predictions whenever the trip is physically docked", () => {
     const trip = makeTrip();
-    expect(isTripAtDock(trip)).toBe(true);
     expect(modelTypesForTripPhase(trip)).toEqual(
-      Object.values(PREDICTION_SPECS)
-        .filter((spec) => spec.phase === "at-dock")
-        .map((spec) => spec.modelType)
+      PREDICTION_SPECS["at-dock"].map((spec) => spec.modelType)
     );
   });
 
@@ -59,20 +52,8 @@ describe("predictionPolicy", () => {
       LeftDockActual: ms("2026-03-13T09:31:00-07:00"),
       LeftDock: ms("2026-03-13T09:31:00-07:00"),
     });
-    expect(isTripAtSea(trip)).toBe(true);
     expect(modelTypesForTripPhase(trip)).toEqual(
-      Object.values(PREDICTION_SPECS)
-        .filter((spec) => spec.phase === "at-sea")
-        .map((spec) => spec.modelType)
+      PREDICTION_SPECS["at-sea"].map((spec) => spec.modelType)
     );
-  });
-
-  it("returns no model types only when phase cannot be determined", () => {
-    const trip = makeTrip({
-      AtDock: undefined as unknown as boolean,
-    });
-    expect(isTripAtDock(trip)).toBe(false);
-    expect(isTripAtSea(trip)).toBe(false);
-    expect(modelTypesForTripPhase(trip)).toEqual([]);
   });
 });

@@ -230,9 +230,7 @@ export const appendAtDockPredictions = async (
   trip: ConvexVesselTripWithML
 ): Promise<ConvexVesselTripWithML> => {
   return computePredictions(modelAccess, trip, [
-    PREDICTION_SPECS.AtDockDepartCurr,
-    PREDICTION_SPECS.AtDockArriveNext,
-    PREDICTION_SPECS.AtDockDepartNext,
+    ...PREDICTION_SPECS["at-dock"],
   ]);
 };
 
@@ -252,8 +250,5 @@ export const appendAtSeaPredictions = async (
   modelAccess: VesselTripPredictionModelAccess,
   trip: ConvexVesselTripWithML
 ): Promise<ConvexVesselTripWithML> => {
-  return computePredictions(modelAccess, trip, [
-    PREDICTION_SPECS.AtSeaArriveNext,
-    PREDICTION_SPECS.AtSeaDepartNext,
-  ]);
+  return computePredictions(modelAccess, trip, [...PREDICTION_SPECS["at-sea"]]);
 };

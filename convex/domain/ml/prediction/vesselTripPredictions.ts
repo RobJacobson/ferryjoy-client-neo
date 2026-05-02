@@ -48,44 +48,51 @@ export type PredictionSpec = {
 };
 
 /**
- * Registry of supported trip prediction fields and their model wiring.
+ * Supported prediction specs by vessel phase (`AtDock` routes dock vs sea).
  */
-export const PREDICTION_SPECS: Record<PredictionField, PredictionSpec> = {
-  AtDockDepartCurr: {
-    field: "AtDockDepartCurr",
-    phase: "at-dock",
-    modelType: "at-dock-depart-curr",
-    requiresDepartureActual: false,
-    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
-  },
-  AtDockArriveNext: {
-    field: "AtDockArriveNext",
-    phase: "at-dock",
-    modelType: "at-dock-arrive-next",
-    requiresDepartureActual: false,
-    getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
-  },
-  AtDockDepartNext: {
-    field: "AtDockDepartNext",
-    phase: "at-dock",
-    modelType: "at-dock-depart-next",
-    requiresDepartureActual: false,
-    getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
-  },
-  AtSeaArriveNext: {
-    field: "AtSeaArriveNext",
-    phase: "at-sea",
-    modelType: "at-sea-arrive-next",
-    requiresDepartureActual: true,
-    getAnchorMs: (trip) => trip.LeftDockActual ?? null,
-  },
-  AtSeaDepartNext: {
-    field: "AtSeaDepartNext",
-    phase: "at-sea",
-    modelType: "at-sea-depart-next",
-    requiresDepartureActual: true,
-    getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
-  },
+export const PREDICTION_SPECS: Record<
+  PredictionPhase,
+  readonly PredictionSpec[]
+> = {
+  "at-dock": [
+    {
+      field: "AtDockDepartCurr",
+      phase: "at-dock",
+      modelType: "at-dock-depart-curr",
+      requiresDepartureActual: false,
+      getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+    },
+    {
+      field: "AtDockArriveNext",
+      phase: "at-dock",
+      modelType: "at-dock-arrive-next",
+      requiresDepartureActual: false,
+      getAnchorMs: (trip) => trip.ScheduledDeparture ?? null,
+    },
+    {
+      field: "AtDockDepartNext",
+      phase: "at-dock",
+      modelType: "at-dock-depart-next",
+      requiresDepartureActual: false,
+      getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
+    },
+  ],
+  "at-sea": [
+    {
+      field: "AtSeaArriveNext",
+      phase: "at-sea",
+      modelType: "at-sea-arrive-next",
+      requiresDepartureActual: true,
+      getAnchorMs: (trip) => trip.LeftDockActual ?? null,
+    },
+    {
+      field: "AtSeaDepartNext",
+      phase: "at-sea",
+      modelType: "at-sea-depart-next",
+      requiresDepartureActual: true,
+      getAnchorMs: (trip) => trip.NextScheduledDeparture ?? null,
+    },
+  ],
 };
 
 /**

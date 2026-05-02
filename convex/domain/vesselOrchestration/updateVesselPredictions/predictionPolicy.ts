@@ -1,8 +1,7 @@
 /**
- * Simple phase helpers for prediction runs.
- *
- * Predictions now re-run every ping whenever a trip is in the right phase for
- * that model family. There is no event/timer gate on the orchestrator path.
+ * Picks ML phase from live physical state (at dock vs underway) so dock and sea
+ * model families stay split: they use different features and anchors, and the
+ * orchestrator must apply exactly one family per ping.
  */
 
 import {
@@ -12,53 +11,28 @@ import {
 import type { ModelType } from "domain/ml/shared/types";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
-/** Trip shape needed to decide which prediction family can run this ping. */
-type PredictionPhaseTrip = ConvexVesselTrip;
-
 /**
- * Whether the trip row is physically at dock (`PREDICTION_SPECS` at-dock family).
+ * Resolves the spec list for this ping by matching the trip's physical phase
+ * to the at-dock or at-sea registry. That blocks sea-phase models on dock rows
+ * and the reverse, so we avoid useless inference and predictions on fields that
+ * do not apply to this state.
  *
- * @param trip - Vessel trip row (`AtDock === true`)
- * @returns True when dock-phase prediction specs apply
- */
-export const isTripAtDock = (trip: PredictionPhaseTrip): boolean =>
-  trip.AtDock === true;
-
-/**
- * Whether the trip row is underway — not at dock (`PREDICTION_SPECS` at-sea family).
- *
- * @param trip - Vessel trip row (`AtDock === false`)
- * @returns True when at-sea prediction specs apply
- */
-export const isTripAtSea = (trip: PredictionPhaseTrip): boolean =>
-  trip.AtDock === false;
-
-/**
- * Prediction specs that apply to this trip row given its at-dock / at-sea phase.
- *
- * @param trip - Vessel trip row whose `AtDock` flag selects the spec family
- * @returns Specs whose `phase` matches the trip’s physical state
+ * @param trip - Supplies the trip row this ping runs ML against
+ * @returns Lists the specs permitted for this phase, in registry order
  */
 export const predictionSpecsForTripPhase = (
-  trip: PredictionPhaseTrip
-): PredictionSpec[] =>
-  Object.values(PREDICTION_SPECS).filter((spec) => {
-    if (isTripAtDock(trip)) {
-      return spec.phase === "at-dock";
-    }
-    if (isTripAtSea(trip)) {
-      return spec.phase === "at-sea";
-    }
-    return false;
-  });
+  trip: ConvexVesselTrip
+): readonly PredictionSpec[] =>
+  PREDICTION_SPECS[trip.AtDock === true ? "at-dock" : "at-sea"];
 
 /**
- * Model types to run for this trip row, derived from its prediction phase.
+ * Derives model-type ids for the production-parameter preload from the
+ * phase-resolved specs. Production weights live per terminal pair and model type,
+ * so requesting only those types avoids pulling the full per-route catalog every
+ * ping.
  *
- * @param trip - Vessel trip row passed to phase filtering
- * @returns `modelType` values from {@link predictionSpecsForTripPhase}
+ * @param trip - Supplies the same ping trip row as {@link predictionSpecsForTripPhase}
+ * @returns Lists model types in the same order as the resolved specs
  */
-export const modelTypesForTripPhase = (
-  trip: PredictionPhaseTrip
-): ModelType[] =>
+export const modelTypesForTripPhase = (trip: ConvexVesselTrip): ModelType[] =>
   predictionSpecsForTripPhase(trip).map((spec) => spec.modelType);
