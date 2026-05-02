@@ -15,7 +15,7 @@ import type {
 } from "functions/vesselTrips/schemas";
 import { appendPredictionsFromLoadedModels } from "./appendPredictions";
 import type { PredictionModelParametersByPairKey } from "./types";
-import { getPredictionSpecsFromTrip } from "./tripDockStatePredictionSpecs";
+import { getRunnablePredictionSpecsFromTrip } from "./tripDockStatePredictionSpecs";
 
 /**
  * Applies loaded-model predictions for the trip's current phase, then
@@ -32,7 +32,7 @@ export const applyVesselPredictionsFromLoadedModels = async (
     | undefined,
   coreTrip: ConvexVesselTrip
 ): Promise<ConvexVesselTripWithML> => {
-  const specs = getPredictionSpecsFromTrip(coreTrip);
+  const specs = getRunnablePredictionSpecsFromTrip(coreTrip);
   const withPredictions =
     specs.length === 0
       ? coreTrip

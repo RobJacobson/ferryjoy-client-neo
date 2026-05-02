@@ -47,12 +47,22 @@ export type ActiveTripWriteOutcome = {
  * into timeline assembly so predicted dock events use the same trip row the
  * models produced (completed closeout vs current active branch).
  */
-export type PredictedTripTimelineHandoff = {
+export type CurrentPredictedTripTimelineHandoff = {
   vesselAbbrev: string;
-  branch: "completed" | "current";
-  completedHandoffKey?: string;
-  finalPredictedTrip?: ConvexVesselTripWithML;
+  branch: "current";
+  finalPredictedTrip: ConvexVesselTripWithML;
 };
+
+export type CompletedPredictedTripTimelineHandoff = {
+  vesselAbbrev: string;
+  branch: "completed";
+  completedHandoffKey: string;
+  finalPredictedTrip: ConvexVesselTripWithML;
+};
+
+export type PredictedTripTimelineHandoff =
+  | CurrentPredictedTripTimelineHandoff
+  | CompletedPredictedTripTimelineHandoff;
 
 export type PersistedTripTimelineHandoff = {
   completedTripFacts: CompletedArrivalHandoff[];

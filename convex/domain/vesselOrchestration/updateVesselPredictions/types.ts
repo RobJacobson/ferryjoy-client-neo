@@ -5,8 +5,8 @@
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { PredictedTripTimelineHandoff } from "domain/vesselOrchestration/updateTimeline";
 import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
+import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 /**
  * Prediction model parameters keyed by canonical terminal pair, then model type.
@@ -42,9 +42,9 @@ export type VesselTripPredictionDeps = {
 
 /**
  * Outcome of enriching the active trip from prediction parameters and deriving
- * persistence rows plus same-update timeline handoffs.
+ * persistence rows. Timeline overlay construction belongs to updateTimeline.
  */
 export type VesselTripPredictionsFromTripUpdateResult = {
+  enrichedActiveVesselTrip: ConvexVesselTripWithML;
   predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
-  predictedTripTimelineHandoffs: ReadonlyArray<PredictedTripTimelineHandoff>;
 };

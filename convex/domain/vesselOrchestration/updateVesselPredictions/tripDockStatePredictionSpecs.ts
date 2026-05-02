@@ -6,6 +6,7 @@
  */
 
 import {
+  isPredictionReadyTrip,
   PREDICTION_SPECS,
   type PredictionSpec,
 } from "domain/ml/prediction/vesselTripPredictions";
@@ -24,6 +25,28 @@ export const getPredictionSpecsFromTrip = (
   PREDICTION_SPECS[trip.AtDock === true ? "at-dock" : "at-sea"];
 
 /**
+ * Returns the phase-valid prediction specs that have all required trip inputs.
+ *
+ * This is the shared gate for both model-parameter loading and inference so the
+ * orchestrator does not load model docs for predictions that cannot run.
+ */
+export const getRunnablePredictionSpecsFromTrip = (
+  trip: ConvexVesselTrip
+): readonly PredictionSpec[] => {
+  const specs = getPredictionSpecsFromTrip(trip);
+  if (!isPredictionReadyTrip(trip)) {
+    return [];
+  }
+
+  return specs.filter((spec) => {
+    if (spec.requiresDepartureActual && trip.LeftDockActual == null) {
+      return false;
+    }
+    return spec.getAnchorMs(trip) !== null;
+  });
+};
+
+/**
  * Returns model-type ids for loading production parameters for this trip’s dock
  * vs underway branch (same routing as {@link getPredictionSpecsFromTrip}).
  *
@@ -33,4 +56,4 @@ export const getPredictionSpecsFromTrip = (
 export const getPredictionModelTypesFromTrip = (
   trip: ConvexVesselTrip
 ): ModelType[] =>
-  getPredictionSpecsFromTrip(trip).map((spec) => spec.modelType);
+  getRunnablePredictionSpecsFromTrip(trip).map((spec) => spec.modelType);

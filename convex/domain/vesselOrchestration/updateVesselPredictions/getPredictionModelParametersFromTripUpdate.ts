@@ -1,13 +1,12 @@
 /**
  * Derives which prediction model parameters to load for a vessel trip update,
- * using the same at-dock vs at-sea routing as inference
- * (`getPredictionModelTypesFromTrip`).
+ * using the same runnable at-dock vs at-sea routing as inference.
  */
 
 import { formatTerminalPairKey } from "domain/ml/shared/config";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { getPredictionModelTypesFromTrip } from "./tripDockStatePredictionSpecs";
+import { getRunnablePredictionSpecsFromTrip } from "./tripDockStatePredictionSpecs";
 import type { PredictionModelParametersRequest } from "./types";
 
 /**
@@ -23,7 +22,11 @@ export const getPredictionModelParametersFromTripUpdate = (
 ): PredictionModelParametersRequest | null => {
   const active = tripUpdate.activeVesselTrip;
   const pairKey = terminalPairKeyForActiveTrip(active);
-  const modelTypes = getPredictionModelTypesFromTrip(active);
+  const modelTypes = [
+    ...new Set(
+      getRunnablePredictionSpecsFromTrip(active).map((spec) => spec.modelType)
+    ),
+  ];
   if (pairKey === null || modelTypes.length === 0) {
     return null;
   }

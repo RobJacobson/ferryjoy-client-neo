@@ -147,8 +147,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselPredictionsModule,
       "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
+      enrichedActiveVesselTrip: activeTripWithMl,
       predictionRows: [],
-      predictedTripTimelineHandoffs: [],
     });
     const timelineSpy = spyOn(
       updateTimelineModule,
@@ -191,6 +191,9 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
     expect(timelineSpy).toHaveBeenCalledTimes(1);
+    expect(timelineSpy.mock.calls[0]?.[0]).toMatchObject({
+      enrichedActiveVesselTrip: activeTripWithMl,
+    });
 
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
@@ -222,8 +225,11 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselPredictionsModule,
       "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
+      enrichedActiveVesselTrip: makeTrip("CHE", {
+        AtDock: false,
+        LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
+      }),
       predictionRows: [],
-      predictedTripTimelineHandoffs: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],
@@ -338,8 +344,8 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselPredictionsModule,
       "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
+      enrichedActiveVesselTrip: makeTrip("TAC"),
       predictionRows: [],
-      predictedTripTimelineHandoffs: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],

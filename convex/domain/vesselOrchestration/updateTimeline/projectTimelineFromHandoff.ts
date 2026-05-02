@@ -19,8 +19,8 @@ import type {
  * persisted handoff is already materialized.
  *
  * @param handoff - Output of `timelineHandoffFromTripUpdate`
- * @param predictedTripTimelineHandoffs - Branches from
- *   `getVesselTripPredictionsFromTripUpdate`, aligned with this handoff
+ * @param predictedTripTimelineHandoffs - Timeline-owned enriched-trip branches
+ *   aligned with this handoff
  * @param pingStartedAt - Epoch ms used when stamping timeline rows for this tick
  * @returns Sparse `eventsActual` and `eventsPredicted` payloads for
  *   persistence
@@ -50,8 +50,8 @@ export const projectTimelineFromHandoff = (
  * completed facts, `finalProposed` on current-branch intents).
  *
  * @param handoff - Facts from `timelineHandoffFromTripUpdate` before ML overlay
- * @param predictedTripTimelineHandoffs - Per-branch enriched trips from the
- *   prediction pass
+ * @param predictedTripTimelineHandoffs - Per-branch enriched trips built by
+ *   timeline assembly
  * @returns Handoff with ML fields attached where branch keys match
  */
 const applyPredictedTripTimelineHandoffs = (
@@ -63,14 +63,10 @@ const applyPredictedTripTimelineHandoffs = (
       .filter(
         (
           branchHandoff
-        ): branchHandoff is PredictedTripTimelineHandoff & {
-          branch: "completed";
-          completedHandoffKey: string;
-          finalPredictedTrip: ConvexVesselTripWithML;
-        } =>
-          branchHandoff.branch === "completed" &&
-          branchHandoff.completedHandoffKey !== undefined &&
-          branchHandoff.finalPredictedTrip !== undefined
+        ): branchHandoff is Extract<
+          PredictedTripTimelineHandoff,
+          { branch: "completed" }
+        > => branchHandoff.branch === "completed"
       )
       .map(
         (branchHandoff) =>
@@ -126,7 +122,7 @@ const applyPredictedTripTimelineHandoffs = (
  * Indexes current-branch prediction handoffs by vessel so dock intents resolve
  * `finalProposed` without a second scan.
  *
- * @param predictedTripTimelineHandoffs - Branch rows from the prediction pass
+ * @param predictedTripTimelineHandoffs - Branch rows from timeline assembly
  * @returns Map from vessel abbrev to enriched trip for `branch === "current"`
  */
 const buildCurrentPredictedTripsByVessel = (
@@ -134,10 +130,7 @@ const buildCurrentPredictedTripsByVessel = (
 ): Map<string, ConvexVesselTripWithML> => {
   const map = new Map<string, ConvexVesselTripWithML>();
   for (const branchHandoff of predictedTripTimelineHandoffs) {
-    if (
-      branchHandoff.branch === "current" &&
-      branchHandoff.finalPredictedTrip !== undefined
-    ) {
+    if (branchHandoff.branch === "current") {
       map.set(branchHandoff.vesselAbbrev, branchHandoff.finalPredictedTrip);
     }
   }

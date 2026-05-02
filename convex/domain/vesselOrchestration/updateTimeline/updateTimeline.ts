@@ -7,6 +7,8 @@ import type {
   RunUpdateVesselTimelineFromAssemblyInput,
   RunUpdateVesselTimelineOutput,
 } from "./contracts";
+import { buildCompletedHandoffKey } from "./completedHandoffKey";
+import type { PredictedTripTimelineHandoff } from "./handoffTypes";
 import { projectTimelineFromHandoff } from "./projectTimelineFromHandoff";
 import { timelineHandoffFromTripUpdate } from "./timelineHandoffFromTripUpdate";
 
@@ -19,6 +21,37 @@ export const updateTimeline = (
 ): RunUpdateVesselTimelineOutput =>
   projectTimelineFromHandoff(
     timelineHandoffFromTripUpdate(input.tripUpdate),
-    input.predictedTripTimelineHandoffs,
+    predictedTripTimelineHandoffsFromInput(input),
     input.pingStartedAt
   );
+
+const predictedTripTimelineHandoffsFromInput = (
+  input: RunUpdateVesselTimelineFromAssemblyInput
+): ReadonlyArray<PredictedTripTimelineHandoff> => {
+  const current = {
+    vesselAbbrev: input.enrichedActiveVesselTrip.VesselAbbrev,
+    branch: "current",
+    finalPredictedTrip: input.enrichedActiveVesselTrip,
+  } as const;
+
+  if (
+    input.tripUpdate.existingVesselTrip === undefined ||
+    input.tripUpdate.completedVesselTrip === undefined
+  ) {
+    return [current];
+  }
+
+  return [
+    {
+      vesselAbbrev: input.tripUpdate.completedVesselTrip.VesselAbbrev,
+      branch: "completed",
+      completedHandoffKey: buildCompletedHandoffKey(
+        input.tripUpdate.completedVesselTrip.VesselAbbrev,
+        input.tripUpdate.completedVesselTrip,
+        input.tripUpdate.activeVesselTrip
+      ),
+      finalPredictedTrip: input.enrichedActiveVesselTrip,
+    },
+    current,
+  ];
+};

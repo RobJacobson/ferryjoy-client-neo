@@ -5,7 +5,7 @@
 import type { ConvexActualDockEvent } from "domain/events/actual";
 import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
-import type { PredictedTripTimelineHandoff } from "./handoffTypes";
+import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 /**
  * Direct same-ping timeline projection from upstream trip rows plus ML overlay.
@@ -16,7 +16,7 @@ import type { PredictedTripTimelineHandoff } from "./handoffTypes";
 export type RunUpdateVesselTimelineFromAssemblyInput = {
   pingStartedAt: number;
   tripUpdate: VesselTripUpdate;
-  predictedTripTimelineHandoffs: ReadonlyArray<PredictedTripTimelineHandoff>;
+  enrichedActiveVesselTrip: ConvexVesselTripWithML;
 };
 
 export type RunUpdateVesselTimelineOutput = {

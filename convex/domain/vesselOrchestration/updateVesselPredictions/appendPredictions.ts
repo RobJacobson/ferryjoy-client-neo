@@ -25,8 +25,7 @@ type SpecPredictionResult = {
 };
 
 /**
- * Returns whether the trip satisfies readiness and per-spec inputs for the
- * given prediction specs.
+ * Returns whether the trip satisfies readiness for the given prediction specs.
  *
  * @param trip - Current vessel trip row (may already carry prediction fields)
  * @param specs - Prediction specs to evaluate prerequisites for
@@ -37,14 +36,6 @@ const hasRequiredInputsForSpecs = (
   specs: ReadonlyArray<PredictionSpec>
 ): boolean => {
   if (!isPredictionReadyTrip(trip)) {
-    return false;
-  }
-
-  if (
-    specs.some(
-      (spec) => spec.requiresDepartureActual && trip.LeftDockActual == null
-    )
-  ) {
     return false;
   }
 
@@ -107,7 +98,7 @@ const runPredictionsForSpecs = async (
         null,
         trip,
         spec,
-        specs.length > 1 ? preloadedModelsByType[spec.modelType] : undefined
+        preloadedModelsByType[spec.modelType]
       ),
     }))
   );

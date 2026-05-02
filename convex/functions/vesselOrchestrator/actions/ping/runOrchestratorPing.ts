@@ -107,16 +107,16 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        * Stage 4: vessel-trip predictions
        *
        * Derives prediction-parameter load needs from `tripUpdate`, loads weights
-       * when required, enriches the active trip, and returns persistence proposals
-       * plus same-tick timeline handoffs for merge in Stage 5.
+       * when required, enriches the active trip, and returns persistence
+       * proposals. Model loading is best-effort because ML is derived data.
        */
-      const { predictionRows, predictedTripTimelineHandoffs } =
+      const { predictionRows, enrichedActiveVesselTrip } =
         await getVesselTripPredictionsForTripUpdate(ctx, tripUpdate);
 
       /**
        * Stage 5: updateTimeline
        *
-       * Combine ping time + trip deltas + predicted-trip handoffs to project
+       * Combine ping time + trip deltas + the enriched active trip to project
        * timeline event rows (`actualEvents`, `predictedEvents`) for this vessel.
        *
        * Why: timeline writes should be derived from the same trip and prediction
@@ -125,7 +125,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       const timelineRows = updateTimeline({
         pingStartedAt,
         tripUpdate,
-        predictedTripTimelineHandoffs,
+        enrichedActiveVesselTrip,
       });
 
       /**

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type {
+  ConvexPrediction,
+  ConvexVesselTrip,
+  ConvexVesselTripWithML,
+} from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { projectTimelineFromHandoff } from "../projectTimelineFromHandoff";
+import { updateTimeline } from "../updateTimeline";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -64,4 +69,96 @@ describe("projectTimelineFromHandoff", () => {
     expect(out.actualEvents).toHaveLength(0);
     expect(out.predictedEvents).toHaveLength(0);
   });
+});
+
+describe("updateTimeline", () => {
+  it("projects predicted rows from the enriched active trip", () => {
+    const activeTrip = makeTrip("TAC", {
+      AtDock: true,
+      LeftDock: undefined,
+      LeftDockActual: undefined,
+      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
+    });
+    const enrichedActiveTrip: ConvexVesselTripWithML = {
+      ...activeTrip,
+      AtDockDepartCurr: makePrediction(ms("2026-03-13T06:48:00-07:00")),
+    };
+
+    const out = updateTimeline({
+      pingStartedAt: ms("2026-03-13T06:40:10-07:00"),
+      tripUpdate: {
+        vesselAbbrev: "TAC",
+        activeVesselTrip: activeTrip,
+      },
+      enrichedActiveVesselTrip: enrichedActiveTrip,
+    });
+
+    expect(out.predictedEvents).toHaveLength(1);
+    expect(out.predictedEvents[0]?.Rows[0]).toMatchObject({
+      VesselAbbrev: "TAC",
+      PredictionType: "AtDockDepartCurr",
+      PredictionSource: "ml",
+      EventPredictedTime: ms("2026-03-13T06:48:00-07:00"),
+    });
+  });
+
+  it("projects completed rollover clears and replacement predicted rows", () => {
+    const existingTrip = makeTrip("TAC", {
+      ScheduleKey: "TAC--2026-03-13--05:30--ANA-ORI",
+      TripKey: generateTripKey("TAC", ms("2026-03-13T04:33:00-07:00")),
+    });
+    const completedTrip = makeTrip("TAC", {
+      ...existingTrip,
+      TripEnd: ms("2026-03-13T06:42:00-07:00"),
+    });
+    const replacementTrip = makeTrip("TAC", {
+      TripKey: generateTripKey("TAC", ms("2026-03-13T06:43:00-07:00")),
+      ScheduleKey: "TAC--2026-03-13--06:45--ORI-ANA",
+      ScheduledDeparture: ms("2026-03-13T06:45:00-07:00"),
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "ANA",
+      AtDock: true,
+      LeftDock: undefined,
+      LeftDockActual: undefined,
+    });
+    const enrichedReplacementTrip: ConvexVesselTripWithML = {
+      ...replacementTrip,
+      AtDockDepartCurr: makePrediction(ms("2026-03-13T06:49:00-07:00")),
+    };
+
+    const out = updateTimeline({
+      pingStartedAt: ms("2026-03-13T06:43:10-07:00"),
+      tripUpdate: {
+        vesselAbbrev: "TAC",
+        existingVesselTrip: existingTrip,
+        completedVesselTrip: completedTrip,
+        activeVesselTrip: replacementTrip,
+      },
+      enrichedActiveVesselTrip: enrichedReplacementTrip,
+    });
+
+    expect(out.predictedEvents.some((batch) => batch.Rows.length === 0)).toBe(
+      true
+    );
+    expect(
+      out.predictedEvents.some((batch) =>
+        batch.Rows.some(
+          (row) =>
+            row.PredictionType === "AtDockDepartCurr" &&
+            row.EventPredictedTime === ms("2026-03-13T06:49:00-07:00")
+        )
+      )
+    ).toBe(true);
+  });
+});
+
+const makePrediction = (predTime: number): ConvexPrediction => ({
+  PredTime: predTime,
+  MinTime: predTime - 60_000,
+  MaxTime: predTime + 60_000,
+  MAE: 1,
+  StdDev: 1,
+  Actual: undefined,
+  DeltaTotal: undefined,
+  DeltaRange: undefined,
 });

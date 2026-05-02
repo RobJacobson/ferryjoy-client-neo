@@ -15,7 +15,7 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions/updateVesselOrche
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
        getVesselTripPredictionsFromTripUpdate (injected loadPredictionModelParameters → getPredictionModelParameters when needed)
-       updateTimeline ({ pingStartedAt, tripUpdate, predictedTripTimelineHandoffs })
+       updateTimeline ({ pingStartedAt, tripUpdate, enrichedActiveVesselTrip })
        persistVesselUpdates (one atomic mutation for trip, predictions, timeline, actualization)
 ```
 
@@ -117,7 +117,7 @@ Trip stage output to downstream domain callers:
 
 - **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
 
-Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTripUpdate`**. Timeline handoff is derived inside **`updateTimeline`** from the same shape
+Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTripUpdate`** and return **`enrichedActiveVesselTrip`**. Timeline handoff and prediction overlays are derived inside **`updateTimeline`** from the same trip shape plus that enriched trip
 (**`timelineHandoffFromTripUpdate`**) with DTOs in
 **`updateTimeline/handoffTypes.ts`**.
 

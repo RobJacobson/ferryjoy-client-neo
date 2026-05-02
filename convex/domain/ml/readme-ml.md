@@ -382,8 +382,8 @@ for targeted `eventsScheduled` continuity), then domain
 **`loadPredictionModelParameters`** when
 **`getPredictionModelParametersFromTripUpdate`** is non-null.
 Domain **`updateTimeline`** runs in action
-memory from **`{ pingStartedAt, tripUpdate, predictedTripTimelineHandoffs }`** (handoff derived
-inside **`timelineHandoffFromTripUpdate`**); then stage-level persistence helpers apply
+memory from **`{ pingStartedAt, tripUpdate, enrichedActiveVesselTrip }`** (handoff and prediction overlays derived
+inside **`updateTimeline`**); then stage-level persistence helpers apply
 trip rows, prediction upserts, and projected `eventsActual`/`eventsPredicted` rows in
 explicit per-vessel order. Per-tick trip lifecycle logic lives in
 `convex/domain/vesselOrchestration/updateVesselTrip/` and is driven by the per-vessel
