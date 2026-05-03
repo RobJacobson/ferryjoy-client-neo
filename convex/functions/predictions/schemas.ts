@@ -1,5 +1,7 @@
 /**
- * Shared validators and inferred types for stored ML model parameter rows.
+ * Validators and types for `modelParameters` documents and PascalCase ML prediction
+ * kinds used alongside `eventsPredicted`. Imports domain `MODEL_KEYS` so Convex
+ * storage and training pipeline literals stay aligned.
  */
 
 import type { Infer } from "convex/values";
@@ -19,11 +21,13 @@ export const modelTypeValidator = v.union(
   v.literal(MODEL_KEYS[4])
 );
 
-// Re-export the domain type so function callers can stay aligned with validators.
+/**
+ * Domain `ModelType` re-export; use with `modelTypeValidator` for consistent typing.
+ */
 export type { ModelType };
 
 /**
- * PascalCase prediction type (vessel-trip ML fields and eventsPredicted rows).
+ * PascalCase labels for ML prediction kinds on vessel trips and `eventsPredicted`.
  */
 export type PredictionType =
   | "AtDockDepartCurr"
@@ -75,8 +79,11 @@ export const modelParametersSchema = v.object({
     sampledRecords: v.number(),
   }),
 
-  // Arbitrary version tag such as "dev-temp", "dev-1", or "prod-1".
+  // Free-form snapshot labels ("dev-temp", "prod-1", …) for promotion workflows.
   versionTag: v.string(),
 });
 
+/**
+ * Inferred document shape for `modelParameters` rows (Convex-validated).
+ */
 export type ConvexModelParameters = Infer<typeof modelParametersSchema>;
