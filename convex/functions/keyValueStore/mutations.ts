@@ -1,5 +1,7 @@
 /**
- * Mutations for the keyValueStore table.
+ * Internal mutations for the `keyValueStore` table. Writes go through these
+ * entrypoints (or helpers they call) so actions and migrations share validation
+ * and upsert behavior with one Convex `returns` contract per operation.
  */
 
 import { internalMutation } from "_generated/server";
@@ -8,7 +10,7 @@ import { upsertByKey } from "./helpers";
 import { keyValueStoreValueValidator } from "./schemas";
 
 /**
- * Public internal mutation entry for generic `keyValueStore` upserts.
+ * Performs a generic upsert into `keyValueStore` by key.
  *
  * Delegates to `upsertByKey` so actions and migrations share one write path with
  * optional explicit `updatedAt` timestamps.
@@ -17,7 +19,7 @@ import { keyValueStoreValueValidator } from "./schemas";
  * @param args.key - Document key
  * @param args.value - Stored value
  * @param args.updatedAt - Optional epoch ms for `updatedAt` (defaults to now)
- * @returns `null` after the upsert completes
+ * @returns `null` (Convex surface for “no return payload” once the upsert completes)
  */
 export const upsert = internalMutation({
   args: {

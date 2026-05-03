@@ -1,5 +1,7 @@
 /**
- * Convex validators and key constants for the generic keyValueStore table.
+ * Validators, document shapes, and stable key strings for the generic
+ * `keyValueStore` table. Schema imports use `keyValueStoreSchema`; Convex
+ * functions import constants here so config keys stay centralized.
  */
 
 import type { Infer } from "convex/values";

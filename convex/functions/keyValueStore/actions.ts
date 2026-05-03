@@ -1,5 +1,7 @@
 /**
- * Actions that orchestrate keyValueStore migrations (no direct DB access).
+ * Internal actions that run keyValueStore setup without direct database access.
+ * These orchestrate internal mutations (for example bootstrap of scheduled-trips
+ * sync metadata) and are intended for one-off or operational runs, not hot paths.
  */
 
 import { internal } from "_generated/api";
@@ -8,13 +10,10 @@ import { v } from "convex/values";
 
 import { keyValueStoreValueValidator } from "./schemas";
 
-type SyncDateSetupResult = {
+/** Matches `setupInitialSyncDate` return shape; narrows `ctx.runMutation` for TS. */
+type SetupInitialSyncDateResult = {
   created: boolean;
   timestamp: string | number | boolean | null;
-};
-
-type RunAllSetupResult = {
-  syncDateSetup: SyncDateSetupResult;
 };
 
 /**
@@ -24,7 +23,8 @@ type RunAllSetupResult = {
  * baseline `lastScheduledTripsSyncDate` before first sync.
  *
  * @param ctx - Convex action context
- * @returns Result object containing scheduled-trips sync-date setup outcome
+ * @returns An object whose `syncDateSetup` field carries `setupInitialSyncDate`
+ *   outcome (`created` plus stored `timestamp`)
  */
 export const runAllSetup = internalAction({
   args: {},
@@ -34,17 +34,17 @@ export const runAllSetup = internalAction({
       timestamp: keyValueStoreValueValidator,
     }),
   }),
-  handler: async (ctx): Promise<RunAllSetupResult> => {
+  handler: async (ctx) => {
     console.log("[SETUP] Running key-value setup");
 
-    const syncResult: SyncDateSetupResult = await ctx.runMutation(
+    const syncDateSetup: SetupInitialSyncDateResult = await ctx.runMutation(
       internal.functions.keyValueStore.migrations.setupInitialSyncDate,
       {}
     );
-    console.log("[SETUP] Sync date setup result:", syncResult);
+    console.log("[SETUP] Sync date setup result:", syncDateSetup);
 
     return {
-      syncDateSetup: syncResult,
+      syncDateSetup,
     };
   },
 });

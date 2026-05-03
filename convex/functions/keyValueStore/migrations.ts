@@ -1,5 +1,7 @@
 /**
- * One-off migrations and setup mutations that use keyValueStore.
+ * Internal setup and one-off mutations that seed or adjust `keyValueStore` rows
+ * for operational workflows (for example scheduled-trips sync baselines). These
+ * are idempotent where noted so repeated bootstrap does not corrupt state.
  */
 
 import { internalMutation } from "_generated/server";
@@ -14,10 +16,12 @@ import {
  * Seeds `lastScheduledTripsSyncDate` once if the key is missing.
  *
  * Idempotent: returns the existing value when already present so repeated setup
- * actions do not shift the baseline. Uses “yesterday” ms when creating the row.
+ * actions do not shift the baseline. Uses epoch ms for "yesterday" (24 hours
+ * before `Date.now()`) when creating the row.
  *
  * @param ctx - Convex mutation context
- * @returns Whether a new row was created and the stored timestamp value
+ * @returns `created` false when the row already existed, true when inserted;
+ *   `timestamp` is always the stored scalar value for that key afterward
  */
 export const setupInitialSyncDate = internalMutation({
   args: {},

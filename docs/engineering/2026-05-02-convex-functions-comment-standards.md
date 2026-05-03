@@ -9,6 +9,7 @@ This memo records **comment and documentation conventions for `convex/functions`
 ## Module (`/** ... */` at top of file)
 
 - Every file gets a **module-level** block describing its role and how it fits the broader backend (roughly 2–4 lines).
+- **Exception:** a barrel **`index.ts`** that **only** re-exports sibling modules must have **no** module comment and **no** other file-level comments—the exports themselves are the documentation.
 - No `@param` / `@returns` at module scope.
 
 ---
@@ -16,8 +17,8 @@ This memo records **comment and documentation conventions for `convex/functions`
 ## Functions (TSDoc)
 
 - **Exported and internal** functions use TSDoc so IntelliSense stays useful.
-- Follow the template in code-style: **one-line summary**, optional **detail paragraph** (how/why, coupling to other modules), **`@param`** for each parameter, **`@returns`** when the return carries meaning.
-- **Helpers:** The extra paragraph may be omitted only when the helper is **obvious** (e.g. a trivial one-liner). Non-trivial helpers (dedupe, equality, shard merging) get a full block including **`@param`** / **`@returns`** when relevant.
+- Follow the template in code-style: **one-line summary**, optional **detail paragraph** (how/why, coupling to other modules), **`@param`** for each parameter, and **`@returns`** on every function.
+- **Helpers:** The extra paragraph may be omitted only when the helper is **obvious** (e.g. a trivial one-liner). Non-trivial helpers (dedupe, equality, shard merging) get a full block including **`@param`** / **`@returns`** (still include **`@returns`** on trivial helpers when the signature returns **`null`** or **`Promise<void>`**, per the rule above).
 - Use **plain backticks** for symbols and paths (`upsertActualDockRows`, `mergePingEventWrites`). Avoid Markdown bold inside code fragments in TSDoc.
 
 ### Query / mutation summaries
@@ -29,7 +30,7 @@ This memo records **comment and documentation conventions for `convex/functions`
 ### Registered Convex functions
 
 - Convex’s own rules still apply: **`args`**, **`returns`**, and **`handler`** with validators (`docs/convex_rules.mdc`).
-- **`@returns` in TSDoc:** Spell out nothing meaningful for “fire-and-forget” mutations if **`returns: v.null()`** already documents the API. Avoid redundant prose like “returns undefined” for async functions with no return value; **`Promise<void>`** in TypeScript is enough for helpers.
+- **`@returns` in TSDoc:** Always document the return type, **including** when the Convex/API surface is **`null`** (`returns: v.null()`), **`Promise<void>`** helpers, or “no value” completions—state what **`null`** means in domain terms or that the function completes without a useful return value (brief is fine; redundancy with the validator is acceptable).
 
 ---
 
@@ -70,7 +71,7 @@ This memo records **comment and documentation conventions for `convex/functions`
 
 ## Quick checklist (Convex function file)
 
-1. Module TSDoc at top.
+1. Module TSDoc at top (unless this file is a barrel-only `index.ts`; see **Module** above).
 2. TSDoc on every non-trivial function; helpers justified if tiny/obvious.
 3. Inline comments only where complexity warrants; **one line each**; verbs + domain meaning.
 4. Mutations: return only what callers need; avoid debug-shaped return payloads.
