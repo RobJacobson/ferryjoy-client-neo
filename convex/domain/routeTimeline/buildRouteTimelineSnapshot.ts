@@ -4,17 +4,15 @@
  */
 
 import type {
-  ConvexRouteTimelineBoundary,
-  ConvexRouteTimelineDockVisit,
   ConvexRouteTimelineScope,
   ConvexRouteTimelineSnapshot,
   ConvexRouteTimelineVessel,
 } from "../../functions/routeTimeline";
-import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
 import type { ConvexActualDockEvent } from "../events/actual/schemas";
 import type { ConvexPredictedDockEvent } from "../events/predicted/schemas";
 import type { ConvexScheduledDockEvent } from "../events/scheduled/schemas";
 import { mergeTimelineRows } from "../timelineRows";
+import { mergedEventsToWireDockVisits } from "./mergedEventsToWireDockVisits";
 
 export type BuildRouteTimelineSnapshotScopeInput = {
   VesselAbbrev?: string;
@@ -29,106 +27,6 @@ export type BuildRouteTimelineSnapshotArgs = {
   scheduledEvents: ConvexScheduledDockEvent[];
   actualEvents: ConvexActualDockEvent[];
   predictedEvents: ConvexPredictedDockEvent[];
-};
-
-/**
- * Maps one merged vessel timeline event into a route timeline boundary wire
- * row (no vessel/day/segment departure fields).
- *
- * @param event - Merged backbone event for one vessel/day
- * @returns Boundary shape stored on dock visits
- */
-const toRouteTimelineBoundary = (
-  event: ConvexVesselTimelineEvent
-): ConvexRouteTimelineBoundary => ({
-  Key: event.Key,
-  SegmentKey: event.SegmentKey,
-  TerminalAbbrev: event.TerminalAbbrev,
-  EventType: event.EventType,
-  EventScheduledTime: event.EventScheduledTime,
-  EventPredictedTime: event.EventPredictedTime,
-  EventOccurred: event.EventOccurred,
-  EventActualTime: event.EventActualTime,
-});
-
-/**
- * Builds ordered dock visits from merged boundary events using strict adjacent
- * boundary pairing. Does not merge across terminals or repair invalid seams.
- *
- * @param merged - Ordered merged events for one vessel/day
- * @param vesselAbbrev - Vessel owning these visits
- * @param sailingDay - Operational sailing day string
- * @returns Dock visits in merge order
- */
-const mergedEventsToDockVisits = (
-  merged: ConvexVesselTimelineEvent[],
-  vesselAbbrev: string,
-  sailingDay: string
-): ConvexRouteTimelineDockVisit[] => {
-  const visits: ConvexRouteTimelineDockVisit[] = [];
-  const dockVisitKey = (
-    arrival: ConvexRouteTimelineBoundary | undefined,
-    departure: ConvexRouteTimelineBoundary | undefined
-  ) => `${arrival?.Key ?? "none"}::${departure?.Key ?? "none"}`;
-
-  for (let index = 0; index < merged.length; index += 1) {
-    const event = merged[index];
-    if (!event) {
-      continue;
-    }
-
-    const terminalAbbrev = event.TerminalAbbrev;
-    const boundary = toRouteTimelineBoundary(event);
-    const previousEvent = index > 0 ? merged[index - 1] : undefined;
-    const nextEvent = merged[index + 1];
-    const hasPreviousArrivalPair =
-      previousEvent?.EventType === "arv-dock" &&
-      previousEvent.TerminalAbbrev === terminalAbbrev;
-
-    if (event.EventType === "arv-dock") {
-      if (
-        nextEvent?.EventType === "dep-dock" &&
-        nextEvent.TerminalAbbrev === terminalAbbrev
-      ) {
-        const departure = toRouteTimelineBoundary(nextEvent);
-        visits.push({
-          Key: dockVisitKey(boundary, departure),
-          VesselAbbrev: vesselAbbrev,
-          SailingDay: sailingDay,
-          TerminalAbbrev: terminalAbbrev,
-          Arrival: boundary,
-          Departure: departure,
-        });
-        index += 1;
-        continue;
-      }
-
-      visits.push({
-        Key: dockVisitKey(boundary, undefined),
-        VesselAbbrev: vesselAbbrev,
-        SailingDay: sailingDay,
-        TerminalAbbrev: terminalAbbrev,
-        Arrival: boundary,
-        Departure: undefined,
-      });
-      continue;
-    }
-
-    if (hasPreviousArrivalPair) {
-      continue;
-    }
-
-    visits.push({
-      Key: dockVisitKey(undefined, boundary),
-      VesselAbbrev: vesselAbbrev,
-      SailingDay: sailingDay,
-      TerminalAbbrev: terminalAbbrev,
-      Arrival: undefined,
-      Departure: boundary,
-    });
-  }
-
-  return visits;
 };
 
 /**
@@ -194,8 +92,8 @@ const vesselAbbrevsFromScheduled = (scheduled: ConvexScheduledDockEvent[]) =>
 
 /**
  * Computes snapshot scope including whether the caller narrowed the query.
- * `WindowStart` / `WindowEnd` are passed through for Stage 3; visit lists are
- * not clipped in Stage 2.
+ * `WindowStart` / `WindowEnd` are echoed on the wire scope only; this builder
+ * does not clip dock visits to those bounds.
  *
  * @param scope - Requested scope fields from the caller
  * @returns Full wire scope with `IsPartial`
@@ -253,7 +151,11 @@ export const buildRouteTimelineSnapshot = ({
       });
       return {
         VesselAbbrev: vesselAbbrev,
-        DockVisits: mergedEventsToDockVisits(merged, vesselAbbrev, SailingDay),
+        DockVisits: mergedEventsToWireDockVisits(
+          merged,
+          vesselAbbrev,
+          SailingDay
+        ),
       };
     }
   );

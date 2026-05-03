@@ -1,8 +1,9 @@
 /**
- * Pure adapter from `RouteTimelineModel` data to `VesselTimeline` render state.
+ * Builds `VesselTimelineRenderState` from route-timeline axis geometry produced
+ * by `deriveRouteTimelineAxisGeometry`. Shared with the event-row pipeline
+ * (`fromEventRows`) after spans and axis layout are computed.
  */
 
-import type { RouteTimelineSnapshot } from "convex/functions/routeTimeline";
 import type { TimelineActiveIndicator } from "@/components/timeline";
 import type { TimelineVisualTheme } from "@/components/timeline/theme";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
@@ -13,32 +14,17 @@ import type {
   TimelineRenderRow,
 } from "@/components/timeline/types";
 import {
-  deriveRouteTimelineAxisGeometry,
   getDisplayTime,
+  type RouteTimelineAxisGeometry,
   type RouteTimelineAxisSpan,
-  selectDockVisitVisualSpans,
-  selectVesselDockVisits,
 } from "@/features/RouteTimelineModel";
 import { clamp } from "@/shared/utils";
 import type { VesselLocation } from "@/types";
-import {
-  DEFAULT_VESSEL_TIMELINE_LAYOUT,
-  START_OF_DAY_DOCK_VISUAL_CAP_MINUTES,
-} from "../config";
+import { DEFAULT_VESSEL_TIMELINE_LAYOUT } from "../config";
 import type {
   VesselTimelineLayoutConfig,
   VesselTimelineRenderState,
 } from "../types";
-
-type RouteModelAdapterArgs = {
-  snapshot: RouteTimelineSnapshot | null;
-  vesselAbbrev: string;
-  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
-  vesselLocation?: VesselLocation | null;
-  now?: Date;
-  layout?: VesselTimelineLayoutConfig;
-  theme?: TimelineVisualTheme;
-};
 
 type AdapterRenderRow = {
   row: TimelineRenderRow;
@@ -47,45 +33,34 @@ type AdapterRenderRow = {
   startTerminalAbbrev?: string;
 };
 
+type BuildVesselTimelineRenderStateFromAxisGeometryArgs = {
+  axisGeometry: RouteTimelineAxisGeometry;
+  getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
+  vesselLocation?: VesselLocation | null;
+  now?: Date;
+  layout?: VesselTimelineLayoutConfig;
+  theme?: TimelineVisualTheme;
+};
+
 /**
- * Build a `VesselTimelineRenderState` from the route timeline model.
+ * Assembles rows, terminal cards, and active indicator from computed axis
+ * geometry (same mapping policy as the legacy route snapshot adapter).
  *
- * @param args - Route-model adapter args
- * @param args.snapshot - Cached route timeline snapshot
- * @param args.vesselAbbrev - Vessel scope for row selection
- * @param args.getTerminalNameByAbbrev - Terminal-name lookup for display copy
- * @param args.vesselLocation - Optional vessel location for active indicator
- * @param args.now - Optional active-indicator time source
- * @param args.layout - Optional feature layout override
- * @param args.theme - Optional shared timeline theme override
- * @returns Static render scaffold compatible with the existing timeline renderer
+ * @param args - Axis geometry plus presentation inputs
+ * @returns Feature render state for `VesselTimelineContent`
  */
-export const fromRouteTimelineModel = ({
-  snapshot,
-  vesselAbbrev,
+const buildVesselTimelineRenderStateFromAxisGeometry = ({
+  axisGeometry,
   getTerminalNameByAbbrev,
   vesselLocation = null,
   now = new Date(),
   layout = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   theme = BASE_TIMELINE_VISUAL_THEME,
-}: RouteModelAdapterArgs): VesselTimelineRenderState => {
-  const dockVisits = selectVesselDockVisits(snapshot, vesselAbbrev);
-  if (dockVisits.length === 0) {
+}: BuildVesselTimelineRenderStateFromAxisGeometryArgs): VesselTimelineRenderState => {
+  if (axisGeometry.spans.length === 0) {
     return buildEmptyRenderState(layout, theme);
   }
 
-  const spans = selectDockVisitVisualSpans(dockVisits);
-  if (spans.length === 0) {
-    return buildEmptyRenderState(layout, theme);
-  }
-
-  const axisGeometry = deriveRouteTimelineAxisGeometry(spans, {
-    rowHeightBasePx: layout.rowHeightBasePx,
-    rowHeightScalePx: layout.rowHeightScalePx,
-    rowHeightExponent: layout.rowHeightExponent,
-    minSpanHeightPx: layout.minRowHeightPx,
-    startOfDayDockVisualCapMinutes: START_OF_DAY_DOCK_VISUAL_CAP_MINUTES,
-  });
   const activeSpan = resolveActiveAxisSpan(axisGeometry.spans);
   const activeRowIndex = activeSpan
     ? axisGeometry.spans.findIndex((span) => span.id === activeSpan.id)
@@ -724,3 +699,8 @@ const shouldAnimateIndicator = (
   vesselLocation?.InService !== false &&
   vesselLocation?.AtDock !== true &&
   (vesselLocation?.Speed ?? 0) > INDICATOR_ANIMATION_SPEED_THRESHOLD;
+
+export {
+  buildEmptyRenderState,
+  buildVesselTimelineRenderStateFromAxisGeometry,
+};

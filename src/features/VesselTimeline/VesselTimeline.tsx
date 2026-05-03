@@ -1,8 +1,9 @@
 /**
  * Main VesselTimeline feature component.
  *
- * This component owns the vessel-day provider boundary and renders the
- * day-level timeline content from the backend-owned backbone query result.
+ * Owns the vessel-day provider boundary and renders the timeline from Convex
+ * event-row subscriptions (`ConvexVesselTimelineEventsProvider`). Route timeline
+ * data is still mounted for Stage 4 removal only.
  */
 
 import { useState } from "react";
@@ -16,7 +17,7 @@ import {
   ConvexVesselTimelineEventsProvider,
   useConvexVesselLocations,
 } from "@/data/contexts";
-import { useRouteModelVesselTimelinePresentationState } from "./hooks/useVesselTimelinePresentationState";
+import { useVesselTimelinePresentationState } from "./hooks/useVesselTimelinePresentationState";
 import { shouldWaitForVesselTimelineRouteScope } from "./pipelineMode";
 import { getVesselTimelineDataHostKey } from "./utils/hostKey";
 import { VesselTimelineContent } from "./VesselTimelineContent";
@@ -36,7 +37,8 @@ type VesselTimelineProps = {
  * @param props - Vessel timeline props
  * @param props.vesselAbbrev - Vessel abbreviation to display
  * @param props.sailingDay - Sailing day in YYYY-MM-DD format
- * @param props.routeAbbrev - Optional route abbreviation for route-model data
+ * @param props.routeAbbrev - Optional route abbreviation (route snapshot provider
+ *   still composed until Stage 4; presentation uses event rows)
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @returns Vessel-day timeline feature
  */
@@ -59,12 +61,14 @@ export const VesselTimeline = ({
 };
 
 /**
- * Hosts route timeline data providers for VesselTimeline presentation.
+ * Hosts Convex providers for VesselTimeline (event rows + route snapshot until
+ * Stage 4).
  *
  * @param props - Data-host props
  * @param props.vesselAbbrev - Vessel abbreviation to display
  * @param props.sailingDay - Sailing day in YYYY-MM-DD format
- * @param props.routeAbbrev - Optional route abbreviation for route-model data
+ * @param props.routeAbbrev - Optional route abbreviation (route snapshot provider
+ *   still composed until Stage 4; presentation uses event rows)
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @param props.theme - Optional timeline theme overrides
  * @returns Provider-mounted VesselTimeline presentation
@@ -124,28 +128,28 @@ const VesselTimelineDataHost = ({
         vesselAbbrev={vesselAbbrev}
         onRetry={retry}
       >
-        <RouteModelVesselTimelinePresentation now={now} theme={resolvedTheme} />
+        <VesselTimelinePresentation now={now} theme={resolvedTheme} />
       </ConvexRouteTimelineProvider>
     </ConvexVesselTimelineEventsProvider>
   );
 };
 
 /**
- * Renders route-model-backed VesselTimeline presentation state.
+ * Renders event-row-backed VesselTimeline presentation state.
  *
  * @param props - Presentation props
  * @param props.now - Optional wall-clock override for deterministic rendering
  * @param props.theme - Resolved visual theme for timeline rendering
  * @returns Loading, error, empty, or ready timeline UI
  */
-const RouteModelVesselTimelinePresentation = ({
+const VesselTimelinePresentation = ({
   now,
   theme,
 }: {
   now?: Date;
   theme: ReturnType<typeof createTimelineVisualTheme>;
 }) => {
-  const state = useRouteModelVesselTimelinePresentationState({
+  const state = useVesselTimelinePresentationState({
     now,
     theme,
   });
@@ -176,7 +180,7 @@ const VesselTimelinePresentationBody = ({
   emptyMessage: string | null;
   retry: () => void;
   renderState: ReturnType<
-    typeof useRouteModelVesselTimelinePresentationState
+    typeof useVesselTimelinePresentationState
   >["renderState"];
 }) => {
   if (isLoading) {
