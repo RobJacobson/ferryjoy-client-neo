@@ -107,10 +107,10 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
        * Stage 4: vessel-trip predictions
        *
        * Derives prediction-parameter load needs from `tripUpdate`, loads weights
-       * when required, enriches the active trip, and returns persistence
-       * proposals. Model loading is best-effort because ML is derived data.
+       * when required, and enriches the active trip. Model loading is
+       * best-effort because ML is derived data.
        */
-      const { predictionRows, enrichedActiveVesselTrip } =
+      const { enrichedActiveVesselTrip } =
         await getVesselTripPredictionsForTripUpdate(ctx, tripUpdate);
 
       /**
@@ -131,10 +131,10 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       /**
        * Stage 6: atomic per-vessel persistence
        *
-       * Persist trip, prediction, timeline, and optional `updateLeaveDockEventPatch`
-       * payload in one mutation transaction. If any write fails, this
-       * vessel branch rolls back as a unit and the next tick can retry from the
-       * latest durable state.
+       * Persist trip, timeline, and optional `updateLeaveDockEventPatch`
+       * payload in one mutation transaction. If any write fails, this vessel
+       * branch rolls back as a unit and the next tick can retry from the latest
+       * durable state.
        */
       await runPersistVesselUpdatesWithTripDeltas(
         ctx,
@@ -148,7 +148,6 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
             tripUpdate.completedVesselTrip === undefined
               ? undefined
               : stripVesselTripPredictions(tripUpdate.completedVesselTrip),
-          predictionRows: Array.from(predictionRows),
           actualEvents: Array.from(timelineRows.actualEvents),
           predictedEvents: Array.from(timelineRows.predictedEvents),
           updateLeaveDockEventPatch:

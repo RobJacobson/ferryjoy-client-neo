@@ -14,7 +14,8 @@ type PredictedDoc = {
     | "AtDockDepartNext"
     | "AtSeaDepartNext"
     | "AtDockDepartCurr"
-    | "AtSeaArriveNext";
+    | "AtSeaArriveNext"
+    | "AtDockArriveNext";
   PredictionSource: "ml" | "wsf_eta";
   Actual?: number;
   DeltaTotal?: number;
@@ -74,6 +75,52 @@ describe("upsertPredictedDockBatches", () => {
     ]);
 
     expect(deleteMock).toHaveBeenCalledTimes(0);
+  });
+
+  it("replaces stale at-dock depart-next rows when at-sea rows arrive", async () => {
+    const depKey = "TAC--2026-03-13--05:30--ANA-ORI--dep-dock";
+    const existingRows: PredictedDoc[] = [
+      {
+        _id: "pred-1" as Id<"eventsPredicted">,
+        Key: depKey,
+        VesselAbbrev: "TAC",
+        SailingDay: "2026-03-13",
+        ScheduledDeparture: 1000,
+        TerminalAbbrev: "ANA",
+        EventPredictedTime: 1210,
+        PredictionType: "AtDockDepartNext",
+        PredictionSource: "ml",
+      },
+    ];
+    const deleteMock = mock(async () => {});
+    const insertMock = mock(async () => "new-id" as Id<"eventsPredicted">);
+    const ctx = createCtx(existingRows, {
+      delete: deleteMock,
+      insert: insertMock,
+    });
+
+    await upsertPredictedDockBatches(ctx, [
+      {
+        VesselAbbrev: "TAC",
+        SailingDay: "2026-03-13",
+        TargetKeys: [depKey],
+        Rows: [
+          {
+            Key: depKey,
+            VesselAbbrev: "TAC",
+            SailingDay: "2026-03-13",
+            ScheduledDeparture: 1000,
+            TerminalAbbrev: "ANA",
+            EventPredictedTime: 1200,
+            PredictionType: "AtSeaDepartNext",
+            PredictionSource: "ml",
+          },
+        ],
+      },
+    ]);
+
+    expect(deleteMock).toHaveBeenCalledWith("pred-1");
+    expect(insertMock).toHaveBeenCalledTimes(1);
   });
 });
 

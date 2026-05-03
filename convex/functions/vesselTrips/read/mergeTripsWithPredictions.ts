@@ -94,8 +94,10 @@ const mergeTripPredictions = (
   };
 
   const AtDockDepartCurr = joined(depDockKey, "AtDockDepartCurr", "ml");
-  const AtDockArriveNext = joined(arvDockKey, "AtDockArriveNext", "ml");
   const AtSeaArriveNext = joined(arvDockKey, "AtSeaArriveNext", "ml");
+  const AtDockArriveNext = AtSeaArriveNext
+    ? undefined
+    : joined(arvDockKey, "AtDockArriveNext", "ml");
   const AtSeaDepartNext = joined(nextDepDockKey, "AtSeaDepartNext", "ml");
   const AtDockDepartNext = AtSeaDepartNext
     ? undefined

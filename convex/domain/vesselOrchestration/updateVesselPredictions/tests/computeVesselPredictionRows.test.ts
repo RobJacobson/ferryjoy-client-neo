@@ -75,7 +75,7 @@ const depsEmptyModels = {
 };
 
 describe("getVesselTripPredictionsFromTripUpdate", () => {
-  it("computes prediction rows and an enriched active trip from active trips", async () => {
+  it("computes an enriched active trip from active trips", async () => {
     const trip = makeTrip();
 
     const output = await getVesselTripPredictionsFromTripUpdate(
@@ -88,7 +88,6 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
       depsWithModels
     );
 
-    expect(output.predictionRows).toHaveLength(3);
     expect(output.enrichedActiveVesselTrip.AtDockDepartCurr?.PredTime).toBe(
       ms("2026-03-13T09:33:00-07:00")
     );
@@ -118,7 +117,6 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
       depsWithModels
     );
 
-    expect(output.predictionRows).toHaveLength(3);
     expect(output.enrichedActiveVesselTrip.TripKey).toBe(
       replacementTrip.TripKey
     );
@@ -127,7 +125,7 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
     );
   });
 
-  it("returns no prediction rows when prediction model parameters are empty", async () => {
+  it("returns the original trip when prediction model parameters are empty", async () => {
     const trip = makeTrip();
 
     const output = await getVesselTripPredictionsFromTripUpdate(
@@ -140,11 +138,10 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
       depsEmptyModels
     );
 
-    expect(output.predictionRows).toEqual([]);
     expect(output.enrichedActiveVesselTrip).toEqual(trip);
   });
 
-  it("continues without prediction rows when model loading fails", async () => {
+  it("continues with the original trip when model loading fails", async () => {
     const trip = makeTrip();
     const consoleErrorSpy = spyOn(console, "error").mockImplementation(
       () => {}
@@ -164,7 +161,6 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
       }
     );
 
-    expect(output.predictionRows).toEqual([]);
     expect(output.enrichedActiveVesselTrip).toEqual(trip);
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     mock.restore();

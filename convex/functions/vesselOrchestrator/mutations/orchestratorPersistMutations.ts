@@ -1,8 +1,8 @@
 /**
  * Internal mutations for vessel-orchestrator aggregate persistence.
  *
- * `persistVesselUpdates` applies trip, prediction, timeline, and optional
- * leave-dock patches in one transaction per vessel branch.
+ * `persistVesselUpdates` applies trip, timeline, and optional leave-dock
+ * patches in one transaction per vessel branch.
  */
 
 import { internalMutation } from "_generated/server";
@@ -14,8 +14,6 @@ import {
   upsertPredictedDockBatches,
 } from "functions/events/eventsPredicted/mutations";
 import { predictedDockWriteBatchSchema } from "functions/events/eventsPredicted/schemas";
-import { upsertPredictionProposals } from "functions/vesselTripPredictions/mutations";
-import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
 import {
   insertCompletedVesselTrip,
   upsertActiveVesselTrip,
@@ -31,10 +29,10 @@ const updateLeaveDockEventPatchSchema = v.object({
 /**
  * Persists all durable writes for one changed vessel in a single transaction.
  *
- * Trip upserts, prediction proposals, actual/predicted timeline rows, and
- * optional depart-next patches apply together or not at all for that vessel.
- * Callers assemble payloads in the action; this mutation performs ordered
- * writes only (no domain recompute).
+ * Trip upserts, actual/predicted timeline rows, and optional depart-next
+ * patches apply together or not at all for that vessel. Callers assemble
+ * payloads in the action; this mutation performs ordered writes only (no
+ * domain recompute).
  *
  * @param ctx - Convex mutation context
  * @param args - Persistence-ready rows produced by one vessel pipeline branch
@@ -45,7 +43,6 @@ export const persistVesselUpdates = internalMutation({
     vesselAbbrev: v.string(),
     activeVesselTrip: vesselTripStoredSchema,
     completedVesselTrip: v.optional(vesselTripStoredSchema),
-    predictionRows: v.array(vesselTripPredictionProposalSchema),
     actualEvents: v.array(eventsActualSchema),
     predictedEvents: v.array(predictedDockWriteBatchSchema),
     updateLeaveDockEventPatch: v.optional(updateLeaveDockEventPatchSchema),
@@ -57,10 +54,6 @@ export const persistVesselUpdates = internalMutation({
     }
 
     await upsertActiveVesselTrip(ctx, args.activeVesselTrip);
-
-    if (args.predictionRows.length > 0) {
-      await upsertPredictionProposals(ctx, args.predictionRows);
-    }
 
     if (args.actualEvents.length > 0) {
       await upsertActualDockRows(ctx, args.actualEvents);

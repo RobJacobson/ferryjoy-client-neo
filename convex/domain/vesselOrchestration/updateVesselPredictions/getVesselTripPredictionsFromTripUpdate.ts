@@ -1,6 +1,6 @@
 /**
- * Derives vessel-trip prediction proposal rows and an enriched active trip from
- * a trip update and optionally loaded prediction model parameters.
+ * Derives an ML-enriched active trip from a trip update and optionally loaded
+ * prediction model parameters.
  */
 
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
@@ -12,16 +12,15 @@ import type {
   VesselTripPredictionDeps,
   VesselTripPredictionsFromTripUpdateResult,
 } from "./types";
-import { vesselTripPredictionProposalsFromMlTrip } from "./vesselTripPredictionProposalsFromMlTrip";
 
 /**
  * Loads prediction parameters when needed, enriches the active trip with
- * phase-valid predictions, and returns persistence proposals plus the same
- * enriched active trip used by timeline assembly.
+ * phase-valid predictions, and returns the enriched active trip used by
+ * timeline assembly.
  *
  * @param tripUpdate - Sparse trip rows from `updateVesselTrip` for this branch
  * @param deps - Async loader for **`getPredictionModelParameters`** query results
- * @returns Prediction table rows and enriched active trip
+ * @returns Enriched active trip
  */
 export const getVesselTripPredictionsFromTripUpdate = async (
   tripUpdate: VesselTripUpdate,
@@ -43,13 +42,8 @@ export const getVesselTripPredictionsFromTripUpdate = async (
     activeTrip
   );
 
-  const predictionRows = vesselTripPredictionProposalsFromMlTrip(
-    enrichedActiveVesselTrip
-  );
-
   return {
     enrichedActiveVesselTrip,
-    predictionRows,
   };
 };
 

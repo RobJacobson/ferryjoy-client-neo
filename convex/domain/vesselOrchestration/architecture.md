@@ -16,14 +16,14 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions/updateVesselOrche
        updateVesselTrip -> VesselTripUpdate | null
        getVesselTripPredictionsFromTripUpdate (injected loadPredictionModelParameters → getPredictionModelParameters when needed)
        updateTimeline ({ pingStartedAt, tripUpdate, enrichedActiveVesselTrip })
-       persistVesselUpdates (one atomic mutation for trip, predictions, timeline, actualization)
+       persistVesselUpdates (one atomic mutation for trip, timeline, actualization)
 ```
 
 The trip and prediction stages run in the action per changed location row.
 Location dedupe and post-write **`activeTripsForChanged`** reads run in `bulkUpsertVesselLocations`; the action consumes that mutation's **`changedLocations`** and **`activeTripsForChanged`** return. Timeline projection (`updateTimeline`) runs
 in the action **before** persistence; `persistVesselUpdates` applies trip
-lifecycle writes, prediction proposals, projected actual/predicted dock rows,
-and optional depart-next actualization in one transaction per vessel.
+lifecycle writes, projected actual/predicted dock rows, and optional
+depart-next actualization in one transaction per vessel.
 
 ## Timestamp semantics (current code)
 

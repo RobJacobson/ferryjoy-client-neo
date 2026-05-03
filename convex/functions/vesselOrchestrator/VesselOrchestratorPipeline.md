@@ -43,9 +43,9 @@ hot path in `convex/functions/vesselOrchestrator`.
    - For each vessel:
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
      2. Domain **`updateLeaveDockEventPatch`** (`domain/vesselOrchestration/updateLeaveDockEventPatch`) produces an optional **`updateLeaveDockEventPatch`** payload on observed leave-dock transitions
-     3. Domain **`getVesselTripPredictionsFromTripUpdate`** loads prediction model parameters when **`getPredictionModelParametersFromTripUpdate`** is non-null (**`loadPredictionModelParameters`**), enriches the active trip, and returns **`predictionRows`** + **`enrichedActiveVesselTrip`**
+     3. Domain **`getVesselTripPredictionsFromTripUpdate`** loads prediction model parameters when **`getPredictionModelParametersFromTripUpdate`** is non-null (**`loadPredictionModelParameters`**) and returns **`enrichedActiveVesselTrip`**
      4. Domain **`updateTimeline`** takes **`{ pingStartedAt, tripUpdate, enrichedActiveVesselTrip }`**; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**), builds prediction overlay handoffs, then projects **`actualEvents`** / **`predictedEvents`**
-     5. **`persistVesselUpdates`** applies trip, prediction, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
+     5. **`persistVesselUpdates`** applies trip, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants
@@ -71,7 +71,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Per-vessel pipeline failures after dedupe are isolated inside the loop and do
   not stop the whole ping.
 - `persistVesselUpdates` is all-or-nothing for one vessel branch; any failed
-  trip, prediction, timeline, or actualization write rolls back that vessel's
+  trip, timeline, or actualization write rolls back that vessel's
   persistence mutation.
 - Per-vessel location upsert failures remain isolated inside
   `performBulkUpsertVesselLocations`.

@@ -148,7 +148,6 @@ describe("updateVesselOrchestrator ping integration", () => {
       "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
       enrichedActiveVesselTrip: activeTripWithMl,
-      predictionRows: [],
     });
     const timelineSpy = spyOn(
       updateTimelineModule,
@@ -229,7 +228,6 @@ describe("updateVesselOrchestrator ping integration", () => {
         AtDock: false,
         LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
       }),
-      predictionRows: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],
@@ -345,7 +343,6 @@ describe("updateVesselOrchestrator ping integration", () => {
       "getVesselTripPredictionsFromTripUpdate"
     ).mockResolvedValue({
       enrichedActiveVesselTrip: makeTrip("TAC"),
-      predictionRows: [],
     });
     spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
       actualEvents: [],

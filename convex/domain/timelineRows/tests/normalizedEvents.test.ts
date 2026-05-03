@@ -162,7 +162,7 @@ describe("buildPredictedDockWriteBatch", () => {
     expect(effect?.Rows.map((row) => row.Key)).toEqual(["trip-key--dep-dock"]);
   });
 
-  it("emits WSF ETA and ML arrival rows together on the current arrival boundary", () => {
+  it("emits WSF ETA and the best ML arrival row on the current arrival boundary", () => {
     const effect = buildPredictedDockWriteBatch(
       makeTrip({
         ScheduledDeparture: at(12, 20),
@@ -178,14 +178,17 @@ describe("buildPredictedDockWriteBatch", () => {
       (row) => row.Key === "trip-key--arv-dock"
     );
 
-    expect(arrivalRows).toHaveLength(3);
+    expect(arrivalRows).toHaveLength(2);
     expect(
       arrivalRows?.find((row) => row.PredictionSource === "wsf_eta")
         ?.EventPredictedTime
     ).toBe(at(12, 57));
-    expect(
-      arrivalRows?.filter((row) => row.PredictionSource === "ml")
-    ).toHaveLength(2);
+    expect(arrivalRows?.find((row) => row.PredictionSource === "ml")).toEqual(
+      expect.objectContaining({
+        EventPredictedTime: at(12, 58),
+        PredictionType: "AtSeaArriveNext",
+      })
+    );
   });
 
   it("emits an empty row set when a trip still owns prediction keys but has no predictions", () => {
