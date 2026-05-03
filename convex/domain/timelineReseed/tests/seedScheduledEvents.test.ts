@@ -77,6 +77,7 @@ describe("buildSeedVesselTripEventsFromRawSegments", () => {
           VesselName: "Tokitae",
           DepartingTerminalName: "Seattle",
           ArrivingTerminalName: "Bremerton",
+          ArrivingTerminalID: 3,
           DepartingTime: new Date(at(8, 35)),
           RouteID: 8,
           RouteAbbrev: "sea-br",
@@ -85,6 +86,8 @@ describe("buildSeedVesselTripEventsFromRawSegments", () => {
           VesselName: "Tokitae",
           DepartingTerminalName: "Bainbridge Island",
           ArrivingTerminalName: "Seattle",
+          DepartingTerminalID: 2,
+          ArrivingTerminalID: 4,
           DepartingTime: new Date(at(9, 20)),
           RouteID: 7,
           RouteAbbrev: "sea-bi",
@@ -282,7 +285,8 @@ const makeRawSegment = (
   overrides: Partial<RawWsfScheduleSegment>
 ): RawWsfScheduleSegment => ({
   VesselName: "Tokitae",
-  DepartingTerminalID: 1,
+  // IDs must match backendTerminals (resolveScheduleSegment resolves by ID).
+  DepartingTerminalID: 4,
   ArrivingTerminalID: 2,
   DepartingTerminalName: "Seattle",
   ArrivingTerminalName: "Bainbridge Island",

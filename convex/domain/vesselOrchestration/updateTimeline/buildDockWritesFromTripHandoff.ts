@@ -5,8 +5,8 @@
  * **Production contract:** `completedTripFacts` and `currentBranch` match the
  * lifecycle-shaped rows built from Stage C/D handoffs (see
  * `updateTimeline`), with ML-enriched trips where projection
- * needs them. Same-ping assembly must not reload `vesselTripPredictions` from the
- * DB; ML overlay application runs in `updateTimeline` after
+ * needs them. Same-ping assembly consumes the enriched trip directly; ML
+ * overlay application runs in `updateTimeline` after
  * `getVesselTripPredictionsFromTripUpdate`.
  *
  * @see `functions/vesselOrchestrator/actions` — `updateVesselOrchestrator` / `updateTimeline` caller

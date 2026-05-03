@@ -24,6 +24,16 @@ export type UnifiedTrip = {
   LeftDock?: number;
   PrevLeftDock: number;
   PrevScheduledDeparture: number;
+  /**
+   * Physical arrival at the departing terminal when `TripStart` may still
+   * carry a legacy mirror. Defaults to `TripStart` in `fromVesselTrip`.
+   */
+  OriginArrivalActual?: number;
+  /**
+   * Physical arrival at the destination terminal when `TripEnd` may still
+   * carry a legacy mirror. Defaults to `TripEnd` in `fromVesselTrip`.
+   */
+  DestinationArrivalActual?: number;
 };
 
 /**
@@ -66,5 +76,7 @@ export const fromVesselTrip = (
     LeftDock: trip.LeftDock,
     PrevScheduledDeparture: trip.PrevScheduledDeparture,
     PrevLeftDock: trip.PrevLeftDock,
+    OriginArrivalActual: trip.TripStart,
+    DestinationArrivalActual: trip.TripEnd,
   };
 };

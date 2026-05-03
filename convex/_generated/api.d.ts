@@ -30,6 +30,7 @@ import type * as domain_events_actual_schemas from "../domain/events/actual/sche
 import type * as domain_events_index from "../domain/events/index.js";
 import type * as domain_events_predicted from "../domain/events/predicted.js";
 import type * as domain_events_predicted_departNextActualization from "../domain/events/predicted/departNextActualization.js";
+import type * as domain_events_predicted_reconcilePredictedDockBatches from "../domain/events/predicted/reconcilePredictedDockBatches.js";
 import type * as domain_events_predicted_schemas from "../domain/events/predicted/schemas.js";
 import type * as domain_events_scheduled from "../domain/events/scheduled.js";
 import type * as domain_events_scheduled_schemas from "../domain/events/scheduled/schemas.js";
@@ -113,7 +114,6 @@ import type * as domain_vesselOrchestration_updateVesselPredictions_getVesselTri
 import type * as domain_vesselOrchestration_updateVesselPredictions_index from "../domain/vesselOrchestration/updateVesselPredictions/index.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_tripDockStatePredictionSpecs from "../domain/vesselOrchestration/updateVesselPredictions/tripDockStatePredictionSpecs.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_types from "../domain/vesselOrchestration/updateVesselPredictions/types.js";
-import type * as domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip from "../domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_index from "../domain/vesselOrchestration/updateVesselTrip/index.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_buildActiveTrip from "../domain/vesselOrchestration/updateVesselTrip/pipeline/buildActiveTrip.js";
 import type * as domain_vesselOrchestration_updateVesselTrip_pipeline_buildCompleteTrip from "../domain/vesselOrchestration/updateVesselTrip/pipeline/buildCompleteTrip.js";
@@ -227,12 +227,6 @@ import type * as functions_vesselTimeline_sync_index from "../functions/vesselTi
 import type * as functions_vesselTimeline_sync_reseedVesselTimelineForDate from "../functions/vesselTimeline/sync/reseedVesselTimelineForDate.js";
 import type * as functions_vesselTimeline_sync_syncWindowedVesselTimeline from "../functions/vesselTimeline/sync/syncWindowedVesselTimeline.js";
 import type * as functions_vesselTimeline_sync_types from "../functions/vesselTimeline/sync/types.js";
-import type * as functions_vesselTripPredictions_index from "../functions/vesselTripPredictions/index.js";
-import type * as functions_vesselTripPredictions_mutations from "../functions/vesselTripPredictions/mutations.js";
-import type * as functions_vesselTripPredictions_predictionOverlayCompare from "../functions/vesselTripPredictions/predictionOverlayCompare.js";
-import type * as functions_vesselTripPredictions_queries from "../functions/vesselTripPredictions/queries.js";
-import type * as functions_vesselTripPredictions_schemas from "../functions/vesselTripPredictions/schemas.js";
-import type * as functions_vesselTripPredictions_vesselTripPredictionPersistPlan from "../functions/vesselTripPredictions/vesselTripPredictionPersistPlan.js";
 import type * as functions_vesselTrips_columnAudit from "../functions/vesselTrips/columnAudit.js";
 import type * as functions_vesselTrips_mutations from "../functions/vesselTrips/mutations.js";
 import type * as functions_vesselTrips_queries from "../functions/vesselTrips/queries.js";
@@ -285,6 +279,7 @@ declare const fullApi: ApiFromModules<{
   "domain/events/index": typeof domain_events_index;
   "domain/events/predicted": typeof domain_events_predicted;
   "domain/events/predicted/departNextActualization": typeof domain_events_predicted_departNextActualization;
+  "domain/events/predicted/reconcilePredictedDockBatches": typeof domain_events_predicted_reconcilePredictedDockBatches;
   "domain/events/predicted/schemas": typeof domain_events_predicted_schemas;
   "domain/events/scheduled": typeof domain_events_scheduled;
   "domain/events/scheduled/schemas": typeof domain_events_scheduled_schemas;
@@ -368,7 +363,6 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselPredictions/index": typeof domain_vesselOrchestration_updateVesselPredictions_index;
   "domain/vesselOrchestration/updateVesselPredictions/tripDockStatePredictionSpecs": typeof domain_vesselOrchestration_updateVesselPredictions_tripDockStatePredictionSpecs;
   "domain/vesselOrchestration/updateVesselPredictions/types": typeof domain_vesselOrchestration_updateVesselPredictions_types;
-  "domain/vesselOrchestration/updateVesselPredictions/vesselTripPredictionProposalsFromMlTrip": typeof domain_vesselOrchestration_updateVesselPredictions_vesselTripPredictionProposalsFromMlTrip;
   "domain/vesselOrchestration/updateVesselTrip/index": typeof domain_vesselOrchestration_updateVesselTrip_index;
   "domain/vesselOrchestration/updateVesselTrip/pipeline/buildActiveTrip": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_buildActiveTrip;
   "domain/vesselOrchestration/updateVesselTrip/pipeline/buildCompleteTrip": typeof domain_vesselOrchestration_updateVesselTrip_pipeline_buildCompleteTrip;
@@ -482,12 +476,6 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselTimeline/sync/reseedVesselTimelineForDate": typeof functions_vesselTimeline_sync_reseedVesselTimelineForDate;
   "functions/vesselTimeline/sync/syncWindowedVesselTimeline": typeof functions_vesselTimeline_sync_syncWindowedVesselTimeline;
   "functions/vesselTimeline/sync/types": typeof functions_vesselTimeline_sync_types;
-  "functions/vesselTripPredictions/index": typeof functions_vesselTripPredictions_index;
-  "functions/vesselTripPredictions/mutations": typeof functions_vesselTripPredictions_mutations;
-  "functions/vesselTripPredictions/predictionOverlayCompare": typeof functions_vesselTripPredictions_predictionOverlayCompare;
-  "functions/vesselTripPredictions/queries": typeof functions_vesselTripPredictions_queries;
-  "functions/vesselTripPredictions/schemas": typeof functions_vesselTripPredictions_schemas;
-  "functions/vesselTripPredictions/vesselTripPredictionPersistPlan": typeof functions_vesselTripPredictions_vesselTripPredictionPersistPlan;
   "functions/vesselTrips/columnAudit": typeof functions_vesselTrips_columnAudit;
   "functions/vesselTrips/mutations": typeof functions_vesselTrips_mutations;
   "functions/vesselTrips/queries": typeof functions_vesselTrips_queries;

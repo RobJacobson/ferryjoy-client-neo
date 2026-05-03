@@ -1,11 +1,10 @@
 /**
- * Public contracts for vessel-trip predictions: prediction-parameter lookup
- * shapes and the combined result passed to persistence and timeline assembly.
+ * Public contracts for vessel-trip prediction enrichment: model-parameter
+ * lookup shapes and the enriched trip passed to timeline assembly.
  */
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
 import type { ModelType } from "domain/ml/shared/types";
-import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 /**
@@ -41,10 +40,9 @@ export type VesselTripPredictionDeps = {
 };
 
 /**
- * Outcome of enriching the active trip from prediction parameters and deriving
- * persistence rows. Timeline overlay construction belongs to updateTimeline.
+ * Outcome of enriching the active trip from prediction parameters.
+ * Timeline overlay construction belongs to updateTimeline.
  */
 export type VesselTripPredictionsFromTripUpdateResult = {
   enrichedActiveVesselTrip: ConvexVesselTripWithML;
-  predictionRows: ReadonlyArray<VesselTripPredictionProposal>;
 };

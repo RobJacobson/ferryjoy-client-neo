@@ -11,6 +11,8 @@ const makeTrip = (overrides: Partial<UnifiedTrip> = {}): UnifiedTrip => ({
   ArrivingTerminalAbbrev: "VAI",
   TripStart: ms("2026-03-13T09:30:00-07:00"),
   TripEnd: ms("2026-03-13T11:05:00-07:00"),
+  OriginArrivalActual: ms("2026-03-13T09:30:00-07:00"),
+  DestinationArrivalActual: ms("2026-03-13T11:05:00-07:00"),
   LeftDockActual: ms("2026-03-13T10:05:00-07:00"),
   ScheduledDeparture: ms("2026-03-13T10:00:00-07:00"),
   LeftDock: ms("2026-03-13T10:45:00-07:00"),
@@ -26,6 +28,8 @@ describe("extractFeatures", () => {
       TripStart: ms("2026-03-13T06:10:00-07:00"),
       TripEnd: ms("2026-03-13T13:45:00-07:00"),
       LeftDock: ms("2026-03-13T10:50:00-07:00"),
+      OriginArrivalActual: ms("2026-03-13T09:30:00-07:00"),
+      DestinationArrivalActual: ms("2026-03-13T11:05:00-07:00"),
     });
 
     const canonicalFeatures = extractFeatures(canonical);

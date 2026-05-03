@@ -175,26 +175,28 @@ const getCurrentArrivalPredictions = (
     );
   }
 
-  if (trip.AtSeaArriveNext) {
-    rows.push(
-      buildPredictedBoundaryEvent({
-        ...base,
-        EventPredictedTime: trip.AtSeaArriveNext.PredTime,
-        PredictionType: "AtSeaArriveNext" as PredictionType,
-        PredictionSource: "ml" as ConvexPredictionSource,
-        ...predictionActualFields(trip.AtSeaArriveNext),
-      })
-    );
-  }
+  const bestMlArrivalPrediction =
+    (trip.AtSeaArriveNext
+      ? {
+          prediction: trip.AtSeaArriveNext,
+          PredictionType: "AtSeaArriveNext" as PredictionType,
+        }
+      : null) ??
+    (trip.AtDockArriveNext
+      ? {
+          prediction: trip.AtDockArriveNext,
+          PredictionType: "AtDockArriveNext" as PredictionType,
+        }
+      : null);
 
-  if (trip.AtDockArriveNext) {
+  if (bestMlArrivalPrediction) {
     rows.push(
       buildPredictedBoundaryEvent({
         ...base,
-        EventPredictedTime: trip.AtDockArriveNext.PredTime,
-        PredictionType: "AtDockArriveNext" as PredictionType,
+        EventPredictedTime: bestMlArrivalPrediction.prediction.PredTime,
+        PredictionType: bestMlArrivalPrediction.PredictionType,
         PredictionSource: "ml" as ConvexPredictionSource,
-        ...predictionActualFields(trip.AtDockArriveNext),
+        ...predictionActualFields(bestMlArrivalPrediction.prediction),
       })
     );
   }

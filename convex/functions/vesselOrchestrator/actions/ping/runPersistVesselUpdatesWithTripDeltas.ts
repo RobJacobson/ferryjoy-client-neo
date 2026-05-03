@@ -10,7 +10,6 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
-import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 
 /** Stored trip fields that hold epoch ms wall-clock instants (not durations). */
@@ -46,7 +45,6 @@ export const runPersistVesselUpdatesWithTripDeltas = async (
     vesselAbbrev: string;
     activeVesselTrip: ConvexVesselTrip;
     completedVesselTrip?: ConvexVesselTrip;
-    predictionRows: VesselTripPredictionProposal[];
     actualEvents: ConvexActualDockEvent[];
     predictedEvents: ConvexPredictedDockWriteBatch[];
     updateLeaveDockEventPatch?: {

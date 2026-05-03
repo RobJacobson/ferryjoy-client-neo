@@ -1,13 +1,12 @@
 /**
  * Tests `persistVesselUpdates`: handler ordering and delegation to nested
- * upsert helpers (active/completed trip, predictions, timeline rows, patches).
+ * upsert helpers (active/completed trip, timeline rows, patches).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { MutationCtx } from "_generated/server";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
-import type { VesselTripPredictionProposal } from "functions/vesselTripPredictions/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
 import { persistVesselUpdates } from "../mutations";
@@ -18,7 +17,6 @@ type PersistVesselUpdatesHandler = (
     vesselAbbrev: string;
     activeVesselTrip: ConvexVesselTrip;
     completedVesselTrip?: ConvexVesselTrip;
-    predictionRows: VesselTripPredictionProposal[];
     actualEvents: ConvexActualDockEvent[];
     predictedEvents: ConvexPredictedDockWriteBatch[];
     updateLeaveDockEventPatch?: {
@@ -65,21 +63,6 @@ const makeTrip = (
   NextScheduleKey: undefined,
   NextScheduledDeparture: undefined,
   ...overrides,
-});
-
-const makePrediction = (
-  vesselAbbrev: string
-): VesselTripPredictionProposal => ({
-  VesselAbbrev: vesselAbbrev,
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
-  PredictionType: "AtDockDepartNext",
-  prediction: {
-    PredTime: ms("2026-03-13T05:35:00-07:00"),
-    MinTime: ms("2026-03-13T05:30:00-07:00"),
-    MaxTime: ms("2026-03-13T05:40:00-07:00"),
-    MAE: 3,
-    StdDev: 2,
-  },
 });
 
 const makeActualEvent = (vesselAbbrev: string): ConvexActualDockEvent => ({
@@ -168,7 +151,6 @@ describe("persistVesselUpdates", () => {
     await handler(makeCtx(writes), {
       vesselAbbrev: "CHE",
       activeVesselTrip: makeTrip("CHE"),
-      predictionRows: [],
       actualEvents: [],
       predictedEvents: [],
     });
@@ -179,7 +161,7 @@ describe("persistVesselUpdates", () => {
     ]);
   });
 
-  it("persists completed, active, prediction, timeline, and updateLeaveDockEventPatch in order", async () => {
+  it("persists completed, active, timeline, and updateLeaveDockEventPatch in order", async () => {
     const writes: string[] = [];
 
     await handler(makeCtx(writes), {
@@ -188,7 +170,6 @@ describe("persistVesselUpdates", () => {
       completedVesselTrip: makeTrip("CHE", {
         TripEnd: ms("2026-03-13T06:28:45-07:00"),
       }),
-      predictionRows: [makePrediction("CHE")],
       actualEvents: [makeActualEvent("CHE")],
       predictedEvents: [makePredictedBatch("CHE")],
       updateLeaveDockEventPatch: {
@@ -202,8 +183,6 @@ describe("persistVesselUpdates", () => {
       "insert:completedVesselTrips",
       "query:activeVesselTrips.by_vessel_abbrev.first",
       "insert:activeVesselTrips",
-      "query:vesselTripPredictions.by_vessel_trip_and_field.unique",
-      "insert:vesselTripPredictions",
       "query:eventsActual.by_event_key.unique",
       "insert:eventsActual",
       "query:eventsPredicted.by_vessel_and_sailing_day.collect",
@@ -217,13 +196,12 @@ describe("persistVesselUpdates", () => {
     const writes: string[] = [];
 
     await expect(
-      handler(makeCtx(writes, { failOnInsertTable: "vesselTripPredictions" }), {
+      handler(makeCtx(writes, { failOnInsertTable: "eventsPredicted" }), {
         vesselAbbrev: "CHE",
         activeVesselTrip: makeTrip("CHE"),
-        predictionRows: [makePrediction("CHE")],
         actualEvents: [],
-        predictedEvents: [],
+        predictedEvents: [makePredictedBatch("CHE")],
       })
-    ).rejects.toThrow("simulated vesselTripPredictions insert failure");
+    ).rejects.toThrow("simulated eventsPredicted insert failure");
   });
 });

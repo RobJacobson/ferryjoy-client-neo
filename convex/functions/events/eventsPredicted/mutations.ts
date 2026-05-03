@@ -3,16 +3,14 @@
  * depart-next actualization when a departure boundary is observed.
  */
 
-import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { DEPART_NEXT_ML_PREDICTION_TYPES } from "domain/events/predicted/departNextActualization";
-import { predictedDockCompositeKey } from "domain/events/predicted/schemas";
-import { buildVesselSailingDayScopeKey } from "shared/keys";
+import {
+  mergePredictedDockWriteBatchesByScope,
+  planPredictedDockScopeReconciliation,
+} from "domain/events/predicted/reconcilePredictedDockBatches";
 import { getRoundedMinutesDelta } from "shared/time";
-import type {
-  ConvexPredictedDockEvent,
-  ConvexPredictedDockWriteRow,
-} from "./schemas";
+import type { ConvexPredictedDockWriteRow } from "./schemas";
 
 /**
  * Reconciles predicted dock rows for one or more vessel/sailing-day scopes.
@@ -34,43 +32,7 @@ export const upsertPredictedDockBatches = async (
   }>
 ): Promise<void> => {
   const updatedAt = Date.now();
-  // Merges inbound batches that share vessel/day into one scope before DB work.
-  const batchesByScope = new Map<
-    string,
-    {
-      VesselAbbrev: string;
-      SailingDay: string;
-      TargetKeys: Set<string>;
-      RowsByComposite: Map<string, ConvexPredictedDockWriteRow>;
-    }
-  >();
-
-  for (const batch of batches) {
-    const scopeKey = buildVesselSailingDayScopeKey(
-      batch.VesselAbbrev,
-      batch.SailingDay
-    );
-    const existingScope = batchesByScope.get(scopeKey);
-
-    if (existingScope) {
-      for (const targetKey of batch.TargetKeys) {
-        existingScope.TargetKeys.add(targetKey);
-      }
-      for (const row of batch.Rows) {
-        existingScope.RowsByComposite.set(predictedDockCompositeKey(row), row);
-      }
-      continue;
-    }
-
-    batchesByScope.set(scopeKey, {
-      VesselAbbrev: batch.VesselAbbrev,
-      SailingDay: batch.SailingDay,
-      TargetKeys: new Set(batch.TargetKeys),
-      RowsByComposite: new Map(
-        batch.Rows.map((row) => [predictedDockCompositeKey(row), row])
-      ),
-    });
-  }
+  const batchesByScope = mergePredictedDockWriteBatchesByScope(batches);
 
   for (const batch of batchesByScope.values()) {
     if (batch.TargetKeys.size === 0) {
@@ -87,93 +49,25 @@ export const upsertPredictedDockBatches = async (
       )
       .collect();
 
-    // Indexes stored rows by composite key so incoming rows resolve inserts vs replaces.
-    const existingByComposite = new Map(
-      existingRows.map((row) => [predictedDockCompositeKey(row), row])
-    );
+    const plan = planPredictedDockScopeReconciliation({
+      scope: batch,
+      existingRows,
+      updatedAt,
+    });
 
-    const incomingIds = new Set(batch.RowsByComposite.keys());
-
-    // Deletes rows missing from payload under TargetKeys unless ML depart-next guard skips delete.
-    for (const existing of existingRows) {
-      if (!batch.TargetKeys.has(existing.Key)) {
-        continue;
-      }
-      const id = predictedDockCompositeKey(existing);
-      if (!incomingIds.has(id)) {
-        if (shouldPreserveDepartNextMlRow(existing)) {
-          continue;
-        }
-        await ctx.db.delete(existing._id);
-        existingByComposite.delete(id);
-      }
+    for (const id of plan.deletes) {
+      await ctx.db.delete(id);
     }
 
-    // Upserts each incoming row under TargetKeys using shared UpdatedAt and equality skips.
-    for (const row of batch.RowsByComposite.values()) {
-      if (!batch.TargetKeys.has(row.Key)) {
-        continue;
-      }
+    for (const row of plan.inserts) {
+      await ctx.db.insert("eventsPredicted", row);
+    }
 
-      const nextRow: ConvexPredictedDockEvent = {
-        ...row,
-        UpdatedAt: updatedAt,
-      };
-
-      const id = predictedDockCompositeKey(row);
-      const existing = existingByComposite.get(id);
-
-      if (!existing) {
-        await ctx.db.insert("eventsPredicted", nextRow);
-        continue;
-      }
-
-      if (predictedRowsEqual(existing, nextRow)) {
-        continue;
-      }
-
-      await ctx.db.replace(existing._id, nextRow);
+    for (const replacement of plan.replacements) {
+      await ctx.db.replace(replacement.existingId, replacement.row);
     }
   }
 };
-
-/**
- * Returns whether a stored prediction matches the candidate replacement row.
- *
- * Ignores Convex metadata; skips redundant replaces when ML/ETA fields match.
- *
- * @param left - Document already in `eventsPredicted`
- * @param right - Candidate row including `UpdatedAt`
- * @returns `true` when storage should stay unchanged
- */
-const predictedRowsEqual = (
-  left: Doc<"eventsPredicted">,
-  right: ConvexPredictedDockEvent
-) =>
-  left.Key === right.Key &&
-  left.VesselAbbrev === right.VesselAbbrev &&
-  left.SailingDay === right.SailingDay &&
-  left.ScheduledDeparture === right.ScheduledDeparture &&
-  left.TerminalAbbrev === right.TerminalAbbrev &&
-  left.EventPredictedTime === right.EventPredictedTime &&
-  left.PredictionType === right.PredictionType &&
-  left.PredictionSource === right.PredictionSource &&
-  left.Actual === right.Actual &&
-  left.DeltaTotal === right.DeltaTotal;
-
-/**
- * Returns whether sparse-batch deletion must skip this depart-next ML row.
- *
- * Incomplete batches omit rows; guard prevents wiping predictions still in flight.
- *
- * @param row - Existing `eventsPredicted` document
- * @returns `true` when this row must not be deleted for omission alone
- */
-const shouldPreserveDepartNextMlRow = (row: Doc<"eventsPredicted">): boolean =>
-  row.PredictionSource === "ml" &&
-  DEPART_NEXT_ML_PREDICTION_TYPES.includes(
-    row.PredictionType as (typeof DEPART_NEXT_ML_PREDICTION_TYPES)[number]
-  );
 
 /**
  * For each depart-next ML prediction type at `depKey`, sets `Actual` and

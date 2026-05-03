@@ -1,6 +1,6 @@
 /**
  * **updateVesselPredictions** — Prediction model-backed trip enrichment and
- * `vesselTripPredictions` proposal rows for the orchestrator.
+ * in-memory ML fields for the orchestrator.
  *
  * **Public surface**
  * - {@link getVesselTripPredictionsFromTripUpdate} — domain entry (inject

@@ -6,8 +6,8 @@ This subtree owns Convex-facing persistence modules for the event tables.
 
 - one folder per table
 - `shared/` is only for persistence helpers shared across the event tables
-- no business logic here
-- no imports from `convex/domain/`
+- keep business policy in `convex/domain/`; mutation helpers may call pure
+  domain planners and then apply the resulting DB operations
 
 ## Tables
 

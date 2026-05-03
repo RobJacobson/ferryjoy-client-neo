@@ -68,17 +68,19 @@ export function extractFeatures(trip: UnifiedTrip) {
   const estimatedArrivalAtDepartingTerminal =
     trip.PrevScheduledDeparture + prevLegMeanAtSeaMinutes * 60000;
 
+  // Coverage / physical split: slack and segment durations use physical boundary
+  // actuals. Prefer explicit origin/destination arrival actuals when `TripStart` /
+  // `TripEnd` still carry legacy mirrors (`fromVesselTrip` seeds these from the
+  // canonical trip fields).
+  const arriveOriginMs = trip.OriginArrivalActual ?? trip.TripStart;
+  const departOriginMs = trip.LeftDockActual;
+  const arriveDestMs = trip.DestinationArrivalActual ?? trip.TripEnd;
+
   // Measure how actual arrival deviated from the expected schedule-based arrival
   const arrivalVsEstimatedScheduleMinutes = getMinutesDelta(
     estimatedArrivalAtDepartingTerminal,
-    trip.TripStart
+    arriveOriginMs
   );
-
-  // Coverage / physical split: slack is schedule-based, but it is anchored to
-  // the canonical origin-arrival actual rather than the legacy TripStart alias.
-  const arriveOriginMs = trip.TripStart;
-  const departOriginMs = trip.LeftDockActual;
-  const arriveDestMs = trip.TripEnd;
 
   // Calculate slack time: available time between arrival and scheduled departure
   // - slackBeforeDepartureMinutes: how many minutes between dock arrival and sched depart (>= 0)
