@@ -1,5 +1,7 @@
 /**
- * Convex validators and key constants for the generic keyValueStore table.
+ * Validators, document shapes, and stable key strings for the generic
+ * `keyValueStore` table. Schema imports use `keyValueStoreSchema`; Convex
+ * functions import constants here so config keys stay centralized.
  */
 
 import type { Infer } from "convex/values";
@@ -7,10 +9,6 @@ import { v } from "convex/values";
 
 /** Active ML production model version tag (string or null when unset). */
 export const KEY_PRODUCTION_VERSION_TAG = "productionVersionTag" as const;
-
-/** Epoch ms of last scheduled-trips sync (used by setup / tooling). */
-export const KEY_LAST_SCHEDULED_TRIPS_SYNC_DATE =
-  "lastScheduledTripsSyncDate" as const;
 
 export const keyValueStoreValueValidator = v.union(
   v.string(),

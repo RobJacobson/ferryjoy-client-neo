@@ -148,10 +148,8 @@ import type * as functions_events_eventsScheduled_queries from "../functions/eve
 import type * as functions_events_eventsScheduled_schemas from "../functions/events/eventsScheduled/schemas.js";
 import type * as functions_events_shared_actualDockRowsEqual from "../functions/events/shared/actualDockRowsEqual.js";
 import type * as functions_index from "../functions/index.js";
-import type * as functions_keyValueStore_actions from "../functions/keyValueStore/actions.js";
 import type * as functions_keyValueStore_helpers from "../functions/keyValueStore/helpers.js";
 import type * as functions_keyValueStore_index from "../functions/keyValueStore/index.js";
-import type * as functions_keyValueStore_migrations from "../functions/keyValueStore/migrations.js";
 import type * as functions_keyValueStore_mutations from "../functions/keyValueStore/mutations.js";
 import type * as functions_keyValueStore_queries from "../functions/keyValueStore/queries.js";
 import type * as functions_keyValueStore_schemas from "../functions/keyValueStore/schemas.js";
@@ -397,10 +395,8 @@ declare const fullApi: ApiFromModules<{
   "functions/events/eventsScheduled/schemas": typeof functions_events_eventsScheduled_schemas;
   "functions/events/shared/actualDockRowsEqual": typeof functions_events_shared_actualDockRowsEqual;
   "functions/index": typeof functions_index;
-  "functions/keyValueStore/actions": typeof functions_keyValueStore_actions;
   "functions/keyValueStore/helpers": typeof functions_keyValueStore_helpers;
   "functions/keyValueStore/index": typeof functions_keyValueStore_index;
-  "functions/keyValueStore/migrations": typeof functions_keyValueStore_migrations;
   "functions/keyValueStore/mutations": typeof functions_keyValueStore_mutations;
   "functions/keyValueStore/queries": typeof functions_keyValueStore_queries;
   "functions/keyValueStore/schemas": typeof functions_keyValueStore_schemas;

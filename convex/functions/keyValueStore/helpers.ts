@@ -1,19 +1,21 @@
 /**
- * Shared database helpers for the keyValueStore table (queries and mutations).
+ * Shared helpers for reading and writing the `keyValueStore` table. Mutations,
+ * queries, and domain code import these to keep keyed lookups and upserts
+ * consistent (single place for table name, index usage, and ML config keys).
  */
 
 import type { MutationCtx, QueryCtx } from "_generated/server";
 import { KEY_PRODUCTION_VERSION_TAG, type KeyValueStore } from "./schemas";
 
 /**
- * Loads a single `keyValueStore` document by string key.
+ * Returns the `keyValueStore` row for a given key, if it exists.
  *
- * Uses the `by_key` index for O(1) lookups shared by mutations, queries, and
- * config helpers such as `getProductionVersionTagValue`.
+ * At most one document should exist per `key`; callers use this for config and
+ * tooling reads (including `getProductionVersionTagValue`).
  *
  * @param ctx - Convex query or mutation context
- * @param key - Document key
- * @returns The matching row, or `null` if missing
+ * @param key - Logical config key stored in the `key` field
+ * @returns The matching row, or `null` if no document exists for `key`
  */
 export const fetchEntryByKey = async (
   ctx: QueryCtx | MutationCtx,
@@ -27,14 +29,14 @@ export const fetchEntryByKey = async (
 /**
  * Inserts or replaces one `keyValueStore` row for a key.
  *
- * When a row exists, replaces in place; otherwise inserts. `updatedAtMs` defaults
- * to `Date.now()` so callers can align clocks across related writes.
+ * When a row exists, replaces it in place; otherwise inserts. `updatedAtMs`
+ * defaults to `Date.now()` so callers can align timestamps across related writes.
  *
  * @param ctx - Convex mutation context
  * @param key - Document key
  * @param value - Stored value (string, number, boolean, or null)
  * @param updatedAtMs - Epoch ms for `updatedAt` (defaults to now)
- * @returns `undefined` after the matching row is inserted or replaced
+ * @returns Resolves with no value when the insert or replace has finished
  */
 export const upsertByKey = async (
   ctx: MutationCtx,
@@ -56,15 +58,16 @@ export const upsertByKey = async (
 /**
  * Reads the active ML production version tag from `keyValueStore`.
  *
- * Uses `KEY_PRODUCTION_VERSION_TAG`; coerces stored value to string or returns
- * `null` when the key is absent so prediction queries can short-circuit safely.
+ * Uses `KEY_PRODUCTION_VERSION_TAG`; returns the stored value only when it is a
+ * string, otherwise `null` (missing key or unexpected scalar shape) so prediction
+ * queries can short-circuit safely.
  *
  * @param ctx - Convex query or mutation context
- * @returns Production version tag string, or `null` when unset
+ * @returns Production version tag string, or `null` when unset or not a string
  */
 export const getProductionVersionTagValue = async (
   ctx: QueryCtx | MutationCtx
 ): Promise<string | null> => {
   const entry = await fetchEntryByKey(ctx, KEY_PRODUCTION_VERSION_TAG);
-  return (entry?.value as string | null) ?? null;
+  return typeof entry?.value === "string" ? entry.value : null;
 };

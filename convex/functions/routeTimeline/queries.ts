@@ -25,7 +25,7 @@ import { routeTimelineSnapshotSchema } from "./schemas";
  * @param args.WindowEnd - Optional epoch ms; echoed on `Scope` only
  * @returns Wire `RouteTimelineSnapshot` for the requested scope
  */
-export const getRouteTimelineSnapshot = query({
+const getRouteTimelineSnapshot = query({
   args: {
     RouteAbbrev: v.string(),
     SailingDay: v.string(),
@@ -56,3 +56,5 @@ export const getRouteTimelineSnapshot = query({
     });
   },
 });
+
+export { getRouteTimelineSnapshot };

@@ -1,10 +1,11 @@
 /**
- * Loads scheduled/actual/predicted dock events for a route and sailing day by
- * discovering vessels from `scheduledTrips`, then indexed per-vessel reads.
+ * Scheduled, actual, and predicted dock event inputs for route timeline
+ * snapshots.
  *
- * Vessel membership is route-scoped. Scheduled event rows are narrowed back to
- * route-owned segment keys after per-vessel loads; actual/predicted rows remain
- * full vessel-day inputs so `mergeTimelineRows` can attach matching overlays.
+ * Discovers vessels from `scheduledTrips`, runs indexed per-vessel reads,
+ * narrows scheduled rows to route segment keys, and strips metadata for the
+ * domain builder. Actual and predicted rows stay full vessel-day inputs so
+ * `mergeTimelineRows` can attach matching overlays.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -30,22 +31,6 @@ export type LoadRouteTimelineSnapshotInputsResult = {
 };
 
 /**
- * Returns distinct vessel codes for one route/day from scheduled trips.
- *
- * Sorts abbreviations lexicographically so downstream merging and UI ordering
- * stay stable across reads.
- *
- * @param trips - Rows from `scheduledTrips` for one route and sailing day
- * @returns Sorted unique `VesselAbbrev` values
- */
-const vesselAbbrevsFromScheduledTrips = (
-  trips: { VesselAbbrev: string }[]
-): string[] =>
-  [...new Set(trips.map((t) => t.VesselAbbrev))].sort((a, b) =>
-    a.localeCompare(b)
-  );
-
-/**
  * Returns segment keys owned by scheduled trips for one route/day.
  *
  * After loading full vessel-day `eventsScheduled` rows, filters back to keys
@@ -58,18 +43,22 @@ const segmentKeysFromScheduledTrips = (trips: { Key: string }[]): Set<string> =>
   new Set(trips.map((trip) => trip.Key));
 
 /**
- * Loads scheduled, actual, and predicted dock events for a route timeline build.
+ * Returns scheduled, actual, and predicted dock events for a route timeline
+ * build.
  *
  * Discovers vessels from `scheduledTrips`, runs indexed per-vessel reads on the
  * three event tables, narrows scheduled rows to route segment keys, and strips
  * metadata from actual/predicted docs for the domain builder.
  *
  * @param ctx - Convex query context
- * @param args - Route, sailing day, and optional single-vessel filter
- * @returns Scheduled, actual, and predicted rows (metadata stripped) for the
- *   builder
+ * @param args.RouteAbbrev - Operational route code
+ * @param args.SailingDay - Operational sailing day (YYYY-MM-DD)
+ * @param args.VesselAbbrev - When set, only this vessel if it has trips on the
+ *   route that day
+ * @returns Scheduled, actual, and predicted rows (metadata stripped on
+ *   actual/predicted) for the builder
  */
-export const loadRouteTimelineSnapshotInputs = async (
+const loadRouteTimelineSnapshotInputs = async (
   ctx: Pick<QueryCtx, "db">,
   args: LoadRouteTimelineSnapshotInputsArgs
 ): Promise<LoadRouteTimelineSnapshotInputsResult> => {
@@ -80,13 +69,24 @@ export const loadRouteTimelineSnapshotInputs = async (
     )
     .collect();
 
-  let vesselAbbrevs = vesselAbbrevsFromScheduledTrips(tripRows);
+  type TripRow = (typeof tripRows)[number];
 
-  if (args.VesselAbbrev !== undefined) {
-    vesselAbbrevs = vesselAbbrevs.includes(args.VesselAbbrev)
-      ? [args.VesselAbbrev]
-      : [];
-  }
+  const tripsByVesselAbbrev = tripRows.reduce<Record<string, TripRow[]>>(
+    (acc, trip) => {
+      acc[trip.VesselAbbrev] ??= [];
+      acc[trip.VesselAbbrev].push(trip);
+      return acc;
+    },
+    {}
+  );
+
+  const vesselAbbrevs = Object.keys(tripsByVesselAbbrev)
+    .sort((a, b) => a.localeCompare(b))
+    .filter((vesselAbbrev) =>
+      args.VesselAbbrev === undefined
+        ? true
+        : vesselAbbrev === args.VesselAbbrev
+    );
 
   const perVessel = await Promise.all(
     vesselAbbrevs.map(async (vesselAbbrev) => {
@@ -105,7 +105,7 @@ export const loadRouteTimelineSnapshotInputs = async (
         }),
       ]);
       const segmentKeys = segmentKeysFromScheduledTrips(
-        tripRows.filter((trip) => trip.VesselAbbrev === vesselAbbrev)
+        tripsByVesselAbbrev[vesselAbbrev] ?? []
       );
       const routeScheduled = scheduled.filter((event) =>
         segmentKeys.has(getSegmentKeyFromBoundaryKey(event.Key))
@@ -119,15 +119,11 @@ export const loadRouteTimelineSnapshotInputs = async (
     })
   );
 
-  const scheduledEvents: ConvexScheduledDockEvent[] = [];
-  const actualEvents: ConvexActualDockEvent[] = [];
-  const predictedEvents: ConvexPredictedDockEvent[] = [];
-
-  for (const chunk of perVessel) {
-    scheduledEvents.push(...chunk.scheduled);
-    actualEvents.push(...chunk.actual);
-    predictedEvents.push(...chunk.predicted);
-  }
-
-  return { scheduledEvents, actualEvents, predictedEvents };
+  return {
+    scheduledEvents: perVessel.flatMap((chunk) => chunk.scheduled),
+    actualEvents: perVessel.flatMap((chunk) => chunk.actual),
+    predictedEvents: perVessel.flatMap((chunk) => chunk.predicted),
+  };
 };
+
+export { loadRouteTimelineSnapshotInputs };

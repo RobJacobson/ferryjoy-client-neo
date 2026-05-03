@@ -1,8 +1,10 @@
 /**
- * Mutation handlers for model parameter storage and version-tag lifecycle.
+ * Convex mutations for ML training snapshots: persist `modelParameters` rows, rename
+ * or delete rows by `versionTag`, and write the active production tag to
+ * `keyValueStore`. Training pipelines and operator scripts call these; runtime
+ * prediction loads coefficients through queries, not these mutations.
  */
 
-import type { MutationCtx } from "_generated/server";
 import { mutation } from "_generated/server";
 import { v } from "convex/values";
 import {
@@ -13,23 +15,25 @@ import { KEY_PRODUCTION_VERSION_TAG } from "functions/keyValueStore/schemas";
 import { modelParametersSchema } from "functions/predictions/schemas";
 
 /**
- * Persists one trained `modelParameters` document.
+ * Inserts one trained `modelParameters` row.
  *
- * Replaces prior `dev-temp` rows for the same pair and `modelType` so ephemeral
- * training runs do not accumulate; other `versionTag` values append as history.
+ * When `versionTag` is `dev-temp` and `bucketType` is `pair`, deletes any existing
+ * `dev-temp` row for that `pairKey` and `modelType` first so scratch training runs
+ * do not pile up duplicate snapshots. Other tags accumulate as version history.
  *
  * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing the model parameters to store
- * @returns The ID of the inserted model parameters document
+ * @param args.model - Full row shape validated by `modelParametersSchema`
+ * @returns Inserted document id
  */
 export const storeModelParametersMutation = mutation({
   args: {
     model: modelParametersSchema,
   },
+  returns: v.id("modelParameters"),
   handler: async (ctx, args) => {
     const { bucketType, pairKey, modelType, versionTag } = args.model;
 
-    // Keep only one ephemeral training snapshot per pair and model type.
+    // Replace prior dev-temp snapshot so repeated training runs stay single-row.
     if (bucketType === "pair" && pairKey && versionTag === "dev-temp") {
       const existing = await ctx.db
         .query("modelParameters")
@@ -50,108 +54,27 @@ export const storeModelParametersMutation = mutation({
 });
 
 /**
- * Deletes one `modelParameters` row by document id.
+ * Renames a training snapshot by moving every `modelParameters` row from one
+ * `versionTag` to another (insert under `toTag`, then delete the source row).
  *
- * Used by training tooling to drop a single bad snapshot without touching other
- * version tags or pairs.
- *
- * @param ctx - Convex mutation context
- * @param args - Mutation arguments containing the model document id
- * @returns `{ success: true }` after deletion
- */
-export const deleteModelParametersMutation = mutation({
-  args: { modelId: v.id("modelParameters") },
-  handler: async (ctx, args) => {
-    await ctx.db.delete(args.modelId);
-    return { success: true };
-  },
-});
-
-/**
- * Deletes every row in `modelParameters` (destructive; for dev or reset tooling).
- *
- * Scans the full table; intended only for controlled environments where wiping
- * all trained models is acceptable.
+ * Throws when `fromTag` equals the active production tag in `keyValueStore`, so
+ * the configured production label always refers to rows that still exist under
+ * that tag until operators switch production first.
  *
  * @param ctx - Convex mutation context
- * @returns `{ deleted: count }` for the removed documents
- */
-export const deleteAllModelParametersMutation = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const all = await ctx.db.query("modelParameters").collect();
-    for (const doc of all) {
-      await ctx.db.delete(doc._id);
-    }
-    return { deleted: all.length };
-  },
-});
-
-/**
- * Clones every `modelParameters` row from `fromTag` to `toTag` by insert.
- *
- * Optionally removes source rows after copy (e.g. promote `dev-temp` without duplicates).
- *
- * @param ctx - Convex mutation context
- * @param args - Source and destination version tags and optional source deletion
- * @returns `{ copied: number }` for rows inserted under `toTag`
- */
-export const copyVersionTag = mutation({
-  args: {
-    fromTag: v.string(),
-    toTag: v.string(),
-    deleteSource: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const deleteSource = args.deleteSource ?? false;
-
-    const sourceModels = await ctx.db
-      .query("modelParameters")
-      .withIndex("by_version_tag", (q) => q.eq("versionTag", args.fromTag))
-      .collect();
-
-    if (sourceModels.length === 0) {
-      throw new Error(`No models found with version tag "${args.fromTag}"`);
-    }
-
-    // Reinsert under the destination tag so model history stays append-only.
-    const copiedIds: string[] = [];
-    for (const model of sourceModels) {
-      const { _id, _creationTime, ...modelData } = model;
-      const newModel = {
-        ...modelData,
-        versionTag: args.toTag,
-      };
-      const newId = await ctx.db.insert("modelParameters", newModel);
-      copiedIds.push(newId);
-
-      if (deleteSource) {
-        await ctx.db.delete(_id);
-      }
-    }
-
-    return { copied: copiedIds.length };
-  },
-});
-
-/**
- * Moves all rows from `fromTag` to `toTag` (insert + delete each source row).
- *
- * Refuses when `fromTag` is the active production tag so live reads stay valid.
- *
- * @param ctx - Convex mutation context
- * @param args - Source and destination version tags
- * @returns `{ renamed: number }` for rows moved
+ * @param args.fromTag - Existing snapshot tag to drain
+ * @param args.toTag - Destination tag for copied rows
+ * @returns Count of rows moved
  */
 export const renameVersionTag = mutation({
   args: {
     fromTag: v.string(),
     toTag: v.string(),
   },
+  returns: v.object({ renamed: v.number() }),
   handler: async (ctx, args) => {
-    // Guard the active production tag so reads never point at a missing version.
-    const config = await getModelConfig(ctx);
-    if (config?.productionVersionTag === args.fromTag) {
+    const activeProdTag = await getProductionVersionTagValue(ctx);
+    if (activeProdTag === args.fromTag) {
       throw new Error(
         `Cannot rename active production version tag "${args.fromTag}". Switch to a different version first.`
       );
@@ -166,39 +89,41 @@ export const renameVersionTag = mutation({
       throw new Error(`No models found with version tag "${args.fromTag}"`);
     }
 
-    const renamedIds: string[] = [];
+    let renamed = 0;
     for (const model of sourceModels) {
       const { _id, _creationTime, ...modelData } = model;
       const newModel = {
         ...modelData,
         versionTag: args.toTag,
       };
-      const newId = await ctx.db.insert("modelParameters", newModel);
-      renamedIds.push(newId);
+      await ctx.db.insert("modelParameters", newModel);
       await ctx.db.delete(_id);
+      renamed += 1;
     }
 
-    return { renamed: renamedIds.length };
+    return { renamed };
   },
 });
 
 /**
- * Deletes every `modelParameters` row for one `versionTag`.
+ * Deletes all `modelParameters` rows for one `versionTag`.
  *
- * Refuses when that tag is production-active so prediction queries keep a backing row set.
+ * Throws when `versionTag` is the active production tag in `keyValueStore`, so
+ * production predictions always retain at least one backing row for that tag
+ * until operators promote a different tag.
  *
  * @param ctx - Convex mutation context
- * @param args - Version tag to wipe
- * @returns `{ deleted: number }` for removed rows
+ * @param args.versionTag - Snapshot tag whose rows are removed
+ * @returns Number of rows deleted
  */
 export const deleteVersion = mutation({
   args: {
     versionTag: v.string(),
   },
+  returns: v.object({ deleted: v.number() }),
   handler: async (ctx, args) => {
-    // Guard the active production tag so prediction reads remain valid.
-    const config = await getModelConfig(ctx);
-    if (config?.productionVersionTag === args.versionTag) {
+    const activeProdTag = await getProductionVersionTagValue(ctx);
+    if (activeProdTag === args.versionTag) {
       throw new Error(
         `Cannot delete active production version tag "${args.versionTag}". Switch to a different version first.`
       );
@@ -218,25 +143,28 @@ export const deleteVersion = mutation({
 });
 
 /**
- * Writes the production version tag to `keyValueStore` after verifying at least
- * one `modelParameters` row exists for that tag.
+ * Sets the active ML production `versionTag` in `keyValueStore`.
+ *
+ * Requires at least one `modelParameters` row already stored under `versionTag`
+ * so operators cannot point production at an empty snapshot. Which row is checked
+ * is arbitrary—only existence matters, not a specific terminal pair.
  *
  * @param ctx - Convex mutation context
- * @param args - Production version tag to activate
- * @returns `{ success: true }` after the config row is updated
+ * @param args.versionTag - Tag to promote (must already have stored model rows)
+ * @returns Completes with `success: true` after `keyValueStore` is updated
  */
 export const setProductionVersionTag = mutation({
   args: {
     versionTag: v.string(),
   },
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
-    // Activate only version tags that already have stored model rows.
-    const models = await ctx.db
+    const anyRowForTag = await ctx.db
       .query("modelParameters")
       .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
       .first();
 
-    if (!models) {
+    if (!anyRowForTag) {
       throw new Error(
         `Production version tag "${args.versionTag}" does not exist. Create it first by copying a dev version.`
       );
@@ -244,22 +172,6 @@ export const setProductionVersionTag = mutation({
 
     await upsertByKey(ctx, KEY_PRODUCTION_VERSION_TAG, args.versionTag);
 
-    return { success: true };
+    return { success: true } as const;
   },
 });
-
-/**
- * Reads the active production tag from `keyValueStore` for mutation guards.
- *
- * Centralizes the lookup so rename/delete/version mutations share the same rule:
- * never orphan the configured production tag.
- *
- * @param ctx - Convex mutation context
- * @returns Wrapper with `productionVersionTag` (string or null when unset)
- */
-async function getModelConfig(ctx: MutationCtx): Promise<{
-  productionVersionTag: string | null;
-}> {
-  const productionVersionTag = await getProductionVersionTagValue(ctx);
-  return { productionVersionTag };
-}

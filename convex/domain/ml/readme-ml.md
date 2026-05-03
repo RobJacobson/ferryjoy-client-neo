@@ -1293,13 +1293,13 @@ npm run ml:delete-version -- "prod-2"     # Delete prod-2 (with confirmation)
 
 The prediction system automatically uses the active production version tag stored in the `keyValueStore` table. When making predictions:
 
-1. The system queries `keyValueStore` for the current `productionVersionTag`
-2. Models are loaded with the specified `versionTag`
-3. If no production version tag is set, the system falls back to any model matching pair+type
+1. The system reads the active `productionVersionTag` from `keyValueStore` (via helpers / internal queries).
+2. Models are loaded for that tag using indexed `modelParameters` reads (e.g. `by_pair_type_tag`).
+3. If no production version tag is set, prediction loads no coefficients for that pair (or short-circuits).
 
 **Implementation:**
 
-- Query: `convex/functions/predictions/queries.ts` (`getModelParametersForProduction`)
+- Internal query: `convex/functions/predictions/queries.ts` (`getPredictionModelParameters`) — used by the vessel orchestrator prediction pipeline
 - Prediction: `convex/domain/ml/prediction/predictTrip.ts` (`loadModelForPair`)
 
 ### Best Practices

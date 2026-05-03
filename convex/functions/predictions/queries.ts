@@ -1,154 +1,34 @@
 /**
- * Query handlers for stored ML model parameters and active version tags.
+ * Queries over `modelParameters` and the active production tag from `keyValueStore`.
+ * Public queries support ML tooling and audits; `getPredictionModelParameters` is
+ * internal and supplies coefficients to the vessel orchestrator prediction pipeline.
  */
 
+import type { QueryCtx } from "_generated/server";
 import { internalQuery, query } from "_generated/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { getProductionVersionTagValue } from "functions/keyValueStore/helpers";
 import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import {
-  type ConvexModelParameters,
+  type ModelType,
   modelParametersSchema,
   modelTypeValidator,
 } from "./schemas";
 
 /**
- * Lists every stored `modelParameters` row (training metadata stripped).
+ * Returns every `modelParameters` row without Convex document metadata.
  *
- * Full table scan suitable for admin UIs and audits; not indexed by pair or tag.
+ * Full table scan, suited to admin lists and audits, not hot-path prediction loads.
  *
  * @param ctx - Convex query context
- * @returns All model parameter docs without `_id` / `_creationTime`
+ * @returns Rows shaped like `modelParametersSchema` without `_id` or `_creationTime`
  */
 export const getAllModelParameters = query({
   args: {},
   returns: v.array(modelParametersSchema),
   handler: async (ctx) => {
-    try {
-      const results = await ctx.db.query("modelParameters").collect();
-      return results.map(stripConvexMeta);
-    } catch (error) {
-      throw new ConvexError({
-        message: "Failed to fetch all model parameters",
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { error: String(error) },
-      });
-    }
-  },
-});
-
-/**
- * Loads one production model row for a terminal pair and model type.
- *
- * Resolves the active `versionTag` from `keyValueStore`, then reads
- * `by_pair_type_tag`; returns `null` when no production tag is configured or
- * no row matches.
- *
- * @param ctx - Convex query context
- * @param args - Query arguments containing the pair key and model type
- * @returns The model parameters record or `null` if not found
- */
-export const getModelParametersForProduction = query({
-  args: {
-    pairKey: v.string(),
-    modelType: modelTypeValidator,
-  },
-  returns: v.union(modelParametersSchema, v.null()),
-  handler: async (ctx, args) => {
-    try {
-      const prodVersionTag = await getProductionVersionTagValue(ctx);
-      if (!prodVersionTag) {
-        return null;
-      }
-
-      const doc = await ctx.db
-        .query("modelParameters")
-        .withIndex("by_pair_type_tag", (q) =>
-          q
-            .eq("pairKey", args.pairKey)
-            .eq("modelType", args.modelType)
-            .eq("versionTag", prodVersionTag)
-        )
-        .first();
-
-      return doc ? stripConvexMeta(doc) : null;
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch production model parameters for pair ${args.pairKey} and model type ${args.modelType}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: {
-          pairKey: args.pairKey,
-          modelType: args.modelType,
-          error: String(error),
-        },
-      });
-    }
-  },
-});
-
-/**
- * Batch-loads production model rows for several `modelTypes` on one `pairKey`.
- *
- * Uses the active production `versionTag` once, then issues one indexed read per
- * type so orchestrator prediction stages avoid N separate client round-trips.
- *
- * @param ctx - Convex query context
- * @param args - Pair key and requested model types (deduped in the handler)
- * @returns Record mapping ModelType to model parameters.
- *          Each value is either a ModelDoc without Convex metadata (_id, _creationTime)
- *          or null if not found for that model type.
- *
- *          The return is an object with optional fields for each model type:
- *          {
- *            "at-dock-depart-curr"?: ModelDoc | null,
- *            "at-dock-arrive-next"?: ModelDoc | null,
- *            "at-dock-depart-next"?: ModelDoc | null,
- *            "at-sea-arrive-next"?: ModelDoc | null,
- *            "at-sea-depart-next"?: ModelDoc | null,
- *          }
- */
-export const getModelParametersForProductionBatch = query({
-  args: {
-    pairKey: v.string(),
-    modelTypes: v.array(modelTypeValidator),
-  },
-  returns: v.record(v.string(), v.union(modelParametersSchema, v.null())),
-  handler: async (ctx, args) => {
-    try {
-      const prodVersionTag = await getProductionVersionTagValue(ctx);
-      if (!prodVersionTag) {
-        return {};
-      }
-
-      const result: Record<string, ConvexModelParameters | null> = {};
-      for (const modelType of args.modelTypes) {
-        const doc = await ctx.db
-          .query("modelParameters")
-          .withIndex("by_pair_type_tag", (q) =>
-            q
-              .eq("pairKey", args.pairKey)
-              .eq("modelType", modelType)
-              .eq("versionTag", prodVersionTag)
-          )
-          .first();
-        result[modelType] = doc ? stripConvexMeta(doc) : null;
-      }
-      return result;
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch batch production model parameters for pair ${args.pairKey}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: {
-          pairKey: args.pairKey,
-          modelTypes: args.modelTypes,
-          modelTypeCount: args.modelTypes.length,
-          error: String(error),
-        },
-      });
-    }
+    const results = await ctx.db.query("modelParameters").collect();
+    return results.map(stripConvexMeta);
   },
 });
 
@@ -163,15 +43,45 @@ const productionModelParametersSchema = v.object({
 });
 
 /**
- * Loads trimmed coefficient payloads for one `pairKey` and requested `modelTypes`
- * under the active production `versionTag` (or empty when tag/config missing).
+ * Loads one `modelParameters` row for a pair, model type, and training snapshot tag.
  *
- * Shape matches domain `loadPredictionModelParameters` expectations: nested map
- * `pairKey → modelType → { featureKeys, coefficients, intercept, testMetrics }`.
+ * Encapsulates the composite key prediction uses: the row is identified by `pairKey`,
+ * `modelType`, and `versionTag` together, not by any one field alone.
+ *
+ * @param ctx - Convex query context
+ * @param pairKey - Terminal pair identifier stored on each row
+ * @param modelType - Which regression head (`MODEL_KEYS` / `modelTypeValidator`)
+ * @param versionTag - Training snapshot label (typically the active production tag)
+ * @returns Full row from `modelParameters`, or `null` when missing
+ */
+const loadModelParametersDocByPairTypeTag = async (
+  ctx: QueryCtx,
+  pairKey: string,
+  modelType: ModelType,
+  versionTag: string
+) =>
+  await ctx.db
+    .query("modelParameters")
+    .withIndex("by_pair_type_tag", (q) =>
+      q
+        .eq("pairKey", pairKey)
+        .eq("modelType", modelType)
+        .eq("versionTag", versionTag)
+    )
+    .first();
+
+/**
+ * Returns trimmed coefficients for orchestrator prediction (active production tag).
+ *
+ * Resolves `productionVersionTag` once, dedupes requested `modelTypes`, then loads each
+ * `(pairKey, modelType, tag)` row. Maps to domain expectations: nested structure
+ * `pairKey → modelType → { featureKeys, coefficients, intercept, testMetrics }`
+ * with only MAE and stdDev under `testMetrics` for the narrow inference surface.
  *
  * @param ctx - Convex internal query context
- * @param args.request - Optional `{ pairKey, modelTypes }`; empty request yields `{}`
- * @returns Record keyed by pair, then by model type, with nulls for missing rows
+ * @param args.request - When omitted or when production tag is unset, returns `{}`;
+ *   otherwise `{ pairKey, modelTypes }` selects which heads to load for that pair
+ * @returns Nested map keyed by pair then model type; missing heads map to `null`
  */
 export const getPredictionModelParameters = internalQuery({
   args: {
@@ -197,15 +107,12 @@ export const getPredictionModelParameters = internalQuery({
 
     const models = await Promise.all(
       modelTypes.map(async (modelType) => {
-        const doc = await ctx.db
-          .query("modelParameters")
-          .withIndex("by_pair_type_tag", (q) =>
-            q
-              .eq("pairKey", pairKey)
-              .eq("modelType", modelType)
-              .eq("versionTag", prodVersionTag)
-          )
-          .first();
+        const doc = await loadModelParametersDocByPairTypeTag(
+          ctx,
+          pairKey,
+          modelType,
+          prodVersionTag
+        );
 
         return [
           modelType,
@@ -229,14 +136,14 @@ export const getPredictionModelParameters = internalQuery({
 });
 
 /**
- * Lists all `modelParameters` rows for one `versionTag` (metadata stripped).
+ * Returns every `modelParameters` row for one training snapshot tag.
  *
- * Uses `by_version_tag` for efficient retrieval when comparing or promoting a
- * specific training snapshot.
+ * Indexed read by tag—intended when diffing or promoting a named snapshot (for example
+ * before rename/delete mutations), not for unfiltered scans.
  *
  * @param ctx - Convex query context
- * @param args - Version tag to filter
- * @returns Matching docs without `_id` / `_creationTime`
+ * @param args.versionTag - Tag whose rows are returned (for example `dev-temp`, `prod-1`)
+ * @returns Rows matching `modelParametersSchema` without `_id` or `_creationTime`
  */
 export const getModelParametersByTag = query({
   args: {
@@ -244,54 +151,36 @@ export const getModelParametersByTag = query({
   },
   returns: v.array(modelParametersSchema),
   handler: async (ctx, args) => {
-    try {
-      const results = await ctx.db
-        .query("modelParameters")
-        .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
-        .collect();
-      return results.map(stripConvexMeta);
-    } catch (error) {
-      throw new ConvexError({
-        message: `Failed to fetch model parameters for version tag ${args.versionTag}`,
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { versionTag: args.versionTag, error: String(error) },
-      });
-    }
+    const results = await ctx.db
+      .query("modelParameters")
+      .withIndex("by_version_tag", (q) => q.eq("versionTag", args.versionTag))
+      .collect();
+    return results.map(stripConvexMeta);
   },
 });
 
 /**
- * Returns distinct `versionTag` values present in `modelParameters`, sorted.
+ * Returns sorted distinct `versionTag` strings currently stored in `modelParameters`.
  *
- * Scans all model rows to build the set; suitable for low-cardinality admin lists,
- * not hot-path prediction reads.
+ * Builds the set via a full table scan—acceptable for small cardinality ML admin flows,
+ * not for prediction hot paths.
  *
  * @param ctx - Convex query context
- * @returns Sorted unique version tags
+ * @returns Lexicographically sorted unique tags
  */
 export const getAllVersions = query({
   args: {},
   returns: v.array(v.string()),
   handler: async (ctx) => {
-    try {
-      const allModels = await ctx.db.query("modelParameters").collect();
+    const allModels = await ctx.db.query("modelParameters").collect();
 
-      const versionTags = new Set<string>();
+    const versionTags = new Set<string>();
 
-      for (const model of allModels) {
-        versionTags.add(model.versionTag);
-      }
-
-      return Array.from(versionTags).sort();
-    } catch (error) {
-      throw new ConvexError({
-        message: "Failed to fetch all unique version tags",
-        code: "QUERY_FAILED",
-        severity: "error",
-        details: { error: String(error) },
-      });
+    for (const model of allModels) {
+      versionTags.add(model.versionTag);
     }
+
+    return Array.from(versionTags).sort();
   },
 });
 
