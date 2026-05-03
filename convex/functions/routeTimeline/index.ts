@@ -1,9 +1,4 @@
-/**
- * Route timeline Convex module: validators, domain conversion, and public
- * `getRouteTimelineSnapshot` query.
- */
-
-export * from "./queries";
+export { getRouteTimelineSnapshot } from "./queries";
 export type {
   ConvexRouteTimelineBoundary,
   ConvexRouteTimelineDockVisit,
