@@ -1,7 +1,7 @@
 /**
  * Pure pipeline: vessel/day event row arrays → `VesselTimelineRenderState`
  * using the same merge, dock visits, spans, and axis mapping as route snapshot
- * assembly (without `RouteTimelineSnapshot`).
+ * assembly, driven by event rows instead of a Convex route snapshot payload.
  */
 
 import type { ConvexActualDockEvent } from "convex/functions/events/eventsActual/schemas";

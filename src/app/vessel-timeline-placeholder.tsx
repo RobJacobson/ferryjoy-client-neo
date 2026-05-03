@@ -32,7 +32,6 @@ import {
 type VesselOption = {
   value: string;
   label: string;
-  routeAbbrev?: string;
 };
 
 type DesignOption = {
@@ -68,7 +67,6 @@ export default function VesselTimelinePlaceholderScreen() {
     .map((vesselLocation) => ({
       value: vesselLocation.VesselAbbrev,
       label: `${vesselLocation.VesselName} (${vesselLocation.VesselAbbrev})`,
-      routeAbbrev: vesselLocation.RouteAbbrev ?? undefined,
     }));
 
   useEffect(() => {
@@ -204,7 +202,6 @@ export default function VesselTimelinePlaceholderScreen() {
         {selectedOption ? (
           <VesselTimeline
             vesselAbbrev={selectedOption.value}
-            routeAbbrev={selectedOption.routeAbbrev}
             sailingDay={sailingDay}
             theme={selectedVariant.timelineTheme}
           />
