@@ -13,6 +13,7 @@ import {
 import { Button, Text } from "@/components/ui";
 import {
   ConvexRouteTimelineProvider,
+  ConvexVesselTimelineEventsProvider,
   useConvexVesselLocations,
 } from "@/data/contexts";
 import { useRouteModelVesselTimelinePresentationState } from "./hooks/useVesselTimelinePresentationState";
@@ -111,15 +112,21 @@ const VesselTimelineDataHost = ({
   }
 
   return (
-    <ConvexRouteTimelineProvider
+    <ConvexVesselTimelineEventsProvider
       key={providerKey}
-      routeAbbrev={resolvedRouteAbbrev}
       sailingDay={sailingDay}
       vesselAbbrev={vesselAbbrev}
       onRetry={retry}
     >
-      <RouteModelVesselTimelinePresentation now={now} theme={resolvedTheme} />
-    </ConvexRouteTimelineProvider>
+      <ConvexRouteTimelineProvider
+        routeAbbrev={resolvedRouteAbbrev}
+        sailingDay={sailingDay}
+        vesselAbbrev={vesselAbbrev}
+        onRetry={retry}
+      >
+        <RouteModelVesselTimelinePresentation now={now} theme={resolvedTheme} />
+      </ConvexRouteTimelineProvider>
+    </ConvexVesselTimelineEventsProvider>
   );
 };
 
