@@ -58,15 +58,16 @@ export const upsertByKey = async (
 /**
  * Reads the active ML production version tag from `keyValueStore`.
  *
- * Uses `KEY_PRODUCTION_VERSION_TAG`; coerces stored value to string or returns
- * `null` when the key is absent so prediction queries can short-circuit safely.
+ * Uses `KEY_PRODUCTION_VERSION_TAG`; returns the stored value only when it is a
+ * string, otherwise `null` (missing key or unexpected scalar shape) so prediction
+ * queries can short-circuit safely.
  *
  * @param ctx - Convex query or mutation context
- * @returns Production version tag string, or `null` when unset
+ * @returns Production version tag string, or `null` when unset or not a string
  */
 export const getProductionVersionTagValue = async (
   ctx: QueryCtx | MutationCtx
 ): Promise<string | null> => {
   const entry = await fetchEntryByKey(ctx, KEY_PRODUCTION_VERSION_TAG);
-  return (entry?.value as string | null) ?? null;
+  return typeof entry?.value === "string" ? entry.value : null;
 };

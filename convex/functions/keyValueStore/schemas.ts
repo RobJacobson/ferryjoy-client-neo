@@ -10,10 +10,6 @@ import { v } from "convex/values";
 /** Active ML production model version tag (string or null when unset). */
 export const KEY_PRODUCTION_VERSION_TAG = "productionVersionTag" as const;
 
-/** Epoch ms of last scheduled-trips sync (used by setup / tooling). */
-export const KEY_LAST_SCHEDULED_TRIPS_SYNC_DATE =
-  "lastScheduledTripsSyncDate" as const;
-
 export const keyValueStoreValueValidator = v.union(
   v.string(),
   v.number(),
