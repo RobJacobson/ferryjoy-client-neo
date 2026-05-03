@@ -1,5 +1,6 @@
 /**
- * Defines the Convex schema for `eventsScheduled` and inferred segment shapes.
+ * Convex validators for `eventsScheduled`: planned dock boundaries (times,
+ * terminals, segment keys) hydrated from schedule adapters for timelines.
  */
 
 import type { Infer } from "convex/values";

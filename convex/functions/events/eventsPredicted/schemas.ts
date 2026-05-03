@@ -1,6 +1,7 @@
 /**
- * Validators and types for `eventsPredicted`: persisted rows and trip-driven
- * dock write batches.
+ * Convex validators for `eventsPredicted`: ML and WSF ETA predictions per dock
+ * boundary, plus sparse batch shapes orchestrator persistence sends alongside
+ * trip updates.
  */
 
 import type { Infer } from "convex/values";

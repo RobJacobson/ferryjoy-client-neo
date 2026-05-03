@@ -9,7 +9,8 @@ import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted/sche
 /**
  * Sparse timeline table updates for one orchestrator ping.
  *
- * Matches `projectActualDockWrites` / `projectPredictedDockWriteBatches` args.
+ * Same row shapes `persistVesselUpdates` passes to `upsertActualDockRows` and
+ * `upsertPredictedDockBatches`.
  */
 export type PingEventWrites = {
   actualDockWrites: ConvexActualDockEvent[];

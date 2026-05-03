@@ -138,7 +138,6 @@ import type * as functions_events_eventsActual_index from "../functions/events/e
 import type * as functions_events_eventsActual_mutations from "../functions/events/eventsActual/mutations.js";
 import type * as functions_events_eventsActual_queries from "../functions/events/eventsActual/queries.js";
 import type * as functions_events_eventsActual_schemas from "../functions/events/eventsActual/schemas.js";
-import type * as functions_events_eventsPredicted_actualizations from "../functions/events/eventsPredicted/actualizations.js";
 import type * as functions_events_eventsPredicted_index from "../functions/events/eventsPredicted/index.js";
 import type * as functions_events_eventsPredicted_mutations from "../functions/events/eventsPredicted/mutations.js";
 import type * as functions_events_eventsPredicted_queries from "../functions/events/eventsPredicted/queries.js";
@@ -394,7 +393,6 @@ declare const fullApi: ApiFromModules<{
   "functions/events/eventsActual/mutations": typeof functions_events_eventsActual_mutations;
   "functions/events/eventsActual/queries": typeof functions_events_eventsActual_queries;
   "functions/events/eventsActual/schemas": typeof functions_events_eventsActual_schemas;
-  "functions/events/eventsPredicted/actualizations": typeof functions_events_eventsPredicted_actualizations;
   "functions/events/eventsPredicted/index": typeof functions_events_eventsPredicted_index;
   "functions/events/eventsPredicted/mutations": typeof functions_events_eventsPredicted_mutations;
   "functions/events/eventsPredicted/queries": typeof functions_events_eventsPredicted_queries;
