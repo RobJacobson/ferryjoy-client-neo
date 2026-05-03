@@ -1,5 +1,8 @@
 /**
- * Persistence adapter for vessel-location update stage.
+ * Thin action adapter for the location-stage mutation.
+ *
+ * Forwards normalized rows to `bulkUpsertVesselLocations` and returns
+ * changed locations plus post-write active trips from that transaction.
  */
 
 import { internal } from "_generated/api";

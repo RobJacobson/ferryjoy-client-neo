@@ -1,7 +1,8 @@
 /**
- * Validators and types for persisted `eventsActual` rows at the Convex boundary.
- *
- * Sparse dock writes and pre-enrichment shapes live in `domain/events/actual`.
+ * Convex validators for `eventsActual`: observed dock-side events (departure /
+ * arrival instants tied to legs). Built from vessel/trip updates and schedule
+ * hydration; consumed next to `eventsScheduled` and `eventsPredicted` for
+ * timelines. Sparse upstream shapes live under `domain/events/actual`.
  */
 
 import type { Infer } from "convex/values";
@@ -22,10 +23,10 @@ const persistedActualDockFields = {
 } as const;
 
 /**
- * Convex validator for one **persisted** `eventsActual` document.
+ * Convex validator for one persisted `eventsActual` document.
  *
- * Identity is `EventKey` (physical). `EventType` is first-class. Optional
- * `ScheduleKey` is schedule alignment only.
+ * Physical identity is `EventKey`; `EventType` is first-class. Optional
+ * `ScheduleKey` ties the row to schedule continuity without replacing physical keys.
  */
 export const eventsActualSchema = v.object({
   ...persistedActualDockFields,

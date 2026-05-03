@@ -1,5 +1,6 @@
 /**
- * Public barrel for scheduled-event query, mutation, and schema exports.
+ * Barrel for `eventsScheduled`: scheduled backbone schema, full-day reconciliation
+ * writes, and vessel-day reads feeding orchestrator and timeline assembly.
  */
 
 export * from "./mutations";

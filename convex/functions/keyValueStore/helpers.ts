@@ -6,11 +6,14 @@ import type { MutationCtx, QueryCtx } from "_generated/server";
 import { KEY_PRODUCTION_VERSION_TAG, type KeyValueStore } from "./schemas";
 
 /**
- * Loads a single key-value row by key using the by_key index.
+ * Loads a single `keyValueStore` document by string key.
+ *
+ * Uses the `by_key` index for O(1) lookups shared by mutations, queries, and
+ * config helpers such as `getProductionVersionTagValue`.
  *
  * @param ctx - Convex query or mutation context
  * @param key - Document key
- * @returns The matching row, or null if missing
+ * @returns The matching row, or `null` if missing
  */
 export const fetchEntryByKey = async (
   ctx: QueryCtx | MutationCtx,
@@ -22,12 +25,15 @@ export const fetchEntryByKey = async (
     .first();
 
 /**
- * Inserts or replaces the row for a key with the given value and timestamp.
+ * Inserts or replaces one `keyValueStore` row for a key.
+ *
+ * When a row exists, replaces in place; otherwise inserts. `updatedAtMs` defaults
+ * to `Date.now()` so callers can align clocks across related writes.
  *
  * @param ctx - Convex mutation context
  * @param key - Document key
  * @param value - Stored value (string, number, boolean, or null)
- * @param updatedAtMs - Epoch ms for updatedAt (defaults to now)
+ * @param updatedAtMs - Epoch ms for `updatedAt` (defaults to now)
  * @returns `undefined` after the matching row is inserted or replaced
  */
 export const upsertByKey = async (
@@ -48,10 +54,13 @@ export const upsertByKey = async (
 };
 
 /**
- * Reads the ML production version tag from config, or null when unset.
+ * Reads the active ML production version tag from `keyValueStore`.
+ *
+ * Uses `KEY_PRODUCTION_VERSION_TAG`; coerces stored value to string or returns
+ * `null` when the key is absent so prediction queries can short-circuit safely.
  *
  * @param ctx - Convex query or mutation context
- * @returns Production version tag string, or null
+ * @returns Production version tag string, or `null` when unset
  */
 export const getProductionVersionTagValue = async (
   ctx: QueryCtx | MutationCtx

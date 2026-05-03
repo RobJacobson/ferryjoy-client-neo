@@ -27,7 +27,10 @@ const vesselTripWithScheduledSchema = vesselTripSchema.extend({
 });
 
 /**
- * Enriches stored trips for API reads, then strips Convex metadata.
+ * Enriches trip documents with `eventsPredicted` joins for API responses.
+ *
+ * Batch-loads predicted rows by sailing-day scope, merges with
+ * `mergeTripsWithPredictions`, then strips `_id` / `_creationTime`.
  *
  * @param ctx - Query context with database access for prediction enrichment
  * @param docs - Active or completed trip documents read from storage
@@ -45,14 +48,13 @@ const enrichTripsForApi = async (
 };
 
 /**
- * API function for fetching active vessel trips (currently in progress)
- * Small dataset, frequently updated, perfect for real-time subscriptions
- * Optimized with proper indexing for performance
+ * Lists all active trips with joined prediction fields for API parity.
  *
- * Returns trips enriched with joined `eventsPredicted` fields for API parity.
+ * Collects `activeVesselTrips` then runs `enrichTripsForApi`; small enough for
+ * realtime subscriptions despite the full table read.
  *
- * @param ctx - Convex context
- * @returns Array of active vessel trips (schema shape, no _id/_creationTime)
+ * @param ctx - Convex query context
+ * @returns Active trips (schema shape, no `_id` / `_creationTime`)
  */
 export const getActiveTrips = query({
   args: {},
@@ -73,16 +75,13 @@ export const getActiveTrips = query({
 });
 
 /**
- * Fetch active vessel trips with joined `scheduledTrips` rows for display.
+ * Lists active trips with optional `scheduledTrips` catalog rows joined.
  *
- * Tick-time enrichment uses targeted `eventsScheduled` continuity lookups from
- * the orchestrator for next-leg lifecycle fields. This query joins the
- * persisted schedule catalog for UI only.
+ * Enriches predictions first, then resolves `ScheduledTrip` by `ScheduleKey` when
+ * present so UI can show catalog metadata separate from orchestrator continuity.
  *
- * Resolves ScheduledTrip lazily by `ScheduleKey` when schedule alignment exists.
- *
- * @param ctx - Convex context
- * @returns Array of active vessel trips with optional ScheduledTrip appended
+ * @param ctx - Convex query context
+ * @returns Active vessel trips with optional `ScheduledTrip` appended
  */
 export const getActiveTripsWithScheduledTrip = query({
   args: {},
@@ -121,12 +120,14 @@ export const getActiveTripsWithScheduledTrip = query({
 });
 
 /**
- * Fetch active vessel trips for multiple routes.
- * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
+ * Lists active trips across multiple routes by indexed reads per route.
  *
- * @param ctx - Convex context
- * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
- * @returns Array of active vessel trips (schema shape) for the routes
+ * Dedupes route args, collects per `by_route_abbrev`, flattens, then enriches
+ * predictions for `UnifiedTripsContext` multi-route views.
+ *
+ * @param ctx - Convex query context
+ * @param args.routeAbbrevs - Route abbreviations (e.g. `["f-s", "f-v-s", "s-v"]`)
+ * @returns Active vessel trips (schema shape) for the routes
  */
 export const getActiveTripsByRoutes = query({
   args: { routeAbbrevs: v.array(v.string()) },
@@ -160,13 +161,15 @@ export const getActiveTripsByRoutes = query({
 });
 
 /**
- * Fetch completed vessel trips for multiple routes and trip date.
- * Used by UnifiedTripsContext for triangle (f-v-s) and other multi-route views.
+ * Lists completed trips for multiple routes on one sailing day.
  *
- * @param ctx - Convex context
- * @param args.routeAbbrevs - Route abbreviations (e.g. ["f-s", "f-v-s", "s-v"])
+ * Indexed reads per route, dedupes overlapping `TripKey` values, then enriches
+ * predictions for historical multi-route UI.
+ *
+ * @param ctx - Convex query context
+ * @param args.routeAbbrevs - Route abbreviations (e.g. `["f-s", "f-v-s", "s-v"]`)
  * @param args.tripDate - Sailing day in YYYY-MM-DD format
- * @returns Array of completed vessel trips (schema shape), deduped by TripKey
+ * @returns Completed vessel trips (schema shape), deduped by `TripKey`
  */
 export const getCompletedTripsByRoutesAndTripDate = query({
   args: {

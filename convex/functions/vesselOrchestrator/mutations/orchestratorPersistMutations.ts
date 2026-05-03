@@ -1,13 +1,18 @@
 /**
- * Aggregate internal mutations for vessel-orchestrator persistence.
+ * Internal mutations for vessel-orchestrator aggregate persistence.
+ *
+ * `persistVesselUpdates` applies trip, prediction, timeline, and optional
+ * leave-dock patches in one transaction per vessel branch.
  */
 
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { eventsActualSchema } from "functions/events/eventsActual/schemas";
-import { patchDepartNextMlRows } from "functions/events/eventsPredicted/actualizations";
-import { upsertPredictedDockBatches } from "functions/events/eventsPredicted/mutations";
+import {
+  patchDepartNextMlRowsForDepBoundary,
+  upsertPredictedDockBatches,
+} from "functions/events/eventsPredicted/mutations";
 import { predictedDockWriteBatchSchema } from "functions/events/eventsPredicted/schemas";
 import { upsertPredictionProposals } from "functions/vesselTripPredictions/mutations";
 import { vesselTripPredictionProposalSchema } from "functions/vesselTripPredictions/schemas";
@@ -66,7 +71,12 @@ export const persistVesselUpdates = internalMutation({
     }
 
     if (args.updateLeaveDockEventPatch !== undefined) {
-      await patchDepartNextMlRows(ctx, args.updateLeaveDockEventPatch);
+      const patch = args.updateLeaveDockEventPatch;
+      await patchDepartNextMlRowsForDepBoundary(
+        ctx,
+        patch.depBoundaryKey,
+        patch.actualDepartMs
+      );
     }
 
     return null;

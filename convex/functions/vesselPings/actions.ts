@@ -10,22 +10,25 @@ import type { VesselIdentity } from "functions/vessels/schemas";
 const CLEANUP_OLD_PINGS_BATCH_SIZE = 200;
 
 /**
- * Internal action for fetching and storing vessel pings from the WSF API.
+ * Ingests WSF vessel pings and stores them in `vesselPings`.
+ *
+ * Loads identities from `getAllVesselIdentities`, fetches pings from the adapter,
+ * then calls the public `storeVesselPings` mutation. Swallows errors into a
+ * structured return for cron resilience.
  *
  * @param ctx - Convex internal action context
- * @returns Failure details when ingestion fails; otherwise `undefined`
+ * @returns `{ success: false, error }` on failure; `undefined` on success
  */
 export const fetchAndStoreVesselPings = internalAction({
   args: {},
   handler: async (ctx) => {
     try {
       const vessels = (await ctx.runQuery(
-        internal.functions.vesselLocation.queries.getAllBackendVesselsInternal
+        internal.functions.vesselLocation.queries.getAllVesselIdentities
       )) satisfies ReadonlyArray<VesselIdentity>;
 
       const vesselPings = await fetchWsfVesselPings(vessels);
 
-      // Store the vessel pings through mutation.
       await ctx.runMutation(
         api.functions.vesselPings.mutations.storeVesselPings,
         {
@@ -45,10 +48,13 @@ export const fetchAndStoreVesselPings = internalAction({
 });
 
 /**
- * Internal action for pruning old vessel ping collection rows.
+ * Deletes stale `vesselPings` rows in a retention window (default one hour).
+ *
+ * Repeats `cleanupOldPingsMutation` with a fixed batch size until `hasMore` is
+ * false, logging progress between batches.
  *
  * @param ctx - Convex internal action context
- * @returns Total rows deleted across cleanup batches
+ * @returns Total rows deleted across all batches in this run
  */
 export const cleanupOldPings = internalAction({
   args: {},
@@ -92,7 +98,10 @@ export const cleanupOldPings = internalAction({
 });
 
 /**
- * Serialize unknown error values for logging without throwing during logging.
+ * Serializes unknown caught values for safe logging strings.
+ *
+ * Prefers JSON when possible so action failure paths can log structured detail
+ * without risking a second throw from circular data.
  *
  * @param value - Unknown value caught from an action failure path
  * @returns String form suitable for error messages and console output

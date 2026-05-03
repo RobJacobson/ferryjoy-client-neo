@@ -433,9 +433,9 @@ We patch **`eventsPredicted`** rows with `Actual` and `DeltaTotal` (epoch ms) wh
 
 - Arrival-complete actualization when `TripEnd` becomes known
   - Implementation: `convex/domain/ml/prediction/vesselTripPredictions.ts` (`actualizePredictionsOnTripComplete`)
-- Depart-next ML rows on `eventsPredicted` when a trip leaves dock: `updateLeaveDockEventPatch` in `runOrchestratorPing`, applied in `persistVesselUpdates` via `patchDepartNextMlRows` / `patchDepartNextMlRowsForDepBoundary`.
+- Depart-next ML rows on `eventsPredicted` when a trip leaves dock: `updateLeaveDockEventPatch` in `runOrchestratorPing`, applied in `persistVesselUpdates` via `patchDepartNextMlRowsForDepBoundary`.
   - Trigger: `convex/domain/vesselOrchestration/updateLeaveDockEventPatch/updateLeaveDockEventPatch.ts`
-  - Implementation: `convex/functions/events/eventsPredicted/actualizations.ts` (`patchDepartNextMlRows`), `mutations.ts` (`patchDepartNextMlRowsForDepBoundary`, optional `patchDepartNextMlFromLeaveDock`)
+  - Implementation: `convex/functions/events/eventsPredicted/mutations.ts` (`patchDepartNextMlRowsForDepBoundary`)
   - Orchestrator: `convex/functions/vesselOrchestrator/actions/ping/runOrchestratorPing.ts` (`updateLeaveDockEventPatch` + `persistVesselUpdates`)
 
 #### Feature Engineering Pipeline

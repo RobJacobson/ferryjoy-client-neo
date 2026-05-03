@@ -14,8 +14,8 @@ import type {
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
 import { appendPredictionsFromLoadedModels } from "./appendPredictions";
-import type { PredictionModelParametersByPairKey } from "./types";
 import { getRunnablePredictionSpecsFromTrip } from "./tripDockStatePredictionSpecs";
+import type { PredictionModelParametersByPairKey } from "./types";
 
 /**
  * Applies loaded-model predictions for the trip's current phase, then

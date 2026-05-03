@@ -12,7 +12,10 @@ import { vesselPingValidationSchema } from "./schemas";
 const DEFAULT_LOOKBACK_MS = 10 * 60 * 1000;
 
 /**
- * Returns pings with `TimeStamp` at or after `nowMs - lookbackMs`.
+ * Returns recent vessel pings for map display within a lookback window.
+ *
+ * Client passes `nowMs` to anchor the window; defaults to ten minutes when
+ * `lookbackMs` is omitted. Strips Convex system fields from results.
  *
  * @param ctx - Convex query context
  * @param args - Client wall clock and optional lookback window

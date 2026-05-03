@@ -11,7 +11,10 @@ import {
 } from "./schemas";
 
 /**
- * Seeds lastScheduledTripsSyncDate once so cache-flush tooling can run.
+ * Seeds `lastScheduledTripsSyncDate` once if the key is missing.
+ *
+ * Idempotent: returns the existing value when already present so repeated setup
+ * actions do not shift the baseline. Uses “yesterday” ms when creating the row.
  *
  * @param ctx - Convex mutation context
  * @returns Whether a new row was created and the stored timestamp value

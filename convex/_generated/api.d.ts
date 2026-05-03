@@ -138,8 +138,6 @@ import type * as functions_events_eventsActual_index from "../functions/events/e
 import type * as functions_events_eventsActual_mutations from "../functions/events/eventsActual/mutations.js";
 import type * as functions_events_eventsActual_queries from "../functions/events/eventsActual/queries.js";
 import type * as functions_events_eventsActual_schemas from "../functions/events/eventsActual/schemas.js";
-import type * as functions_events_eventsPredicted_actualizations from "../functions/events/eventsPredicted/actualizations.js";
-import type * as functions_events_eventsPredicted_identity from "../functions/events/eventsPredicted/identity.js";
 import type * as functions_events_eventsPredicted_index from "../functions/events/eventsPredicted/index.js";
 import type * as functions_events_eventsPredicted_mutations from "../functions/events/eventsPredicted/mutations.js";
 import type * as functions_events_eventsPredicted_queries from "../functions/events/eventsPredicted/queries.js";
@@ -157,7 +155,6 @@ import type * as functions_keyValueStore_migrations from "../functions/keyValueS
 import type * as functions_keyValueStore_mutations from "../functions/keyValueStore/mutations.js";
 import type * as functions_keyValueStore_queries from "../functions/keyValueStore/queries.js";
 import type * as functions_keyValueStore_schemas from "../functions/keyValueStore/schemas.js";
-import type * as functions_predictions_createVesselTripPredictionModelAccess from "../functions/predictions/createVesselTripPredictionModelAccess.js";
 import type * as functions_predictions_index from "../functions/predictions/index.js";
 import type * as functions_predictions_mutations from "../functions/predictions/mutations.js";
 import type * as functions_predictions_queries from "../functions/predictions/queries.js";
@@ -396,8 +393,6 @@ declare const fullApi: ApiFromModules<{
   "functions/events/eventsActual/mutations": typeof functions_events_eventsActual_mutations;
   "functions/events/eventsActual/queries": typeof functions_events_eventsActual_queries;
   "functions/events/eventsActual/schemas": typeof functions_events_eventsActual_schemas;
-  "functions/events/eventsPredicted/actualizations": typeof functions_events_eventsPredicted_actualizations;
-  "functions/events/eventsPredicted/identity": typeof functions_events_eventsPredicted_identity;
   "functions/events/eventsPredicted/index": typeof functions_events_eventsPredicted_index;
   "functions/events/eventsPredicted/mutations": typeof functions_events_eventsPredicted_mutations;
   "functions/events/eventsPredicted/queries": typeof functions_events_eventsPredicted_queries;
@@ -415,7 +410,6 @@ declare const fullApi: ApiFromModules<{
   "functions/keyValueStore/mutations": typeof functions_keyValueStore_mutations;
   "functions/keyValueStore/queries": typeof functions_keyValueStore_queries;
   "functions/keyValueStore/schemas": typeof functions_keyValueStore_schemas;
-  "functions/predictions/createVesselTripPredictionModelAccess": typeof functions_predictions_createVesselTripPredictionModelAccess;
   "functions/predictions/index": typeof functions_predictions_index;
   "functions/predictions/mutations": typeof functions_predictions_mutations;
   "functions/predictions/queries": typeof functions_predictions_queries;

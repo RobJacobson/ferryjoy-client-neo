@@ -1,3 +1,8 @@
+/**
+ * Tests `persistVesselUpdates`: handler ordering and delegation to nested
+ * upsert helpers (active/completed trip, predictions, timeline rows, patches).
+ */
+
 import { describe, expect, it } from "bun:test";
 import type { MutationCtx } from "_generated/server";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";

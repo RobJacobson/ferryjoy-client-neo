@@ -1,5 +1,8 @@
 /**
- * Snapshot loader for one orchestrator ping.
+ * Identity snapshot for one orchestrator ping.
+ *
+ * Implements the pre-fetch read model consumed by `runUpdateVesselLocations`
+ * for WSF normalization; see `VesselOrchestratorPipeline.md`.
  */
 
 import { internal } from "_generated/api";
@@ -13,12 +16,11 @@ export type OrchestratorSnapshot = {
 };
 
 /**
- * Loads vessel and terminal identity rows needed for one ping (Stage 1
- * normalization).
+ * Loads vessel and terminal identity rows needed for one ping.
  *
- * Runs before the WSF fetch so normalization can resolve identities. Active
- * trips for changed vessels load inside **`bulkUpsertVesselLocations`** (same
- * mutation as location writes); see `functions/vesselLocation/mutations.ts`.
+ * Runs before the WSF fetch so location normalization can resolve identities.
+ * Active trips for changed vessels load inside `bulkUpsertVesselLocations`
+ * (same mutation as location writes); see `functions/vesselLocation/mutations.ts`.
  * Throws when either identity table is empty so bad deploys fail loudly.
  *
  * @param ctx - Convex action context used for the internal read-model query

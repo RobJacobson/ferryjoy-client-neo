@@ -19,6 +19,15 @@ import {
   buildVesselSailingDayScopeKey,
 } from "shared/keys";
 
+/**
+ * Maps one `eventsPredicted` row to the minimal joined trip prediction shape.
+ *
+ * Copies `EventPredictedTime` to `PredTime` and passes through optional
+ * actualization fields only when defined.
+ *
+ * @param row - Predicted dock row subset
+ * @returns `ConvexJoinedTripPrediction` fragment
+ */
 const rowToJoined = (row: {
   EventPredictedTime: number;
   Actual?: number;
@@ -30,9 +39,10 @@ const rowToJoined = (row: {
 });
 
 /**
- * Enriches trip copies with minimal prediction fields from preloaded predicted
- * rows while preserving canonical trip timestamps. WSF ETA remains on `trip.Eta`
- * only.
+ * Joins preloaded `eventsPredicted` rows onto stored trip documents.
+ *
+ * Maps each trip through `mergeTripPredictions`; leaves `trip.Eta` as the only
+ * WSF ETA surface (ML predictions use joined fields).
  *
  * @param trips - Stored trip documents
  * @param predictedByGroup - Rows keyed by vessel/sailing-day scope, then composite key
@@ -44,6 +54,13 @@ export const mergeTripsWithPredictions = (
 ): ConvexVesselTripWithPredictions[] =>
   trips.map((trip) => mergeTripPredictions(trip, predictedByGroup));
 
+/**
+ * Joins one trip with optional prediction fields from the preloaded scope map.
+ *
+ * @param trip - Stored trip document
+ * @param predictedByGroup - Predicted rows by sailing-day scope, then composite key
+ * @returns Trip copy with joined ML fields when rows exist
+ */
 const mergeTripPredictions = (
   trip: ConvexVesselTrip,
   predictedByGroup: Map<string, Map<string, Doc<"eventsPredicted">>>

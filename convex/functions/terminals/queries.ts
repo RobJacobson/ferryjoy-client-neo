@@ -1,5 +1,6 @@
 /**
- * Query handlers for backend and frontend terminal identity snapshots.
+ * Query handlers for `terminalsIdentity` (concise terminal identity rows) and
+ * public frontend snapshots — not full terminal operational or schedule data.
  */
 
 import { internalQuery, query } from "_generated/server";
@@ -8,12 +9,15 @@ import { stripConvexMeta } from "../../shared/stripConvexMeta";
 import { terminalIdentitySchema } from "./schemas";
 
 /**
- * Fetch all backend terminal rows.
+ * Lists all `terminalsIdentity` rows (canonical identity fields only).
+ *
+ * Excludes schedules and derived topology; strips `_id` / `_creationTime` for
+ * stable wire shapes in orchestrator snapshot loads.
  *
  * @param ctx - Convex internal query context
- * @returns Backend terminal rows without Convex metadata
+ * @returns Terminal identity rows without Convex metadata
  */
-export const getAllBackendTerminalsInternal = internalQuery({
+export const getAllTerminalIdentities = internalQuery({
   args: {},
   returns: v.array(terminalIdentitySchema),
   handler: async (ctx) => {
@@ -23,10 +27,14 @@ export const getAllBackendTerminalsInternal = internalQuery({
 });
 
 /**
- * Fetch one backend terminal row by abbreviation.
+ * Loads one `terminalsIdentity` row by `TerminalAbbrev`.
  *
+ * Uses `by_terminal_abbrev` with `unique()` so duplicate-index bugs throw instead
+ * of returning ambiguous data.
+ *
+ * @param ctx - Convex internal query context
  * @param args.terminalAbbrev - Terminal abbreviation to resolve
- * @returns Backend terminal row without Convex metadata, or `null`
+ * @returns Terminal identity row without Convex metadata, or `null`
  */
 export const getBackendTerminalByAbbrevInternal = internalQuery({
   args: {
@@ -46,7 +54,11 @@ export const getBackendTerminalByAbbrevInternal = internalQuery({
 });
 
 /**
- * Public frontend snapshot query for canonical terminal identity data.
+ * Public snapshot of canonical terminal identity data for the app.
+ *
+ * Empty table returns `null`, not `[]`: `useLayeredDataset` only applies Convex
+ * when `convexData` is an array, so `null` preserves bundled assets and KV cache;
+ * `[]` would overwrite them as “authoritative.” Falsy also fails asset generation.
  *
  * @param ctx - Convex public query context
  * @returns Terminal snapshot rows without Convex metadata, or `null` when empty

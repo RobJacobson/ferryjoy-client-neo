@@ -1,7 +1,9 @@
 /**
- * Action-side wrapper: computes active-trip field deltas for logging, then
- * invokes the internal `persistVesselUpdates` mutation (see
- * `functions/vesselOrchestrator/mutations/orchestratorPersistMutations`).
+ * Action-side wrapper around `persistVesselUpdates` with trip delta logs.
+ *
+ * Emits structured `activeVesselTripDeltas` before the mutation so ops can
+ * correlate persistence with field-level motion. Delegates all durable writes
+ * to `orchestratorPersistMutations` unchanged.
  */
 
 import { internal } from "_generated/api";

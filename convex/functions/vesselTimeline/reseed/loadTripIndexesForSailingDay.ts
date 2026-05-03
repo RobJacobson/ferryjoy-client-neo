@@ -10,10 +10,11 @@ import {
 } from "domain/timelineRows";
 
 /**
- * Loads active and completed trips for a sailing day and indexes them by
- * segment key for `TripKey` resolution. Uses `by_sailing_day` on
- * `activeVesselTrips` and `by_sailing_day_and_departing_terminal` on
- * `completedVesselTrips` (lookup by `SailingDay` only) to avoid full scans.
+ * Loads trip rows for one sailing day and builds reseed lookup indexes.
+ *
+ * Queries `activeVesselTrips` and `completedVesselTrips` by sailing-day indexes,
+ * then builds segment-key and vessel maps plus a physical-only trip list for
+ * `buildReseedTimelineSlice`.
  *
  * @param ctx - Mutation context
  * @param sailingDay - Target sailing day

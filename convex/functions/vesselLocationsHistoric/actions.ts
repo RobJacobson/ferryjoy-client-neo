@@ -29,7 +29,10 @@ type HistoricCleanupResult = {
 };
 
 /**
- * Fetches WSF vessel locations and stores a historic debug snapshot.
+ * Captures a historic snapshot of normalized vessel locations for debugging.
+ *
+ * Normalizes raw WSF feed rows with domain `updateVesselLocations`, enriches with
+ * `withAtDockObserved`, attaches `SailingDay`, then appends via `insertSnapshotBatch`.
  *
  * @param ctx - Convex action context
  * @returns Insert summary for the captured snapshot
@@ -65,7 +68,10 @@ export const captureHistoricVesselLocations = internalAction({
 });
 
 /**
- * Purges historic vessel-location rows outside the sailing-day retention window.
+ * Purges `vesselLocationsHistoric` rows older than the retention sailing-day window.
+ *
+ * Computes a cutoff from the current Pacific sailing day (or override), then
+ * loops batched deletes until `hasMore` is false.
  *
  * @param ctx - Convex action context
  * @param args.currentSailingDayOverride - Optional sailing day override for testing
@@ -114,7 +120,10 @@ export const cleanupHistoricVesselLocations = internalAction({
 });
 
 /**
- * Attaches Pacific sailing-day string from a live location epoch timestamp.
+ * Derives Pacific `SailingDay` from a live location’s `TimeStamp`.
+ *
+ * Uses `getSailingDay` so historic rows partition the same way as operational
+ * sailing-day logic elsewhere in the backend.
  *
  * @param location - Convex vessel location row (numeric `TimeStamp`)
  * @returns Historic snapshot row including `SailingDay`
@@ -127,10 +136,13 @@ const addSailingDay = (
 });
 
 /**
- * Adds whole sailing days to a YYYY-MM-DD sailing-day string.
+ * Shifts a YYYY-MM-DD sailing-day string by a signed day count.
+ *
+ * Parses at UTC noon to avoid DST edge cases when stepping calendar days for
+ * retention cutoffs.
  *
  * @param dateString - Base sailing day string in Pacific service-day format
- * @param days - Number of sailing days to add
+ * @param days - Number of sailing days to add (negative moves backward)
  * @returns Shifted sailing day string
  */
 const addSailingDays = (dateString: string, days: number): string => {

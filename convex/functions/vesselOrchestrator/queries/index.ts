@@ -1,7 +1,9 @@
 /**
- * Vessel orchestrator internal queries: identity snapshot and trip schedule
- * reads. Production callers outside this module should import from the module
- * root `functions/vesselOrchestrator` index only when re-exported there.
+ * Vessel orchestrator internal queries: identity snapshot and schedule reads.
+ *
+ * `getOrchestratorIdentities` feeds location normalization; schedule
+ * queries back `updateVesselTrip`. External production code should use
+ * re-exports from `functions/vesselOrchestrator` where available.
  */
 
 export { getOrchestratorIdentities } from "./orchestratorSnapshotQueries";

@@ -8,7 +8,10 @@ import { reseedVesselTimelineForDate } from "./reseedVesselTimelineForDate";
 import type { WindowSyncDayResult } from "./types";
 
 /**
- * Reseed today and the following N-1 sailing days as one recovery window.
+ * Reseeds a consecutive window of sailing days starting from today.
+ *
+ * Defaults to two days when `daysToSyncOverride` is omitted; aggregates counts
+ * across `reseedVesselTimelineForDate` calls for ops dashboards.
  *
  * @param ctx - Convex action context
  * @param daysToSyncOverride - Optional number of sailing days to reseed

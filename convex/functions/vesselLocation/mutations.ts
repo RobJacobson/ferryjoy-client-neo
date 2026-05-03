@@ -36,14 +36,17 @@ export type VesselLocationBulkUpsertResult = {
 };
 
 /**
- * Bulk upsert live `vesselLocations`: single table read, attach `AtDockObserved`,
- * match by `VesselAbbrev`, skip when `TimeStamp` is unchanged, otherwise replace or insert.
+ * Bulk upserts live `vesselLocations` from one normalized feed batch.
  *
- * Shared by {@link bulkUpsertVesselLocations} and the orchestrator location
- * stage in `updateVesselOrchestrator`.
+ * One table read, `withAtDockObserved` enrichment, dedupe by `VesselAbbrev`,
+ * skip unchanged `TimeStamp`, then load `activeVesselTrips` for changed abbrevs
+ * in the same mutation. Shared by `bulkUpsertVesselLocations` and the
+ * orchestrator location stage in `updateVesselOrchestrator`.
  *
  * @param ctx - Convex mutation context
  * @param locations - Normalized incoming rows for this tick (no `AtDockObserved`)
+ * @returns Changed locations, dedupe counts, and active trips after writes for
+ *   changed vessels (orchestrator Stage 2 contract in `VesselOrchestratorPipeline.md`)
  */
 export async function performBulkUpsertVesselLocations(
   ctx: MutationCtx,
@@ -115,8 +118,14 @@ export async function performBulkUpsertVesselLocations(
 }
 
 /**
- * Indexed reads of `activeVesselTrips` for distinct abbrevs in the changed set.
- * Runs in the same mutation as location upserts so trip rows match post-write state.
+ * Loads `activeVesselTrips` rows for distinct vessel abbrevs that changed.
+ *
+ * Runs in the same mutation as location writes so `existingVesselTrip` reflects
+ * post-upsert DB state for the orchestrator per-vessel loop.
+ *
+ * @param ctx - Convex mutation context
+ * @param changedLocations - Locations that were inserted or replaced this tick
+ * @returns Active trip docs for those vessels (metadata stripped), may be sparse
  */
 async function loadActiveTripsForChanged(
   ctx: MutationCtx,
@@ -139,9 +148,10 @@ async function loadActiveTripsForChanged(
 }
 
 /**
- * Internal bulk upsert for normalized vessel location rows (full feed batch).
+ * Convex `internalMutation` wrapper for `performBulkUpsertVesselLocations`.
  *
- * Replaces the former `bulkUpsert` mutation; same args and semantics.
+ * Validates args with Convex validators and returns arrays suitable for action
+ * wiring; replaces the legacy `bulkUpsert` entrypoint without changing semantics.
  *
  * @param ctx - Convex mutation context
  * @param args - Mutation arguments containing the location snapshot payload
@@ -163,10 +173,10 @@ export const bulkUpsertVesselLocations = internalMutation({
 });
 
 /**
- * Upsert the backend vessel snapshot with the latest upstream data.
+ * Reconciles `vesselsIdentity` from one upstream vessel identity snapshot.
  *
- * Existing rows are replaced in place when the VesselAbbrev matches, new rows
- * are inserted, and rows missing from the incoming snapshot are preserved.
+ * Replaces or inserts per `VesselAbbrev`; rows missing from the batch are kept
+ * so partial fetches never delete vessels absent from that payload.
  *
  * @param ctx - Convex internal mutation context
  * @param args - Mutation arguments containing backend vessel rows
@@ -178,15 +188,12 @@ export const replaceBackendVessels = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Get all existing vessel identities.
     const existingRows = await ctx.db.query("vesselsIdentity").collect();
 
-    // Build a map of existing vessel identities by abbreviation.
     const byAbbrev = new Map(
       existingRows.map((row) => [row.VesselAbbrev, row] as const)
     );
 
-    // Upsert each vessel identity.
     for (const vessel of args.vessels) {
       const previous = byAbbrev.get(vessel.VesselAbbrev);
       if (previous) {

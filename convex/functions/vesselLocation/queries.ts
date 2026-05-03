@@ -1,5 +1,6 @@
 /**
- * Query handlers for current vessel location and backend vessel snapshots.
+ * Query handlers for live vessel locations and the `vesselsIdentity` snapshot
+ * (concise vessel identity rows, not full vessel operational records).
  */
 
 import { internalQuery, query } from "_generated/server";
@@ -9,10 +10,13 @@ import { vesselIdentitySchema } from "../vessels/schemas";
 import { vesselLocationValidationSchema } from "./schemas";
 
 /**
- * Get all vessel locations from the database
+ * Lists every live `vesselLocations` row (full feed snapshot; metadata stripped).
+ *
+ * Table scan used for coarse map or debug views; hot paths should prefer indexed
+ * reads per vessel.
  *
  * @param ctx - Convex query context
- * @returns Array of all vessel location records without metadata
+ * @returns All current location docs without `_id` / `_creationTime`
  */
 export const getAll = query({
   args: {},
@@ -24,15 +28,14 @@ export const getAll = query({
 });
 
 /**
- * Get the current vessel location for a specific vessel.
+ * Loads the current live location for one vessel abbreviation.
  *
- * Returns `null` when no row exists for the abbreviation. If more than one row
- * matches (unexpected for this index), Convex `unique()` throws so the bug
- * surfaces instead of being swallowed.
+ * Returns `null` when no row exists. `unique()` throws if the index is violated
+ * so duplicate-key bugs are not silently masked.
  *
  * @param ctx - Convex query context
  * @param args - Query arguments containing the vessel abbreviation
- * @returns Vessel location record without metadata, or null if unavailable
+ * @returns Vessel location record without metadata, or `null` if unavailable
  */
 export const getByVesselAbbrev = query({
   args: {
@@ -52,7 +55,10 @@ export const getByVesselAbbrev = query({
 });
 
 /**
- * Get all current vessel locations as internal storage-native rows.
+ * Lists all live vessel locations for internal callers (metadata stripped).
+ *
+ * Same data as `getAll` but exposed as `internalQuery` for orchestrator and
+ * backend jobs that must not use public query paths.
  *
  * @param ctx - Convex internal query context
  * @returns All live vessel location rows without Convex metadata
@@ -67,12 +73,15 @@ export const getCurrentVesselLocations = internalQuery({
 });
 
 /**
- * Fetch all backend vessel rows.
+ * Lists all `vesselsIdentity` rows (canonical identity fields only).
+ *
+ * Excludes live location and trip state; used by orchestrator identity preload
+ * and vessel sync actions.
  *
  * @param ctx - Convex internal query context
- * @returns Backend vessel rows without Convex metadata
+ * @returns Vessel identity rows without Convex metadata
  */
-export const getAllBackendVesselsInternal = internalQuery({
+export const getAllVesselIdentities = internalQuery({
   args: {},
   returns: v.array(vesselIdentitySchema),
   handler: async (ctx) => {
@@ -82,7 +91,10 @@ export const getAllBackendVesselsInternal = internalQuery({
 });
 
 /**
- * Public frontend snapshot query for canonical vessel identity data.
+ * Public snapshot of canonical vessel identity data for the app.
+ *
+ * Empty table returns `null`, not `[]` — same `useLayeredDataset` contract as
+ * `getFrontendTerminalsSnapshot`.
  *
  * @param ctx - Convex public query context
  * @returns Vessel snapshot rows without Convex metadata, or `null` when empty

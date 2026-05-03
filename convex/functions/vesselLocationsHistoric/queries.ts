@@ -8,10 +8,10 @@ import { stripConvexMeta } from "shared/stripConvexMeta";
 import { historicVesselLocationValidationSchema } from "./schemas";
 
 /**
- * Fetch all historic vessel-location rows for one vessel and sailing day.
+ * Loads historic vessel-location rows for one vessel and sailing day.
  *
- * Rows are sorted by ascending `TimeStamp` so downstream scripts can replay
- * the vessel's day as a simple chronology.
+ * After the indexed collect, sorts by ascending `TimeStamp` so replay scripts
+ * see a simple chronology without extra client sorting.
  *
  * @param ctx - Convex query context
  * @param args - Query arguments containing the vessel abbreviation and sailing day

@@ -1,22 +1,26 @@
 /**
- * Internal persistence queries for normalized predicted dock events.
+ * Reads from `eventsPredicted`: ETA / ML predictions per dock boundary, joined
+ * to trips and timelines alongside scheduled and actual rows.
  */
 
 import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
+import { predictedDockCompositeKey } from "domain/events/predicted/schemas";
 import {
   buildVesselSailingDayScopeKey,
   parseVesselSailingDayScopeKey,
 } from "shared/keys";
-import { predictedDockCompositeKey } from "./identity";
 
 /**
- * Loads all predicted dock events for one vessel and sailing day.
+ * Returns all `eventsPredicted` documents for one `VesselAbbrev` and sailing day.
  *
- * @param ctx - Convex query context
- * @param args.vesselAbbrev - Vessel abbreviation
- * @param args.sailingDay - Sailing day in YYYY-MM-DD format
- * @returns Same-day predicted rows for that vessel
+ * Includes Convex metadata so server-side merges can replace by `_id`.
+ * Strip those fields before sending shapes to a client if you need
+ * validator-only objects.
+ *
+ * @param ctx - Convex query context (database handle)
+ * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
+ * @param args.sailingDay - Calendar sailing day `YYYY-MM-DD`
  */
 export const loadPredictedDockEventsForVesselSailingDay = async (
   ctx: Pick<QueryCtx, "db">,
@@ -30,12 +34,14 @@ export const loadPredictedDockEventsForVesselSailingDay = async (
     .collect();
 
 /**
- * Batch-loads `eventsPredicted` rows for the vessel/sailing-day scopes present
- * on the given trips, keyed by composite prediction id within each scope.
+ * Returns predicted dock rows grouped by vessel-day scope and composite key.
  *
- * @param ctx - Convex query context
- * @param trips - Stored trip documents (active or completed)
- * @returns Map from sailing-day scope key to composite-key → row map
+ * Derives one scope per distinct `VesselAbbrev` + `SailingDay` on `trips`,
+ * loads each day once, then maps rows by `predictedDockCompositeKey` so trip
+ * reads join predictions without scanning other sailing days.
+ *
+ * @param ctx - Convex query context (database handle)
+ * @param trips - Active or completed trip docs (need `VesselAbbrev`, optional `SailingDay`)
  */
 export const loadPredictedRowsGroupedForTrips = async (
   ctx: Pick<QueryCtx, "db">,

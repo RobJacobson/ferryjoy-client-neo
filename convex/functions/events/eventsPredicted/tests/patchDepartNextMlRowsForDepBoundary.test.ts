@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { Id } from "_generated/dataModel";
-import { patchDepartNextMlRows } from "../actualizations";
+import { patchDepartNextMlRowsForDepBoundary } from "../mutations";
 
 type PredictedRow = {
   _id: Id<"eventsPredicted">;
@@ -11,7 +11,7 @@ type PredictedRow = {
   Actual?: number;
 };
 
-describe("patchDepartNextMlRows", () => {
+describe("patchDepartNextMlRowsForDepBoundary", () => {
   it("updates both depart-next ML rows when present", async () => {
     const patchPayloads: Array<{ Actual: number; DeltaTotal: number }> = [];
     const patchMock = mock(
@@ -54,13 +54,12 @@ describe("patchDepartNextMlRows", () => {
     ]);
     const ctx = createMutationCtx(rows, patchMock);
 
-    const result = await patchDepartNextMlRows(ctx, {
-      vesselAbbrev: "TAC",
-      depBoundaryKey: "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
-      actualDepartMs: 1_600_000,
-    });
+    await patchDepartNextMlRowsForDepBoundary(
+      ctx,
+      "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
+      1_600_000
+    );
 
-    expect(result).toEqual({ updated: true });
     expect(patchMock).toHaveBeenCalledTimes(2);
     expect(patchPayloads[0]).toEqual({
       Actual: 1_600_000,
@@ -108,33 +107,25 @@ describe("patchDepartNextMlRows", () => {
     ]);
     const ctx = createMutationCtx(rows, patchMock);
 
-    const result = await patchDepartNextMlRows(ctx, {
-      vesselAbbrev: "TAC",
-      depBoundaryKey: "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
-      actualDepartMs: 1600,
-    });
+    await patchDepartNextMlRowsForDepBoundary(
+      ctx,
+      "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
+      1600
+    );
 
-    expect(result).toEqual({
-      updated: false,
-      reason: "no_predictions_to_update",
-    });
     expect(patchMock).toHaveBeenCalledTimes(0);
   });
 
-  it("returns no-op when rows do not exist", async () => {
+  it("no-ops when rows do not exist", async () => {
     const patchMock = mock(async () => {});
     const ctx = createMutationCtx(new Map(), patchMock);
 
-    const result = await patchDepartNextMlRows(ctx, {
-      vesselAbbrev: "TAC",
-      depBoundaryKey: "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
-      actualDepartMs: 1600,
-    });
+    await patchDepartNextMlRowsForDepBoundary(
+      ctx,
+      "TAC--2026-03-13--05:30--ANA-ORI--dep-dock",
+      1600
+    );
 
-    expect(result).toEqual({
-      updated: false,
-      reason: "no_predictions_to_update",
-    });
     expect(patchMock).toHaveBeenCalledTimes(0);
   });
 });

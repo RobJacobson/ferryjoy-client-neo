@@ -8,8 +8,10 @@ import { v } from "convex/values";
 import { vesselTripPredictionDocSchema } from "./schemas";
 
 /**
- * Loads all prediction rows for the given vessel + physical trip pairs (up to
- * five per trip, one per `PredictionType`).
+ * Loads `vesselTripPredictions` rows for many `(VesselAbbrev, TripKey)` pairs.
+ *
+ * Issues one indexed collect per scope and concatenates results for batch reads
+ * during timeline or compare tooling (up to one row per prediction type per trip).
  *
  * @param ctx - Convex internal query context
  * @param args.scopes - Distinct `(VesselAbbrev, TripKey)` pairs to load

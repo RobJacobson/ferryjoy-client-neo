@@ -30,8 +30,10 @@ export type LoadRouteTimelineSnapshotInputsResult = {
 };
 
 /**
- * Returns distinct vessel codes on the route/day from scheduled trips, sorted
- * for stable ordering aligned with `buildRouteTimelineSnapshot`.
+ * Returns distinct vessel codes for one route/day from scheduled trips.
+ *
+ * Sorts abbreviations lexicographically so downstream merging and UI ordering
+ * stay stable across reads.
  *
  * @param trips - Rows from `scheduledTrips` for one route and sailing day
  * @returns Sorted unique `VesselAbbrev` values
@@ -44,8 +46,10 @@ const vesselAbbrevsFromScheduledTrips = (
   );
 
 /**
- * Returns segment keys represented by the route/day scheduled trips. These keys
- * scope `eventsScheduled` back down after per-vessel indexed loads.
+ * Returns segment keys owned by scheduled trips for one route/day.
+ *
+ * After loading full vessel-day `eventsScheduled` rows, filters back to keys
+ * present on this route so unrelated vessel schedule noise is excluded.
  *
  * @param trips - Rows from `scheduledTrips` for one route and sailing day
  * @returns Stable segment keys for route-owned scheduled trips
@@ -54,8 +58,11 @@ const segmentKeysFromScheduledTrips = (trips: { Key: string }[]): Set<string> =>
   new Set(trips.map((trip) => trip.Key));
 
 /**
- * Loads merged-input event arrays for `buildRouteTimelineSnapshot` using only
- * indexed queries (`scheduledTrips`, then per-vessel event tables).
+ * Loads scheduled, actual, and predicted dock events for a route timeline build.
+ *
+ * Discovers vessels from `scheduledTrips`, runs indexed per-vessel reads on the
+ * three event tables, narrows scheduled rows to route segment keys, and strips
+ * metadata from actual/predicted docs for the domain builder.
  *
  * @param ctx - Convex query context
  * @param args - Route, sailing day, and optional single-vessel filter

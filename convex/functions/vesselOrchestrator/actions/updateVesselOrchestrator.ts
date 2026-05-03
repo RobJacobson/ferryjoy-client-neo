@@ -1,5 +1,8 @@
 /**
- * Vessel orchestrator actions.
+ * Convex action entry for the vessel orchestrator ping.
+ *
+ * Re-exports the public `updateVesselOrchestrator` surface; implementation
+ * delegates to `runOrchestratorPing` for stage ordering and error policy.
  */
 
 import { internalAction } from "_generated/server";
@@ -14,8 +17,8 @@ import { runOrchestratorPing } from "./ping/runOrchestratorPing";
  * domain logic pure while centralizing side-effect ordering across
  * `actions/ping/*`, `functions/vesselLocation/mutations`, and
  * `functions/vesselOrchestrator/mutations/orchestratorPersistMutations`. The
- * handler delegates most compute
- * to domain functions, but intentionally owns failure semantics and stage order
+ * handler delegates heavy compute to domain functions but intentionally owns
+ * failure semantics and stage order
  * so trip, prediction, and timeline writes stay causally aligned for the same
  * vessel update.
  *
@@ -29,6 +32,7 @@ export const updateVesselOrchestrator = internalAction({
     try {
       await runOrchestratorPing(ctx);
     } catch (error) {
+      // Rethrow after logging so cron and observability see fatal ping failures.
       const err = error instanceof Error ? error : new Error(String(error));
       console.error("[updateVesselOrchestrator]", err);
       throw err;

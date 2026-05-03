@@ -25,7 +25,7 @@ export type VesselTripPredictionProposal = Infer<
 
 /**
  * Convex validator for rows stored in `vesselTripPredictions` (mirrors
- * {@link predictionSchema} plus keys and `UpdatedAt`).
+ * `predictionSchema` plus keys and `UpdatedAt`).
  */
 export const vesselTripPredictionStoredSchema = v.object({
   VesselAbbrev: v.string(),

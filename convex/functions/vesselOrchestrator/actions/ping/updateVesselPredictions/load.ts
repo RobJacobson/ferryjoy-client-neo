@@ -12,13 +12,13 @@ import type {
 
 /**
  * Loads prediction model parameter documents for one orchestrator branch via
- * **`getPredictionModelParameters`**.
+ * `getPredictionModelParameters`.
  *
  * @param ctx - Convex action context used for the internal query
  * @param request - Terminal pair and model types aligned with the domain
- *   request from **`getPredictionModelParametersFromTripUpdate`**
+ *   request from `getPredictionModelParametersFromTripUpdate`
  * @returns Plain lookup keyed by pair string and model type, suitable for
- *   **`applyVesselPredictionsFromLoadedModels`**
+ *   `applyVesselPredictionsFromLoadedModels`
  */
 export const loadPredictionModelParameters = async (
   ctx: ActionCtx,

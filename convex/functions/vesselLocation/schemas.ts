@@ -64,8 +64,7 @@ export const vesselLocationIncomingValidationSchema = v.object(
 );
 
 /**
- * Convex validator for vessel locations (numbers)
- * This is used in defineTable and function argument validation
+ * Convex validator for persisted live locations (epoch-ms fields; includes `AtDockObserved`).
  */
 export const vesselLocationValidationSchema = v.object(
   vesselLocationValidationFields
@@ -85,10 +84,13 @@ export type ConvexVesselLocationIncoming = Infer<
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
 
 /**
- * Convert Convex vessel location (numbers) to domain vessel location (Dates).
- * Manual conversion from epoch milliseconds to Date objects.
+ * Converts epoch-ms vessel location fields to `Date` for domain code.
+ *
+ * Maps `TimeStamp` and optional dock/ETA fields through shared converters so
+ * domain timelines use `Date` while Convex storage stays numeric.
+ *
  * @param cvl - Convex vessel location with numeric timestamps
- * @returns Domain vessel location with Date objects
+ * @returns Same record with `TimeStamp` and optional dock/ETA fields as `Date`
  */
 export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
   ...cvl,

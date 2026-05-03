@@ -31,7 +31,7 @@ export type UpdateLeaveDockEventPatch = {
  * Produces a payload only when this ping is the at-dock→at-sea crossing,
  * `LeftDockActual` is set, and `ScheduleKey` can build a stable dep-dock key.
  * Otherwise returns null so the orchestrator does not re-patch on routine
- * at-sea location ticks. Non-null results flow to `patchDepartNextMlRows` in
+ * at-sea location ticks. Non-null results flow to `patchDepartNextMlRowsForDepBoundary` in
  * the same `persistVesselUpdates` transaction as trip and timeline writes.
  *
  * @param tripUpdate - Sparse trip delta from `updateVesselTrip` for this ping

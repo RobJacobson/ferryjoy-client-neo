@@ -16,10 +16,13 @@ import type { TerminalIdentity } from "../terminals/schemas";
 import type { TerminalTopology } from "./schemas";
 
 /**
- * Refresh the backend terminals topology snapshot from WSF schedule data.
+ * Refreshes derived `terminalsTopology` rows from WSF schedule inputs.
+ *
+ * Delegates to `refreshBackendTerminalsTopologyImpl`, which ensures terminals
+ * exist, builds topology via adapter, and replaces the table in one mutation.
  *
  * @param ctx - Convex internal action context
- * @returns `null`
+ * @returns `null` after refresh completes
  */
 export const refreshBackendTerminalsTopology = internalAction({
   args: {},
@@ -31,10 +34,12 @@ export const refreshBackendTerminalsTopology = internalAction({
 });
 
 /**
- * Public entry point for manual refreshes and local scripts.
+ * Public action for manual topology refresh and local scripts.
+ *
+ * Same implementation as the internal refresh; exposed for `bunx convex run`.
  *
  * @param ctx - Convex public action context
- * @returns `null`
+ * @returns `null` after refresh completes
  */
 export const runRefreshBackendTerminalsTopology = action({
   args: {},
@@ -46,10 +51,13 @@ export const runRefreshBackendTerminalsTopology = action({
 });
 
 /**
- * Load the backend terminals topology snapshot for one action tick.
+ * Loads `terminalsTopology` for one action tick or bootstraps it when empty.
+ *
+ * When no rows exist, runs a refresh then re-reads; throws if still empty so
+ * callers fail fast on persistent setup issues.
  *
  * @param ctx - Convex action context
- * @returns Snapshot for the current action
+ * @returns Topology rows for the current action
  */
 export const loadBackendTerminalsTopologyOrThrow = async (
   ctx: ActionCtx
@@ -80,10 +88,13 @@ export const loadBackendTerminalsTopologyOrThrow = async (
 };
 
 /**
- * Shared implementation for topology refresh.
+ * Shared implementation for terminals topology refresh.
+ *
+ * Builds rows for today’s Pacific sailing day, replaces the backend table, and
+ * logs or rethrows normalized errors from the adapter chain.
  *
  * @param ctx - Convex action context
- * @returns When the snapshot is refreshed
+ * @returns Resolves when the snapshot mutation finishes
  */
 const refreshBackendTerminalsTopologyImpl = async (
   ctx: ActionCtx
@@ -112,7 +123,10 @@ const refreshBackendTerminalsTopologyImpl = async (
 };
 
 /**
- * Ensure backend terminals exist before topology derivation runs.
+ * Ensures `terminalsIdentity` is non-empty before topology derivation.
+ *
+ * Reloads after `syncBackendTerminalTable` when the first read returns no rows
+ * so `buildWsfTerminalsTopology` always receives a full identity snapshot.
  *
  * @param ctx - Convex action context
  * @returns Canonical backend terminals
@@ -131,7 +145,9 @@ const ensureBackendTerminals = async (
 };
 
 /**
- * Normalize unknown thrown values into an Error.
+ * Coerces unknown thrown values into an `Error` for consistent logging.
+ *
+ * Preserves existing `Error` instances; wraps primitives with `String(error)`.
  *
  * @param error - Unknown thrown value
  * @returns Normalized error instance

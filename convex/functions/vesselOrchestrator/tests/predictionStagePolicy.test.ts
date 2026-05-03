@@ -1,7 +1,14 @@
+/**
+ * Tests `getVesselTripPredictionsFromTripUpdate` load policy: when the
+ * injected `loadPredictionModelParameters` runs vs stays cold (route pair,
+ * readiness, at-sea `LeftDockActual`).
+ */
+
 import { describe, expect, it, mock } from "bun:test";
 import {
   getVesselTripPredictionsFromTripUpdate,
   type PredictionModelParametersByPairKey,
+  type PredictionModelParametersRequest,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 import { generateTripKey } from "shared/physicalTripIdentity";
@@ -138,7 +145,9 @@ describe("prediction stage fetch policy", () => {
 
   it("loads only runnable at-dock model parameters", async () => {
     const loadPredictionModelParameters = mock(
-      async (): Promise<PredictionModelParametersByPairKey> => ({})
+      async (
+        _request: PredictionModelParametersRequest
+      ): Promise<PredictionModelParametersByPairKey> => ({})
     );
 
     await getVesselTripPredictionsFromTripUpdate(
@@ -153,7 +162,7 @@ describe("prediction stage fetch policy", () => {
     );
 
     expect(loadPredictionModelParameters).toHaveBeenCalledTimes(1);
-    expect(loadPredictionModelParameters.mock.calls[0]?.[0]).toEqual({
+    expect(loadPredictionModelParameters.mock.calls[0][0]).toEqual({
       pairKey: "ORI->LOP",
       modelTypes: ["at-dock-depart-curr", "at-dock-arrive-next"],
     });

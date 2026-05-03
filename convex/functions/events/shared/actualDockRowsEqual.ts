@@ -1,17 +1,18 @@
 /**
- * Equality helpers for normalized `eventsActual` persistence (skip no-op writes).
+ * Equality helper for `eventsActual` upserts: skip replaces when visible fields match.
  */
 
 import type { Doc } from "_generated/dataModel";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 
 /**
- * Returns whether a stored row matches the candidate for all user-visible
- * fields (excluding system fields and `UpdatedAt`).
+ * Returns whether two rows describe the same observable dock event.
  *
- * @param left - Row currently stored in `eventsActual`
- * @param right - Candidate insert/replace payload including `UpdatedAt`
- * @returns True when no replace is needed
+ * Ignores Convex system fields; compares keys, terminals, times, and occurrence.
+ *
+ * @param left - Stored document from `eventsActual`
+ * @param right - Payload being applied (includes `UpdatedAt`)
+ * @returns `true` when no replace is needed for persistence purposes
  */
 export const actualDockRowsEqual = (
   left: Doc<"eventsActual">,

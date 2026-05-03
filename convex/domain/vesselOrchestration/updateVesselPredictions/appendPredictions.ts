@@ -33,7 +33,7 @@ type SpecPredictionResult = {
  */
 const hasRequiredInputsForSpecs = (
   trip: ConvexVesselTripWithML,
-  specs: ReadonlyArray<PredictionSpec>
+  _specs: ReadonlyArray<PredictionSpec>
 ): boolean => {
   if (!isPredictionReadyTrip(trip)) {
     return false;

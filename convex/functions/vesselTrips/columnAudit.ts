@@ -19,12 +19,29 @@ const endGroup = ["TripEnd", "TripEnd", "TripEnd", "TripEnd"] as const;
 type StartField = (typeof startGroup)[number];
 type EndField = (typeof endGroup)[number];
 
+/**
+ * Reads one timestamp field from a completed trip row by name.
+ *
+ * Thin indirection so audit loops can treat start/end group names uniformly.
+ *
+ * @param row - Stored completed trip document
+ * @param name - One of the audited parallel timestamp columns
+ * @returns Epoch ms or `undefined` when unset
+ */
 const readField = (
   row: Doc<"completedVesselTrips">,
   name: StartField | EndField
 ): number | undefined => row[name];
 
-/** True iff every value is `===` to the first (literal equality). */
+/**
+ * Returns whether every element is strictly equal to the first (`===`).
+ *
+ * Treats `undefined` like any other value; used to compare parallel timestamp
+ * columns that should be redundant copies.
+ *
+ * @param values - Numeric or undefined field values from one trip row
+ * @returns `true` when the slice is empty or all entries match the first
+ */
 const allLiterallyEqual = (
   values: readonly (number | undefined)[]
 ): boolean => {
@@ -40,6 +57,15 @@ const allLiterallyEqual = (
   return true;
 };
 
+/**
+ * Collects named timestamp fields from one row into a string-keyed map.
+ *
+ * Maps stored `undefined` to JSON-friendly `null` in the audit payload.
+ *
+ * @param row - Completed trip document
+ * @param names - Field names in one redundancy group
+ * @returns Map of field name to epoch ms or `null`
+ */
 const pick = (
   row: Doc<"completedVesselTrips">,
   names: readonly (StartField | EndField)[]
@@ -61,9 +87,14 @@ type MismatchRow = {
 };
 
 /**
- * Scans all `completedVesselTrips` and checks whether the “start” and “end”
- * timestamp field groups are each constant per row (literal `===` equality to
- * the first field in the group).
+ * Audits redundant start/end timestamp columns on `completedVesselTrips`.
+ *
+ * For each row, checks whether parallel “start” and “end” field groups are
+ * literally equal; collects mismatch samples up to `maxMismatchSamples`.
+ *
+ * @param ctx - Convex internal query context
+ * @param args.maxMismatchSamples - Cap on mismatch examples per group (default 100)
+ * @returns Summary counts and sample rows for each group
  */
 export const auditCompletedVesselTripsTimeColumns = internalQuery({
   args: {

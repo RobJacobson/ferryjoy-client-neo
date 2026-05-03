@@ -30,7 +30,7 @@ import { createUpdateVesselTripDbAccess } from "./updateVesselTrip";
  * This internal runner preserves the invariant that one WSF batch drives one
  * consistent orchestrator pass. It loads identities, runs location
  * normalization/dedupe; active trips for changed vessels are loaded inside
- * **`bulkUpsertVesselLocations`** (same transaction as location writes),
+ * `bulkUpsertVesselLocations` (same transaction as location writes),
  * then executes sparse per-vessel domain compute and persistence. Keeping this flow in one
  * function makes control-flow intent explicit while keeping domain details
  * encapsulated in `domain/vesselOrchestration/*` and the persistence

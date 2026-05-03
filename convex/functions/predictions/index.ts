@@ -1,6 +1,7 @@
 /**
- * Predictions module exports
- * Contains functions for storing and querying ML model parameters and prediction results
+ * ML model-parameter storage and reads: `modelParameters` rows, production
+ * version tag via `keyValueStore`, and queries/actions the orchestrator uses to
+ * load linear-regression coefficients per terminal pair.
  */
 
 export * from "./mutations";

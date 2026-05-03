@@ -43,8 +43,9 @@ export const getVesselTripPredictionsFromTripUpdate = async (
     activeTrip
   );
 
-  const predictionRows =
-    vesselTripPredictionProposalsFromMlTrip(enrichedActiveVesselTrip);
+  const predictionRows = vesselTripPredictionProposalsFromMlTrip(
+    enrichedActiveVesselTrip
+  );
 
   return {
     enrichedActiveVesselTrip,

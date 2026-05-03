@@ -10,8 +10,10 @@ import { vesselTripPredictionProposalSchema } from "./schemas";
 import { decideVesselTripPredictionUpsert } from "./vesselTripPredictionPersistPlan";
 
 /**
- * Applies a batch of ML prediction proposals: loads each natural key, skips when
- * overlay-normalized values are unchanged, otherwise inserts or replaces.
+ * Applies a batch of ML prediction proposals with compare-then-write semantics.
+ *
+ * Convex entrypoint around `upsertPredictionProposals` for orchestrator and
+ * tooling; returns aggregate skip/insert/replace counts.
  *
  * @param ctx - Convex internal mutation context
  * @param args.proposals - Proposed snapshots keyed by vessel, trip, field
@@ -29,6 +31,16 @@ export const batchUpsertProposals = internalMutation({
   handler: async (ctx, args) => upsertPredictionProposals(ctx, args.proposals),
 });
 
+/**
+ * Applies each proposal sequentially against `vesselTripPredictions`.
+ *
+ * Uses `by_vessel_trip_and_field` plus `decideVesselTripPredictionUpsert` so
+ * overlay-equal payloads skip writes and share one `UpdatedAt` clock per batch.
+ *
+ * @param ctx - Convex mutation context
+ * @param proposals - ML snapshots from the orchestrator or batch tooling
+ * @returns Counts of skipped, inserted, and replaced rows
+ */
 export const upsertPredictionProposals = async (
   ctx: MutationCtx,
   proposals: ReadonlyArray<VesselTripPredictionProposal>

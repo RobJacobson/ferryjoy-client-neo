@@ -7,7 +7,9 @@ import { v } from "convex/values";
 import { MODEL_KEYS, type ModelType } from "domain/ml/shared/types";
 
 /**
- * Convex validator for model types, derived from MODEL_KEYS to ensure consistency
+ * Convex validator union for trained-model `modelType` values.
+ *
+ * Mirrors `MODEL_KEYS` from domain so training code and Convex storage cannot drift.
  */
 export const modelTypeValidator = v.union(
   v.literal(MODEL_KEYS[0]),
@@ -31,7 +33,9 @@ export type PredictionType =
   | "AtSeaDepartNext";
 
 /**
- * Convex validator for PascalCase prediction types (eventsPredicted, trips).
+ * Convex validator for PascalCase prediction kinds on trips and `eventsPredicted`.
+ *
+ * Aligns with domain `PredictionType` naming used in ML overlays and persistence.
  */
 export const predictionTypeValidator = v.union(
   v.literal("AtDockDepartCurr"),
@@ -42,8 +46,10 @@ export const predictionTypeValidator = v.union(
 );
 
 /**
- * Convex validator for ML model parameters stored in the modelParameters table
- * Contains trained linear regression models with coefficients, intercept, and performance metrics
+ * Convex validator for one `modelParameters` training snapshot row.
+ *
+ * Holds linear-regression coefficients, intercept, test metrics, sampling stats,
+ * and a `versionTag` for production vs dev promotion flows.
  */
 export const modelParametersSchema = v.object({
   bucketType: v.union(v.literal("pair")),
