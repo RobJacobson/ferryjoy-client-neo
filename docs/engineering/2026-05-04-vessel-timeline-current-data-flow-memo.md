@@ -1,0 +1,204 @@
+# Engineering memo: VesselTimeline current data flow
+
+**Status:** Current architecture  
+**Audience:** Engineers and coding agents working on `VesselTimeline`  
+**Scope:** How the client fetches, assembles, and renders timeline times for one
+vessel and sailing day
+
+---
+
+## Summary
+
+`VesselTimeline` renders from three vessel/day Convex event-row subscriptions:
+
+- scheduled dock events from `eventsScheduled`
+- actual dock events from `eventsActual`
+- predicted dock events from `eventsPredicted`
+
+The backend query layer returns normal table rows. The client owns the
+interpretation needed by the visual timeline: merging overlays, choosing display
+times, pairing dock visits, deriving spans, computing axis geometry, and placing
+the active indicator.
+
+Live vessel position is deliberately separate from the event rows. Event rows
+define timeline structure and times; `vesselLocations` supplies the current
+motion/position input for the active indicator.
+
+---
+
+## Fetch Path
+
+The feature entrypoint is
+`src/features/VesselTimeline/VesselTimeline.tsx`.
+
+`VesselTimeline` receives:
+
+- `vesselAbbrev`
+- `sailingDay`
+- optional `now`
+- optional visual theme overrides
+
+It mounts `ConvexVesselTimelineEventsProvider` with the vessel/day scope and a
+retry key. That provider lives at
+`src/data/contexts/convex/ConvexVesselTimelineEventsContext.tsx`.
+
+The provider runs three `useQuery` subscriptions:
+
+- `api.functions.events.eventsScheduled.queries.listScheduledDockEventsForVesselSailingDay`
+- `api.functions.events.eventsActual.queries.listActualDockEventsForVesselSailingDay`
+- `api.functions.events.eventsPredicted.queries.listPredictedDockEventsForVesselSailingDay`
+
+Each query accepts:
+
+```ts
+{
+  vesselAbbrev: string;
+  sailingDay: string;
+}
+```
+
+The context value is assembled by
+`src/data/contexts/convex/convexVesselTimelineEventsValue.ts`. It exposes the
+three row arrays, a combined `isLoading`, an `errorMessage`, and `retry`.
+Undefined `useQuery` results become empty arrays while `isLoading` remains true.
+
+---
+
+## Convex Queries
+
+The public list queries live under `convex/functions/events`:
+
+- `eventsScheduled/queries.ts`
+- `eventsActual/queries.ts`
+- `eventsPredicted/queries.ts`
+
+All three use the `by_vessel_and_sailing_day` index and strip Convex metadata
+before returning rows.
+
+Scheduled rows are sorted with the same scheduled-boundary comparator used by
+backend timeline row helpers. Actual rows are sorted by `ScheduledDeparture`,
+then `EventKey`. Predicted rows are sorted by `ScheduledDeparture`, then `Key`.
+
+The public queries return row shapes matching their table validators. They do
+not return a prebuilt timeline object.
+
+---
+
+## Presentation Hook
+
+`src/features/VesselTimeline/hooks/useVesselTimelinePresentationState.ts`
+combines three inputs:
+
+- event rows from `useConvexVesselTimelineEvents`
+- current vessel location from `useConvexVesselLocations`
+- terminal display names from `useTerminalsData`
+
+It selects the current vessel location by `VesselAbbrev`, creates a terminal name
+lookup, resolves `now`, and delegates to
+`buildEventRowTimelinePresentationState`.
+
+`presentationStateBuilders.ts` handles loading, error, empty, and ready states.
+In the ready path, it calls `fromEventRows`.
+
+---
+
+## Assembly Pipeline
+
+The timeline assembly pipeline starts in
+`src/features/VesselTimeline/renderPipeline/fromEventRows.ts`.
+
+The main path is:
+
+```text
+scheduledEvents + actualEvents + predictedEvents
+  -> buildDockVisitsFromEventRows
+  -> selectDockVisitVisualSpans
+  -> deriveRouteTimelineAxisGeometry
+  -> buildVesselTimelineRenderStateFromAxisGeometry
+  -> VesselTimelineRenderState
+```
+
+`buildDockVisitsFromEventRows.ts` first filters each row array to the requested
+`vesselAbbrev` and `sailingDay`. It then calls
+`mergeEventRowsForVesselTimeline`.
+
+`mergeEventRowsForVesselTimeline.ts` creates ordered merged boundary events:
+
+- scheduled rows provide the backbone and ordering
+- actual rows attach to scheduled boundaries by `ScheduleKey` and `EventType`
+- arrival actuals have bounded fallback matching by terminal and scheduled
+  departure
+- predicted rows provide a single display prediction per boundary
+
+Prediction precedence is:
+
+1. WSF ETA
+2. ML `AtSeaArriveNext`
+3. ML `AtDockArriveNext`
+4. first remaining prediction candidate
+
+`buildDockVisitsFromEventRows.ts` converts merged boundary events into
+client-side `RouteTimelineDockVisit` objects with `Date` timestamps. These types
+live in `src/features/RouteTimelineModel/types.ts` and intentionally avoid
+Convex validators or backend read-model shapes.
+
+---
+
+## Time And Indicator Derivation
+
+`RouteTimelineModel` supplies visual geometry helpers:
+
+- `selectDockVisitVisualSpans`
+- `deriveRouteTimelineAxisGeometry`
+- `getLayoutTime`
+- `getDisplayTime`
+
+Layout time uses schedule-first precedence:
+
+```text
+scheduled -> actual -> predicted
+```
+
+Display/progress time uses:
+
+```text
+actual -> predicted -> scheduled
+```
+
+`buildVesselTimelineRenderStateFromAxisGeometry.ts` maps axis spans to renderer
+rows, terminal cards, row layouts, and the active indicator.
+
+The active interval is resolved from occurred boundaries:
+
+- latest occurred departure means the vessel is at sea
+- latest occurred arrival means the vessel is at dock
+- no occurred boundary means the opening dock row is active when present
+
+The active indicator uses `VesselLocation` only at the final render-state stage:
+
+- at dock: interpolate by time within the active dock row
+- at sea: interpolate by `DepartingDistance` and `ArrivingDistance` when
+  available
+
+This keeps location ticks from changing the event-row query shape.
+
+---
+
+## Current Ownership
+
+Convex owns:
+
+- event table storage
+- indexed vessel/day list queries
+- metadata stripping and deterministic row ordering
+
+`VesselTimeline` owns:
+
+- event-row interpretation
+- actual/predicted display precedence for this UI
+- dock-visit assembly
+- visual spans and render state
+- active indicator placement
+
+`RouteTimelineModel` owns generic client geometry helpers and plain client
+timeline visit types.

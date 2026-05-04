@@ -54,8 +54,8 @@ indicator motion stays local to presentation.
 Same rules as before (merged dock + sea glass card, terminal-tail handling, etc.);
 see feature **`config`** and **`buildVesselTimelineRenderStateFromAxisGeometry`**.
 
-## Related backend (not this screen’s primary path)
+## Related Backend
 
-**`getVesselTimelineBackbone`** and other server read models may still exist for
-other consumers; this feature’s **client** path is the three **list** queries plus
-client-owned render-pipeline interpretation.
+The legacy server-side `getVesselTimelineBackbone` read model has been removed.
+This feature’s client path is the three event-row list queries plus client-owned
+render-pipeline interpretation.

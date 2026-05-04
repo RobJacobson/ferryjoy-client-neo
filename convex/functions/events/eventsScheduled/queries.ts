@@ -49,8 +49,7 @@ const readScheduledDockEventsForVesselSailingDay = async (
 };
 
 /**
- * Public Convex query listing scheduled dock events for one vessel and sailing
- * day.
+ * Public Convex query listing scheduled dock events for one vessel and sailing day.
  *
  * Validates `args` and `returns` with Convex validators, then calls
  * `readScheduledDockEventsForVesselSailingDay`, so subscribers get the same

@@ -67,8 +67,6 @@ import type * as domain_scheduledTrips_grouping from "../domain/scheduledTrips/g
 import type * as domain_scheduledTrips_index from "../domain/scheduledTrips/index.js";
 import type * as domain_scheduledTrips_officialCrossingTimes from "../domain/scheduledTrips/officialCrossingTimes.js";
 import type * as domain_scheduledTrips_runScheduleTransformPipeline from "../domain/scheduledTrips/runScheduleTransformPipeline.js";
-import type * as domain_timelineBackbone_buildTimelineBackbone from "../domain/timelineBackbone/buildTimelineBackbone.js";
-import type * as domain_timelineBackbone_index from "../domain/timelineBackbone/index.js";
 import type * as domain_timelineReseed_buildReseedTimelineSlice from "../domain/timelineReseed/buildReseedTimelineSlice.js";
 import type * as domain_timelineReseed_hydrateWithHistory from "../domain/timelineReseed/hydrateWithHistory.js";
 import type * as domain_timelineReseed_index from "../domain/timelineReseed/index.js";
@@ -205,11 +203,8 @@ import type * as functions_vesselPings_mutations from "../functions/vesselPings/
 import type * as functions_vesselPings_queries from "../functions/vesselPings/queries.js";
 import type * as functions_vesselPings_schemas from "../functions/vesselPings/schemas.js";
 import type * as functions_vesselTimeline_actions from "../functions/vesselTimeline/actions.js";
-import type * as functions_vesselTimeline_backbone_index from "../functions/vesselTimeline/backbone/index.js";
-import type * as functions_vesselTimeline_backbone_loadVesselTimelineBackbone from "../functions/vesselTimeline/backbone/loadVesselTimelineBackbone.js";
 import type * as functions_vesselTimeline_index from "../functions/vesselTimeline/index.js";
 import type * as functions_vesselTimeline_mutations from "../functions/vesselTimeline/mutations.js";
-import type * as functions_vesselTimeline_queries from "../functions/vesselTimeline/queries.js";
 import type * as functions_vesselTimeline_reseed_index from "../functions/vesselTimeline/reseed/index.js";
 import type * as functions_vesselTimeline_reseed_loadTripIndexesForSailingDay from "../functions/vesselTimeline/reseed/loadTripIndexesForSailingDay.js";
 import type * as functions_vesselTimeline_reseed_runReseedBoundaryEventsForSailingDay from "../functions/vesselTimeline/reseed/runReseedBoundaryEventsForSailingDay.js";
@@ -308,8 +303,6 @@ declare const fullApi: ApiFromModules<{
   "domain/scheduledTrips/index": typeof domain_scheduledTrips_index;
   "domain/scheduledTrips/officialCrossingTimes": typeof domain_scheduledTrips_officialCrossingTimes;
   "domain/scheduledTrips/runScheduleTransformPipeline": typeof domain_scheduledTrips_runScheduleTransformPipeline;
-  "domain/timelineBackbone/buildTimelineBackbone": typeof domain_timelineBackbone_buildTimelineBackbone;
-  "domain/timelineBackbone/index": typeof domain_timelineBackbone_index;
   "domain/timelineReseed/buildReseedTimelineSlice": typeof domain_timelineReseed_buildReseedTimelineSlice;
   "domain/timelineReseed/hydrateWithHistory": typeof domain_timelineReseed_hydrateWithHistory;
   "domain/timelineReseed/index": typeof domain_timelineReseed_index;
@@ -446,11 +439,8 @@ declare const fullApi: ApiFromModules<{
   "functions/vesselPings/queries": typeof functions_vesselPings_queries;
   "functions/vesselPings/schemas": typeof functions_vesselPings_schemas;
   "functions/vesselTimeline/actions": typeof functions_vesselTimeline_actions;
-  "functions/vesselTimeline/backbone/index": typeof functions_vesselTimeline_backbone_index;
-  "functions/vesselTimeline/backbone/loadVesselTimelineBackbone": typeof functions_vesselTimeline_backbone_loadVesselTimelineBackbone;
   "functions/vesselTimeline/index": typeof functions_vesselTimeline_index;
   "functions/vesselTimeline/mutations": typeof functions_vesselTimeline_mutations;
-  "functions/vesselTimeline/queries": typeof functions_vesselTimeline_queries;
   "functions/vesselTimeline/reseed/index": typeof functions_vesselTimeline_reseed_index;
   "functions/vesselTimeline/reseed/loadTripIndexesForSailingDay": typeof functions_vesselTimeline_reseed_loadTripIndexesForSailingDay;
   "functions/vesselTimeline/reseed/runReseedBoundaryEventsForSailingDay": typeof functions_vesselTimeline_reseed_runReseedBoundaryEventsForSailingDay;
