@@ -14,7 +14,7 @@ import {
 } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as adapters from "adapters";
-import * as updateTimelineModule from "domain/vesselOrchestration/updateTimeline";
+import * as updateEventsModule from "domain/vesselOrchestration/updateEvents";
 import * as updateVesselPredictionsModule from "domain/vesselOrchestration/updateVesselPredictions";
 import * as updateVesselTripModule from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -149,10 +149,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     ).mockResolvedValue({
       enrichedActiveVesselTrip: activeTripWithMl,
     });
-    const timelineSpy = spyOn(
-      updateTimelineModule,
-      "updateTimeline"
-    ).mockReturnValue({
+    const eventSpy = spyOn(updateEventsModule, "updateEvents").mockReturnValue({
       actualEvents: [],
       predictedEvents: [],
     });
@@ -189,8 +186,8 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(runQueryCalls).toBe(1);
     expect(tripSpy).toHaveBeenCalledTimes(1);
     expect(predictionSpy).toHaveBeenCalledTimes(1);
-    expect(timelineSpy).toHaveBeenCalledTimes(1);
-    expect(timelineSpy.mock.calls[0]?.[0]).toMatchObject({
+    expect(eventSpy).toHaveBeenCalledTimes(1);
+    expect(eventSpy.mock.calls[0]?.[0]).toMatchObject({
       enrichedActiveVesselTrip: activeTripWithMl,
     });
 
@@ -229,7 +226,7 @@ describe("updateVesselOrchestrator ping integration", () => {
         LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
       }),
     });
-    spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
+    spyOn(updateEventsModule, "updateEvents").mockReturnValue({
       actualEvents: [],
       predictedEvents: [],
     });
@@ -290,7 +287,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselPredictionsModule,
       "getVesselTripPredictionsFromTripUpdate"
     );
-    const timelineSpy = spyOn(updateTimelineModule, "updateTimeline");
+    const eventSpy = spyOn(updateEventsModule, "updateEvents");
 
     const mutationCalls: unknown[] = [];
     const ctx = {
@@ -310,7 +307,7 @@ describe("updateVesselOrchestrator ping integration", () => {
 
     expect(mutationCalls).toHaveLength(1);
     expect(predictionSpy).toHaveBeenCalledTimes(0);
-    expect(timelineSpy).toHaveBeenCalledTimes(0);
+    expect(eventSpy).toHaveBeenCalledTimes(0);
   });
 
   it("continues other vessels when one vessel pipeline throws", async () => {
@@ -344,7 +341,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     ).mockResolvedValue({
       enrichedActiveVesselTrip: makeTrip("TAC"),
     });
-    spyOn(updateTimelineModule, "updateTimeline").mockReturnValue({
+    spyOn(updateEventsModule, "updateEvents").mockReturnValue({
       actualEvents: [],
       predictedEvents: [],
     });

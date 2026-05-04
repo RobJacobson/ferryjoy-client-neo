@@ -2,7 +2,7 @@
  * Convex validators for `eventsActual`: observed dock-side events (departure /
  * arrival instants tied to legs). Built from vessel/trip updates and schedule
  * hydration; consumed next to `eventsScheduled` and `eventsPredicted` for
- * timelines. Sparse upstream shapes live under `domain/events/actual`.
+ * events. Sparse upstream shapes live under `domain/events/actual`.
  */
 
 import type { Infer } from "convex/values";

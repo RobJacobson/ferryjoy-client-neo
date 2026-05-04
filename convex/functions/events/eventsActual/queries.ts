@@ -1,6 +1,6 @@
 /**
  * Queries the `eventsActual` table: observed dock boundaries (times and legs)
- * that timelines and route overlays merge with `eventsScheduled` and
+ * that events and route overlays merge with `eventsScheduled` and
  * `eventsPredicted`.
  */
 

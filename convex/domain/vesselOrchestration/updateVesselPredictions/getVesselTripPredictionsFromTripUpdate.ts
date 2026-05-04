@@ -16,7 +16,7 @@ import type {
 /**
  * Loads prediction parameters when needed, enriches the active trip with
  * phase-valid predictions, and returns the enriched active trip used by
- * timeline assembly.
+ * event assembly.
  *
  * @param tripUpdate - Sparse trip rows from `updateVesselTrip` for this branch
  * @param deps - Async loader for **`getPredictionModelParameters`** query results

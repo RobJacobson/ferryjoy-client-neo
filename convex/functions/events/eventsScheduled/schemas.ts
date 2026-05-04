@@ -1,6 +1,6 @@
 /**
  * Convex validators for `eventsScheduled`: planned dock boundaries (times,
- * terminals, segment keys) hydrated from schedule adapters for timelines.
+ * terminals, segment keys) hydrated from schedule adapters for events.
  */
 
 import type { Infer } from "convex/values";

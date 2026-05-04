@@ -1,6 +1,6 @@
 /**
  * Reads from `eventsPredicted`: ETA / ML predictions per dock boundary, joined
- * to trips and timelines alongside scheduled and actual rows.
+ * to trips and events alongside scheduled and actual rows.
  */
 
 import type { QueryCtx } from "_generated/server";

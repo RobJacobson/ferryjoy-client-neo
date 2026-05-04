@@ -45,7 +45,7 @@ export type PredictedDockScopeReconciliationPlan = {
 /**
  * Merges incoming predicted-event write batches by vessel/sailing-day scope.
  *
- * @param batches - Sparse write batches produced by timeline projection
+ * @param batches - Sparse write batches produced by event projection
  * @returns One merged scope per vessel/day, keyed by stable scope string
  */
 export const mergePredictedDockWriteBatchesByScope = (

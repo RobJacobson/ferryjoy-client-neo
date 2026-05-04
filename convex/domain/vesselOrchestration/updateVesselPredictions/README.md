@@ -6,7 +6,7 @@ which delegates to **`getVesselTripPredictionsFromTripUpdate`** with
 **`loadPredictionModelParameters`** bound to **`ActionCtx`**. That flow derives
 when to load parameters, loads weights when needed, runs inference once on
 **`tripUpdate.activeVesselTrip`**, and returns the enriched active trip.
-Persistence and timeline handoff construction stay outside this domain layer.
+Persistence and event handoff construction stay outside this domain layer.
 
 ```text
 VesselTripUpdate
@@ -14,7 +14,7 @@ VesselTripUpdate
   -> enrichedActiveVesselTrip
 ```
 
-Completion ticks predict the replacement active trip once. **`updateTimeline`**
+Completion ticks predict the replacement active trip once. **`updateEvents`**
 reuses that same enriched trip for completed/current overlay projection.
 
 ## Stage 4 control flow
@@ -45,13 +45,13 @@ reuses that same enriched trip for completed/current overlay projection.
 - **`ConvexVesselTrip`** (schedule + lifecycle from **`updateVesselTrip`**) —
   trip immediately before prediction enrichment in **`applyVesselPredictionsFromLoadedModels`**.
 - **`ConvexVesselTripWithML`** — enriched active trip returned to the orchestrator
-  and passed into **`updateTimeline`**.
+  and passed into **`updateEvents`**.
 
-## Persistence vs timeline merge
+## Persistence vs event merge
 
 - **Persist:** mutations use **`stripTripPredictionsForStorage`** on proposed
   trips where applicable.
-- **Timeline:** uses the full enriched trip from Stage 4 so predicted events
+- **Event:** uses the full enriched trip from Stage 4 so predicted events
   match the same ML fields computed for that ping.
 
 ## Imports

@@ -19,7 +19,7 @@ import { runOrchestratorPing } from "./ping/runOrchestratorPing";
  * `functions/vesselOrchestrator/mutations/orchestratorPersistMutations`. The
  * handler delegates heavy compute to domain functions but intentionally owns
  * failure semantics and stage order
- * so trip, prediction, and timeline writes stay causally aligned for the same
+ * so trip, prediction, and event writes stay causally aligned for the same
  * vessel update.
  *
  * @param ctx - Convex action context for reads, mutations, and logging

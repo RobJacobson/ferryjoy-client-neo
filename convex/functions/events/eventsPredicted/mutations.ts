@@ -1,5 +1,5 @@
 /**
- * Writes to `eventsPredicted`: sparse batch upserts from trip/timeline code and
+ * Writes to `eventsPredicted`: sparse batch upserts from trip/event code and
  * depart-next actualization when a departure boundary is observed.
  */
 
@@ -20,7 +20,7 @@ import type { ConvexPredictedDockWriteRow } from "./schemas";
  * the remainder with a shared `UpdatedAt` clock.
  *
  * @param ctx - Convex mutation context
- * @param batches - Sparse write groups from timeline / orchestrator persistence
+ * @param batches - Sparse write groups from event / orchestrator persistence
  */
 export const upsertPredictedDockBatches = async (
   ctx: MutationCtx,

@@ -1,6 +1,6 @@
 /**
  * Tests `persistVesselUpdates`: handler ordering and delegation to nested
- * upsert helpers (active/completed trip, timeline rows, patches).
+ * upsert helpers (active/completed trip, event rows, patches).
  */
 
 import { describe, expect, it } from "bun:test";
@@ -161,7 +161,7 @@ describe("persistVesselUpdates", () => {
     ]);
   });
 
-  it("persists completed, active, timeline, and updateLeaveDockEventPatch in order", async () => {
+  it("persists completed, active, event, and updateLeaveDockEventPatch in order", async () => {
     const writes: string[] = [];
 
     await handler(makeCtx(writes), {

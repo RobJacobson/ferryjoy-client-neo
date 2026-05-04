@@ -1,6 +1,6 @@
 /**
  * Vessel orchestrator ping runner: one WSF batch through locations, then
- * per-vessel trip → prediction → timeline → persistence.
+ * per-vessel trip → prediction → event → persistence.
  *
  * The hot path keeps one identities snapshot query, one WSF fetch, a
  * per-vessel trip loop over changed locations only, one locations mutation
@@ -12,8 +12,8 @@
  */
 
 import type { ActionCtx } from "_generated/server";
+import { updateEvents } from "domain/vesselOrchestration/updateEvents";
 import { updateLeaveDockEventPatch } from "domain/vesselOrchestration/updateLeaveDockEventPatch";
-import { updateTimeline } from "domain/vesselOrchestration/updateTimeline";
 import {
   stripVesselTripPredictions,
   updateVesselTrip,
@@ -43,7 +43,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
   // Load identities for normalization (no active trips — those load after Stage 1).
   const snapshot = await loadOrchestratorSnapshot(ctx);
 
-  // Stamp the ping once so downstream timeline rows share the same tick time.
+  // Stamp the ping once so downstream event rows share the same tick time.
   const pingStartedAt = Date.now();
 
   /**
@@ -52,7 +52,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
    * Take the latest fleet snapshot from WSF, normalize it with vessel/terminal
    * identity data, and persist only rows that actually changed.
    *
-   * Why: all downstream trip/prediction/timeline work should run only for
+   * Why: all downstream trip/prediction/event work should run only for
    * vessels with new location evidence in this ping.
    */
   const {
@@ -114,15 +114,15 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
         await getVesselTripPredictionsForTripUpdate(ctx, tripUpdate);
 
       /**
-       * Stage 5: updateTimeline
+       * Stage 5: updateEvents
        *
        * Combine ping time + trip deltas + the enriched active trip to project
-       * timeline event rows (`actualEvents`, `predictedEvents`) for this vessel.
+       * event event rows (`actualEvents`, `predictedEvents`) for this vessel.
        *
-       * Why: timeline writes should be derived from the same trip and prediction
+       * Why: event writes should be derived from the same trip and prediction
        * evidence that this ping just computed, not from a separate read pass.
        */
-      const timelineRows = updateTimeline({
+      const eventRows = updateEvents({
         pingStartedAt,
         tripUpdate,
         enrichedActiveVesselTrip,
@@ -131,7 +131,7 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
       /**
        * Stage 6: atomic per-vessel persistence
        *
-       * Persist trip, timeline, and optional `updateLeaveDockEventPatch`
+       * Persist trip, event, and optional `updateLeaveDockEventPatch`
        * payload in one mutation transaction. If any write fails, this vessel
        * branch rolls back as a unit and the next tick can retry from the latest
        * durable state.
@@ -148,8 +148,8 @@ export const runOrchestratorPing = async (ctx: ActionCtx): Promise<void> => {
             tripUpdate.completedVesselTrip === undefined
               ? undefined
               : stripVesselTripPredictions(tripUpdate.completedVesselTrip),
-          actualEvents: Array.from(timelineRows.actualEvents),
-          predictedEvents: Array.from(timelineRows.predictedEvents),
+          actualEvents: Array.from(eventRows.actualEvents),
+          predictedEvents: Array.from(eventRows.predictedEvents),
           updateLeaveDockEventPatch:
             leaveDockEventPatch === null ? undefined : leaveDockEventPatch,
         }

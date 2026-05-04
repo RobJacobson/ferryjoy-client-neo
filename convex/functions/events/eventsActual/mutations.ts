@@ -16,7 +16,7 @@ import type { ConvexActualDockEvent } from "./schemas";
 /**
  * Persists sparse actual-dock rows keyed by physical `EventKey`.
  *
- * Called from `persistVesselUpdates` with timeline-projected rows. Collapses
+ * Called from `persistVesselUpdates` with event-projected rows. Collapses
  * duplicate keys in one flush via `dedupeByEventKey`, then inserts or replaces
  * only when `actualDockRowsEqual` reports a visible change so `_creationTime` and
  * bandwidth stay stable for no-op pings.
@@ -93,12 +93,12 @@ export const replaceActualRowsForSailingDay = async (
 /**
  * Deduplicates actual dock rows by physical `EventKey`, keeping the last copy.
  *
- * Orchestrator timeline assembly concatenates completed-branch and current-branch
+ * Orchestrator event projection concatenates completed-branch and current-branch
  * writes (`mergePingEventWrites`) without merging on `EventKey`. Calling this inside
  * `upsertActualDockRows` yields deterministic last-wins semantics and avoids double
  * writes when both branches emit the same boundary.
  *
- * @param rows - Sparse batch from trip/timeline projection (may repeat keys)
+ * @param rows - Sparse batch from trip event projection (may repeat keys)
  * @returns One row per distinct `EventKey`, in insertion order of first occurrence per key after collapse
  */
 const dedupeByEventKey = (

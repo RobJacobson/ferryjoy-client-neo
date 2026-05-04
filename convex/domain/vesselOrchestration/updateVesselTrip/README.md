@@ -64,4 +64,4 @@ isolated.
 ## Non-ownership
 
 This folder does not own location persistence, prediction computation,
-timeline projection, or orchestrator persistence transactions.
+event projection, or orchestrator persistence transactions.

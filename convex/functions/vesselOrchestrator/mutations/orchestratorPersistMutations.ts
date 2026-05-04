@@ -1,7 +1,7 @@
 /**
  * Internal mutations for vessel-orchestrator aggregate persistence.
  *
- * `persistVesselUpdates` applies trip, timeline, and optional leave-dock
+ * `persistVesselUpdates` applies trip, event, and optional leave-dock
  * patches in one transaction per vessel branch.
  */
 
@@ -29,7 +29,7 @@ const updateLeaveDockEventPatchSchema = v.object({
 /**
  * Persists all durable writes for one changed vessel in a single transaction.
  *
- * Trip upserts, actual/predicted timeline rows, and optional depart-next
+ * Trip upserts, actual/predicted event rows, and optional depart-next
  * patches apply together or not at all for that vessel. Callers assemble
  * payloads in the action; this mutation performs ordered writes only (no
  * domain recompute).

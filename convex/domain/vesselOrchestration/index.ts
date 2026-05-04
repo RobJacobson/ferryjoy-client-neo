@@ -10,7 +10,7 @@
  * plus targeted schedule-continuity access.
  */
 
-export * as updateTimeline from "./updateTimeline";
+export * as updateEvents from "./updateEvents";
 export * as updateVesselLocations from "./updateVesselLocations";
 export * as updateVesselPredictions from "./updateVesselPredictions";
 export { updateVesselTrip } from "./updateVesselTrip";
@@ -19,7 +19,7 @@ export { updateVesselTrip } from "./updateVesselTrip";
  * Top-level export style:
  * - import trip-ping entry points as named exports from `domain/vesselOrchestration`
  *   or from the owning concern barrel (`updateVesselTrip`, etc.)
- * - import cross-pipeline helpers via concern barrels (`updateTimeline`,
+ * - import cross-pipeline helpers via concern barrels (`updateEvents`,
  *   `updateVesselTrip`, etc.); prediction runners and types live on the
  *   `updateVesselPredictions` namespace
  * - when working entirely inside one concern, prefer that concern's local barrel

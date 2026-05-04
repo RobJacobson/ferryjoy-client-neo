@@ -3,7 +3,7 @@ export {
   type ScheduledDockEvent,
   toDomainActualDockEvent,
   toDomainScheduledDockEvent,
-} from "convex/domain/timelineRows/dockEventToDomain";
+} from "convex/domain/events/dockEventToDomain";
 export {
   type ScheduledTrip,
   toDomainScheduledTrip,

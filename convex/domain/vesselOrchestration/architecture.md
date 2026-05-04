@@ -15,23 +15,23 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions/updateVesselOrche
   -> per changed vessel:
        updateVesselTrip -> VesselTripUpdate | null
        getVesselTripPredictionsFromTripUpdate (injected loadPredictionModelParameters → getPredictionModelParameters when needed)
-       updateTimeline ({ pingStartedAt, tripUpdate, enrichedActiveVesselTrip })
-       persistVesselUpdates (one atomic mutation for trip, timeline, actualization)
+       updateEvents ({ pingStartedAt, tripUpdate, enrichedActiveVesselTrip })
+       persistVesselUpdates (one atomic mutation for trip, event, actualization)
 ```
 
 The trip and prediction stages run in the action per changed location row.
-Location dedupe and post-write **`activeTripsForChanged`** reads run in `bulkUpsertVesselLocations`; the action consumes that mutation's **`changedLocations`** and **`activeTripsForChanged`** return. Timeline projection (`updateTimeline`) runs
+Location dedupe and post-write **`activeTripsForChanged`** reads run in `bulkUpsertVesselLocations`; the action consumes that mutation's **`changedLocations`** and **`activeTripsForChanged`** return. Event projection (`updateEvents`) runs
 in the action **before** persistence; `persistVesselUpdates` applies trip
 lifecycle writes, projected actual/predicted dock rows, and optional
 depart-next actualization in one transaction per vessel.
 
 ## Timestamp semantics (current code)
 
-Use this as the canonical timestamp vocabulary for trip, timeline, and client read logic.
+Use this as the canonical timestamp vocabulary for trip, event, and client read logic.
 
 ### One clock
 
-- Use feed/sample epoch ms (`TimeStamp`) as the domain clock across `vesselLocations`, trip rows, and timeline events.
+- Use feed/sample epoch ms (`TimeStamp`) as the domain clock across `vesselLocations`, trip rows, and event events.
 - Do not use wall clock (`Date.now()`) for lifecycle or boundary semantics.
 
 ### Trip row fields by intent
@@ -45,7 +45,7 @@ Use this as the canonical timestamp vocabulary for trip, timeline, and client re
 
 - Never infer physical arrival/departure from coverage fields alone. In particular, `TripEnd` does not imply destination arrival.
 
-### Timeline projection contract
+### Event projection contract
 
 - `eventsActual` projection reads trip physical boundaries from `actualDockWritesFromTrip.ts`:
   - `dep-dock` uses `LeftDockActual`
@@ -99,10 +99,10 @@ Cross-module contracts are owned by the domain modules that consume them:
 - `TripLifecycleEventFlags` is defined in
   `updateVesselTrip/tripLifecycle.ts` and exported via the
   `updateVesselTrip` barrel.
-- Timeline handoff DTOs live in `updateTimeline/handoffTypes.ts`.
-- Timeline projection wire helpers live in `updateTimeline/projectionWire.ts`.
+- Event handoff DTOs live in `updateEvents/handoffTypes.ts`.
+- Event projection wire helpers live in `updateEvents/projectionWire.ts`.
 - Completed-handoff key helper lives in
-  `updateTimeline/completedHandoffKey.ts`.
+  `updateEvents/completedHandoffKey.ts`.
 
 ### Schedule continuity (production vs tests)
 
@@ -117,9 +117,9 @@ Trip stage output to downstream domain callers:
 
 - **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
 
-Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTripUpdate`** and return **`enrichedActiveVesselTrip`**. Timeline handoff and prediction overlays are derived inside **`updateTimeline`** from the same trip shape plus that enriched trip
-(**`timelineHandoffFromTripUpdate`**) with DTOs in
-**`updateTimeline/handoffTypes.ts`**.
+Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTripUpdate`** and return **`enrichedActiveVesselTrip`**. Event handoff and prediction overlays are derived inside **`updateEvents`** from the same trip shape plus that enriched trip
+(**`eventHandoffFromTripUpdate`**) with DTOs in
+**`updateEvents/handoffTypes.ts`**.
 
 ## Current ownership
 
@@ -133,7 +133,7 @@ Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTr
   - trip compute only
 - `domain/vesselOrchestration/updateVesselPredictions/`
   - ML overlay from trip rows
-- `domain/vesselOrchestration/updateTimeline/`
+- `domain/vesselOrchestration/updateEvents/`
   - actual/predicted dock event assembly (pure); orchestrator calls it before aggregate persistence
 
 ## Key design rules
@@ -141,7 +141,7 @@ Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTr
 - Trip compute stays prediction-free.
 - Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
 - Downstream contracts are owned by their module boundaries
-  (`updateVesselTrip/tripLifecycle.ts` and `updateTimeline/*`), not a shared
+  (`updateVesselTrip/tripLifecycle.ts` and `updateEvents/*`), not a shared
   cross-folder contract package.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
 - `tripLifecycle.ts` compatibility helpers remain downstream-facing and do not drive the main trip update pipeline.
