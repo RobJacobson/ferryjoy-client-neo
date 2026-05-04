@@ -1,16 +1,16 @@
 /**
  * Pure helper: vessel/day scheduled, actual, and predicted rows → ordered
  * domain dock visits for `RouteTimelineModel` span derivation (same merge and
- * visit pairing as `buildRouteTimelineSnapshot` for one vessel).
+ * visit pairing as the former route snapshot builder for one vessel).
  */
 
-import type { RouteTimelineDockVisit } from "../../functions/routeTimeline";
 import type { ConvexActualDockEvent } from "../events/actual/schemas";
 import type { ConvexPredictedDockEvent } from "../events/predicted/schemas";
 import type { ConvexScheduledDockEvent } from "../events/scheduled/schemas";
 import { mergeTimelineRows } from "../timelineRows";
-import { wireRouteTimelineDockVisitToDomain } from "./dockVisitWireToDomain";
 import { mergedEventsToWireDockVisits } from "./mergedEventsToWireDockVisits";
+import type { RouteTimelineDockVisit } from "./schemas";
+import { toDomainRouteTimelineDockVisit } from "./schemas";
 
 type BuildDomainDockVisitsForVesselDayArgs = {
   scheduledEvents: ConvexScheduledDockEvent[];
@@ -108,8 +108,7 @@ const buildDomainDockVisitsForVesselDay = ({
     predictedEvents: predicted,
   });
   const wire = mergedEventsToWireDockVisits(merged, vesselAbbrev, sailingDay);
-  return wire.map(wireRouteTimelineDockVisitToDomain);
+  return wire.map(toDomainRouteTimelineDockVisit);
 };
 
-export type { BuildDomainDockVisitsForVesselDayArgs };
 export { buildDomainDockVisitsForVesselDay };

@@ -1,17 +1,13 @@
 /**
- * Covers index use, metadata stripping, and ordering for the public actual
- * list query composition (loader + strip + sort).
+ * Covers index use, metadata stripping, and ordering for the public actual list
+ * query composition (`readActualDockEventsForVesselSailingDay`).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { Id } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
-import {
-  loadActualDockEventsForVesselSailingDay,
-  sortActualDockEventsForPublicList,
-} from "functions/events/eventsActual/queries";
+import { readActualDockEventsForVesselSailingDay } from "functions/events/eventsActual/queries";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import { stripConvexMeta } from "shared/stripConvexMeta";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
@@ -41,7 +37,7 @@ type ActualCtxOpts = {
  * Builds a minimal `QueryCtx` for `eventsActual` index reads.
  *
  * @param opts - Rows to filter and optional index spy
- * @returns Context suitable for `loadActualDockEventsForVesselSailingDay`
+ * @returns Context suitable for `readActualDockEventsForVesselSailingDay`
  */
 const makeActualQueryCtx = (opts: ActualCtxOpts): QueryCtx =>
   ({
@@ -79,12 +75,7 @@ const makeActualQueryCtx = (opts: ActualCtxOpts): QueryCtx =>
 
 const args = { vesselAbbrev: "WEN", sailingDay: "2026-03-25" };
 
-const listActualLikePublicHandler = async (ctx: QueryCtx, a: typeof args) => {
-  const docs = await loadActualDockEventsForVesselSailingDay(ctx, a);
-  return docs.map(stripConvexMeta).sort(sortActualDockEventsForPublicList);
-};
-
-describe("listActualDockEventsForVesselSailingDay (loader + strip + sort)", () => {
+describe("listActualDockEventsForVesselSailingDay (read + query)", () => {
   it("loads via by_vessel_and_sailing_day", async () => {
     let indexName = "";
     const ctx = makeActualQueryCtx({
@@ -93,7 +84,7 @@ describe("listActualDockEventsForVesselSailingDay (loader + strip + sort)", () =
         indexName = name;
       },
     });
-    await loadActualDockEventsForVesselSailingDay(ctx, args);
+    await readActualDockEventsForVesselSailingDay(ctx, args);
     expect(indexName).toBe("by_vessel_and_sailing_day");
   });
 
@@ -104,7 +95,7 @@ describe("listActualDockEventsForVesselSailingDay (loader + strip + sort)", () =
         { ...baseActual(), EventKey: "ek-wen" },
       ],
     });
-    const rows = await listActualLikePublicHandler(ctx, args);
+    const rows = await readActualDockEventsForVesselSailingDay(ctx, args);
     expect(rows.map((r) => r.EventKey)).toEqual(["ek-wen"]);
   });
 
@@ -118,7 +109,7 @@ describe("listActualDockEventsForVesselSailingDay (loader + strip + sort)", () =
         },
       ],
     });
-    const rows = await listActualLikePublicHandler(ctx, args);
+    const rows = await readActualDockEventsForVesselSailingDay(ctx, args);
     expect(rows).toHaveLength(1);
     expect("_id" in rows[0]).toBe(false);
     expect("_creationTime" in rows[0]).toBe(false);
@@ -146,7 +137,7 @@ describe("listActualDockEventsForVesselSailingDay (loader + strip + sort)", () =
         },
       ],
     });
-    const rows = await listActualLikePublicHandler(ctx, args);
+    const rows = await readActualDockEventsForVesselSailingDay(ctx, args);
     expect(rows.map((r) => r.EventKey)).toEqual(["ek-a", "ek-b", "ek-c"]);
   });
 });

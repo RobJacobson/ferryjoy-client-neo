@@ -6,7 +6,7 @@ import type {
   RouteTimelineDockVisit,
   RouteTimelineSnapshot,
   RouteTimelineVessel,
-} from "convex/functions/routeTimeline";
+} from "domain/timelineDockVisits";
 
 export type SelectTripDockVisitsArgs = {
   vesselAbbrev: string;

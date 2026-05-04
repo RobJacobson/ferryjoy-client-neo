@@ -8,7 +8,7 @@ import type {
   RouteTimelineDockVisit,
   RouteTimelineSnapshot,
   RouteTimelineVessel,
-} from "convex/functions/routeTimeline";
+} from "domain/timelineDockVisits";
 import {
   selectJourneyDockVisits,
   selectRouteTimelineVessels,

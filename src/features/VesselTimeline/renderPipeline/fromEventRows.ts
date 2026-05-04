@@ -1,13 +1,13 @@
 /**
  * Pure pipeline: vessel/day event row arrays → `VesselTimelineRenderState`
- * using the same merge, dock visits, spans, and axis mapping as route snapshot
- * assembly, driven by event rows instead of a Convex route snapshot payload.
+ * using shared `domain/timelineDockVisits` merge and visit wiring, then the same
+ * span and axis geometry path as other timeline surfaces that consume dock visits.
  */
 
 import type { ConvexActualDockEvent } from "convex/functions/events/eventsActual/schemas";
 import type { ConvexPredictedDockEvent } from "convex/functions/events/eventsPredicted/schemas";
 import type { ConvexScheduledDockEvent } from "convex/functions/events/eventsScheduled/schemas";
-import { buildDomainDockVisitsForVesselDay } from "domain/routeTimeline";
+import { buildDomainDockVisitsForVesselDay } from "domain/timelineDockVisits";
 import type { TimelineVisualTheme } from "@/components/timeline/theme";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
 import {

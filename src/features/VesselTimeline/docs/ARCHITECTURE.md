@@ -21,15 +21,15 @@ not force a full event-table reread.
 - **Terminal identity** — **`useTerminalsData`** (or equivalent) for display
   names.
 
-There is **no** `ConvexRouteTimelineProvider` on this screen path: timeline
-structure comes from event rows and shared **domain** merge/visit assembly, not
-from `convex/functions/routeTimeline`.
+There is **no** route snapshot Convex function on this screen path: timeline
+structure comes from event rows and shared **`domain/timelineDockVisits`**
+merge/visit assembly (plus **`RouteTimelineModel`** geometry helpers).
 
 ## Render pipeline
 
 ```text
 scheduled / actual / predicted rows (Convex list queries)
-  -> buildDomainDockVisitsForVesselDay (domain/routeTimeline: merge + visits)
+  -> buildDomainDockVisitsForVesselDay (domain/timelineDockVisits: merge + visits)
   -> selectDockVisitVisualSpans + deriveRouteTimelineAxisGeometry (RouteTimelineModel)
   -> buildVesselTimelineRenderStateFromAxisGeometry
   -> VesselTimelineRenderState (rows, cards, active indicator inputs)

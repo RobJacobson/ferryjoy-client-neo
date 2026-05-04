@@ -2,7 +2,7 @@
  * Pure axis-geometry derivation from visual spans.
  */
 
-import type { RouteTimelineBoundary } from "convex/functions/routeTimeline";
+import type { RouteTimelineBoundary } from "domain/timelineDockVisits";
 import type { RouteTimelineVisualSpan } from "./visualSpans";
 
 export const START_OF_DAY_DOCK_VISUAL_CAP_MINUTES = 60;

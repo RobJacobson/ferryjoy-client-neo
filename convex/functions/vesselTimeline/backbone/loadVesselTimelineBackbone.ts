@@ -4,18 +4,17 @@
  */
 
 import type { QueryCtx } from "_generated/server";
-import { loadActualDockEventsForVesselSailingDay } from "functions/events/eventsActual/queries";
-import { loadPredictedDockEventsForVesselSailingDay } from "functions/events/eventsPredicted/queries";
-import { queryScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
+import { readActualDockEventsForVesselSailingDay } from "functions/events/eventsActual/queries";
+import { readPredictedDockEventsForVesselSailingDay } from "functions/events/eventsPredicted/queries";
+import { readScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import { buildTimelineBackbone } from "../../../domain/timelineBackbone";
-import { stripConvexMeta } from "../../../shared/stripConvexMeta";
 
 /**
  * Loads event-table inputs and builds the vessel timeline backbone payload.
  *
- * Parallel-reads scheduled, actual, and predicted helpers under one scope, strips
- * metadata from actual/predicted docs, then calls `buildTimelineBackbone` for
- * the wire shape consumed by `getVesselTimelineBackbone`.
+ * Parallel-reads scheduled, actual, and predicted readers under one scope, then
+ * calls `buildTimelineBackbone` for the wire shape consumed by
+ * `getVesselTimelineBackbone`.
  *
  * @param ctx - Convex query context
  * @param args - Vessel and sailing day scope
@@ -29,17 +28,17 @@ export const loadVesselTimelineBackbone = async (
     vesselAbbrev: args.VesselAbbrev,
     sailingDay: args.SailingDay,
   };
-  const [scheduledDocs, actualDocs, predictedDocs] = await Promise.all([
-    queryScheduledDockEventsForVesselSailingDay(ctx, scope),
-    loadActualDockEventsForVesselSailingDay(ctx, scope),
-    loadPredictedDockEventsForVesselSailingDay(ctx, scope),
+  const [scheduledEvents, actualEvents, predictedEvents] = await Promise.all([
+    readScheduledDockEventsForVesselSailingDay(ctx, scope),
+    readActualDockEventsForVesselSailingDay(ctx, scope),
+    readPredictedDockEventsForVesselSailingDay(ctx, scope),
   ]);
 
   return buildTimelineBackbone({
     VesselAbbrev: args.VesselAbbrev,
     SailingDay: args.SailingDay,
-    scheduledEvents: scheduledDocs.map(stripConvexMeta),
-    actualEvents: actualDocs.map(stripConvexMeta),
-    predictedEvents: predictedDocs.map(stripConvexMeta),
+    scheduledEvents,
+    actualEvents,
+    predictedEvents,
   });
 };

@@ -1,12 +1,12 @@
 /**
- * Route timeline read model: Convex validators, inferred wire types, and domain
- * conversion from epoch milliseconds to `Date` for `RouteTimelineSnapshot`.
+ * Wire validators and domain `Date` conversions for timeline dock visits and
+ * optional multi-vessel snapshot shapes used by client span geometry.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { optionalEpochMsToDate } from "../../shared/convertDates";
-import { dockEventTypeSchema } from "../events/eventsScheduled/schemas";
+import { dockEventTypeSchema } from "functions/events/eventsScheduled/schemas";
+import { optionalEpochMsToDate } from "shared/convertDates";
 
 export type RouteTimelineDockEventType = Infer<typeof dockEventTypeSchema>;
 
@@ -134,7 +134,7 @@ const toDomainRouteTimelineVessel = (vessel: ConvexRouteTimelineVessel) => ({
  * @param snapshot - Stored Convex route timeline snapshot
  * @returns Domain snapshot with converted timestamps throughout
  */
-export const toDomainRouteTimelineSnapshot = (
+const toDomainRouteTimelineSnapshot = (
   snapshot: ConvexRouteTimelineSnapshot
 ) => ({
   ...snapshot,
@@ -155,3 +155,9 @@ export type RouteTimelineVessel = ReturnType<
 export type RouteTimelineSnapshot = ReturnType<
   typeof toDomainRouteTimelineSnapshot
 >;
+
+export {
+  toDomainRouteTimelineBoundary,
+  toDomainRouteTimelineDockVisit,
+  toDomainRouteTimelineSnapshot,
+};

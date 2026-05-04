@@ -26,9 +26,15 @@ This memo describes the architectural direction. The implementation plan lives
 in the companion PRD:
 [2026-05-03-vessel-timeline-client-event-queries-prd.md](./2026-05-03-vessel-timeline-client-event-queries-prd.md).
 
+**Update (2026-05-03):** `convex/functions/routeTimeline` and
+`convex/domain/routeTimeline` were removed (Stage 5). Shared merge and dock-visit
+wiring lives in [`convex/domain/timelineDockVisits/`](../../convex/domain/timelineDockVisits).
+`VesselTimeline` uses event-row queries plus `fromEventRows`; the route snapshot
+context path is gone.
+
 ---
 
-## Current system
+## Current system (historical — pre–Stage 4/5)
 
 The current data flow has two related server-side read models:
 
@@ -61,7 +67,7 @@ Related current docs:
 - [VesselOrchestrator pipeline](../../convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md)
 - [VesselOrchestrator README](../../convex/functions/vesselOrchestrator/README.md)
 - [Events functions](../../convex/functions/events)
-- [Route timeline functions](../../convex/functions/routeTimeline)
+- [Dock visit assembly (domain)](../../convex/domain/timelineDockVisits)
 
 ---
 

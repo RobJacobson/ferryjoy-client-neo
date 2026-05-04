@@ -6,7 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type {
   RouteTimelineBoundary,
   RouteTimelineDockVisit,
-} from "convex/functions/routeTimeline";
+} from "domain/timelineDockVisits";
 import { selectDockVisitVisualSpans } from "../visualSpans";
 
 /**

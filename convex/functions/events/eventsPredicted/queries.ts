@@ -3,7 +3,6 @@
  * to trips and timelines alongside scheduled and actual rows.
  */
 
-import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { v } from "convex/values";
@@ -33,34 +32,29 @@ const sortPredictedDockEventsForPublicList = (
   left.Key.localeCompare(right.Key);
 
 /**
- * Returns all `eventsPredicted` documents for one `VesselAbbrev` and sailing day.
- *
- * Includes Convex metadata so server-side merges can replace by `_id`.
- * Strip those fields before sending shapes to a client if you need
- * validator-only objects.
+ * Reads predicted dock rows for one vessel and sailing day: index collect,
+ * strips metadata, then sorts by ascending `ScheduledDeparture`, then `Key`.
  *
  * @param ctx - Convex query context (database handle)
  * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
  * @param args.sailingDay - Calendar sailing day `YYYY-MM-DD`
- * @returns Full `eventsPredicted` documents (includes Convex metadata)
+ * @returns Validator-shaped predicted rows in deterministic order
  */
-const loadPredictedDockEventsForVesselSailingDay = async (
+const readPredictedDockEventsForVesselSailingDay = async (
   ctx: Pick<QueryCtx, "db">,
   args: { vesselAbbrev: string; sailingDay: string }
-): Promise<Doc<"eventsPredicted">[]> =>
-  ctx.db
+): Promise<ConvexPredictedDockEvent[]> => {
+  const docs = await ctx.db
     .query("eventsPredicted")
     .withIndex("by_vessel_and_sailing_day", (q) =>
       q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
     )
     .collect();
+  return docs.map(stripConvexMeta).sort(sortPredictedDockEventsForPublicList);
+};
 
 /**
  * Lists predicted dock events for one vessel and sailing day for clients.
- *
- * Reads via `by_vessel_and_sailing_day`, strips `_id` and `_creationTime`,
- * then sorts by ascending `ScheduledDeparture`, then ascending `Key`
- * (lexicographic).
  *
  * @param ctx - Convex query context
  * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
@@ -73,10 +67,8 @@ const listPredictedDockEventsForVesselSailingDay = query({
     sailingDay: v.string(),
   },
   returns: v.array(eventsPredictedSchema),
-  handler: async (ctx, args) => {
-    const docs = await loadPredictedDockEventsForVesselSailingDay(ctx, args);
-    return docs.map(stripConvexMeta).sort(sortPredictedDockEventsForPublicList);
-  },
+  handler: async (ctx, args) =>
+    readPredictedDockEventsForVesselSailingDay(ctx, args),
 });
 
 /**
@@ -88,11 +80,12 @@ const listPredictedDockEventsForVesselSailingDay = query({
  *
  * @param ctx - Convex query context (database handle)
  * @param trips - Active or completed trip docs (need `VesselAbbrev`, optional `SailingDay`)
+ * @returns Stripped predicted rows keyed by scope string then composite key
  */
 const loadPredictedRowsGroupedForTrips = async (
   ctx: Pick<QueryCtx, "db">,
   trips: { VesselAbbrev: string; SailingDay?: string }[]
-): Promise<Map<string, Map<string, Doc<"eventsPredicted">>>> => {
+): Promise<Map<string, Map<string, ConvexPredictedDockEvent>>> => {
   const scopeKeys = new Set<string>();
   for (const trip of trips) {
     if (trip.SailingDay) {
@@ -104,16 +97,16 @@ const loadPredictedRowsGroupedForTrips = async (
 
   const predictedByGroup = new Map<
     string,
-    Map<string, Doc<"eventsPredicted">>
+    Map<string, ConvexPredictedDockEvent>
   >();
 
   for (const g of scopeKeys) {
     const { vesselAbbrev, sailingDay } = parseVesselSailingDayScopeKey(g);
-    const rows = await loadPredictedDockEventsForVesselSailingDay(ctx, {
+    const rows = await readPredictedDockEventsForVesselSailingDay(ctx, {
       vesselAbbrev,
       sailingDay,
     });
-    const map = new Map<string, Doc<"eventsPredicted">>();
+    const map = new Map<string, ConvexPredictedDockEvent>();
     for (const row of rows) {
       map.set(predictedDockCompositeKey(row), row);
     }
@@ -125,7 +118,7 @@ const loadPredictedRowsGroupedForTrips = async (
 
 export {
   listPredictedDockEventsForVesselSailingDay,
-  loadPredictedDockEventsForVesselSailingDay,
   loadPredictedRowsGroupedForTrips,
+  readPredictedDockEventsForVesselSailingDay,
   sortPredictedDockEventsForPublicList,
 };

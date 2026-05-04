@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { RouteTimelineBoundary } from "convex/functions/routeTimeline";
+import type { RouteTimelineBoundary } from "domain/timelineDockVisits";
 import {
   DEFAULT_ROUTE_TIMELINE_AXIS_GEOMETRY_CONFIG,
   deriveRouteTimelineAxisGeometry,

@@ -1,7 +1,8 @@
 /**
- * Reads from `eventsScheduled`: the scheduled backbone (planned dock times and
- * terminal sequence) that trips and timelines overlay with actuals and
- * predictions.
+ * Convex queries for `eventsScheduled`: planned dock boundary rows per vessel
+ * and sailing day. Consumers include trip schedule loaders, timeline backbone
+ * assembly, and client subscriptions that need the same ordering that merge
+ * logic uses before actual and predicted overlays attach.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -15,21 +16,31 @@ import {
 } from "./schemas";
 
 /**
- * Returns every scheduled dock row for one `VesselAbbrev` and sailing day.
+ * Loads scheduled dock boundary rows for one vessel and sailing day.
  *
- * Rows are planned departures and arrivals for that calendar day. Strips Convex
- * metadata so callers receive plain objects matching `eventsScheduledSchema`.
+ * Reads every matching row via `by_vessel_and_sailing_day`, strips Convex
+ * metadata with `stripConvexMeta`, then sorts so the sequence matches the
+ * scheduled backbone `mergeTimelineRows` sees before it merges actuals and
+ * predictions.
  *
- * @param ctx - Convex query context (database handle)
+ * Sorting delegates to `sortScheduledDockEvents` in
+ * `domain/timelineRows/scheduledSegmentResolvers` (the same comparator
+ * `mergeTimelineRows` applies to its scheduled input). Primary order is boundary
+ * time from `getBoundaryTime`: `EventScheduledTime` when present, otherwise
+ * `ScheduledDeparture`. Ties break by event type (`arv-dock` before `dep-dock`),
+ * then by `TerminalAbbrev` lexicographically. Sharing this comparator keeps list
+ * queries, backbone builders, and reseed paths aligned on one timeline ordering.
+ *
+ * @param ctx - Convex read context exposing `db`
  * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
  * @param args.sailingDay - Calendar sailing day `YYYY-MM-DD`
- * @returns Scheduled dock rows for the vessel/day without `_id` or `_creationTime`
+ * @returns Rows matching `eventsScheduledSchema` in stable timeline order
  */
-const queryScheduledDockEventsForVesselSailingDay = async (
+const readScheduledDockEventsForVesselSailingDay = async (
   ctx: { db: QueryCtx["db"] },
   args: { vesselAbbrev: string; sailingDay: string }
-): Promise<ConvexScheduledDockEvent[]> =>
-  (
+): Promise<ConvexScheduledDockEvent[]> => {
+  const rows = (
     await ctx.db
       .query("eventsScheduled")
       .withIndex("by_vessel_and_sailing_day", (q) =>
@@ -39,17 +50,23 @@ const queryScheduledDockEventsForVesselSailingDay = async (
       )
       .collect()
   ).map(stripConvexMeta);
+  return rows.sort(sortScheduledDockEvents);
+};
 
 /**
- * Lists scheduled dock events for one vessel and sailing day for clients.
+ * Public Convex query listing scheduled dock events for one vessel and sailing
+ * day.
  *
- * Reads via `by_vessel_and_sailing_day`, strips Convex metadata, then sorts
- * with the same comparator as `mergeTimelineRows` for scheduled rows:
- * boundary time (`EventScheduledTime` or `ScheduledDeparture`), then
- * `EventType` order (`arv-dock` before `dep-dock`), then `TerminalAbbrev`
- * lexicographically.
+ * Validates arguments and return shape with Convex validators, then delegates
+ * to `readScheduledDockEventsForVesselSailingDay`. Realtime clients subscribe
+ * here for planned boundary updates without coupling to internal loader names.
  *
- * @param ctx - Convex query context
+ * Returned rows use the same ordering as
+ * `readScheduledDockEventsForVesselSailingDay` (`sortScheduledDockEvents`,
+ * shared with `mergeTimelineRows`), so UI timelines stay consistent with
+ * server-side merged event lists for the same vessel and day.
+ *
+ * @param ctx - Convex query context (database handle)
  * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
  * @param args.sailingDay - Calendar sailing day `YYYY-MM-DD`
  * @returns Validator-shaped scheduled rows in stable timeline order
@@ -60,13 +77,11 @@ const listScheduledDockEventsForVesselSailingDay = query({
     sailingDay: v.string(),
   },
   returns: v.array(eventsScheduledSchema),
-  handler: async (ctx, args) => {
-    const rows = await queryScheduledDockEventsForVesselSailingDay(ctx, args);
-    return rows.sort(sortScheduledDockEvents);
-  },
+  handler: async (ctx, args) =>
+    readScheduledDockEventsForVesselSailingDay(ctx, args),
 });
 
 export {
   listScheduledDockEventsForVesselSailingDay,
-  queryScheduledDockEventsForVesselSailingDay,
+  readScheduledDockEventsForVesselSailingDay,
 };

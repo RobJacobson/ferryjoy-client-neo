@@ -1,14 +1,13 @@
 /**
- * Builds wire-format route-timeline dock visits from merged vessel timeline
- * events (epoch ms timestamps). Shared by snapshot assembly and client-facing
- * domain helpers.
+ * Builds wire-format timeline dock visits from merged vessel timeline events
+ * (epoch ms timestamps). Shared by client-facing domain helpers.
  */
 
+import type { ConvexVesselTimelineEvent } from "functions/vesselTimeline/schemas";
 import type {
   ConvexRouteTimelineBoundary,
   ConvexRouteTimelineDockVisit,
-} from "../../functions/routeTimeline";
-import type { ConvexVesselTimelineEvent } from "../../functions/vesselTimeline/schemas";
+} from "./schemas";
 
 /**
  * Maps one merged vessel timeline event into a route timeline boundary wire

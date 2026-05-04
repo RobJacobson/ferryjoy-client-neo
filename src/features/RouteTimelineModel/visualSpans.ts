@@ -5,7 +5,7 @@
 import type {
   RouteTimelineBoundary,
   RouteTimelineDockVisit,
-} from "convex/functions/routeTimeline";
+} from "domain/timelineDockVisits";
 
 export type RouteTimelineVisualSpanKind = "at-dock" | "crossing";
 export type RouteTimelineVisualSpanEdge =

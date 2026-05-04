@@ -1,15 +1,13 @@
 /**
- * Ensures single-vessel domain dock visits match snapshot assembly + domain
- * conversion (Stage 3 client path parity).
+ * Ensures single-vessel domain dock visits from merged events stay stable for
+ * the vessel timeline client path.
  */
 
 import { describe, expect, it } from "bun:test";
-import { toDomainRouteTimelineSnapshot } from "../../../functions/routeTimeline";
 import type { ConvexActualDockEvent } from "../../events/actual/schemas";
 import type { ConvexPredictedDockEvent } from "../../events/predicted/schemas";
 import type { ConvexScheduledDockEvent } from "../../events/scheduled/schemas";
 import { buildDomainDockVisitsForVesselDay } from "../buildDomainDockVisitsForVesselDay";
-import { buildRouteTimelineSnapshot } from "../buildRouteTimelineSnapshot";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
@@ -31,7 +29,7 @@ const makeScheduledEvent = (
 });
 
 describe("buildDomainDockVisitsForVesselDay", () => {
-  it("matches buildRouteTimelineSnapshot domain visits for the same vessel", () => {
+  it("pairs scheduled dep and arv boundaries into two dock visits for the sample day", () => {
     const scheduledEvents: ConvexScheduledDockEvent[] = [
       makeScheduledEvent({
         Key: "c1--dep-dock",
@@ -51,18 +49,6 @@ describe("buildDomainDockVisitsForVesselDay", () => {
     const actualEvents: ConvexActualDockEvent[] = [];
     const predictedEvents: ConvexPredictedDockEvent[] = [];
 
-    const snapshot = buildRouteTimelineSnapshot({
-      RouteAbbrev: "R",
-      SailingDay: sailingDay,
-      scope: { VesselAbbrev: "CAT" },
-      scheduledEvents,
-      actualEvents,
-      predictedEvents,
-    });
-
-    const domainFromSnapshot =
-      toDomainRouteTimelineSnapshot(snapshot).Vessels[0]?.DockVisits ?? [];
-
     const direct = buildDomainDockVisitsForVesselDay({
       scheduledEvents,
       actualEvents,
@@ -71,6 +57,41 @@ describe("buildDomainDockVisitsForVesselDay", () => {
       sailingDay,
     });
 
-    expect(direct).toEqual(domainFromSnapshot);
+    expect(direct).toEqual([
+      {
+        Key: "none::c1--dep-dock",
+        VesselAbbrev: "CAT",
+        SailingDay: sailingDay,
+        TerminalAbbrev: "ORI",
+        Arrival: undefined,
+        Departure: {
+          Key: "c1--dep-dock",
+          SegmentKey: "c1",
+          TerminalAbbrev: "ORI",
+          EventType: "dep-dock",
+          EventScheduledTime: new Date(at(9, 0)),
+          EventPredictedTime: undefined,
+          EventOccurred: undefined,
+          EventActualTime: undefined,
+        },
+      },
+      {
+        Key: "c1--arv-dock::none",
+        VesselAbbrev: "CAT",
+        SailingDay: sailingDay,
+        TerminalAbbrev: "SHI",
+        Departure: undefined,
+        Arrival: {
+          Key: "c1--arv-dock",
+          SegmentKey: "c1",
+          TerminalAbbrev: "SHI",
+          EventType: "arv-dock",
+          EventScheduledTime: new Date(at(9, 40)),
+          EventPredictedTime: undefined,
+          EventOccurred: undefined,
+          EventActualTime: undefined,
+        },
+      },
+    ]);
   });
 });

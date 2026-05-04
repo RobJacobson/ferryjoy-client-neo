@@ -1,13 +1,12 @@
 /**
  * Covers index use, metadata stripping, and ordering for the public scheduled
- * list query composition (loader + `sortScheduledDockEvents`).
+ * list query composition (`readScheduledDockEventsForVesselSailingDay`).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { Id } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
-import { sortScheduledDockEvents } from "domain/timelineRows/scheduledSegmentResolvers";
-import { queryScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
+import { readScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 
 const at = (hours: number, minutes: number) =>
@@ -41,7 +40,7 @@ type ScheduledCtxOpts = {
  * queries on `eventsScheduled`.
  *
  * @param opts - Rows to filter and optional index spy
- * @returns Context suitable for `queryScheduledDockEventsForVesselSailingDay`
+ * @returns Context suitable for `readScheduledDockEventsForVesselSailingDay`
  */
 const makeScheduledQueryCtx = (opts: ScheduledCtxOpts): QueryCtx =>
   ({
@@ -79,7 +78,7 @@ const makeScheduledQueryCtx = (opts: ScheduledCtxOpts): QueryCtx =>
 
 const args = { vesselAbbrev: "WEN", sailingDay: "2026-03-25" };
 
-describe("listScheduledDockEventsForVesselSailingDay (loader + sort)", () => {
+describe("listScheduledDockEventsForVesselSailingDay (read + query)", () => {
   it("loads via by_vessel_and_sailing_day", async () => {
     let indexName = "";
     const ctx = makeScheduledQueryCtx({
@@ -88,7 +87,7 @@ describe("listScheduledDockEventsForVesselSailingDay (loader + sort)", () => {
         indexName = name;
       },
     });
-    await queryScheduledDockEventsForVesselSailingDay(ctx, args);
+    await readScheduledDockEventsForVesselSailingDay(ctx, args);
     expect(indexName).toBe("by_vessel_and_sailing_day");
   });
 
@@ -103,7 +102,7 @@ describe("listScheduledDockEventsForVesselSailingDay (loader + sort)", () => {
         { ...baseScheduled(), Key: "wen--dep-dock" },
       ],
     });
-    const rows = await queryScheduledDockEventsForVesselSailingDay(ctx, args);
+    const rows = await readScheduledDockEventsForVesselSailingDay(ctx, args);
     expect(rows.map((r) => r.Key)).toEqual(["wen--dep-dock"]);
   });
 
@@ -117,7 +116,7 @@ describe("listScheduledDockEventsForVesselSailingDay (loader + sort)", () => {
         },
       ],
     });
-    const rows = await queryScheduledDockEventsForVesselSailingDay(ctx, args);
+    const rows = await readScheduledDockEventsForVesselSailingDay(ctx, args);
     expect(rows).toHaveLength(1);
     expect("_id" in rows[0]).toBe(false);
     expect("_creationTime" in rows[0]).toBe(false);
@@ -145,14 +144,7 @@ describe("listScheduledDockEventsForVesselSailingDay (loader + sort)", () => {
         },
       ],
     });
-    const stripped = await queryScheduledDockEventsForVesselSailingDay(
-      ctx,
-      args
-    );
-    const sorted = stripped.sort(sortScheduledDockEvents);
-    expect(sorted.map((r) => r.Key)).toEqual([
-      "seg--arv-dock",
-      "seg--dep-dock",
-    ]);
+    const rows = await readScheduledDockEventsForVesselSailingDay(ctx, args);
+    expect(rows.map((r) => r.Key)).toEqual(["seg--arv-dock", "seg--dep-dock"]);
   });
 });

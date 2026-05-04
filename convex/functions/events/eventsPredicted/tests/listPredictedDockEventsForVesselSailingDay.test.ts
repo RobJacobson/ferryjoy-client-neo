@@ -1,17 +1,13 @@
 /**
  * Covers index use, metadata stripping, and ordering for the public predicted
- * list query composition (loader + strip + sort).
+ * list query composition (`readPredictedDockEventsForVesselSailingDay`).
  */
 
 import { describe, expect, it } from "bun:test";
 import type { Id } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
-import {
-  loadPredictedDockEventsForVesselSailingDay,
-  sortPredictedDockEventsForPublicList,
-} from "functions/events/eventsPredicted/queries";
+import { readPredictedDockEventsForVesselSailingDay } from "functions/events/eventsPredicted/queries";
 import type { ConvexPredictedDockEvent } from "functions/events/eventsPredicted/schemas";
-import { stripConvexMeta } from "shared/stripConvexMeta";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
@@ -42,7 +38,7 @@ type PredictedCtxOpts = {
  * Builds a minimal `QueryCtx` for `eventsPredicted` index reads.
  *
  * @param opts - Rows to filter and optional index spy
- * @returns Context suitable for `loadPredictedDockEventsForVesselSailingDay`
+ * @returns Context suitable for `readPredictedDockEventsForVesselSailingDay`
  */
 const makePredictedQueryCtx = (opts: PredictedCtxOpts): QueryCtx =>
   ({
@@ -80,15 +76,7 @@ const makePredictedQueryCtx = (opts: PredictedCtxOpts): QueryCtx =>
 
 const args = { vesselAbbrev: "WEN", sailingDay: "2026-03-25" };
 
-const listPredictedLikePublicHandler = async (
-  ctx: QueryCtx,
-  a: typeof args
-) => {
-  const docs = await loadPredictedDockEventsForVesselSailingDay(ctx, a);
-  return docs.map(stripConvexMeta).sort(sortPredictedDockEventsForPublicList);
-};
-
-describe("listPredictedDockEventsForVesselSailingDay (loader + strip + sort)", () => {
+describe("listPredictedDockEventsForVesselSailingDay (read + query)", () => {
   it("loads via by_vessel_and_sailing_day", async () => {
     let indexName = "";
     const ctx = makePredictedQueryCtx({
@@ -97,7 +85,7 @@ describe("listPredictedDockEventsForVesselSailingDay (loader + strip + sort)", (
         indexName = name;
       },
     });
-    await loadPredictedDockEventsForVesselSailingDay(ctx, args);
+    await readPredictedDockEventsForVesselSailingDay(ctx, args);
     expect(indexName).toBe("by_vessel_and_sailing_day");
   });
 
@@ -108,7 +96,7 @@ describe("listPredictedDockEventsForVesselSailingDay (loader + strip + sort)", (
         { ...basePredicted(), Key: "k-wen" },
       ],
     });
-    const rows = await listPredictedLikePublicHandler(ctx, args);
+    const rows = await readPredictedDockEventsForVesselSailingDay(ctx, args);
     expect(rows.map((r) => r.Key)).toEqual(["k-wen"]);
   });
 
@@ -122,7 +110,7 @@ describe("listPredictedDockEventsForVesselSailingDay (loader + strip + sort)", (
         },
       ],
     });
-    const rows = await listPredictedLikePublicHandler(ctx, args);
+    const rows = await readPredictedDockEventsForVesselSailingDay(ctx, args);
     expect(rows).toHaveLength(1);
     expect("_id" in rows[0]).toBe(false);
     expect("_creationTime" in rows[0]).toBe(false);
@@ -138,7 +126,7 @@ describe("listPredictedDockEventsForVesselSailingDay (loader + strip + sort)", (
         { ...basePredicted(), Key: "k-c", ScheduledDeparture: t2 },
       ],
     });
-    const rows = await listPredictedLikePublicHandler(ctx, args);
+    const rows = await readPredictedDockEventsForVesselSailingDay(ctx, args);
     expect(rows.map((r) => r.Key)).toEqual(["k-a", "k-b", "k-c"]);
   });
 });

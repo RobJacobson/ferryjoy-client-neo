@@ -3,8 +3,8 @@
  * API reads.
  */
 
-import type { Doc } from "_generated/dataModel";
 import {
+  type ConvexPredictedDockEvent,
   type ConvexPredictionSource,
   type PredictionType,
   predictedDockCompositeKey,
@@ -50,7 +50,7 @@ const rowToJoined = (row: {
  */
 export const mergeTripsWithPredictions = (
   trips: ConvexVesselTrip[],
-  predictedByGroup: Map<string, Map<string, Doc<"eventsPredicted">>>
+  predictedByGroup: Map<string, Map<string, ConvexPredictedDockEvent>>
 ): ConvexVesselTripWithPredictions[] =>
   trips.map((trip) => mergeTripPredictions(trip, predictedByGroup));
 
@@ -63,7 +63,7 @@ export const mergeTripsWithPredictions = (
  */
 const mergeTripPredictions = (
   trip: ConvexVesselTrip,
-  predictedByGroup: Map<string, Map<string, Doc<"eventsPredicted">>>
+  predictedByGroup: Map<string, Map<string, ConvexPredictedDockEvent>>
 ): ConvexVesselTripWithPredictions => {
   if (!trip.SailingDay) {
     return { ...trip } as ConvexVesselTripWithPredictions;

@@ -27,7 +27,8 @@ architecture rationale, read the memo linked above.
 - [VesselOrchestrator pipeline](../../convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md)
 - [VesselOrchestrator README](../../convex/functions/vesselOrchestrator/README.md)
 - [Events functions](../../convex/functions/events)
-- [Route timeline functions](../../convex/functions/routeTimeline)
+- [Dock visit assembly (domain)](../../convex/domain/timelineDockVisits) —
+  replaced legacy `functions/routeTimeline` + `domain/routeTimeline` (Stage 5)
 - [Official Convex rules](../convex_rules.mdc)
 - [Opinionated Convex guide](../opinionated-convex-guide.md)
 - [Convex realtime docs](https://docs.convex.dev/realtime)
@@ -48,8 +49,8 @@ architecture rationale, read the memo linked above.
   functions.
 - Event merge semantics remain covered by tests, especially actual attachment
   and prediction precedence.
-- `convex/functions/routeTimeline` is deleted after all production consumers are
-  removed.
+- `convex/functions/routeTimeline` and `convex/domain/routeTimeline` are removed
+  after consumers migrate to `domain/timelineDockVisits` (Stage 5 — done).
 - Typecheck and relevant tests pass:
   `bun run type-check`, `bun run convex:typecheck`, and targeted test commands.
 
@@ -291,7 +292,7 @@ Run repository searches for:
 - `ConvexRouteTimelineProvider`
 - `RouteTimelineSnapshot`
 - `fromRouteTimelineModel`
-- `api.functions.routeTimeline`
+- `api.functions.routeTimeline` (removed from codegen after Stage 5)
 
 Keep anything that belongs to a separate route-level feature. Remove or replace
 anything that exists only for `VesselTimeline`.
@@ -304,47 +305,41 @@ timeline provider tree.
 ### Acceptance checklist
 
 - The app path for `VesselTimeline` no longer mounts route timeline data.
-- `fromRouteTimelineModel` is unused or clearly marked legacy pending deletion.
-- `ConvexRouteTimelineContext` is unused by `VesselTimeline`.
+- `fromRouteTimelineModel` is gone; `VesselTimeline` uses `fromEventRows`.
+- `ConvexRouteTimelineContext` is not part of the `VesselTimeline` tree (context
+  removed in Stage 5).
 
 ---
 
 ## Stage 5: delete legacy routeTimeline
 
-### Goal
+**Completed (2026-05-03):** Shared dock-visit assembly moved to
+`convex/domain/timelineDockVisits/` (not a wholesale delete of merge logic).
+`convex/functions/routeTimeline`, `convex/domain/routeTimeline`, and
+`ConvexRouteTimelineContext` are removed; public event queries unchanged by name;
+internal readers consolidated to `read*ForVesselSailingDay`. See
+[Stage 5 handoff](./2026-05-03-stage-5-route-timeline-removal-and-event-query-consolidation-handoff.md).
+
+### Goal (original PRD wording)
 
 Remove `convex/functions/routeTimeline` after all production consumers are gone.
 
-### Backend deletion
+### What was removed or relocated
 
-Delete:
+- Deleted: `convex/functions/routeTimeline`, `convex/domain/routeTimeline`, route
+  snapshot–only tests, `ConvexRouteTimelineContext`.
+- Added: `convex/domain/timelineDockVisits/` (wire + merge + dock visits +
+  `buildDomainDockVisitsForVesselDay`).
+- Updated: `convex/functions/index.ts`, codegen, engineering and feature docs
+  (continue `rg "routeTimeline"` for stragglers).
 
-- `convex/functions/routeTimeline`
-- `convex/domain/routeTimeline`
-- route timeline tests that only validate the deleted read model
+If another product surface still needs a route-scoped dock-visit snapshot,
+document that consumer explicitly; it is no longer the `VesselTimeline` path.
 
-Update:
+### Frontend (original PRD list)
 
-- `convex/functions/index.ts`
-- generated Convex API files through codegen
-- docs that list `routeTimeline` as current architecture
-
-Only keep route timeline code if another active product surface still needs a
-route-scoped dock-visit snapshot. If so, document that consumer and rename the
-read model away from `VesselTimeline` concerns.
-
-### Frontend deletion
-
-Delete unused client code:
-
-- `src/data/contexts/convex/ConvexRouteTimelineContext.tsx`, if no consumer
-  remains
-- `src/features/VesselTimeline/renderPipeline/fromRouteTimelineModel.ts`, if no
-  route-model compatibility path remains
-- stale tests for the route model adapter
-
-Update any `RouteTimelineModel` modules only if they become unused. If other
-features consume them, leave them in place.
+- `fromRouteTimelineModel.ts` — removed with the vessel timeline migration.
+- `RouteTimelineModel` — kept for shared presentation geometry where needed.
 
 ### Documentation updates
 
