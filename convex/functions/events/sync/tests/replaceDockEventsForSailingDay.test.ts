@@ -1,5 +1,6 @@
 /**
- * Verifies the internal reload mutation delegates to scheduled and actual table writers.
+ * Verifies the internal reload mutation delegates to scheduled and actual
+ * table writers given an empty Convex reload payload.
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
@@ -7,10 +8,11 @@ import type { MutationCtx } from "_generated/server";
 import * as eventsActual from "functions/events/eventsActual/mutations";
 import * as eventsScheduled from "functions/events/eventsScheduled/mutations";
 import { replaceDockEventsForSailingDay } from "../mutations";
+import type { ConvexReloadDockData } from "../reloadDockDataSchemas";
 
 type ReplaceHandler = (
   ctx: MutationCtx,
-  args: { SailingDay: string; Events: unknown[] }
+  args: { ReloadDockData: ConvexReloadDockData }
 ) => Promise<{ ScheduledCount: number; ActualCount: number }>;
 
 const replaceHandler = (
@@ -33,8 +35,11 @@ describe("replaceDockEventsForSailingDay (internal)", () => {
     ).mockResolvedValue(undefined);
 
     const result = await replaceHandler(makeEmptyDbMutationCtx(), {
-      SailingDay: "2026-04-10",
-      Events: [],
+      ReloadDockData: {
+        SailingDay: "2026-04-10",
+        ScheduleSegments: [],
+        HistoryRecords: [],
+      },
     });
 
     expect(result).toEqual({ ScheduledCount: 0, ActualCount: 0 });
@@ -48,8 +53,8 @@ describe("replaceDockEventsForSailingDay (internal)", () => {
 });
 
 /**
- * Returns a `MutationCtx` whose `db` queries always return no rows, which is
- * enough for the trip index and live-location inputs used by reload.
+ * Returns a MutationCtx whose db queries always return no rows, which is
+ * enough for the identity, trip index, and live-location reads used by reload.
  *
  * @returns Stub context for replace handler tests
  */

@@ -26,16 +26,20 @@ Live vessel position is deliberately separate from the event rows. Event rows de
 
 Two complementary paths feed the same three tables:
 
-### 1. Sailing-day reload (scheduled + actual slices)
+### 1. DockReload — sailing-day reload (scheduled + actual slices)
 
 For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/functions/events/sync/reloadDockEventsForSailingDay.ts`):
 
 1. Loads vessel and terminal identity context.
-2. Pulls WSF schedule data via `fetchAndTransformScheduledTrips` (adapters).
-3. Builds seeded boundary records with **`buildScheduledDockEventRecords`**, then **`hydrateActualDockEvents`** (domain, `convex/domain/events/scheduled` and `actual`).
-4. Calls the internal mutation **`replaceDockEventsForSailingDay`**, which uses **`buildDockEventRowsForSailingDayReload`** and then:
-   - **`upsertScheduledRowsForSailingDay`** on `eventsScheduled`
-   - **`replaceActualRowsForSailingDay`** on `eventsActual`
+2. Pulls WSF schedule data via `fetchAndTransformScheduledTrips` (adapters) and per-vessel WSF history rows.
+3. Hands the action a single Convex-shaped payload built by **`buildConvexReloadDockDataFromFetchedSlices`**: `ConvexReloadDockData` carries epoch-millisecond fields only, mirroring `ConvexVesselLocation` and `ConvexScheduledTrip`. Adapter fetch types still expose `Date` (e.g. `RawWsfScheduleSegment`); conversion happens in `shared/convertDates.ts`.
+4. Calls the internal mutation **`replaceDockEventsForSailingDay`**, which:
+   - restores `Date` instants via `mapConvexReloadDockDataToRawFetchShapes`,
+   - composes hydrated `DockTransitionRecord` rows with **`buildScheduledDockEventRecords`** + **`hydrateActualDockEvents`** through **`buildHydratedTransitionsFromReloadInputs`**,
+   - loads trip indexes for the day and collects all `vesselLocations` rows (one per fleet vessel; table stays tiny),
+   - delegates row construction to **`buildDockEventRowsForSailingDayReload`**, then persists:
+     - **`upsertScheduledRowsForSailingDay`** on `eventsScheduled`,
+     - **`replaceActualRowsForSailingDay`** on `eventsActual`.
 
 **Crons** (`convex/crons.ts`): at the Pacific ~3:00 AM sailing-day boundary, **`reloadDockEventsAtSailingDayBoundary`** runs (with an in-action guard so only the true 3 AM Pacific hour executes), typically with a small multi-day window via **`runReloadDockEventsWindow`**. Public actions for manual/operator use live on **`functions/events/sync/actions`** (e.g. `reloadDockEventsForSailingDay`, `reloadDockEventsForCurrentSailingDay`).
 
@@ -43,11 +47,11 @@ For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/function
 
 Predicted rows are **not** produced by this daily reload; they come from the live orchestrator path below.
 
-### 2. Orchestrator ping pipeline (sparse actual + predicted)
+### 2. DockEventLive — orchestrator ping pipeline (sparse actual + predicted)
 
-On each orchestrator cycle, trip updates are merged into **actual** and **predicted** dock event writes (and related patches) through **`updateEvents`** / projection and **`persistVesselUpdates`** (`convex/functions/vesselOrchestrator/`), which upsert into `eventsActual` and reconcile `eventsPredicted` in line with active vessel trips and ML/WSF prediction payloads.
+On each orchestrator cycle, trip updates are merged into **actual** and **predicted** dock event writes (and related patches) through **`updateEvents`** / projection and **`persistVesselUpdates`** (`convex/functions/vesselOrchestrator/`), which upsert into `eventsActual` and reconcile `eventsPredicted` in line with active vessel trips and ML/WSF prediction payloads. The reconcile module backing this path lives at `convex/domain/events/actual/reconcileDockTransitionsFromLocations/`.
 
-So: **reload** reshapes full-day scheduled + actual snapshots from schedule + history; **orchestrator** keeps actual/predicted aligned with live trips between reloads.
+So: **DockReload** reshapes full-day scheduled + actual snapshots from schedule + history; **DockEventLive** keeps actual/predicted aligned with live trips between reloads.
 
 ---
 

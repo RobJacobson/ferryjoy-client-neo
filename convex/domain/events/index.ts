@@ -20,10 +20,15 @@ export {
   buildActualDockEvents,
 } from "./actual/buildActualDockEvents";
 export { hydrateActualDockEvents } from "./actual/hydrateActualDockEvents";
+export type {
+  LocationReconcileBoundaryEvent,
+  ReconcileActualDockWritesFromLocationsArgs,
+} from "./actual/reconcileDockTransitionsFromLocations";
 export {
+  buildActualDockWritesFromLocation,
   buildLocationReconcileBoundaryEvents,
   reconcileActualDockWritesFromLocations,
-} from "./actual/reconcileActualDockEventsFromLocations";
+} from "./actual/reconcileDockTransitionsFromLocations";
 export { buildDockEventRowsForSailingDayReload } from "./actual/reloadDockEventsForSailingDay";
 export type {
   ConvexPredictedDockEvent,
@@ -37,6 +42,7 @@ export {
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,
 } from "./predicted/buildPredictedDockEventEffects";
+export { buildHydratedTransitionsFromReloadInputs } from "./reload/buildHydratedTransitionsFromReloadInputs";
 export type {
   ConvexInferredScheduledSegment,
   ConvexScheduledDockEvent,
@@ -53,4 +59,7 @@ export {
   inferScheduledSegmentFromDepartureEvent,
   sortScheduledDockEvents,
 } from "./scheduled/scheduledSegmentResolvers";
-export type { DockBoundaryEventRecord } from "./types";
+export type {
+  DockBoundaryEventRecord,
+  DockTransitionRecord,
+} from "./types";

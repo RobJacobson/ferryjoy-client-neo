@@ -4,7 +4,7 @@ import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTrip
 import type { DockBoundaryEventRecord } from "domain/events";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
-import { buildActualDockWritesFromLocation } from "../../actual/reconcileActualDockEventsFromLocations";
+import { buildActualDockWritesFromLocation } from "../../actual/reconcileDockTransitionsFromLocations";
 import { buildScheduledDockEventRecords } from "../buildScheduledDockEventRecords";
 import { normalizeScheduledDockSeams } from "../normalizeScheduledDockEventRecords";
 

@@ -21,7 +21,7 @@ import {
   buildActualDockEvents,
 } from "./buildActualDockEvents";
 import { mergeActualDockWritesIntoRows } from "./mergeActualDockWritesIntoRows";
-import { reconcileActualDockWritesFromLocations } from "./reconcileActualDockEventsFromLocations";
+import { reconcileActualDockWritesFromLocations } from "./reconcileDockTransitionsFromLocations";
 
 type BuildDockEventRowsForSailingDayReloadArgs = {
   sailingDay: string;

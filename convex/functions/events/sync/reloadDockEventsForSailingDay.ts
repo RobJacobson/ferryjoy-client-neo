@@ -1,30 +1,30 @@
 /**
  * Single-day dock-event reload helper.
  *
- * This action-side helper fetches schedules and history, builds neutral
- * boundary records, and delegates persistence to an internal mutation.
+ * Action-side glue: fetch identities, schedule, and history, then hand the
+ * Convex reload payload to the internal mutation. The mutation owns
+ * schedule-to-transition merging and history hydration so this helper stays
+ * responsible only for talking to external APIs.
  */
 
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { fetchAndTransformScheduledTrips } from "adapters";
-import {
-  buildScheduledDockEventRecords,
-  hydrateActualDockEvents,
-} from "domain/events";
 import { loadTerminalIdentities } from "functions/terminals/actions";
 import { loadVesselIdentities } from "functions/vessels/actions";
+import { buildConvexReloadDockDataFromFetchedSlices } from "./buildConvexReloadDockDataFromFetchedSlices";
 import { fetchHistoryRecordsForDate } from "./fetchHistoryRecordsForDate";
 import type { EventReloadResult } from "./types";
 
 const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
 
 /**
- * Reloads scheduled and actual dock-event rows for one sailing day via actions.
+ * Reloads scheduled and actual dock-event rows for one sailing day.
  *
- * Fetches transformed schedules, builds seeded boundary records, hydrates them with
- * external vessel history, then invokes replaceDockEventsForSailingDayRows so internal
- * mutations persist both tables atomically per day.
+ * Loads vessel and terminal identities for adapter resolution, fetches the
+ * WSF schedule slice and per-vessel history rows, then hands a Convex-shaped
+ * payload to replaceDockEventsForSailingDay. The mutation performs the
+ * schedule and history merges and persists rows in one transaction.
  *
  * @param ctx - Convex action context for adapter calls and mutation scheduling
  * @param targetDate - Sailing day YYYY-MM-DD string used across fetch and persistence
@@ -49,30 +49,20 @@ const runReloadDockEventsForSailingDay = async (
     `${LOG_PREFIX} Found ${scheduleSegments.length} schedule segments for ${targetDate}`
   );
 
-  const seededEvents = buildScheduledDockEventRecords(
-    scheduleSegments,
-    vessels,
-    terminals
-  );
   const historyRecords = await fetchHistoryRecordsForDate(
     scheduleSegments,
     targetDate
   );
-  const hydratedEvents = hydrateActualDockEvents({
-    seededEvents,
-    existingEvents: [],
+
+  const reloadDockData = buildConvexReloadDockDataFromFetchedSlices({
+    sailingDay: targetDate,
     scheduleSegments,
     historyRecords,
-    vessels,
-    terminals,
   });
 
   const result = await ctx.runMutation(
     internal.functions.events.sync.mutations.replaceDockEventsForSailingDay,
-    {
-      SailingDay: targetDate,
-      Events: hydratedEvents,
-    }
+    { ReloadDockData: reloadDockData }
   );
 
   console.log(
