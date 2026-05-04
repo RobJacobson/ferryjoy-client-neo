@@ -12,7 +12,7 @@ import { useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useMemo } from "react";
 import type { VesselTrip, VesselTripWithScheduledTrip } from "@/types";
-import { toDomainVesselTripWithScheduledTrip } from "@/types";
+import { toVesselTripWithScheduledTrip } from "@/types";
 
 export type { VesselTrip, VesselTripWithScheduledTrip };
 
@@ -57,7 +57,7 @@ export const ConvexVesselTripsProvider = ({ children }: PropsWithChildren) => {
     api.functions.vesselTrips.queries.getActiveTripsWithScheduledTrip
   );
   const activeTrips = useMemo(
-    () => rawActiveTrips?.map(toDomainVesselTripWithScheduledTrip) ?? [],
+    () => rawActiveTrips?.map(toVesselTripWithScheduledTrip) ?? [],
     [rawActiveTrips]
   );
 

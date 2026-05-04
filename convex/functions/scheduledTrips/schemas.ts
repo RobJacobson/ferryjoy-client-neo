@@ -1,11 +1,9 @@
 /**
- * Defines Convex schemas and conversion helpers for scheduled trips.
+ * Defines Convex schemas and wire types for scheduled trips.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { epochMsToDate } from "../../shared/convertDates";
-
 /**
  * Convex validator for scheduled trips
  */
@@ -37,42 +35,3 @@ export const scheduledTripSchema = v.object({
  * Inferred from the Convex validator
  */
 export type ConvexScheduledTrip = Infer<typeof scheduledTripSchema>;
-
-/**
- * Convert Convex scheduled trip (numbers) to domain scheduled trip (Dates).
- * Manual conversion from epoch milliseconds to Date objects.
- * Accepts optional DisplayArrivingTerminalAbbrev so query results (formatSegments) are preserved.
- *
- * @param trip - Convex scheduled trip with numeric timestamps; may include DisplayArrivingTerminalAbbrev from query
- * @returns Domain scheduled trip with Date objects
- */
-export const toDomainScheduledTrip = (
-  trip: ConvexScheduledTrip & { DisplayArrivingTerminalAbbrev?: string }
-) => ({
-  ...trip,
-  DepartingTime: epochMsToDate(trip.DepartingTime),
-  ArrivingTime: trip.ArrivingTime
-    ? epochMsToDate(trip.ArrivingTime)
-    : undefined,
-  EstArriveNext: trip.EstArriveNext
-    ? epochMsToDate(trip.EstArriveNext)
-    : undefined,
-  EstArriveCurr: trip.EstArriveCurr
-    ? epochMsToDate(trip.EstArriveCurr)
-    : undefined,
-  SchedArriveNext: trip.SchedArriveNext
-    ? epochMsToDate(trip.SchedArriveNext)
-    : undefined,
-  SchedArriveCurr: trip.SchedArriveCurr
-    ? epochMsToDate(trip.SchedArriveCurr)
-    : undefined,
-  NextDepartingTime: trip.NextDepartingTime
-    ? epochMsToDate(trip.NextDepartingTime)
-    : undefined,
-});
-
-/**
- * Type for scheduled trip in domain layer (with Date objects)
- * Inferred from the return type of our conversion function
- */
-export type ScheduledTrip = ReturnType<typeof toDomainScheduledTrip>;

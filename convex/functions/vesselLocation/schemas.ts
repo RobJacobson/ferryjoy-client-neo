@@ -1,13 +1,9 @@
 /**
- * Defines shared Convex vessel-location validators and conversions.
+ * Defines shared Convex vessel-location validators and wire types.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import {
-  epochMsToDate,
-  optionalEpochMsToDate,
-} from "../../shared/convertDates";
 
 /**
  * Shared field validators for vessel-location storage.
@@ -82,26 +78,3 @@ export type ConvexVesselLocationIncoming = Infer<
  * Inferred from the Convex validator
  */
 export type ConvexVesselLocation = Infer<typeof vesselLocationValidationSchema>;
-
-/**
- * Converts epoch-ms vessel location fields to `Date` for domain code.
- *
- * Maps `TimeStamp` and optional dock/ETA fields through shared converters so
- * domain timelines use `Date` while Convex storage stays numeric.
- *
- * @param cvl - Convex vessel location with numeric timestamps
- * @returns Same record with `TimeStamp` and optional dock/ETA fields as `Date`
- */
-export const toDomainVesselLocation = (cvl: ConvexVesselLocation) => ({
-  ...cvl,
-  LeftDock: optionalEpochMsToDate(cvl.LeftDock),
-  Eta: optionalEpochMsToDate(cvl.Eta),
-  ScheduledDeparture: optionalEpochMsToDate(cvl.ScheduledDeparture),
-  TimeStamp: epochMsToDate(cvl.TimeStamp),
-});
-
-/**
- * Type for vessel location in domain layer (with Date objects)
- * Inferred from the return type of our conversion function
- */
-export type VesselLocation = ReturnType<typeof toDomainVesselLocation>;

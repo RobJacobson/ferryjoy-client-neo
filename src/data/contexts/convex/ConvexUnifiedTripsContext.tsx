@@ -22,8 +22,8 @@ import {
 } from "react";
 import {
   type ScheduledTrip,
-  toDomainScheduledTrip,
-  toDomainVesselTrip,
+  toScheduledTrip,
+  toVesselTrip,
   type VesselTrip,
 } from "@/types";
 
@@ -127,10 +127,10 @@ const ConvexUnifiedTripsDataFetcher = ({
     { routeAbbrevs, tripDate }
   );
 
-  const scheduledTrips = rawScheduledTrips?.map(toDomainScheduledTrip) ?? [];
-  const activeVesselTrips = rawActiveVesselTrips?.map(toDomainVesselTrip) ?? [];
+  const scheduledTrips = rawScheduledTrips?.map(toScheduledTrip) ?? [];
+  const activeVesselTrips = rawActiveVesselTrips?.map(toVesselTrip) ?? [];
   const completedVesselTrips =
-    rawCompletedVesselTrips?.map(toDomainVesselTrip) ?? [];
+    rawCompletedVesselTrips?.map(toVesselTrip) ?? [];
 
   const isLoading =
     rawScheduledTrips === undefined ||

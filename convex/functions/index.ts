@@ -12,3 +12,4 @@ export * as eventsScheduled from "functions/events/eventsScheduled";
 export * as keyValueStore from "functions/keyValueStore";
 export * as predictions from "functions/predictions";
 export * as vesselPings from "functions/vesselPings";
+export * as vesselTrips from "functions/vesselTrips";
