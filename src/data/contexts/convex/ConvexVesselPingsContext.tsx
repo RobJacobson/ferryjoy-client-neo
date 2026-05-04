@@ -4,7 +4,7 @@ import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   type ConvexVesselPing,
-  toDomainVesselPing,
+  toVesselPing,
   type VesselPing,
 } from "@/types";
 
@@ -63,7 +63,7 @@ export const ConvexVesselPingsProvider = ({ children }: PropsWithChildren) => {
   const vesselPingsByVesselAbbrev: VesselPingsByVesselAbbrev = (
     rawPings ?? []
   ).reduce((acc: VesselPingsByVesselAbbrev, ping: ConvexVesselPing) => {
-    const domainPing = toDomainVesselPing(ping);
+    const domainPing = toVesselPing(ping);
     const key = ping.VesselAbbrev;
     if (!acc[key]) {
       acc[key] = [];

@@ -1,7 +1,7 @@
 import { useConvexConnectionState, useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext } from "react";
-import { toDomainVesselLocation, type VesselLocation } from "@/types";
+import { toVesselLocation, type VesselLocation } from "@/types";
 import { api } from "../../../../convex/_generated/api";
 
 // Re-export VesselLocation type for convenience
@@ -58,8 +58,7 @@ export const ConvexVesselLocationsProvider = ({
   const rawVesselLocations = useQuery(
     api.functions.vesselLocation.queries.getAll
   );
-  const currentVesselLocations =
-    rawVesselLocations?.map(toDomainVesselLocation) ?? [];
+  const currentVesselLocations = rawVesselLocations?.map(toVesselLocation) ?? [];
   const hasConnectionIssue =
     rawVesselLocations === undefined &&
     !connectionState.isWebSocketConnected &&

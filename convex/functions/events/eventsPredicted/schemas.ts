@@ -1,14 +1,9 @@
 /**
- * Convex validators for `eventsPredicted` plus epoch-ms to Date conversions for
- * app use. Sparse batch shapes back orchestrator persistence alongside trip updates.
+ * Convex validators and wire types for `eventsPredicted`.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import {
-  epochMsToDate,
-  optionalEpochMsToDate,
-} from "../../../shared/convertDates";
 import { predictionTypeValidator } from "../../predictions/schemas";
 
 export const predictionSourceSchema = v.union(
@@ -74,27 +69,3 @@ export const predictedDockWriteBatchSchema = v.object({
 export type ConvexPredictedDockWriteBatch = Infer<
   typeof predictedDockWriteBatchSchema
 >;
-
-/**
- * Converts a predicted dock event into the domain shape with Date fields.
- *
- * DeltaTotal stays numeric (signed minutes vs prediction). Optional Actual is
- * epoch ms in storage and becomes a Date when present.
- *
- * @param event - Predicted dock event using epoch milliseconds for time fields
- * @returns Same record with schedule, prediction, update, and actualization times as Date
- */
-const toDomainPredictedDockEvent = (event: ConvexPredictedDockEvent) => ({
-  ...event,
-  ScheduledDeparture: epochMsToDate(event.ScheduledDeparture),
-  EventPredictedTime: epochMsToDate(event.EventPredictedTime),
-  UpdatedAt: epochMsToDate(event.UpdatedAt),
-  Actual: optionalEpochMsToDate(event.Actual),
-});
-
-/**
- * Domain predicted dock event: time fields as Date; DeltaTotal remains minutes.
- */
-export type PredictedDockEvent = ReturnType<typeof toDomainPredictedDockEvent>;
-
-export { toDomainPredictedDockEvent };

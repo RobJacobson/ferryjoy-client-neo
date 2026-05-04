@@ -1,34 +1,34 @@
 export {
   type ActualDockEvent,
-  toDomainActualDockEvent,
-} from "convex/functions/events/eventsActual/schemas";
+  toActualDockEvent,
+} from "convex/functions/events/eventsActual/types";
 export {
   type PredictedDockEvent,
-  toDomainPredictedDockEvent,
-} from "convex/functions/events/eventsPredicted/schemas";
+  toPredictedDockEvent,
+} from "convex/functions/events/eventsPredicted/types";
 export {
   type ScheduledDockEvent,
-  toDomainScheduledDockEvent,
-} from "convex/functions/events/eventsScheduled/schemas";
+  toScheduledDockEvent,
+} from "convex/functions/events/eventsScheduled/types";
 export {
   type ScheduledTrip,
-  toDomainScheduledTrip,
-} from "convex/functions/scheduledTrips/schemas";
+  toScheduledTrip,
+} from "convex/functions/scheduledTrips/types";
 export {
-  toDomainVesselLocation,
+  toVesselLocation,
   type VesselLocation,
-} from "convex/functions/vesselLocation/schemas";
+} from "convex/functions/vesselLocation/types";
+export type { ConvexVesselPing } from "convex/functions/vesselPings/schemas";
 export {
-  type ConvexVesselPing,
-  toDomainVesselPing,
+  toVesselPing,
   type VesselPing,
-} from "convex/functions/vesselPings/schemas";
+} from "convex/functions/vesselPings/types";
 export {
-  toDomainVesselTrip,
-  toDomainVesselTripWithScheduledTrip,
+  toVesselTrip,
+  toVesselTripWithScheduledTrip,
   type VesselTrip,
   type VesselTripWithScheduledTrip,
-} from "convex/functions/vesselTrips/schemas";
+} from "convex/functions/vesselTrips/types";
 export type { TerminalIdentity as Terminal } from "functions/terminals/schemas";
 export type { TerminalTopology } from "functions/terminalsTopology/schemas";
 export type { VesselIdentity as Vessel } from "functions/vessels/schemas";

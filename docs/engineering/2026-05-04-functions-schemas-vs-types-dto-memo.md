@@ -1,8 +1,8 @@
 # Engineering memo: Split Convex validators from TS-native DTOs (`schemas.ts` vs `types.ts`)
 
 **Status:** Agreed convention — ready for mechanical implementation  
-**Audience:** Engineers and coding agents doing a repo-wide cleanup **before** larger refactors under `convex/domain/events` (scheduled / actual / predicted pipelines)  
-**Goal:** Separate **Convex wire shapes** (validators + epoch-ms fields) from **TypeScript-native DTOs** (`Date` fields, normalization helpers) while keeping **both** under `convex/functions/…` — **not** moving these DTOs into `convex/domain/`.
+**Audience:** Engineers and coding agents doing a **mechanical** cleanup under `convex/functions/**` **before** optional larger work on events pipelines.  
+**Goal:** Split **`schemas.ts`** (Convex validators + epoch-ms wire types) from **`types.ts`** (table-aligned TS-native mirrors using `Date`, plus `to*` / `from*` converters) within each feature folder. Keep those mirrors under **`convex/functions/…`** — **not** in `convex/domain/`.
 
 ---
 
@@ -26,7 +26,7 @@ Use **two modules** when a feature has both wire and TS-native shapes:
 
 | Module | Owns | Must not become |
 |--------|------|-----------------|
-| **`schemas.ts`** | Shared **`v.*` field bundles**, object validators, **`Infer<>` wire types** (`Convex*` or clearly wire-named types). Epoch-ms (or other Convex-native scalars) only. | A grab-bag of business DTOs, `Date`-shaped interfaces, or conversion functions (except trivial validator-only helpers if truly unavoidable). |
+| **`schemas.ts`** | Shared **`v.*` field bundles**, object validators, **`Infer<>` wire types** (`Convex*` or clearly wire-named types). Epoch-ms (or other Convex-native scalars) only. | `Date`-shaped table mirrors, conversion helpers, or unrelated planner shapes (except trivial validator-only helpers if truly unavoidable). |
 | **`types.ts`** | **TS-native DTOs** (`Date` fields where we expose time to TS), **canonical converters** between wire and TS-native shapes (`toVesselLocation`, `fromVesselLocation`, etc.), and **narrow exports** used by mutations/actions/tests. | New `v.*` validators duplicated from `schemas.ts`. |
 
 **Naming**
@@ -49,11 +49,20 @@ Use **two modules** when a feature has both wire and TS-native shapes:
 
 ---
 
+## Out of scope: domain types and business logic
+
+Pure logic types already live under **`convex/domain`** (for example `convex/domain/events/types.ts`). **This memo does not ask anyone to refactor domain folders**, retitle modules, track down every planner DTO, or “fix” domain imports from table validators beyond what breaks when symbols move off `schemas.ts`.
+
+Treat further cleanup there **as-needed** in separate, intentional changes. Trying to normalize all business types across `convex/` in one pass is easy to get wrong; the deliverable here is only the **functions-layer** `schemas.ts` / `types.ts` split.
+
+When moved exports force **`convex/domain`** import path updates (TS-native mirror now exported from `functions/…/types.ts`), update those imports — **do not** redesign domain boundaries as part of that fix unless the owner expands scope.
+
+---
+
 ## Relationship to `convex/domain/`
 
-- **Domain code should receive clear TS semantics:** callers normalize **at the functions-layer boundary** (actions, mutations, thin orchestrators) so planners avoid “is this ms or Date?” confusion.
-- **This cleanup does not move DTOs into `domain/`** — it **relocates and renames** them within `functions/` for clarity.
-- If domain currently imports types from `functions/…/schemas.ts`, **after** the split those imports should prefer **`functions/…/types.ts`** for TS-native shapes and **`schemas.ts`** only when domain truly needs a validator-aligned wire type (ideally rare; prefer mapping at the edge).
+- Callers that already normalize epoch → `Date` at the functions boundary should keep doing so; this split makes **where** those types live obvious (`types.ts`).
+- **Do not** move table-aligned TS-native mirrors into **`convex/domain/`** — they stay beside their Convex module in **`functions/…/types.ts`**.
 
 ---
 
@@ -71,7 +80,7 @@ Other feature folders under `convex/functions/*/schemas.ts` may follow similar p
    - **`schemas.ts`** = validators + `Infer<>` wire types only (no `Date`-field DTOs, no `to*` converters except edge cases called out in code review).
    - **`types.ts`** = TS-native DTOs + canonical converters importing shared date helpers.
 2. Naming reflects layer: **`Convex*`** wire vs plain **`VesselLocation`** (etc.) in `types.ts`.
-3. **Imports updated** across `convex/functions`, `convex/domain`, and tests so nothing stalepoints at removed exports from `schemas.ts`.
+3. **Imports updated** across `convex/functions`, and anywhere else that imported moved symbols from `schemas.ts` (including `convex/domain` **only** as required by those moves), plus tests.
 4. **`bun run check:fix`** and **`bun run type-check`** pass; for Convex-heavy touches, **`bun run convex:typecheck`** passes.
 5. **No behavior change** intended — pure module moves / export rewires / renames. If a rename is public-facing (unlikely here), call it out explicitly.
 
@@ -93,8 +102,9 @@ Suggested order to reduce churn:
 
 **Explicit non-goals for this task**
 
-- Do **not** start the **scheduled / actual / predicted** domain pipeline refactor in the same change set — this memo is preparatory hygiene.
-- Do **not** relocate TS-native DTOs into **`convex/domain/`**.
+- Do **not** start the **scheduled / actual / predicted** domain pipeline refactor in the same change set — this memo is preparatory hygiene only.
+- Do **not** relocate TS-native **entity mirrors** (table-aligned `Date` shapes and converters) into **`convex/domain/`** — those stay in **`functions/…/types.ts`**.
+- Do **not** refactor **`convex/domain/**`** type layout, enum ownership, or planner DTO homes beyond **minimal import rewires** caused by moving exports off `schemas.ts`.
 - Avoid drive-by refactors unrelated to the schemas/types split.
 
 ---
@@ -103,7 +113,8 @@ Suggested order to reduce churn:
 
 - [ ] No `schemas.ts` under `convex/functions` exports large conversion surfaces unless documented exception.
 - [ ] TS-native entity types live in **`types.ts`** next to their converters.
-- [ ] Domain imports updated; no circular imports introduced (`types.ts` imports `./schemas`, not the reverse).
+- [ ] Call sites import TS-native mirrors from **`types.ts`** where applicable; domain touched only for **broken imports** from moved exports, not broader refactors.
+- [ ] No circular imports (`types.ts` imports `./schemas`, not the reverse).
 - [ ] Formatting and typecheck CI commands pass.
 
 ---
