@@ -20,12 +20,15 @@ type ReplaceDockEventsForSailingDayRowsArgs = {
 /**
  * Replaces scheduled and actual event-table rows for one sailing day.
  *
- * Loads trip indexes and live locations, builds `scheduledRows` / `actualRows`
- * in `buildDockEventRowsForSailingDayReload`, then writes the two event tables.
+ * Combines domain reload output with trip indexes and every vesselLocations row so
+ * live reconciliation matches sparse orchestrator behavior. Scheduled rows upsert in
+ * bulk for the day while actual rows flow through replaceActualRowsForSailingDay for
+ * grandfathered ping handling.
  *
- * @param ctx - Mutation context
- * @param args - Sailing day and normalized boundary events
- * @returns Counts for scheduled and actual rows in the replaced slice
+ * @param ctx - Convex mutation context with database access
+ * @param args.SailingDay - Calendar sailing day being rebuilt
+ * @param args.Events - Hydrated DockBoundaryEventRecord inputs from adapters and history
+ * @returns ScheduledCount and ActualCount reflecting rows produced for operators
  */
 const replaceDockEventsForSailingDayRows = async (
   ctx: MutationCtx,

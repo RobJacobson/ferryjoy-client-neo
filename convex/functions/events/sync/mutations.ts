@@ -11,12 +11,15 @@ import { replaceDockEventsForSailingDayRows } from "./replaceDockEventsForSailin
 import { dockBoundaryEventRecordSchema } from "./schemas";
 
 /**
- * Replaces scheduled and actual dock-event rows for one sailing day.
+ * Internal mutation entrypoint for reloading scheduled and actual dock rows atomically.
+ *
+ * Validates dock-boundary payloads against dockBoundaryEventRecordSchema before invoking
+ * replaceDockEventsForSailingDayRows so malformed reload batches fail fast server-side.
  *
  * @param ctx - Convex internal mutation context
  * @param args.SailingDay - Service day being replaced
- * @param args.Events - Boundary records already normalized in memory
- * @returns Counts for scheduled vs actual rows written for that slice
+ * @param args.Events - Boundary records built by hydrateActualDockEvents upstream
+ * @returns ScheduledCount and ActualCount returned by the replacement helper
  */
 const replaceDockEventsForSailingDay = internalMutation({
   args: {

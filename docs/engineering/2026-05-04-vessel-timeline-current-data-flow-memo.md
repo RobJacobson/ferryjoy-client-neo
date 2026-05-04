@@ -1,9 +1,8 @@
 # Engineering memo: VesselTimeline current data flow
 
-**Status:** Current architecture  
+**Status:** Current architecture (aligned with dock-boundary event modules under `convex/domain/events` and `functions/events/sync`)  
 **Audience:** Engineers and coding agents working on `VesselTimeline`  
-**Scope:** How the client fetches, assembles, and renders timeline times for one
-vessel and sailing day
+**Scope:** How event rows are persisted on the backend, how the client fetches them, and how the UI assembles and renders timeline times for one vessel and sailing day
 
 ---
 
@@ -15,21 +14,46 @@ vessel and sailing day
 - actual dock events from `eventsActual`
 - predicted dock events from `eventsPredicted`
 
-The backend query layer returns normal table rows. The client owns the
-interpretation needed by the visual timeline: merging overlays, choosing display
-times, pairing dock visits, deriving spans, computing axis geometry, and placing
-the active indicator.
+The backend stores **dock-boundary** rows (scheduled / actual / predicted). Naming in domain code uses **dock events** and **`DockBoundaryEventRecord`**-style types; **`VesselTimeline`** remains the **client** feature name for the composed UI.
 
-Live vessel position is deliberately separate from the event rows. Event rows
-define timeline structure and times; `vesselLocations` supplies the current
-motion/position input for the active indicator.
+The backend query layer returns normal table rows. The client owns the interpretation needed by the visual timeline: merging overlays, choosing display times, pairing dock visits, deriving spans, computing axis geometry, and placing the active indicator.
+
+Live vessel position is deliberately separate from the event rows. Event rows define timeline structure and times; `vesselLocations` supplies the current motion/position input for the active indicator.
+
+---
+
+## Backend: how event tables get populated
+
+Two complementary paths feed the same three tables:
+
+### 1. Sailing-day reload (scheduled + actual slices)
+
+For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/functions/events/sync/reloadDockEventsForSailingDay.ts`):
+
+1. Loads vessel and terminal identity context.
+2. Pulls WSF schedule data via `fetchAndTransformScheduledTrips` (adapters).
+3. Builds seeded boundary records with **`buildScheduledDockEventRecords`**, then **`hydrateActualDockEvents`** (domain, `convex/domain/events/scheduled` and `actual`).
+4. Calls the internal mutation **`replaceDockEventsForSailingDay`**, which uses **`buildDockEventRowsForSailingDayReload`** and then:
+   - **`upsertScheduledRowsForSailingDay`** on `eventsScheduled`
+   - **`replaceActualRowsForSailingDay`** on `eventsActual`
+
+**Crons** (`convex/crons.ts`): at the Pacific ~3:00 AM sailing-day boundary, **`reloadDockEventsAtSailingDayBoundary`** runs (with an in-action guard so only the true 3 AM Pacific hour executes), typically with a small multi-day window via **`runReloadDockEventsWindow`**. Public actions for manual/operator use live on **`functions/events/sync/actions`** (e.g. `reloadDockEventsForSailingDay`, `reloadDockEventsForCurrentSailingDay`).
+
+**Operator CLI:** `bun run sync:dock-events` / `scripts/sync-dock-events.ts` invokes those public reload actions over HTTP.
+
+Predicted rows are **not** produced by this daily reload; they come from the live orchestrator path below.
+
+### 2. Orchestrator ping pipeline (sparse actual + predicted)
+
+On each orchestrator cycle, trip updates are merged into **actual** and **predicted** dock event writes (and related patches) through **`updateEvents`** / projection and **`persistVesselUpdates`** (`convex/functions/vesselOrchestrator/`), which upsert into `eventsActual` and reconcile `eventsPredicted` in line with active vessel trips and ML/WSF prediction payloads.
+
+So: **reload** reshapes full-day scheduled + actual snapshots from schedule + history; **orchestrator** keeps actual/predicted aligned with live trips between reloads.
 
 ---
 
 ## Fetch Path
 
-The feature entrypoint is
-`src/features/VesselTimeline/VesselTimeline.tsx`.
+The feature entrypoint is `src/features/VesselTimeline/VesselTimeline.tsx`.
 
 `VesselTimeline` receives:
 
@@ -38,9 +62,7 @@ The feature entrypoint is
 - optional `now`
 - optional visual theme overrides
 
-It mounts `ConvexVesselTimelineEventsProvider` with the vessel/day scope and a
-retry key. That provider lives at
-`src/data/contexts/convex/ConvexVesselTimelineEventsContext.tsx`.
+It mounts `ConvexVesselTimelineEventsProvider` with the vessel/day scope and a retry key. That provider lives at `src/data/contexts/convex/ConvexVesselTimelineEventsContext.tsx`.
 
 The provider runs three `useQuery` subscriptions:
 
@@ -57,55 +79,45 @@ Each query accepts:
 }
 ```
 
-The context value is assembled by
-`src/data/contexts/convex/convexVesselTimelineEventsValue.ts`. It exposes the
-three row arrays, a combined `isLoading`, an `errorMessage`, and `retry`.
-Undefined `useQuery` results become empty arrays while `isLoading` remains true.
+The context value is assembled by `src/data/contexts/convex/convexVesselTimelineEventsValue.ts`. It exposes the three row arrays, a combined `isLoading`, an `errorMessage`, and `retry`. Undefined `useQuery` results become empty arrays while `isLoading` remains true.
 
 ---
 
 ## Convex Queries
 
-The public list queries live under `convex/functions/events`:
+The public list queries live under:
 
-- `eventsScheduled/queries.ts`
-- `eventsActual/queries.ts`
-- `eventsPredicted/queries.ts`
+- `convex/functions/events/eventsScheduled/queries.ts`
+- `convex/functions/events/eventsActual/queries.ts`
+- `convex/functions/events/eventsPredicted/queries.ts`
 
-All three use the `by_vessel_and_sailing_day` index and strip Convex metadata
-before returning rows.
+They are grouped under `api.functions.events.*` (see `convex/functions/events/index.ts`). Reload and replace helpers live separately under **`functions/events/sync/`** and are not used by these read queries.
 
-Scheduled rows are sorted with the same scheduled-boundary comparator used by
-backend timeline row helpers. Actual rows are sorted by `ScheduledDeparture`,
-then `EventKey`. Predicted rows are sorted by `ScheduledDeparture`, then `Key`.
+All three list queries use the `by_vessel_and_sailing_day` index and strip Convex metadata before returning rows.
 
-The public queries return row shapes matching their table validators. They do
-not return a prebuilt timeline object.
+Scheduled rows are sorted with the same scheduled-boundary ordering helpers used in domain scheduled-event code. Actual rows are sorted by `ScheduledDeparture`, then `EventKey`. Predicted rows are sorted by `ScheduledDeparture`, then `Key`.
+
+The public queries return row shapes matching their table validators. They do not return a prebuilt timeline object.
 
 ---
 
 ## Presentation Hook
 
-`src/features/VesselTimeline/hooks/useVesselTimelinePresentationState.ts`
-combines three inputs:
+`src/features/VesselTimeline/hooks/useVesselTimelinePresentationState.ts` combines three inputs:
 
 - event rows from `useConvexVesselTimelineEvents`
 - current vessel location from `useConvexVesselLocations`
 - terminal display names from `useTerminalsData`
 
-It selects the current vessel location by `VesselAbbrev`, creates a terminal name
-lookup, resolves `now`, and delegates to
-`buildEventRowTimelinePresentationState`.
+It selects the current vessel location by `VesselAbbrev`, creates a terminal name lookup, resolves `now`, and delegates to `buildEventRowTimelinePresentationState`.
 
-`presentationStateBuilders.ts` handles loading, error, empty, and ready states.
-In the ready path, it calls `fromEventRows`.
+`presentationStateBuilders.ts` handles loading, error, empty, and ready states. In the ready path, it calls `fromEventRows`.
 
 ---
 
 ## Assembly Pipeline
 
-The timeline assembly pipeline starts in
-`src/features/VesselTimeline/renderPipeline/fromEventRows.ts`.
+The timeline assembly pipeline starts in `src/features/VesselTimeline/renderPipeline/fromEventRows.ts`.
 
 The main path is:
 
@@ -118,16 +130,13 @@ scheduledEvents + actualEvents + predictedEvents
   -> VesselTimelineRenderState
 ```
 
-`buildDockVisitsFromEventRows.ts` first filters each row array to the requested
-`vesselAbbrev` and `sailingDay`. It then calls
-`mergeEventRowsForVesselTimeline`.
+`buildDockVisitsFromEventRows.ts` first filters each row array to the requested `vesselAbbrev` and `sailingDay`. It then calls `mergeEventRowsForVesselTimeline`.
 
 `mergeEventRowsForVesselTimeline.ts` creates ordered merged boundary events:
 
 - scheduled rows provide the backbone and ordering
 - actual rows attach to scheduled boundaries by `ScheduleKey` and `EventType`
-- arrival actuals have bounded fallback matching by terminal and scheduled
-  departure
+- arrival actuals have bounded fallback matching by terminal and scheduled departure
 - predicted rows provide a single display prediction per boundary
 
 Prediction precedence is:
@@ -137,10 +146,7 @@ Prediction precedence is:
 3. ML `AtDockArriveNext`
 4. first remaining prediction candidate
 
-`buildDockVisitsFromEventRows.ts` converts merged boundary events into
-client-side `RouteTimelineDockVisit` objects with `Date` timestamps. These types
-live in `src/features/RouteTimelineModel/types.ts` and intentionally avoid
-Convex validators or backend read-model shapes.
+`buildDockVisitsFromEventRows.ts` converts merged boundary events into client-side `RouteTimelineDockVisit` objects with `Date` timestamps. These types live in `src/features/RouteTimelineModel/types.ts` and intentionally avoid Convex validators or backend read-model shapes.
 
 ---
 
@@ -165,8 +171,7 @@ Display/progress time uses:
 actual -> predicted -> scheduled
 ```
 
-`buildVesselTimelineRenderStateFromAxisGeometry.ts` maps axis spans to renderer
-rows, terminal cards, row layouts, and the active indicator.
+`buildVesselTimelineRenderStateFromAxisGeometry.ts` maps axis spans to renderer rows, terminal cards, row layouts, and the active indicator.
 
 The active interval is resolved from occurred boundaries:
 
@@ -177,8 +182,7 @@ The active interval is resolved from occurred boundaries:
 The active indicator uses `VesselLocation` only at the final render-state stage:
 
 - at dock: interpolate by time within the active dock row
-- at sea: interpolate by `DepartingDistance` and `ArrivingDistance` when
-  available
+- at sea: interpolate by `DepartingDistance` and `ArrivingDistance` when available
 
 This keeps location ticks from changing the event-row query shape.
 
@@ -191,6 +195,8 @@ Convex owns:
 - event table storage
 - indexed vessel/day list queries
 - metadata stripping and deterministic row ordering
+- sailing-day dock-event **reload** (schedule + history → `eventsScheduled` / `eventsActual` replacement for that day)
+- orchestrator-driven **sparse** writes to `eventsActual` and `eventsPredicted`
 
 `VesselTimeline` owns:
 
@@ -200,5 +206,4 @@ Convex owns:
 - visual spans and render state
 - active indicator placement
 
-`RouteTimelineModel` owns generic client geometry helpers and plain client
-timeline visit types.
+`RouteTimelineModel` owns generic client geometry helpers and plain client timeline visit types.

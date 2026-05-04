@@ -1,9 +1,8 @@
 /**
- * Pure reconciliation planning for `eventsPredicted` sparse write batches.
+ * Pure reconciliation planning for eventsPredicted sparse write batches.
  *
- * The Convex mutation owns reads and writes; this module owns the business
- * policy for merging batches, deleting stale rows, preserving in-flight
- * depart-next predictions, and deciding insert vs replace.
+ * The Convex mutation owns reads and writes; this module owns merge semantics,
+ * stale deletion rules, depart-next preservation, and insert versus replace choice.
  */
 
 import type { Id } from "_generated/dataModel";
@@ -43,10 +42,13 @@ export type PredictedDockScopeReconciliationPlan = {
 };
 
 /**
- * Merges incoming predicted-event write batches by vessel/sailing-day scope.
+ * Unifies multiple sparse batches into one merged scope per vessel and sailing day.
  *
- * @param batches - Sparse write batches produced by event projection
- * @returns One merged scope per vessel/day, keyed by stable scope string
+ * Later batches extend TargetKeys unions and overwrite RowsByComposite when the same
+ * predictedDockCompositeKey appears again so orchestrator flushes remain associative.
+ *
+ * @param batches - Ordered batches emitted across trips or ticks for the same day
+ * @returns Map from sailing-day scope key to merged TargetKeys and deduped rows
  */
 export const mergePredictedDockWriteBatchesByScope = (
   batches: ReadonlyArray<PredictedDockWriteBatchLike>
@@ -84,17 +86,16 @@ export const mergePredictedDockWriteBatchesByScope = (
 };
 
 /**
- * Plans delete / insert / replace operations for one predicted-event scope.
+ * Derives insert, replace, and delete operations for one merged prediction scope.
  *
- * Omitted rows under `TargetKeys` are deleted unless they are in-flight
- * depart-next ML rows with no same-boundary ML replacement. This preserves
- * incomplete sparse batches while still allowing at-sea rows to supersede
- * older at-dock rows for the same boundary.
+ * Deletes rows under TargetKeys that disappear from the incoming payload unless
+ * shouldPreserveOmittedPrediction keeps in-flight depart-next ML rows alive during
+ * sparse feeds. Inserts new composites; replaces when payloads differ field-wise.
  *
- * @param args.scope - Merged vessel/day write scope
- * @param args.existingRows - Current DB rows for that vessel/day
- * @param args.updatedAt - Shared write timestamp for inserted/replaced rows
- * @returns Exact persistence operations to apply
+ * @param args.scope - Merged TargetKeys and Rows for one vessel sailing day
+ * @param args.existingRows - Documents currently stored for that scope
+ * @param args.updatedAt - Timestamp applied to inserted or replaced rows
+ * @returns Structured plan consumed directly by the persistence mutation
  */
 export const planPredictedDockScopeReconciliation = (args: {
   scope: MergedPredictedDockScope;
@@ -163,11 +164,13 @@ export const planPredictedDockScopeReconciliation = (args: {
 };
 
 /**
- * Returns whether two predicted rows match for persistence purposes.
+ * Compares visible prediction fields while ignoring Convex metadata differences.
  *
- * @param left - Existing stored row
- * @param right - Candidate row including `UpdatedAt`
- * @returns Whether replacing would be a no-op
+ * Used to skip replaces when only UpdatedAt would change, reducing churn on hot vessels.
+ *
+ * @param left - Stored eventsPredicted document including system fields
+ * @param right - Candidate row after applying updatedAt for persistence comparison
+ * @returns True when every compared field matches between left and right
  */
 const predictedRowsEqual = (
   left: ExistingPredictedDockRow,
@@ -185,10 +188,13 @@ const predictedRowsEqual = (
   left.DeltaTotal === right.DeltaTotal;
 
 /**
- * Builds source-level replacement keys (`Key` + `PredictionSource`).
+ * Collects Key plus PredictionSource pairs from incoming rows for replacement detection.
  *
- * @param rows - Incoming rows for a merged scope
- * @returns Set used to detect at-sea replacements for older at-dock rows
+ * Supports shouldPreserveOmittedPrediction by tracking whether an at-sea row superseded
+ * an at-dock prediction for the same boundary without carrying explicit delete rows.
+ *
+ * @param rows - Iterable of incoming write rows for the merged scope
+ * @returns Set of predictedSourceKey strings representing active boundary sources
  */
 const buildIncomingSourceKeySet = (
   rows: Iterable<ConvexPredictedDockWriteRow>
@@ -201,11 +207,14 @@ const buildIncomingSourceKeySet = (
 };
 
 /**
- * Returns whether a missing incoming row should survive sparse reconciliation.
+ * Determines whether an omitted composite should survive this reconciliation pass.
  *
- * @param row - Existing stored row omitted from the incoming payload
- * @param incomingSourceKeys - Incoming boundary/source replacement keys
- * @returns Whether omission alone should not delete this row
+ * Depart-next ML rows remain when the batch did not include a replacement ML row for
+ * the same boundary Key and PredictionSource, avoiding flicker while sparse payloads arrive.
+ *
+ * @param row - Existing database row missing from RowsByComposite for its composite
+ * @param incomingSourceKeys - Keys produced from buildIncomingSourceKeySet for this merge
+ * @returns True when deletion should be skipped for this row
  */
 const shouldPreserveOmittedPrediction = (
   row: ExistingPredictedDockRow,
@@ -218,10 +227,10 @@ const shouldPreserveOmittedPrediction = (
   !incomingSourceKeys.has(predictedSourceKey(row));
 
 /**
- * Groups predictions by boundary and source, ignoring phase-specific type.
+ * Builds the coarse replacement-family key shared by at-dock and at-sea predictions.
  *
- * @param row - Prediction row-like object
- * @returns Key used to identify at-dock/at-sea replacement families
+ * @param row - Row supplying Key and PredictionSource columns
+ * @returns Concatenated Key and PredictionSource string for set membership checks
  */
 const predictedSourceKey = (row: {
   Key: string;

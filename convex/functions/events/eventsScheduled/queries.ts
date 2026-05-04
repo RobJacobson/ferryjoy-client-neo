@@ -1,7 +1,7 @@
 /**
- * Convex queries for `eventsScheduled`: planned dock boundary rows per vessel
- * and sailing day. Consumers include trip schedule loaders, reload helpers, and
- * client subscriptions that need stable boundary ordering.
+ * Convex queries for eventsScheduled: planned dock boundary rows per vessel
+ * and sailing day. Trip loaders, reload helpers, and client subscriptions use
+ * these readers for stable boundary ordering.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -17,16 +17,14 @@ import {
 /**
  * Loads scheduled dock boundary rows for one vessel and sailing day.
  *
- * Collects via `by_vessel_and_sailing_day`, strips Convex metadata with
- * `stripConvexMeta`, then sorts with `sortScheduledDockEvents` from
- * `domain/events/scheduled/scheduledSegmentResolvers`. Order uses `getBoundaryTime`
- * (`EventScheduledTime` or else `ScheduledDeparture`), then `arv-dock` before
- * `dep-dock`, then `TerminalAbbrev`.
+ * Collects with by_vessel_and_sailing_day, strips Convex metadata, then applies
+ * sortScheduledDockEvents so arrival-before-departure ties and terminal ordering
+ * match domain resolvers used during reload and inference.
  *
- * @param ctx - Convex read context exposing `db`
- * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
- * @param args.sailingDay - Calendar sailing day `YYYY-MM-DD`
- * @returns Rows matching `eventsScheduledSchema` in stable boundary order
+ * @param ctx - Convex read context exposing db
+ * @param args.vesselAbbrev - VesselAbbrev column value
+ * @param args.sailingDay - Calendar sailing day YYYY-MM-DD
+ * @returns Rows matching eventsScheduledSchema in deterministic timeline order
  */
 const readScheduledDockEventsForVesselSailingDay = async (
   ctx: { db: QueryCtx["db"] },
@@ -46,17 +44,15 @@ const readScheduledDockEventsForVesselSailingDay = async (
 };
 
 /**
- * Public Convex query listing scheduled dock events for one vessel and sailing day.
+ * Public Convex query listing scheduled dock events for vessel scope.
  *
- * Validates `args` and `returns` with Convex validators, then calls
- * `readScheduledDockEventsForVesselSailingDay`, so subscribers get the same
- * ordered planned boundaries as backend reload helpers without importing the
- * internal reader.
+ * Wraps readScheduledDockEventsForVesselSailingDay with Convex argument and return
+ * validators so clients receive schema-checked payloads identical to internal callers.
  *
- * @param ctx - Convex query context (database handle)
- * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
- * @param args.sailingDay - Calendar sailing day `YYYY-MM-DD`
- * @returns Validator-shaped scheduled rows in stable boundary order
+ * @param ctx - Convex query context including db access
+ * @param args.vesselAbbrev - VesselAbbrev column value
+ * @param args.sailingDay - Calendar sailing day YYYY-MM-DD
+ * @returns Validator-shaped scheduled rows sorted for stable subscriptions
  */
 const listScheduledDockEventsForVesselSailingDay = query({
   args: {

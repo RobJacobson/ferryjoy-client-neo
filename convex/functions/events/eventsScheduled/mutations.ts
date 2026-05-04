@@ -1,5 +1,5 @@
 /**
- * Writes to `eventsScheduled`: full-day reconciliation when an adapter delivers
+ * Writes to eventsScheduled: full-day reconciliation when an adapter delivers
  * a complete planned dock sequence for one sailing day.
  */
 
@@ -8,14 +8,16 @@ import type { MutationCtx } from "_generated/server";
 import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
- * Replaces stored scheduled rows for `SailingDay` with `nextRows`.
+ * Replaces the stored scheduled slice for one SailingDay with the adapter output.
  *
- * Deletes keys the adapter no longer reports, inserts new keys, and replaces
- * only when visible fields differ so unchanged schedule rows are not rewritten.
+ * Deletes keys the adapter no longer includes, inserts brand-new keys, and uses
+ * scheduledRowsEqual to skip no-op replaces so _creationTime and subscription churn
+ * stay stable when the schedule is unchanged.
  *
  * @param ctx - Convex mutation context
- * @param SailingDay - Service day being fully replaced
- * @param nextRows - Complete replacement slice for that day from the adapter
+ * @param SailingDay - Service day YYYY-MM-DD being fully replaced
+ * @param nextRows - Complete replacement rows for that day from the domain reload
+ * @returns Resolves with no value when deletes, inserts, and replaces finish
  */
 export const upsertScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
@@ -48,7 +50,7 @@ export const upsertScheduledRowsForSailingDay = async (
       continue;
     }
 
-    // Skip replace when fields match so `_creationTime` and bandwidth stay stable.
+    // Skip replace when fields match so _creationTime and bandwidth stay stable.
     if (scheduledRowsEqual(existing, nextRow)) {
       continue;
     }
@@ -58,13 +60,14 @@ export const upsertScheduledRowsForSailingDay = async (
 };
 
 /**
- * Returns whether two scheduled rows match for persistence purposes.
+ * Compares stored scheduled rows with hydrated candidates for semantic drift.
  *
- * Ignores Convex metadata and compares visible schedule fields only.
+ * Ignores Convex metadata fields and compares every persisted schedule column used
+ * by clients so benign reordering or duplicate submits do not trigger pointless replaces.
  *
- * @param left - Stored `eventsScheduled` document
- * @param right - Candidate row from the adapter
- * @returns `true` when replace would be a no-op
+ * @param left - Stored eventsScheduled document from the database
+ * @param right - Candidate row produced by buildScheduledDockEvents
+ * @returns True when no visible column differs between left and right
  */
 const scheduledRowsEqual = (
   left: Doc<"eventsScheduled">,

@@ -1,5 +1,8 @@
 /**
  * Pure helpers for deriving predicted boundary projection effects.
+ *
+ * Maps active vessel-trip ML and ETA fields into eventsPredicted row batches
+ * and clear scopes used by the orchestrator mutation layer.
  */
 
 import type { ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
@@ -17,13 +20,14 @@ import type {
 import { predictedDockCompositeKey } from "./schemas";
 
 /**
- * Builds the prediction projection effect for one active trip.
+ * Builds the prediction projection write batch for one active trip row.
  *
- * The effect carries both the rows to upsert and the full key scope to clear
- * when a previously emitted prediction no longer exists.
+ * TargetKeys enumerate boundary keys that reconciliation may delete when absent,
+ * while Rows carries deduped predictions across current leg, arrival, and next
+ * departure phases. Returns null when sailing day or prediction keys cannot scope.
  *
- * @param trip - Active trip whose current prediction state should be projected
- * @returns Projection effect, or `null` when the trip cannot be scoped
+ * @param trip - Active vessel trip carrying ML and ETA payloads from orchestration
+ * @returns Batch descriptor for mutations, or null when scoping fails
  */
 export const buildPredictedDockWriteBatch = (
   trip: ConvexVesselTripWithML
@@ -48,11 +52,13 @@ export const buildPredictedDockWriteBatch = (
 };
 
 /**
- * Builds a projection effect that clears any predicted rows in a trip's key
- * scope without emitting replacement rows.
+ * Builds a clear-batch effect that deletes scoped predictions without replacements.
  *
- * @param trip - Trip whose prediction scope should be cleared
- * @returns Clear effect, or `null` when the trip cannot be scoped
+ * Used when trips transition states that invalidate predictions but do not yet
+ * produce new ML rows, keeping stale TargetKeys from lingering in the database.
+ *
+ * @param trip - Active trip whose prediction scope should be cleared
+ * @returns Batch with empty Rows but populated TargetKeys, or null when unscopable
  */
 export const buildPredictedDockClearBatch = (
   trip: ConvexVesselTripWithML
@@ -74,6 +80,16 @@ export const buildPredictedDockClearBatch = (
   };
 };
 
+/**
+ * Assembles all predicted dock rows implied by the trips current ML and ETA fields.
+ *
+ * Combines current departure, current arrival candidates (ETA versus ML), and the
+ * next legs departure prediction when NextScheduleKey exists. Deduplicates using
+ * predictedDockCompositeKey so phase swaps do not emit duplicate composites.
+ *
+ * @param trip - Active trip snapshot including timestamps used as UpdatedAt
+ * @returns Deduped ConvexPredictedDockEvent rows ready for stripPredictedUpdatedAt
+ */
 const buildPredictedBoundaryEventsFromTrip = (trip: ConvexVesselTripWithML) => {
   const updatedAt = trip.TimeStamp;
   const rows: ConvexPredictedDockEvent[] = [];
@@ -93,7 +109,12 @@ const buildPredictedBoundaryEventsFromTrip = (trip: ConvexVesselTripWithML) => {
   return dedupePredictedBoundaryEvents(rows);
 };
 
-/** Boundary event keys touched by trip-driven prediction projection. */
+/**
+ * Lists distinct boundary keys touched by trip-driven prediction writes.
+ *
+ * @param trip - Active trip with optional dep, arv, and next dep keys from buildTripPredictionBoundaryKeys
+ * @returns Non-empty string keys used as TargetKeys during reconciliation
+ */
 const getPredictedBoundaryTargetKeys = (trip: ConvexVesselTripWithML) => {
   const { depDockKey, arvDockKey, nextDepDockKey } =
     buildTripPredictionBoundaryKeys(trip);
@@ -106,6 +127,12 @@ const getPredictedBoundaryTargetKeys = (trip: ConvexVesselTripWithML) => {
   );
 };
 
+/**
+ * Copies optional Actual and DeltaTotal fields when ML payloads carry them.
+ *
+ * @param p - ML prediction fragment that may include calibration fields
+ * @returns Spreadable partial object without undefined entries
+ */
 const predictionActualFields = (p: {
   Actual?: number;
   DeltaTotal?: number;
@@ -114,6 +141,16 @@ const predictionActualFields = (p: {
   ...(p.DeltaTotal !== undefined ? { DeltaTotal: p.DeltaTotal } : {}),
 });
 
+/**
+ * Builds the current-leg dep-dock ML prediction row when AtDockDepartCurr exists.
+ *
+ * Requires ScheduleKey and ScheduledDeparture so the boundary Key matches scheduled
+ * rows; omits the row entirely when ML did not publish a current departure time.
+ *
+ * @param trip - Active trip with ML fields on the current leg
+ * @param updatedAt - Timestamp stored on the predicted row for staleness checks
+ * @returns Predicted row or null when prerequisites or ML payload are missing
+ */
 const getCurrentDeparturePrediction = (
   trip: ConvexVesselTripWithML,
   updatedAt: number
@@ -140,6 +177,16 @@ const getCurrentDeparturePrediction = (
   });
 };
 
+/**
+ * Builds arrival prediction rows for the current segment from ETA and ML sources.
+ *
+ * Emits a WSF ETA row when present, otherwise selects the best ML arrival candidate
+ * between at-sea and at-dock phases so only one arrival prediction occupies the arv key.
+ *
+ * @param trip - Active trip with arrival terminal and optional ETA or ML blocks
+ * @param updatedAt - Timestamp stored on emitted predicted rows
+ * @returns Zero or more arrival rows sharing the arv-dock boundary Key
+ */
 const getCurrentArrivalPredictions = (
   trip: ConvexVesselTripWithML,
   updatedAt: number
@@ -204,6 +251,17 @@ const getCurrentArrivalPredictions = (
   return rows;
 };
 
+/**
+ * Builds the next legs dep-dock prediction using at-sea or at-dock depart-next ML.
+ *
+ * Chooses whichever ML phase is populated for the following ScheduleKey and stamps
+ * terminals from the arriving terminal of the current leg. Returns null when next
+ * leg metadata or both ML blocks are absent.
+ *
+ * @param trip - Active trip including NextScheduleKey and depart-next ML payloads
+ * @param updatedAt - Timestamp stored on the predicted row
+ * @returns Predicted next departure row or null when unavailable
+ */
 const getNextDeparturePrediction = (
   trip: ConvexVesselTripWithML,
   updatedAt: number
@@ -253,10 +311,25 @@ const getNextDeparturePrediction = (
   });
 };
 
+/**
+ * Identity helper that keeps predicted row assembly readable at call sites.
+ *
+ * @param row - Fully populated ConvexPredictedDockEvent before batch packaging
+ * @returns Same row reference for predictable typing in builders
+ */
 const buildPredictedBoundaryEvent = (
   row: ConvexPredictedDockEvent
 ): ConvexPredictedDockEvent => row;
 
+/**
+ * Removes UpdatedAt from rows bundled inside sparse write payloads.
+ *
+ * Mutations stamp UpdatedAt at write time; batch Rows omit it so equality checks
+ * focus on prediction payload fields only.
+ *
+ * @param row - Full predicted row including UpdatedAt from trip snapshot time
+ * @returns ConvexPredictedDockWriteRow suitable for batch Rows arrays
+ */
 const stripPredictedUpdatedAt = (
   row: ConvexPredictedDockEvent
 ): ConvexPredictedDockWriteRow => ({
@@ -272,6 +345,12 @@ const stripPredictedUpdatedAt = (
   ...(row.DeltaTotal !== undefined ? { DeltaTotal: row.DeltaTotal } : {}),
 });
 
+/**
+ * Dedupes predicted rows that collide on composite Key, type, and source.
+ *
+ * @param rows - Candidate rows potentially containing duplicates after phase merges
+ * @returns First-seen row per predictedDockCompositeKey stable iteration order
+ */
 const dedupePredictedBoundaryEvents = (
   rows: ConvexPredictedDockEvent[]
 ): ConvexPredictedDockEvent[] =>

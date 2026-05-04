@@ -13,9 +13,13 @@ import type { WindowReloadDayResult } from "./types";
 /**
  * Reloads a consecutive window of sailing days starting from today.
  *
- * @param ctx - Convex action context
- * @param daysToSyncOverride - Optional number of sailing days to reload
- * @returns Aggregate counts plus per-day reload summaries
+ * Uses current sailing day from getSailingDay as day zero, iterates forward by whole
+ * calendar days via addDays, and aggregates counts so operators can verify multi-day recovery jobs.
+ * Defaults to two days when override omitted to match legacy cron expectations unless callers pass a wider span.
+ *
+ * @param ctx - Convex action context passed to each single-day reload
+ * @param daysToSyncOverride - Optional inclusive day count beginning at startDate
+ * @returns Totals plus per-day sailingDay, scheduledCount, and actualCount entries
  */
 const runReloadDockEventsWindow = async (
   ctx: ActionCtx,
@@ -48,11 +52,14 @@ const runReloadDockEventsWindow = async (
 };
 
 /**
- * Adds whole sailing days to a `YYYY-MM-DD` string.
+ * Shifts a sailing-day calendar string forward by whole UTC-calendar days.
  *
- * @param dateString - Base sailing day in `YYYY-MM-DD` format
- * @param days - Number of days to offset
- * @returns Shifted sailing day string in `YYYY-MM-DD` format
+ * Parses components as UTC noon to avoid local-DST edge cases when adding days, then
+ * formats back through getSailingDay for consistent YYYY-MM-DD output with the rest of the app.
+ *
+ * @param dateString - Base sailing day in YYYY-MM-DD format
+ * @param days - Non-negative offset count to advance the calendar
+ * @returns Sailing day string for the offset date
  */
 const addDays = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);

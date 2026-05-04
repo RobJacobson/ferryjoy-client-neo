@@ -44,7 +44,7 @@ export type ConvexActualDockWrite = {
 export type ConvexActualDockWriteBase = Omit<ConvexActualDockWrite, "TripKey">;
 
 /**
- * Write with a physical `TripKey`.
+ * Write with a physical TripKey.
  */
 export type ConvexActualDockWriteWithTripKey = ConvexActualDockWriteBase & {
   TripKey: string;

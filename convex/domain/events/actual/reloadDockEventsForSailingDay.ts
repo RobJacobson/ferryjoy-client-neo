@@ -1,9 +1,8 @@
 /**
  * Builds scheduled and actual dock-event rows for a sailing-day reload.
  *
- * The function composes schedule-derived boundary records, existing trip
- * indexes, physical-only trips, and live locations into the row slices that the
- * Convex mutation layer writes to event tables.
+ * Composes schedule-derived boundary records, trip indexes, physical-only trips,
+ * and live locations into row slices that Convex mutations persist to event tables.
  */
 
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
@@ -38,12 +37,23 @@ type BuildDockEventRowsForSailingDayReloadArgs = {
 };
 
 /**
- * Builds scheduled and actual event-table rows for one sailing-day reload.
+ * Builds scheduled and actual Convex rows for one sailing-day reload pass.
  *
- * @param args - Hydrated boundary records and reconciliation inputs
- * @returns Scheduled and actual rows plus row counts for operator feedback
+ * Normalizes seam artifacts, derives scheduled rows from boundary records,
+ * builds base actual rows from schedule-backed evidence plus physical-only trips,
+ * then layers live-location reconciliation and merges patches back into the base
+ * set. Counts reflect normalized boundary rows and final actual rows after merge.
+ *
+ * @param args.sailingDay - Calendar sailing day string for filtering locations
+ * @param args.events - Hydrated boundary records for the day (seed plus history)
+ * @param args.updatedAt - Shared write timestamp for all derived rows
+ * @param args.tripBySegmentKey - Segment to TripKey context from trip indexes
+ * @param args.activeTripsByVesselAbbrev - Active trips for scheduleless patches
+ * @param args.physicalOnlyTrips - Trips without ScheduleKey for bare-metal actuals
+ * @param args.vesselLocations - Latest locations used for live reconciliation
+ * @returns scheduledRows, actualRows, scheduledCount, actualCount for persistence feedback
  */
-export const buildDockEventRowsForSailingDayReload = ({
+const buildDockEventRowsForSailingDayReload = ({
   sailingDay,
   events,
   updatedAt,
@@ -82,6 +92,17 @@ export const buildDockEventRowsForSailingDayReload = ({
   };
 };
 
+/**
+ * Synthesizes actual rows from trips that have TripKey but no ScheduleKey.
+ *
+ * Some legs exist only in physical trip tables (no schedule row). Reload still
+ * needs dep-dock and arv-dock actuals when LeftDockActual and TripEnd are present
+ * so the day slice stays consistent with vessel-track state before live patches.
+ *
+ * @param trips - Active or completed trips filtered to the reload scope
+ * @param updatedAt - Stamp applied to each synthesized row
+ * @returns Flat list of zero, one, or two rows per qualifying trip
+ */
 const buildPhysicalOnlyActualRowsFromTrips = (
   trips: ActiveTripForPhysicalActualReconcile[],
   updatedAt: number
@@ -146,6 +167,18 @@ const buildPhysicalOnlyActualRowsFromTrips = (
       return rows;
     });
 
+/**
+ * Deduplicates rows that share EventKey, keeping the last occurrence.
+ *
+ * Multiple builders can emit the same physical boundary during reload; Map
+ * semantics match upsert behavior so the final row matches what persistence would
+ * store after sequential replaces.
+ *
+ * @param rows - Rows that may repeat EventKey
+ * @returns Deduplicated rows in insertion order of first key appearance after collapse
+ */
 const dedupeActualRowsByEventKey = <T extends { EventKey: string }>(
   rows: T[]
 ) => [...new Map(rows.map((row) => [row.EventKey, row])).values()];
+
+export { buildDockEventRowsForSailingDayReload };

@@ -1,5 +1,5 @@
 /**
- * Writes to `eventsPredicted`: sparse batch upserts from trip/event code and
+ * Writes to eventsPredicted: sparse batch upserts from trip and event projection plus
  * depart-next actualization when a departure boundary is observed.
  */
 
@@ -13,14 +13,15 @@ import { getRoundedMinutesDelta } from "shared/time";
 import type { ConvexPredictedDockWriteRow } from "./schemas";
 
 /**
- * Reconciles predicted dock rows for one or more vessel/sailing-day scopes.
+ * Reconciles predicted dock rows for one or more vessel and sailing-day scopes.
  *
- * Merges incoming batches per scope, deletes rows in `TargetKeys` omitted from
- * the payload (except guarded depart-next ML rows), then inserts or replaces
- * the remainder with a shared `UpdatedAt` clock.
+ * Merges batches that may arrive from multiple trips within the same flush, loads the
+ * live database slice for each scope, then applies delete, insert, and replace operations
+ * derived from planPredictedDockScopeReconciliation so sparse feeds remain safe.
  *
  * @param ctx - Convex mutation context
- * @param batches - Sparse write groups from event / orchestrator persistence
+ * @param batches - Sparse prediction batches keyed by VesselAbbrev and SailingDay
+ * @returns Resolves with no value after every scope is processed
  */
 export const upsertPredictedDockBatches = async (
   ctx: MutationCtx,
@@ -70,13 +71,15 @@ export const upsertPredictedDockBatches = async (
 };
 
 /**
- * For each depart-next ML prediction type at `depKey`, sets `Actual` and
- * `DeltaTotal` when the row exists and is not yet actualized.
+ * Actualizes depart-next ML predictions after physical departure confirms the next leg.
+ *
+ * Queries each depart-next ML PredictionType at depKey, skips rows already carrying Actual,
+ * and patches Actual plus DeltaTotal minutes derived from predicted versus observed departure.
  *
  * @param ctx - Convex mutation context
- * @param depKey - Departure boundary key shared with trip/event keys
- * @param actualMs - Observed departure time (epoch ms)
- * @returns Whether any document was patched (for tests and tight call paths)
+ * @param depKey - Dock boundary Key shared with scheduled and actual tables
+ * @param actualMs - Measured departure instant for the next leg in epoch milliseconds
+ * @returns True when at least one row was patched
  */
 export const patchDepartNextMlRowsForDepBoundary = async (
   ctx: MutationCtx,

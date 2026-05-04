@@ -9,12 +9,12 @@ import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 /**
  * Fetches external vessel history rows for vessels on a schedule slice.
  *
- * Derives unique `VesselName` values from segments, then parallel-fetches each
- * vessel for `targetDate` only and flattens results for hydration.
+ * Only vessels appearing on provided segments are queried to avoid broad history scans.
+ * Parallel per-vessel fetches keep action latency bounded while preserving day-only filtering.
  *
- * @param scheduleSegments - Scheduled segments used to derive vessel names
- * @param targetDate - Sailing day in YYYY-MM-DD format
- * @returns Flattened vessel history rows for the requested day
+ * @param scheduleSegments - Scheduled segments whose VesselName fields identify vessels
+ * @param targetDate - Sailing day YYYY-MM-DD passed through to the history API
+ * @returns Concatenated VesselHistory rows across all requested vessel names
  */
 export const fetchHistoryRecordsForDate = async (
   scheduleSegments: RawWsfScheduleSegment[],

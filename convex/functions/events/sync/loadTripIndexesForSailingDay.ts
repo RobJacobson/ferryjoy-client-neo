@@ -12,13 +12,14 @@ import {
 /**
  * Loads trip rows for one sailing day and builds reload lookup indexes.
  *
- * Queries `activeVesselTrips` and `completedVesselTrips` by sailing-day indexes,
- * then builds segment-key and vessel maps plus a physical-only trip list for
- * `buildDockEventRowsForSailingDayReload`.
+ * Active trips supply scheduleless reconciliation targets; completed trips extend
+ * segment-key coverage for legs that finished earlier in the day. physicalOnlyTrips
+ * filters both collections to ScheduleKey undefined rows used when synthesizing bare
+ * TripKey actuals without scheduled anchors.
  *
- * @param ctx - Mutation context
- * @param sailingDay - Target sailing day
- * @returns Trip maps and physical-only trips for actual-event reconciliation
+ * @param ctx - Convex mutation context for database reads
+ * @param sailingDay - Target calendar sailing day string
+ * @returns tripBySegmentKey, activeTripsByVesselAbbrev, and physicalOnlyTrips for reload
  */
 export const loadTripIndexesForSailingDay = async (
   ctx: MutationCtx,

@@ -14,7 +14,7 @@ import type {
 } from "./schemas";
 
 /**
- * Resolved physical context stored on each `eventsActual` row.
+ * Resolved physical context stored on each eventsActual row.
  */
 export type TripContextForActualRow = {
   TripKey: string;
@@ -49,13 +49,16 @@ export type ActiveTripForPhysicalActualReconcile = {
 };
 
 /**
- * Builds a map from schedule segment key (`ScheduleKey`) to physical trip
- * context for one sailing day.
+ * Indexes physical TripKey and optional ScheduleKey by schedule segment key.
+ *
+ * Completed and active trips expose ScheduleKey as the bridge between schedule
+ * boundary records and physical trip identity. Reload passes filtered trips for
+ * one sailing day so segment-key lookups stay small and deterministic.
  *
  * @param trips - Active and/or completed trips (caller filters by sailing day)
- * @returns Map keyed by segment strings present on trips
+ * @returns Map from ScheduleKey string to TripKey context when ScheduleKey exists on the trip
  */
-export const indexTripsBySegmentKey = (
+const indexTripsBySegmentKey = (
   trips: TripRowForActualContext[]
 ): Map<string, TripContextForActualRow> => {
   const map = new Map<string, TripContextForActualRow>();
@@ -76,13 +79,17 @@ export const indexTripsBySegmentKey = (
 };
 
 /**
- * Builds a map from vessel abbreviation to the current active trip used for
- * scheduleless physical-only reconciliation.
+ * Indexes at most one active trip per vessel that already carries TripKey.
  *
- * @param trips - Active trips keyed by vessel for the current reconciliation scope
- * @returns Map from vessel abbreviation to active trip rows that have `TripKey`
+ * Scheduleless reconciliation proposes physical-only departures and arrivals
+ * when the vessel has no schedule row but activeTripsByVesselAbbrev still has
+ * a TripKey-only trip (for example early-morning ops). This map answers which
+ * trip row backs those patches for each vessel abbreviation.
+ *
+ * @param trips - Active trips for the reconciliation scope (typically one day)
+ * @returns Map from vessel abbreviation to that vessels active trip with TripKey narrowed
  */
-export const indexActiveTripsByVesselAbbrev = (
+const indexActiveTripsByVesselAbbrev = (
   trips: ActiveTripForPhysicalActualReconcile[]
 ): Map<string, ActiveTripForPhysicalActualReconcile & { TripKey: string }> => {
   const map = new Map<
@@ -105,14 +112,19 @@ export const indexActiveTripsByVesselAbbrev = (
 };
 
 /**
- * Fills `TripKey` (and optional `ScheduleKey`) on sparse writes using the
- * segment-key index. Drops writes that still lack `TripKey` after enrichment.
+ * Attaches TripKey and ScheduleKey to sparse writes using the segment index.
  *
- * @param writes - Writes from live-location reconciliation
- * @param tripBySegmentKey - Segment key to trip context
- * @returns Writes with `TripKey` and at least one anchor timestamp
+ * Location reconciliation first emits SegmentKey on each patch. When TripKey is
+ * missing, this helper copies TripKey from tripBySegmentKey and prefers the
+ * trips ScheduleKey when the write did not specify one. Writes without SegmentKey
+ * or without a matching trip are dropped; the result is filtered to persistable
+ * anchors only.
+ *
+ * @param writes - Sparse writes from reconcileActualDockWritesFromLocations
+ * @param tripBySegmentKey - Output of indexTripsBySegmentKey for the same day
+ * @returns Persistable writes ready for mergeActualDockWritesIntoRows
  */
-export const enrichActualDockWritesWithTripContext = (
+const enrichActualDockWritesWithTripContext = (
   writes: ConvexActualDockWrite[],
   tripBySegmentKey: Map<string, TripContextForActualRow>
 ): ConvexActualDockWritePersistable[] =>
@@ -141,3 +153,9 @@ export const enrichActualDockWritesWithTripContext = (
       ];
     })
     .filter(isPersistableActualDockWrite);
+
+export {
+  enrichActualDockWritesWithTripContext,
+  indexActiveTripsByVesselAbbrev,
+  indexTripsBySegmentKey,
+};

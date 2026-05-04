@@ -20,11 +20,15 @@ import type { EventReloadResult } from "./types";
 const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
 
 /**
- * Reloads scheduled and actual dock-event rows for one sailing day.
+ * Reloads scheduled and actual dock-event rows for one sailing day via actions.
  *
- * @param ctx - Convex action context
- * @param targetDate - Sailing day in `YYYY-MM-DD` format
- * @returns Scheduled and actual row counts written for the date
+ * Fetches transformed schedules, builds seeded boundary records, hydrates them with
+ * external vessel history, then invokes replaceDockEventsForSailingDayRows so internal
+ * mutations persist both tables atomically per day.
+ *
+ * @param ctx - Convex action context for adapter calls and mutation scheduling
+ * @param targetDate - Sailing day YYYY-MM-DD string used across fetch and persistence
+ * @returns ScheduledCount and ActualCount from the replacement mutation result
  */
 const runReloadDockEventsForSailingDay = async (
   ctx: ActionCtx,

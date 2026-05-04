@@ -10,12 +10,15 @@ import type { DockBoundaryEventRecord } from "../types";
 import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
- * Builds normalized scheduled boundary rows from in-memory boundary event
- * records.
+ * Maps neutral boundary records into Convex scheduled dock rows for one slice.
+ *
+ * NextTerminalAbbrev stitches departures to their paired arrival terminal using
+ * the same-day map so continuity reads do not need a second query. Last arrival
+ * of day is flagged for UI hints using the maximum arrival Key in the slice.
  *
  * @param events - Boundary event records for one vessel/day slice
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
- * @returns Scheduled boundary rows keyed by the stable event key
+ * @returns Scheduled boundary rows aligned one-to-one with input events
  */
 const buildScheduledDockEvents = (
   events: DockBoundaryEventRecord[],
@@ -42,6 +45,17 @@ const buildScheduledDockEvents = (
   }));
 };
 
+/**
+ * Looks up the paired arrival rows terminal for a departure on the same segment.
+ *
+ * Departures need the downstream terminal for NextTerminalAbbrev; that value
+ * lives on the arv-dock row that shares SegmentKey. When the pair is missing,
+ * falls back to the departure rows own terminal to avoid undefined continuity.
+ *
+ * @param event - Departure boundary whose next terminal is needed
+ * @param eventByKey - Map of every boundary Key in the sailing-day slice
+ * @returns Arrival terminal abbrev for the segment, or the events terminal abbrev
+ */
 const getNextTerminalAbbrev = (
   event: DockBoundaryEventRecord,
   eventByKey: Map<string, DockBoundaryEventRecord>
@@ -52,10 +66,13 @@ const getNextTerminalAbbrev = (
 };
 
 /**
- * Finds the latest arrival boundary in one sailing-day event slice.
+ * Finds the chronologically last arrival boundary in the slice.
  *
- * @param events - Ordered boundary events for one sailing day
- * @returns Boundary key for the last arrival, or `null`
+ * Used only to mark IsLastArrivalOfSailingDay for presentation; ordering follows
+ * caller-provided event order after normalizeScheduledDockSeams and sort.
+ *
+ * @param events - Boundary events for one sailing day (any order; reversed internally)
+ * @returns Key of the last arv-dock event when one exists, otherwise null
  */
 const getLastArrivalKey = (events: DockBoundaryEventRecord[]) =>
   [...events].reverse().find((event) => event.EventType === "arv-dock")?.Key ??

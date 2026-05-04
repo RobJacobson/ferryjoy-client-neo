@@ -17,14 +17,20 @@ import type {
 } from "./schemas";
 
 /**
- * Merges sparse actual dock writes into base rows keyed by `EventKey`.
+ * Folds sparse writes into an in-memory map of actual rows by EventKey.
+ *
+ * For each write, the merge combines with any existing row for the same
+ * physical EventKey so partial patches retain prior timestamps, then rebuilds
+ * the persisted shape through buildActualDockEventFromWrite. EventOccurred and
+ * EventActualTime are reconciled so downstream consumers never lose an arrival
+ * time when a patch omits it but the base row had one.
  *
  * @param baseRows - Existing actual rows for the reload slice
  * @param writes - Sparse actual writes proposed during reconciliation
  * @param updatedAt - Timestamp to stamp onto inserted or changed rows
- * @returns Actual rows with valid sparse writes folded in
+ * @returns Full row list after merging every persistable write
  */
-export const mergeActualDockWritesIntoRows = (
+const mergeActualDockWritesIntoRows = (
   baseRows: ConvexActualDockEvent[],
   writes: ConvexActualDockWriteWithTripKey[],
   updatedAt: number
@@ -52,3 +58,5 @@ export const mergeActualDockWritesIntoRows = (
 
   return [...byEventKey.values()];
 };
+
+export { mergeActualDockWritesIntoRows };

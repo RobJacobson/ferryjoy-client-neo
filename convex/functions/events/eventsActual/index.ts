@@ -1,5 +1,5 @@
 /**
- * Barrel for `eventsActual`: Convex validators, persistence mutations, and
+ * Barrel for eventsActual: Convex validators, persistence mutations, and
  * scoped reads used when assembling events and route snapshots from live
  * trip and schedule data.
  */

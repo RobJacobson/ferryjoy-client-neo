@@ -1,5 +1,9 @@
 /**
  * History-backed enrichment for schedule-seeded boundary events.
+ *
+ * Merges prior slice state, WSF vessel history, and strict segment resolution
+ * into DockBoundaryEventRecord actual times before reload persists scheduled and
+ * actual tables.
  */
 
 import {
@@ -15,6 +19,8 @@ import { getDirectRawSeedSegments } from "../scheduled/buildScheduledDockEventRe
 import { createSeededScheduleSegmentResolver } from "../scheduled/scheduleDepartureLookup";
 import type { DockBoundaryEventRecord } from "../types";
 
+// History can disagree slightly with live or prior seed data; only replace the
+// stored actual when the delta exceeds this window (stricter for proxy arrivals).
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
 const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
 
@@ -36,12 +42,23 @@ type NormalizedHistoryRecord = {
 type HistoryActualSource = "departure-actual" | "arrival-proxy";
 
 /**
- * Hydrates schedule-seeded rows with stored/live state and WSF history actuals.
+ * Enriches seeded boundary rows with existing slice state and external history.
  *
- * @param args - Seeded events for one sailing day plus history and segment context
- * @returns Seeded events with historical actuals folded in
+ * For each seeded Key, merges EventActualTime from existingEvents when present,
+ * then blends WSF history actuals that align to the same direct segments.
+ * Departure uses measured ActualDepart; arrival uses EstArrival as a proxy when
+ * needed. Clears EventPredictedTime once a merged actual exists so downstream
+ * reload does not treat the row as prediction-driven.
+ *
+ * @param args.seededEvents - Schedule-built boundary records for the sailing day
+ * @param args.existingEvents - Prior hydrated rows for the same keys, if any
+ * @param args.scheduleSegments - Raw segments used to restrict history to direct legs
+ * @param args.historyRecords - Vessel history rows fetched for those vessels and day
+ * @param args.vessels - Vessel identity table for strict resolution
+ * @param args.terminals - Terminal identity table for strict resolution
+ * @returns Seeded events with EventOccurred and EventActualTime updated in place per key
  */
-export const hydrateActualDockEvents = ({
+const hydrateActualDockEvents = ({
   seededEvents,
   existingEvents,
   scheduleSegments,
@@ -82,6 +99,21 @@ export const hydrateActualDockEvents = ({
   });
 };
 
+/**
+ * Projects external history onto canonical dep-dock and arv-dock boundary keys.
+ *
+ * Strict resolution maps each history row to a segment Key when terminals and
+ * vessel resolve; otherwise a seeded-schedule resolver aligns ScheduledDepart
+ * to SegmentKey when the segment exists in the direct-seed set. Each contributor
+ * row may set departure actual and arrival proxy independently for later blending.
+ *
+ * @param args.seededEvents - Hydrated seeds used for fallback segment alignment
+ * @param args.scheduleSegments - Raw segments feeding direct segment classification
+ * @param args.historyRecords - External history rows for the reload window
+ * @param args.vessels - Vessel identities for resolveVesselHistory and tryResolveVessel
+ * @param args.terminals - Terminal identities for resolveVesselHistory
+ * @returns Map from boundary Key string to latest contributing timestamp from history
+ */
 const getHistoryActualsByEventKey = ({
   seededEvents,
   scheduleSegments,
@@ -162,6 +194,18 @@ const getHistoryActualsByEventKey = ({
   }, new Map<string, number>());
 };
 
+/**
+ * Attempts strict vessel-terminal resolution for one history row.
+ *
+ * Requires ScheduledDepart plus at least one of ActualDepart or EstArrival so
+ * there is something to contribute. Builds the canonical segment key through
+ * buildSegmentKey when resolveVesselHistory succeeds.
+ *
+ * @param record - Raw WSF vessel history row
+ * @param vessels - Known vessel identities
+ * @param terminals - Known terminal identities
+ * @returns TripKey plus departure and arrival-proxy milliseconds when resolution succeeds
+ */
 const normalizeHistoryRecordStrict = (
   record: VesselHistory,
   vessels: ReadonlyArray<VesselIdentity>,
@@ -204,6 +248,19 @@ const normalizeHistoryRecordStrict = (
   };
 };
 
+/**
+ * Chooses between existing slice times and history when both supply an instant.
+ *
+ * Tiny drift between sources is treated as noise and keeps the existing value.
+ * Larger deltas imply the history feed is materially newer (for example a late
+ * correction), so history wins. Thresholds differ: arrival-proxy uses a tighter
+ * window because EstArrival is less authoritative than measured departure.
+ *
+ * @param existingActualTime - Milliseconds already chosen for this boundary, if any
+ * @param historyActualTime - Milliseconds contributed from WSF history, if any
+ * @param source - Whether this boundary behaves like departure actual or arrival proxy
+ * @returns Single merged millisecond instant, or undefined when neither side provides one
+ */
 const mergeActualTime = (
   existingActualTime?: number,
   historyActualTime?: number,
@@ -227,3 +284,5 @@ const mergeActualTime = (
     ? historyActualTime
     : existingActualTime;
 };
+
+export { hydrateActualDockEvents };

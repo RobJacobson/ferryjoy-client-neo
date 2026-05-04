@@ -25,12 +25,16 @@ import {
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 
 /**
- * Builds dock-boundary records directly from raw WSF schedule segments.
+ * Produces normalized boundary records for every direct physical sailing segment.
+ *
+ * Pulls direct segments from raw route data, expands each into dep-dock and
+ * arv-dock seeds, applies seam normalization for identical dock times, and sorts
+ * so downstream hydration and reload see a deterministic vessel-day timeline.
  *
  * @param segments - Raw schedule segments from the fetch pipeline
  * @param vessels - Known vessel identities for abbreviation resolution
  * @param terminals - Terminal identities for segment resolution
- * @returns Boundary event records for direct physical sailings
+ * @returns Ordered DockBoundaryEventRecord list ready for hydration and reload
  */
 export const buildScheduledDockEventRecords = (
   segments: RawWsfScheduleSegment[],
@@ -65,10 +69,14 @@ type SeedSegment = {
 };
 
 /**
- * Expands one physical segment into departure and arrival boundary events.
+ * Expands one resolved physical segment into paired departure and arrival seeds.
  *
- * @param segment - Direct vessel segment to convert into boundary records
- * @returns Departure and arrival boundary records
+ * SegmentKey ties both rows; boundary Keys follow the shared keys helper.
+ * EventScheduledTime carries scheduled departure for dep-dock and inferred or
+ * raw arrival time for arv-dock so normalizeScheduledDockSeams can detect seams.
+ *
+ * @param segment - Direct sail leg with terminals and scheduled instants
+ * @returns Two records when SegmentKey resolves; otherwise an empty list
  */
 const buildSeedEventsForSegment = (
   segment: SeedSegment
@@ -115,12 +123,15 @@ const buildSeedEventsForSegment = (
 };
 
 /**
- * Filters raw WSF schedule segments down to direct physical sailings.
+ * Restricts raw route segments to direct trips in the classified seed shape.
+ *
+ * Non-direct patterns (multi-leg or shuttle) are excluded so reload seeds only
+ * physical legs that match vessel-track identity rules used elsewhere.
  *
  * @param segments - Raw WSF schedule segments for one or more routes
  * @param vessels - Known vessel identities
  * @param terminals - Terminal identities
- * @returns Direct segments normalized into the seed classification shape
+ * @returns Direct segments only, each with Key and crossing metadata
  */
 export const getDirectRawSeedSegments = (
   segments: RawWsfScheduleSegment[],
@@ -146,13 +157,16 @@ export type RawSeedSegment = {
 };
 
 /**
- * Converts a raw WSF schedule segment into the normalized seed shape.
+ * Normalizes one adapter segment into the RawSeedSegment shape for classification.
+ *
+ * Resolves vessel and terminal abbreviations, derives the canonical segment Key,
+ * and copies sailing-day and route metadata. Returns null when identities cannot
+ * be resolved or Key construction fails.
  *
  * @param segment - Raw schedule segment from the fetch pipeline
  * @param vessels - Known vessel identities
  * @param terminals - Terminal identities
- * @returns Normalized segment or `null` when required identity fields are
- * missing
+ * @returns Normalized seed or null when required identity fields are missing
  */
 const toRawSeedSegment = (
   segment: RawWsfScheduleSegment,
@@ -196,11 +210,14 @@ const toRawSeedSegment = (
 };
 
 /**
- * Normalizes scheduled arrival times for boundary-event seeding.
+ * Adjusts arrival scheduled times that equal departure on the same clock minute.
  *
- * @param scheduledArrival - Raw scheduled arrival candidate
- * @param scheduledDeparture - Scheduled departure for the same segment
- * @returns Normalized arrival timestamp for the event row
+ * When arrival and departure share the exact scheduled timestamp, subtracts a
+ * small offset so normalizeScheduledDockSeams can detect and normalize the seam.
+ *
+ * @param scheduledArrival - Candidate arrival instant in epoch ms
+ * @param scheduledDeparture - Departure instant for the same physical segment
+ * @returns Possibly shifted arrival ms, or undefined when arrival was undefined
  */
 const normalizeScheduledArrivalTime = (
   scheduledArrival: number | undefined,
@@ -211,11 +228,13 @@ const normalizeScheduledArrivalTime = (
     : scheduledArrival;
 
 /**
- * Computes an arrival timestamp from official crossing-time data when the raw
- * schedule omits one.
+ * Infers missing arrival times from official crossing duration when possible.
  *
- * @param segment - Direct raw segment being seeded
- * @returns Scheduled arrival timestamp when one can be inferred
+ * Route 9 retains adapter-provided arriving times when present; other routes use
+ * official crossing minutes from scheduledTrips to derive arrival from departure.
+ *
+ * @param segment - Direct segment being seeded (must include DepartingTime)
+ * @returns Inferred arrival epoch ms, or undefined when duration cannot be resolved
  */
 const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
   if (segment.RouteID === 9 && segment.ArrivingTime) {
