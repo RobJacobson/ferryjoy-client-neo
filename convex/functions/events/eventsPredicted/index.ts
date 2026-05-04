@@ -1,6 +1,6 @@
 /**
  * Barrel for `eventsPredicted`: validators, batched upserts, depart-next ML
- * patching, and vessel-day reads that join to trips and timelines.
+ * patching, and vessel-day reads that join to trips and events.
  */
 
 export * from "./mutations";

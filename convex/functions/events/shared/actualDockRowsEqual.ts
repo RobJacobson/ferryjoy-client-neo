@@ -1,20 +1,22 @@
 /**
- * Equality helper for `eventsActual` upserts: skip replaces when visible fields match.
+ * Equality helper for eventsActual upserts: skip replaces when visible fields match.
  */
 
 import type { Doc } from "_generated/dataModel";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 
 /**
- * Returns whether two rows describe the same observable dock event.
+ * Compares stored documents with incoming payloads for semantic equality.
  *
- * Ignores Convex system fields; compares keys, terminals, times, and occurrence.
+ * Convex adds system fields that must not force replaces; this compares only the
+ * payload columns clients observe. EventOccurred is treated as equivalent to having
+ * EventActualTime so sparse pings that toggle only the literal flag still compare equal.
  *
- * @param left - Stored document from `eventsActual`
- * @param right - Payload being applied (includes `UpdatedAt`)
- * @returns `true` when no replace is needed for persistence purposes
+ * @param left - Stored eventsActual document including Convex metadata
+ * @param right - Candidate row being applied (includes fresh UpdatedAt)
+ * @returns True when upsertActualDockRows should skip replace for this EventKey
  */
-export const actualDockRowsEqual = (
+const actualDockRowsEqual = (
   left: Doc<"eventsActual">,
   right: ConvexActualDockEvent
 ): boolean =>
@@ -29,3 +31,5 @@ export const actualDockRowsEqual = (
   (left.EventOccurred ?? left.EventActualTime !== undefined) ===
     (right.EventOccurred ?? right.EventActualTime !== undefined) &&
   left.EventActualTime === right.EventActualTime;
+
+export { actualDockRowsEqual };

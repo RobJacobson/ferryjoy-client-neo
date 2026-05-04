@@ -1,7 +1,7 @@
 /**
- * Persistence entrypoints for `eventsActual`: sparse upserts from orchestrator
- * pings (`upsertActualDockRows`) and full-day reconciliation when schedule
- * hydration replaces one sailing day (`replaceActualRowsForSailingDay`).
+ * Persistence entrypoints for eventsActual: sparse upserts from orchestrator
+ * pings (upsertActualDockRows) and full-day reconciliation when schedule
+ * hydration replaces one sailing day (replaceActualRowsForSailingDay).
  *
  * Private helpers dedupe ping batches, index hydrated slices, compute delete
  * allow-lists with grandfather rules, and route day-wide writes through the same
@@ -14,97 +14,99 @@ import { actualDockRowsEqual } from "functions/events/shared/actualDockRowsEqual
 import type { ConvexActualDockEvent } from "./schemas";
 
 /**
- * Persists sparse actual-dock rows keyed by physical `EventKey`.
+ * Persists sparse actual-dock rows keyed by physical EventKey.
  *
- * Called from `persistVesselUpdates` with timeline-projected rows. Collapses
- * duplicate keys in one flush via `dedupeByEventKey`, then inserts or replaces
- * only when `actualDockRowsEqual` reports a visible change so `_creationTime` and
- * bandwidth stay stable for no-op pings.
+ * Vessel orchestration can emit multiple pings per flush; dedupeByEventKey collapses
+ * those to one payload per EventKey before touching the database. Inserts run only
+ * on first sight of a key; otherwise replaces occur solely when actualDockRowsEqual
+ * detects viewer-visible drift so unchanged pings skip writes entirely.
  *
  * @param ctx - Convex mutation context
- * @param rows - Normalized rows matching `eventsActualSchema` (may repeat keys)
+ * @param rows - Normalized rows matching eventsActualSchema (may repeat keys)
+ * @returns Resolves with no value when all rows are processed
  */
-export const upsertActualDockRows = async (
+const upsertActualDockRows = async (
   ctx: MutationCtx,
   rows: ConvexActualDockEvent[]
 ): Promise<void> => {
   for (const row of dedupeByEventKey(rows)) {
-    // Reads the stored row for this EventKey, if any, to choose insert vs replace.
+    // Read the stored row for this EventKey, if any, to choose insert versus replace.
     const existing = await ctx.db
       .query("eventsActual")
       .withIndex("by_event_key", (q) => q.eq("EventKey", row.EventKey))
       .unique();
 
-    // Inserts when this EventKey has never been written - no prior row to diff.
+    // Insert when this EventKey has never been written; nothing to diff yet.
     if (!existing) {
       await ctx.db.insert("eventsActual", row);
       continue;
     }
 
-    // Skips replace when `actualDockRowsEqual` reports no observable field change.
+    // Skip replace when equality reports no observable field change.
     if (actualDockRowsEqual(existing, row)) {
       continue;
     }
 
-    // Replaces when the same EventKey carries a changed trip/time/terminal snapshot.
+    // Replace when the same EventKey carries a changed trip, time, or terminal snapshot.
     await ctx.db.replace(existing._id, row);
   }
 };
 
 /**
- * Reconciles one sailing day by replacing the stored slice with a full hydrated candidate set.
+ * Reconciles one sailing day by replacing the stored slice with a full hydrated
+ * candidate set.
  *
- * Deletes rows whose keys disappear from `finalRows` unless they are grandfathered
- * ping-only rows (no `ScheduleKey`). Then applies each hydrated row through
- * `upsertActualDockRows` so insert, equality skip, and replace match sparse upserts.
+ * Full-day hydration rebuilds schedule-derived boundaries from adapters; ping-only
+ * rows without ScheduleKey must survive when hydration lacks those keys so live-only
+ * evidence is not erased. Deletes execute before upserts so superseded keys disappear
+ * atomically relative to the new slice loaded into upsertActualDockRows.
  *
  * @param ctx - Convex mutation context
- * @param SailingDay - Service day `YYYY-MM-DD` being reconciled
+ * @param SailingDay - Service day YYYY-MM-DD being reconciled
  * @param finalRows - Complete candidate rows for that day after schedule hydration
+ * @returns Resolves with no value when deletes and upserts finish
  */
-export const replaceActualRowsForSailingDay = async (
+const replaceActualRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
   finalRows: ConvexActualDockEvent[]
 ): Promise<void> => {
-  // Reads every stored row for this day (inputs to delete set and grandfather detection).
+  // Snapshot stored rows for delete-set and grandfather detection.
   const existingRows = await ctx.db
     .query("eventsActual")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
     .collect();
 
-  // Indexes hydrated candidates by EventKey (last row wins if `finalRows` repeats a key).
+  // Last hydrated row wins when finalRows repeats an EventKey.
   const nextByEventKey = finalRowsByEventKey(finalRows);
 
-  // Builds allow-listed keys: hydrated keys plus ping-only legacy keys missing from `finalRows`.
+  // Hydrated keys plus ping-only legacy keys absent from the hydrated slice.
   const surviveEventKeys = buildSurviveEventKeySet(
     nextByEventKey,
     existingRows
   );
 
-  // Drops rows that should disappear before applying the new day slice from `finalRows`.
+  // Remove stale rows before applying the new slice from finalRows.
   await deleteActualRowsOutsideAllowList(ctx, existingRows, surviveEventKeys);
 
-  // Writes each candidate row: insert new keys, skip or replace when stored state differs.
+  // Upsert each candidate: insert new keys, skip or replace when stored state differs.
   const hydratedRows = [...nextByEventKey.values()];
   await upsertActualDockRows(ctx, hydratedRows);
 };
 
 /**
- * Deduplicates actual dock rows by physical `EventKey`, keeping the last copy.
+ * Deduplicates actual dock rows by physical EventKey, keeping the last copy.
  *
- * Orchestrator timeline assembly concatenates completed-branch and current-branch
- * writes (`mergePingEventWrites`) without merging on `EventKey`. Calling this inside
- * `upsertActualDockRows` yields deterministic last-wins semantics and avoids double
- * writes when both branches emit the same boundary.
+ * Orchestrator projection concatenates branch writes without merging on EventKey.
+ * Map insertion order preserves last-wins semantics so the final payload matches the
+ * chronologically last ping emitted within one orchestrator flush.
  *
- * @param rows - Sparse batch from trip/timeline projection (may repeat keys)
- * @returns One row per distinct `EventKey`, in insertion order of first occurrence per key after collapse
+ * @param rows - Sparse batch from trip event projection (may repeat keys)
+ * @returns One row per distinct EventKey after collapse
  */
 const dedupeByEventKey = (
   rows: ConvexActualDockEvent[]
 ): ConvexActualDockEvent[] =>
-  // Folds into a Map so repeated keys pick up the last payload, then collects values.
   Array.from(
     rows
       .reduce(
@@ -115,11 +117,14 @@ const dedupeByEventKey = (
   );
 
 /**
- * Indexes a full hydrated day slice by `EventKey` for replace reconciliation.
+ * Indexes a full hydrated day slice by EventKey for replace reconciliation.
  *
- * Duplicate keys in `finalRows` collapse to the last row, matching `Map` semantics.
+ * Duplicate keys in finalRows collapse to the last row (Map semantics).
+ * Hydration sometimes emits duplicates when adapters replay segments; this mirrors
+ * sparse dedupe behavior so reconciliation compares against one candidate per key.
  *
  * @param finalRows - Candidate rows from schedule hydration (possibly duplicate keys)
+ * @returns Map from EventKey to the winning candidate row
  */
 const finalRowsByEventKey = (
   finalRows: ConvexActualDockEvent[]
@@ -127,13 +132,14 @@ const finalRowsByEventKey = (
   new Map(finalRows.map((row) => [row.EventKey, row]));
 
 /**
- * Builds the set of `EventKey`s that still exist in the database after the delete pass.
+ * Builds the set of EventKeys that survive after the delete pass.
  *
  * Seeds from every key in the hydrated slice, then extends with stored rows that
- * were captured only from vessel pings (no `ScheduleKey`) so schedule hydration
- * cannot delete live-only history when those keys are absent from `finalRows`.
+ * came only from vessel pings with no ScheduleKey so hydration cannot drop
+ * live-only history when those keys are absent from finalRows.
+ * Grandfathered keys remain listed even without hydrated successors so deleteActualRowsOutsideAllowList skips them.
  *
- * @param nextByEventKey - Hydrated candidate rows keyed by `EventKey`
+ * @param nextByEventKey - Hydrated candidate rows keyed by EventKey
  * @param existingRows - Documents currently stored for this sailing day
  * @returns Keys to keep; rows not listed here are deleted before upserts run
  */
@@ -142,7 +148,8 @@ const buildSurviveEventKeySet = (
   existingRows: Doc<"eventsActual">[]
 ): Set<string> => {
   const survive = new Set(nextByEventKey.keys());
-  // Grandfathers ping-only rows so hydration does not erase keys missing from `finalRows`.
+
+  // Keep grandfathered ping-only rows even when finalRows omits their keys.
   for (const row of existingRows) {
     if (!nextByEventKey.has(row.EventKey) && row.ScheduleKey === undefined) {
       survive.add(row.EventKey);
@@ -152,14 +159,17 @@ const buildSurviveEventKeySet = (
 };
 
 /**
- * Deletes every stored row whose `EventKey` is missing from `allowKeys`.
+ * Deletes stored rows whose EventKey is missing from allowKeys.
  *
- * Runs after computing the survival set and before `upsertActualDockRows` so
- * removed boundaries disappear before hydrated rows are merged back.
+ * Runs after computing the survival set and before upsertActualDockRows so
+ * removed boundaries disappear before hydrated rows merge back.
+ * Uses Promise.all over deletes so independent removals finish concurrently without
+ * blocking the mutation longer than necessary.
  *
  * @param ctx - Convex mutation context
  * @param existingRows - Snapshot from the initial full-day read for this reconcile
  * @param allowKeys - EventKeys retained (hydrated plus grandfathered)
+ * @returns Resolves with no value when deletes finish
  */
 const deleteActualRowsOutsideAllowList = async (
   ctx: MutationCtx,
@@ -172,3 +182,5 @@ const deleteActualRowsOutsideAllowList = async (
       .map((row) => ctx.db.delete(row._id))
   );
 };
+
+export { replaceActualRowsForSailingDay, upsertActualDockRows };

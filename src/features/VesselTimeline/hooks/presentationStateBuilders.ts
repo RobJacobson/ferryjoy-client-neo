@@ -2,10 +2,10 @@
  * Pure presentation-state builders for VesselTimeline pipeline wiring.
  */
 
-import type { RouteTimelineSnapshot } from "convex/functions/routeTimeline";
 import type { TimelineVisualTheme } from "@/components/timeline";
+import type { ConvexVesselTimelineEventsContextType } from "@/data/contexts/convex/convexVesselTimelineEventsValue";
 import type { VesselLocation } from "@/types";
-import { fromRouteTimelineModel } from "../renderPipeline/fromRouteTimelineModel";
+import { fromEventRows } from "../renderPipeline/fromEventRows";
 import type { VesselTimelineRenderState } from "../types";
 
 type UseVesselTimelinePresentationStateResult = {
@@ -16,13 +16,8 @@ type UseVesselTimelinePresentationStateResult = {
   renderState: VesselTimelineRenderState | null;
 };
 
-type RouteModelPresentationData = {
-  vesselAbbrev?: string;
-  sailingDay: string;
-  snapshot: RouteTimelineSnapshot | null;
-  isLoading: boolean;
-  errorMessage: string | null;
-  retry: () => void;
+type EventRowPresentationData = {
+  events: ConvexVesselTimelineEventsContextType;
   getTerminalNameByAbbrev: (terminalAbbrev: string) => string | null;
   currentVesselLocation: VesselLocation | null;
   now: Date;
@@ -30,23 +25,29 @@ type RouteModelPresentationData = {
 };
 
 /**
- * Build route-model-backed VesselTimeline presentation state.
+ * Build VesselTimeline presentation state from vessel-day event row context.
  *
- * @param args - Route-model pipeline inputs
+ * @param args - Event-row pipeline inputs and shared presentation inputs
  * @returns Loading, error, empty, or ready presentation state
  */
-export const buildRouteModelTimelinePresentationState = ({
-  vesselAbbrev,
-  sailingDay,
-  snapshot,
-  isLoading,
-  errorMessage,
-  retry,
+const buildEventRowTimelinePresentationState = ({
+  events,
   getTerminalNameByAbbrev,
   currentVesselLocation,
   now,
   theme,
-}: RouteModelPresentationData): UseVesselTimelinePresentationStateResult => {
+}: EventRowPresentationData): UseVesselTimelinePresentationStateResult => {
+  const {
+    vesselAbbrev,
+    sailingDay,
+    isLoading,
+    errorMessage,
+    retry,
+    scheduledEvents,
+    actualEvents,
+    predictedEvents,
+  } = events;
+
   if (isLoading) {
     return {
       isLoading: true,
@@ -67,10 +68,12 @@ export const buildRouteModelTimelinePresentationState = ({
     };
   }
 
-  const resolvedVesselAbbrev = vesselAbbrev ?? "";
-  const renderState = fromRouteTimelineModel({
-    snapshot,
-    vesselAbbrev: resolvedVesselAbbrev,
+  const renderState = fromEventRows({
+    scheduledEvents,
+    actualEvents,
+    predictedEvents,
+    vesselAbbrev,
+    sailingDay,
     getTerminalNameByAbbrev,
     vesselLocation: currentVesselLocation,
     now,
@@ -81,7 +84,7 @@ export const buildRouteModelTimelinePresentationState = ({
     return {
       isLoading: false,
       error: null,
-      emptyMessage: `No vessel timeline events were found for ${resolvedVesselAbbrev} on ${sailingDay}.`,
+      emptyMessage: `No vessel timeline events were found for ${vesselAbbrev} on ${sailingDay}.`,
       retry,
       renderState: null,
     };
@@ -95,3 +98,9 @@ export const buildRouteModelTimelinePresentationState = ({
     renderState,
   };
 };
+
+export type {
+  EventRowPresentationData,
+  UseVesselTimelinePresentationStateResult,
+};
+export { buildEventRowTimelinePresentationState };

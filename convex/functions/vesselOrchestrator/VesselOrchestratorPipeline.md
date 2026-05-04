@@ -44,8 +44,8 @@ hot path in `convex/functions/vesselOrchestrator`.
      1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
      2. Domain **`updateLeaveDockEventPatch`** (`domain/vesselOrchestration/updateLeaveDockEventPatch`) produces an optional **`updateLeaveDockEventPatch`** payload on observed leave-dock transitions
      3. Domain **`getVesselTripPredictionsFromTripUpdate`** loads prediction model parameters when **`getPredictionModelParametersFromTripUpdate`** is non-null (**`loadPredictionModelParameters`**) and returns **`enrichedActiveVesselTrip`**
-     4. Domain **`updateTimeline`** takes **`{ pingStartedAt, tripUpdate, enrichedActiveVesselTrip }`**; it derives **`PersistedTripTimelineHandoff`** internally (**`timelineHandoffFromTripUpdate`**), builds prediction overlay handoffs, then projects **`actualEvents`** / **`predictedEvents`**
-     5. **`persistVesselUpdates`** applies trip, timeline, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
+     4. Domain **`updateEvents`** takes **`{ pingStartedAt, tripUpdate, enrichedActiveVesselTrip }`**; it derives **`PersistedTripEventHandoff`** internally (**`eventHandoffFromTripUpdate`**), builds prediction overlay handoffs, then projects **`actualEvents`** / **`predictedEvents`**
+     5. **`persistVesselUpdates`** applies trip, event, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants
@@ -59,7 +59,7 @@ hot path in `convex/functions/vesselOrchestrator`.
   `NextScheduleKey` lookup first, rollover fallback only when needed.
 - Prediction model loading is gated per vessel by runnable Stage 4 specs derived
   from changed durable trip facts.
-- Timeline projection runs in action memory using same-ping
+- Event projection runs in action memory using same-ping
   **`enrichedActiveVesselTrip`**, and **`persistVesselUpdates`** only
   applies supplied rows.
 - Location dedupe is mutation-side in `bulkUpsertVesselLocations`
@@ -71,7 +71,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Per-vessel pipeline failures after dedupe are isolated inside the loop and do
   not stop the whole ping.
 - `persistVesselUpdates` is all-or-nothing for one vessel branch; any failed
-  trip, timeline, or actualization write rolls back that vessel's
+  trip, event, or actualization write rolls back that vessel's
   persistence mutation.
 - Per-vessel location upsert failures remain isolated inside
   `performBulkUpsertVesselLocations`.

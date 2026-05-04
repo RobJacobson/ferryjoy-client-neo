@@ -1,21 +1,29 @@
 /**
- * Pure policy for backfilling depart-next prediction actuals on `eventsPredicted`.
+ * Pure policy for backfilling depart-next prediction actuals on eventsPredicted.
+ *
+ * When a vessel completes a leg, measured departure time can actualize ML predictions
+ * attached to the following segments dep-dock boundary without waiting for another ML tick.
  */
 
 import { buildBoundaryKey } from "shared/keys";
 import { floorToSecond } from "shared/time";
 
-/** ML prediction types updated on leave-dock for the next leg departure boundary. */
+/**
+ * ML prediction kinds refreshed when leave-dock confirms the next legs departure boundary.
+ */
 export const DEPART_NEXT_ML_PREDICTION_TYPES = [
   "AtDockDepartNext",
   "AtSeaDepartNext",
 ] as const;
 
 /**
- * Boundary key for the next leg's dep-dock prediction rows.
+ * Builds the eventsPredicted boundary Key for depart-next rows on the following leg.
  *
- * @param nextScheduleKey - Next segment key from the completed trip row
- * @returns dep-dock boundary key for `eventsPredicted` lookup
+ * NextScheduleKey on completed trips references the upcoming segment; pairing it with
+ * dep-dock matches rows emitted by buildPredictedDockWriteBatch for the next departure.
+ *
+ * @param nextScheduleKey - Schedule segment key stored on the completed trip row
+ * @returns Canonical dep-dock boundary Key string used for prediction lookups
  */
 const buildDepartNextDepDockBoundaryKey = (nextScheduleKey: string): string =>
   buildBoundaryKey(nextScheduleKey, "dep-dock");
@@ -25,10 +33,14 @@ type DepartNextLegContext =
   | { ok: true; depKey: string; actualMs: number };
 
 /**
- * Validates completed-trip context needed to actualize depart-next predictions.
+ * Validates that completed-trip metadata is sufficient to patch depart-next predictions.
  *
- * @param completed - Most recent completed trip row
- * @param actualDepartMs - Actual departure ms for the next leg (feed time)
+ * Requires NextScheduleKey for addressing rows and SailingDay so mutations scope to
+ * the correct calendar partition. Floors feed milliseconds to seconds for stable Actual fields.
+ *
+ * @param completed - Completed trip document carrying optional next-leg pointers
+ * @param actualDepartMs - Measured next-leg departure time from feed or dock sensors
+ * @returns Success tuple with dep Key and normalized actual ms, or a structured failure reason
  */
 export const resolveDepartNextLegContext = (
   completed: {

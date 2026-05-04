@@ -2,14 +2,14 @@
  * Schedule-segment inference from scheduled dock-event tables.
  */
 
+import {
+  findNextDepartureEvent,
+  inferScheduledSegmentFromDepartureEvent,
+} from "domain/events/scheduled/scheduledSegmentResolvers";
 import type {
   ConvexInferredScheduledSegment,
   ConvexScheduledDockEvent,
 } from "domain/events/scheduled/schemas";
-import {
-  findNextDepartureEvent,
-  inferScheduledSegmentFromDepartureEvent,
-} from "domain/timelineRows/scheduledSegmentResolvers";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { UpdateVesselTripDbAccess } from "../../types";
 

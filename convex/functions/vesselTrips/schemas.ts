@@ -184,7 +184,7 @@ const predictionOrJoinedPredictionSchema = v.union(
 
 /**
  * In-memory trip shape with full ML blobs, used during orchestrator prediction
- * and timeline assembly before persistence strips embedded predictions.
+ * and event assembly before persistence strips embedded predictions.
  */
 export const vesselTripWithMlSchema = v.object({
   ...tripIdentityFields,

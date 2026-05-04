@@ -5,12 +5,9 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import { inferScheduledSegmentFromDepartureEvent } from "domain/timelineRows/scheduledSegmentResolvers";
-import { queryScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
-import {
-  type ConvexScheduledDockEvent,
-  eventsScheduledSchema,
-} from "functions/events/eventsScheduled/schemas";
+import { inferScheduledSegmentFromDepartureEvent } from "domain/events/scheduled/scheduledSegmentResolvers";
+import { readScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
+import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { buildBoundaryKey } from "shared/keys";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
@@ -55,7 +52,7 @@ export const getScheduledSegmentByScheduleKeyInternal = internalQuery({
     }
 
     const departureRow = stripConvexMeta(departureEvent);
-    const sameDayEvents = await queryScheduledDockEventsForVesselSailingDay(
+    const sameDayEvents = await readScheduledDockEventsForVesselSailingDay(
       ctx,
       {
         vesselAbbrev: departureRow.VesselAbbrev,
@@ -63,10 +60,7 @@ export const getScheduledSegmentByScheduleKeyInternal = internalQuery({
       }
     );
 
-    return inferScheduledSegmentFromDepartureEvent(
-      departureRow,
-      sameDayEvents as ConvexScheduledDockEvent[]
-    );
+    return inferScheduledSegmentFromDepartureEvent(departureRow, sameDayEvents);
   },
 });
 
@@ -96,11 +90,11 @@ export const getScheduleRolloverDockEventsInternal = internalQuery({
     const currentSailingDay = getSailingDay(new Date(args.timestamp));
     const nextSailingDay = addDaysToYyyyMmDd(currentSailingDay, 1);
     const [currentDayEvents, nextDayEvents] = await Promise.all([
-      queryScheduledDockEventsForVesselSailingDay(ctx, {
+      readScheduledDockEventsForVesselSailingDay(ctx, {
         vesselAbbrev: args.vesselAbbrev,
         sailingDay: currentSailingDay,
       }),
-      queryScheduledDockEventsForVesselSailingDay(ctx, {
+      readScheduledDockEventsForVesselSailingDay(ctx, {
         vesselAbbrev: args.vesselAbbrev,
         sailingDay: nextSailingDay,
       }),

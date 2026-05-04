@@ -40,7 +40,7 @@ WSF download, raw schedule types, and raw-segment mapping live in
 `PrevKey`/`NextKey` linking) live in
 [`convex/domain/scheduledTrips/`](/convex/domain/scheduledTrips/).
 
-`vesselTimeline` and timeline reseed reuse the adapter ingress modules or
+`vesselEvent` and event reseed reuse the adapter ingress modules or
 domain helpers without duplicating business rules.
 
 ### WSF data model vs. physical reality
@@ -56,7 +56,7 @@ normalizes onto the WSF sailing day.
 `convex/adapters/fetch/` and `convex/adapters/pipelines/` own WSF API fetch
 wrappers, raw types, route-download normalization,
 raw-segment-to-`ConvexScheduledTrip` mapping, and `fetchAndTransformScheduledTrips`
-(used by sync and timeline reseed).
+(used by sync and event reseed).
 
 ### Architecture rule
 

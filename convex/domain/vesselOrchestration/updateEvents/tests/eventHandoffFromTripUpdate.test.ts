@@ -1,0 +1,128 @@
+import { describe, expect, it } from "bun:test";
+import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import { generateTripKey } from "shared/physicalTripIdentity";
+import { eventHandoffFromTripUpdate } from "../eventHandoffFromTripUpdate";
+
+const ms = (iso: string) => new Date(iso).getTime();
+
+const makeTrip = (
+  vesselAbbrev: string,
+  overrides: Partial<ConvexVesselTrip> = {}
+): ConvexVesselTrip => ({
+  VesselAbbrev: vesselAbbrev,
+  DepartingTerminalAbbrev: "ANA",
+  ArrivingTerminalAbbrev: "ORI",
+  RouteAbbrev: "ana-sj",
+  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
+  SailingDay: "2026-03-13",
+  PrevTerminalAbbrev: "ORI",
+  TripEnd: undefined,
+  TripStart: ms("2026-03-13T04:33:00-07:00"),
+  AtDock: false,
+  AtDockDuration: undefined,
+  ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),
+  LeftDock: ms("2026-03-13T05:29:38-07:00"),
+  LeftDockActual: ms("2026-03-13T05:29:38-07:00"),
+  TripDelay: undefined,
+  Eta: undefined,
+  AtSeaDuration: undefined,
+  TotalDuration: undefined,
+  InService: true,
+  TimeStamp: ms("2026-03-13T06:28:45-07:00"),
+  PrevScheduledDeparture: ms("2026-03-12T19:30:00-07:00"),
+  PrevLeftDock: ms("2026-03-12T19:34:26-07:00"),
+  NextScheduleKey: undefined,
+  NextScheduledDeparture: undefined,
+  ...overrides,
+});
+
+describe("eventHandoffFromTripUpdate", () => {
+  it("builds completion plus replacement active handoff", () => {
+    const existing = makeTrip("CHE", { TripEnd: undefined });
+    const completed = makeTrip("CHE", {
+      TripEnd: ms("2026-03-13T06:45:00-07:00"),
+    });
+    const replacement = makeTrip("CHE", {
+      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "LOP",
+      ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
+      AtDock: true,
+      LeftDockActual: undefined,
+    });
+    const result = eventHandoffFromTripUpdate({
+      vesselAbbrev: "CHE",
+      existingVesselTrip: existing,
+      activeVesselTrip: replacement,
+      completedVesselTrip: completed,
+    });
+    expect(result.completedTripFacts).toHaveLength(1);
+    expect(result.completedTripFacts[0]?.completedVesselTrip).toEqual(
+      completed
+    );
+    expect(result.completedTripFacts[0]?.activeVesselTrip).toEqual(replacement);
+    expect(result.completedTripFacts[0]?.completedVesselTrip.TripEnd).toBe(
+      ms("2026-03-13T06:45:00-07:00")
+    );
+    expect(result.currentBranch.pendingActualWrite).toBeUndefined();
+    expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
+      replacement
+    );
+  });
+
+  it("builds active-only current branch handoff", () => {
+    const existing = makeTrip("TAC", { AtDock: true });
+    const active = makeTrip("TAC", {
+      AtDock: false,
+      LeftDockActual: ms("2026-03-13T06:40:00-07:00"),
+      TimeStamp: ms("2026-03-13T06:40:00-07:00"),
+    });
+    const result = eventHandoffFromTripUpdate({
+      vesselAbbrev: "TAC",
+      existingVesselTrip: existing,
+      activeVesselTrip: active,
+      completedVesselTrip: undefined,
+    });
+    expect(result.completedTripFacts).toEqual([]);
+    expect(result.currentBranch.pendingActualWrite?.didJustLeaveDock).toBe(
+      true
+    );
+    expect(result.currentBranch.pendingPredictedWrite?.scheduleTrip).toEqual(
+      active
+    );
+  });
+
+  it("keeps completion handoff on terminal change even when replacement AtDock is false", () => {
+    const existing = makeTrip("CHE", {
+      DepartingTerminalAbbrev: "ANA",
+      ArrivingTerminalAbbrev: "ORI",
+      AtDock: false,
+      TripEnd: undefined,
+    });
+    const completed = makeTrip("CHE", {
+      DepartingTerminalAbbrev: "ANA",
+      ArrivingTerminalAbbrev: "ORI",
+      TripEnd: ms("2026-03-13T06:45:00-07:00"),
+    });
+    const replacement = makeTrip("CHE", {
+      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: "LOP",
+      ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
+      AtDock: false,
+      TripEnd: undefined,
+      LeftDockActual: undefined,
+    });
+
+    const result = eventHandoffFromTripUpdate({
+      vesselAbbrev: "CHE",
+      existingVesselTrip: existing,
+      activeVesselTrip: replacement,
+      completedVesselTrip: completed,
+    });
+
+    expect(result.completedTripFacts).toHaveLength(1);
+    expect(result.currentBranch.pendingActualWrite).toBeUndefined();
+  });
+});

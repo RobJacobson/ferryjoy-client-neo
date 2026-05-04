@@ -18,7 +18,7 @@ import { loadPredictionModelParameters } from "./load";
  *
  * @param ctx - Convex action context used for the internal parameter query
  * @param tripUpdate - Sparse trip rows from `updateVesselTrip` for this branch
- * @returns Prediction proposal rows and enriched active trip for timeline and
+ * @returns Prediction proposal rows and enriched active trip for event and
  *   `persistVesselUpdates`
  */
 export const getVesselTripPredictionsForTripUpdate = async (

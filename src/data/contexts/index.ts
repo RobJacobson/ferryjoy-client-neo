@@ -4,10 +4,10 @@
 
 export * from "../../shared/utils/projectVesselLocation";
 export * from "./convex/ConvexProvider";
-export * from "./convex/ConvexRouteTimelineContext";
 export * from "./convex/ConvexUnifiedTripsContext";
 export * from "./convex/ConvexVesselLocationsContext";
 export * from "./convex/ConvexVesselPingsContext";
+export * from "./convex/ConvexVesselTimelineEventsContext";
 export * from "./convex/ConvexVesselTripsContext";
 export * from "./identity";
 

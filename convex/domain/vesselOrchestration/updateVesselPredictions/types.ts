@@ -1,6 +1,6 @@
 /**
  * Public contracts for vessel-trip prediction enrichment: model-parameter
- * lookup shapes and the enriched trip passed to timeline assembly.
+ * lookup shapes and the enriched trip passed to event assembly.
  */
 
 import type { ProductionModelParameters } from "domain/ml/prediction/vesselTripPredictionModelAccess";
@@ -41,7 +41,7 @@ export type VesselTripPredictionDeps = {
 
 /**
  * Outcome of enriching the active trip from prediction parameters.
- * Timeline overlay construction belongs to updateTimeline.
+ * Event overlay construction belongs to updateEvents.
  */
 export type VesselTripPredictionsFromTripUpdateResult = {
   enrichedActiveVesselTrip: ConvexVesselTripWithML;
