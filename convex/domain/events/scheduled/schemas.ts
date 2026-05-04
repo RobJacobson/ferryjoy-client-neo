@@ -1,1 +1,1 @@
-export * from "../scheduled";
+export type { ConvexInferredScheduledSegment } from "../types";

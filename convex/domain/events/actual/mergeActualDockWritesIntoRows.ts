@@ -5,16 +5,14 @@
  * additional actual dock writes for the sailing-day slice.
  */
 
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import {
   isPersistableActualDockWrite,
   mergeActualDockWriteWithExistingRow,
 } from "./actualDockWriteHelpers";
 import { buildActualDockEventFromWrite } from "./buildActualDockEvents";
-import type {
-  ConvexActualDockEvent,
-  ConvexActualDockWriteWithTripKey,
-} from "./schemas";
+import type { ConvexActualDockWriteWithTripKey } from "./schemas";
 
 /**
  * Folds sparse writes into an in-memory map of actual rows by EventKey.

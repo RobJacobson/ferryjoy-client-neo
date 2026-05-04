@@ -5,10 +5,8 @@
  * than wall-clock proximity to now.
  */
 
-import type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledDockEvent,
-} from "../scheduled";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
+import type { ConvexInferredScheduledSegment } from "../types";
 import {
   type AdjacentDockInterval,
   buildAdjacentBoundaryIntervals,
@@ -54,13 +52,12 @@ export const buildInferredScheduledSegment = (
 export const inferScheduledSegmentFromDepartureEvent = (
   departureEvent: ConvexScheduledDockEvent,
   sameDayEvents: ConvexScheduledDockEvent[]
-): ConvexInferredScheduledSegment =>
-  buildInferredScheduledSegment(
-    departureEvent,
-    findNextDepartureEvent(sameDayEvents, {
-      afterTime: departureEvent.ScheduledDeparture,
-    })
-  );
+): ConvexInferredScheduledSegment => {
+  const nextDepartureEvent = findNextDepartureEvent(sameDayEvents, {
+    afterTime: departureEvent.ScheduledDeparture,
+  });
+  return buildInferredScheduledSegment(departureEvent, nextDepartureEvent);
+};
 
 /**
  * Finds the departure event immediately after a given boundary in dock-interval order.

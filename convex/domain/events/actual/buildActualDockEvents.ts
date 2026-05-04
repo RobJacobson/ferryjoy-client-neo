@@ -5,14 +5,12 @@
  * evidence into the eventsActual table shape.
  */
 
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import { getSailingDay } from "../../../shared/time";
 import type { DockBoundaryEventRecord } from "../types";
 import type { TripContextForActualRow } from "./bindActualRowsToTrips";
-import type {
-  ConvexActualDockEvent,
-  ConvexActualDockWritePersistable,
-} from "./schemas";
+import type { ConvexActualDockWritePersistable } from "./schemas";
 
 /**
  * Builds normalized actual dock rows from in-memory boundary event records.

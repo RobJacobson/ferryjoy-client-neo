@@ -1,1 +1,1 @@
-export * from "../predicted";
+export { predictedDockCompositeKey } from "./predictedDockCompositeKey";

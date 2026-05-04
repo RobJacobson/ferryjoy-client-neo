@@ -10,8 +10,8 @@ import {
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,
 } from "domain/events";
-import type { ConvexActualDockEvent } from "domain/events/actual/schemas";
-import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 import type {
   ConvexVesselTripWithML,
   ConvexVesselTripWithPredictions,

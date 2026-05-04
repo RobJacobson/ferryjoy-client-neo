@@ -2,9 +2,9 @@
  * Canonical Stage A public contracts for the event concern.
  */
 
-import type { ConvexActualDockEvent } from "domain/events/actual";
-import type { ConvexPredictedDockWriteBatch } from "domain/events/predicted";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 /**

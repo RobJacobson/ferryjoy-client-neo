@@ -11,14 +11,12 @@ import {
   buildScheduledDockEvents,
   type TripContextForActualRow,
 } from "domain/events";
-import type { ConvexActualDockEvent } from "domain/events/actual/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { generateTripKey } from "shared/physicalTripIdentity";
-import {
-  buildLocationReconcileBoundaryEvents,
-  reconcileActualDockWritesFromLocations,
-} from "../reconcileActualDockEventsFromLocations";
+import { buildLocationReconcileBoundaryEvents } from "../alignActualEventsToScheduledBoundaries";
+import { reconcileActualDockWritesFromLocations } from "../reconcileActualDockWritesFromLocations";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);

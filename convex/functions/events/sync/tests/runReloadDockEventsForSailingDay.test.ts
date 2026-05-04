@@ -1,5 +1,6 @@
 /**
- * Verifies single-day reload delegates persistence to the replace mutation with the sailing day.
+ * Verifies single-day reload delegates persistence to the replace mutation
+ * with a Convex reload payload built from fetched slices.
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
@@ -15,7 +16,7 @@ afterEach(() => {
 });
 
 describe("runReloadDockEventsForSailingDay", () => {
-  it("calls replaceDockEventsForSailingDay with normalized events for the target date", async () => {
+  it("calls replaceDockEventsForSailingDay with a ConvexReloadDockData payload for the target date", async () => {
     spyOn(console, "log").mockImplementation(() => {});
     spyOn(adapters, "fetchAndTransformScheduledTrips").mockResolvedValue({
       routes: [],
@@ -39,9 +40,12 @@ describe("runReloadDockEventsForSailingDay", () => {
     await runReloadDockEventsForSailingDay(ctx, "2026-07-04");
 
     expect(mutationPayloads).toHaveLength(1);
-    expect(mutationPayloads[0]).toMatchObject({
-      SailingDay: "2026-07-04",
-      Events: [],
+    expect(mutationPayloads[0]).toEqual({
+      ReloadDockData: {
+        SailingDay: "2026-07-04",
+        ScheduleSegments: [],
+        HistoryRecords: [],
+      },
     });
   });
 });

@@ -4,10 +4,10 @@
 
 import { describe, expect, it } from "bun:test";
 import type {
-  ConvexActualDockEvent,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
 } from "domain/events/actual/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import { mergeActualDockWritesIntoRows } from "../mergeActualDockWritesIntoRows";
 
