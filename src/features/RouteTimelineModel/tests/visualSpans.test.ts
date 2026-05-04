@@ -3,10 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type {
-  RouteTimelineBoundary,
-  RouteTimelineDockVisit,
-} from "domain/timelineDockVisits";
+import type { RouteTimelineBoundary, RouteTimelineDockVisit } from "../types";
 import { selectDockVisitVisualSpans } from "../visualSpans";
 
 /**

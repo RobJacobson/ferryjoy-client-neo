@@ -294,6 +294,110 @@ describe("fromEventRows", () => {
     );
   });
 
+  it("prefers WSF ETA over ML predictions for the same arrival boundary", () => {
+    const scheduledEvents: ConvexScheduledDockEvent[] = [
+      makeScheduledEvent({
+        Key: "trip-1--dep-dock",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: u(8, 0),
+        EventScheduledTime: u(8, 0),
+      }),
+      makeScheduledEvent({
+        Key: "trip-1--arv-dock",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: u(8, 0),
+        EventScheduledTime: u(8, 35),
+      }),
+    ];
+
+    const renderState = fromEventRows({
+      scheduledEvents,
+      actualEvents: [],
+      predictedEvents: [
+        makePredictedEvent({
+          Key: "trip-1--arv-dock",
+          EventPredictedTime: u(8, 50),
+          PredictionSource: "ml",
+          PredictionType: "AtSeaArriveNext",
+        }),
+        makePredictedEvent({
+          Key: "trip-1--arv-dock",
+          EventPredictedTime: u(8, 42),
+          PredictionSource: "wsf_eta",
+          PredictionType: "AtSeaArriveNext",
+        }),
+      ],
+      vesselAbbrev: "WEN",
+      sailingDay,
+      getTerminalNameByAbbrev,
+      now: new Date("2026-04-25T08:20:00.000Z"),
+    });
+
+    const bbiArrivalRow = renderState.rows.find(
+      (row) =>
+        row.kind === "at-dock" &&
+        row.startEvent.currTerminalAbbrev === "BBI" &&
+        row.startEvent.eventType === "arrive"
+    );
+    expect(bbiArrivalRow?.startEvent.timePoint.estimated?.getTime()).toBe(
+      u(8, 42)
+    );
+  });
+
+  it("prefers AtSeaArriveNext ML over AtDockArriveNext when WSF ETA is absent", () => {
+    const scheduledEvents: ConvexScheduledDockEvent[] = [
+      makeScheduledEvent({
+        Key: "trip-1--dep-dock",
+        EventType: "dep-dock",
+        TerminalAbbrev: "P52",
+        ScheduledDeparture: u(8, 0),
+        EventScheduledTime: u(8, 0),
+      }),
+      makeScheduledEvent({
+        Key: "trip-1--arv-dock",
+        EventType: "arv-dock",
+        TerminalAbbrev: "BBI",
+        ScheduledDeparture: u(8, 0),
+        EventScheduledTime: u(8, 35),
+      }),
+    ];
+
+    const renderState = fromEventRows({
+      scheduledEvents,
+      actualEvents: [],
+      predictedEvents: [
+        makePredictedEvent({
+          Key: "trip-1--arv-dock",
+          EventPredictedTime: u(8, 55),
+          PredictionSource: "ml",
+          PredictionType: "AtDockArriveNext",
+        }),
+        makePredictedEvent({
+          Key: "trip-1--arv-dock",
+          EventPredictedTime: u(8, 45),
+          PredictionSource: "ml",
+          PredictionType: "AtSeaArriveNext",
+        }),
+      ],
+      vesselAbbrev: "WEN",
+      sailingDay,
+      getTerminalNameByAbbrev,
+      now: new Date("2026-04-25T08:20:00.000Z"),
+    });
+
+    const bbiArrivalRow = renderState.rows.find(
+      (row) =>
+        row.kind === "at-dock" &&
+        row.startEvent.currTerminalAbbrev === "BBI" &&
+        row.startEvent.eventType === "arrive"
+    );
+    expect(bbiArrivalRow?.startEvent.timePoint.estimated?.getTime()).toBe(
+      u(8, 45)
+    );
+  });
+
   it("uses actual arrival to activate destination dock row", () => {
     const scheduledEvents: ConvexScheduledDockEvent[] = [
       makeScheduledEvent({

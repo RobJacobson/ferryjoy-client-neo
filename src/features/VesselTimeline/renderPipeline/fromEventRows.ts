@@ -1,13 +1,12 @@
 /**
  * Pure pipeline: vessel/day event row arrays → `VesselTimelineRenderState`
- * using shared `domain/timelineDockVisits` merge and visit wiring, then the same
- * span and axis geometry path as other timeline surfaces that consume dock visits.
+ * using client-owned merge and dock-visit wiring, then shared span and axis
+ * geometry helpers.
  */
 
 import type { ConvexActualDockEvent } from "convex/functions/events/eventsActual/schemas";
 import type { ConvexPredictedDockEvent } from "convex/functions/events/eventsPredicted/schemas";
 import type { ConvexScheduledDockEvent } from "convex/functions/events/eventsScheduled/schemas";
-import { buildDomainDockVisitsForVesselDay } from "domain/timelineDockVisits";
 import type { TimelineVisualTheme } from "@/components/timeline/theme";
 import { BASE_TIMELINE_VISUAL_THEME } from "@/components/timeline/theme";
 import {
@@ -23,6 +22,7 @@ import type {
   VesselTimelineLayoutConfig,
   VesselTimelineRenderState,
 } from "../types";
+import { buildDockVisitsFromEventRows } from "./buildDockVisitsFromEventRows";
 import {
   buildEmptyRenderState,
   buildVesselTimelineRenderStateFromAxisGeometry,
@@ -61,7 +61,7 @@ const fromEventRows = ({
   layout = DEFAULT_VESSEL_TIMELINE_LAYOUT,
   theme = BASE_TIMELINE_VISUAL_THEME,
 }: FromEventRowsArgs): VesselTimelineRenderState => {
-  const dockVisits = buildDomainDockVisitsForVesselDay({
+  const dockVisits = buildDockVisitsFromEventRows({
     scheduledEvents,
     actualEvents,
     predictedEvents,

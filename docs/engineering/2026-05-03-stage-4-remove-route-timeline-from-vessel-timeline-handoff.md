@@ -16,12 +16,12 @@
 - **`routeAbbrev`** dropped from **`VesselTimelineProps`**; **`vessel-timeline-placeholder.tsx`** updated (no **`routeAbbrev`** on **`VesselOption`** or **`<VesselTimeline />`**).
 - **`pipelineMode.ts`** and **`tests/pipelineMode.test.ts`** removed.
 - **`fromEventRows.ts`** module comment avoids implying a Convex route snapshot
-  payload; merge + dock visits use **`domain/timelineDockVisits`** (after Stage 5;
-  see [Stage 5 handoff](./2026-05-03-stage-5-route-timeline-removal-and-event-query-consolidation-handoff.md)).
+  payload; merge + dock visits are client-owned in the render pipeline (see
+  [Stage 5 handoff](./2026-05-03-stage-5-route-timeline-removal-and-event-query-consolidation-handoff.md)).
 
 **Global (post–Stage 5):** **`ConvexRouteTimelineContext`** and
-**`convex/functions/routeTimeline`** removed; **`domain/timelineDockVisits`**
-holds the shared dock-visit assembly.
+**`convex/functions/routeTimeline`** removed; dock-visit assembly is not a
+backend read model.
 
 ---
 

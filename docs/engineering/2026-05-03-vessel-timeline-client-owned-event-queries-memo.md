@@ -27,10 +27,9 @@ in the companion PRD:
 [2026-05-03-vessel-timeline-client-event-queries-prd.md](./2026-05-03-vessel-timeline-client-event-queries-prd.md).
 
 **Update (2026-05-03):** `convex/functions/routeTimeline` and
-`convex/domain/routeTimeline` were removed (Stage 5). Shared merge and dock-visit
-wiring lives in [`convex/domain/timelineDockVisits/`](../../convex/domain/timelineDockVisits).
-`VesselTimeline` uses event-row queries plus `fromEventRows`; the route snapshot
-context path is gone.
+`convex/domain/routeTimeline` were removed (Stage 5). A follow-up cleanup moved
+merge and dock-visit interpretation into `VesselTimeline` client render-pipeline
+modules. The route snapshot context path is gone.
 
 ---
 
@@ -67,7 +66,7 @@ Related current docs:
 - [VesselOrchestrator pipeline](../../convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md)
 - [VesselOrchestrator README](../../convex/functions/vesselOrchestrator/README.md)
 - [Events functions](../../convex/functions/events)
-- [Dock visit assembly (domain)](../../convex/domain/timelineDockVisits)
+- [VesselTimeline render pipeline](../../src/features/VesselTimeline/renderPipeline)
 
 ---
 

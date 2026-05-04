@@ -6,17 +6,17 @@
 
 ## What shipped
 
-- **`convex/domain/timelineDockVisits/`** — wire validators, domain converters,
-  **`mergedEventsToWireDockVisits`**, wire→domain converters in **`schemas`**,
-  **`buildDomainDockVisitsForVesselDay`**, and tests (replaces deleted
-  **`convex/domain/routeTimeline`** and **`convex/functions/routeTimeline`**).
+- **`src/features/VesselTimeline/renderPipeline/`** — client-owned merge and
+  dock-visit assembly from raw event rows (replaces the deleted route snapshot
+  path and the interim backend dock-visit helper).
 - **`convex/functions/index.ts`** — removed **`routeTimeline`** export;
   **`ConvexRouteTimelineContext`** removed from app contexts.
 - **`read*DockEventsForVesselSailingDay`** — single read implementation per table;
   public **`list*ForVesselSailingDay`** queries delegate; **`loadVesselTimelineBackbone`**
   and **`vesselTripScheduleQueries`** call **`read*`**; **`loadPredictedRowsGroupedForTrips`**
   uses stripped **`ConvexPredictedDockEvent`** maps (no **`Doc`**).
-- **`fromEventRows`** and **`RouteTimelineModel`** import from **`domain/timelineDockVisits`**.
+- **`RouteTimelineModel`** owns plain client timeline types; it no longer imports
+  Convex domain dock-visit types.
 
 ---
 

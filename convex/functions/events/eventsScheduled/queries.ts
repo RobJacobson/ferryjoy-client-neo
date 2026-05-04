@@ -18,18 +18,13 @@ import {
 /**
  * Loads scheduled dock boundary rows for one vessel and sailing day.
  *
- * Reads every matching row via `by_vessel_and_sailing_day`, strips Convex
- * metadata with `stripConvexMeta`, then sorts so the sequence matches the
- * scheduled backbone `mergeTimelineRows` sees before it merges actuals and
- * predictions.
- *
- * Sorting delegates to `sortScheduledDockEvents` in
- * `domain/timelineRows/scheduledSegmentResolvers` (the same comparator
- * `mergeTimelineRows` applies to its scheduled input). Primary order is boundary
- * time from `getBoundaryTime`: `EventScheduledTime` when present, otherwise
- * `ScheduledDeparture`. Ties break by event type (`arv-dock` before `dep-dock`),
- * then by `TerminalAbbrev` lexicographically. Sharing this comparator keeps list
- * queries, backbone builders, and reseed paths aligned on one timeline ordering.
+ * Collects via `by_vessel_and_sailing_day`, strips Convex metadata with
+ * `stripConvexMeta`, then sorts with `sortScheduledDockEvents` from
+ * `domain/timelineRows/scheduledSegmentResolvers`—the same ordering
+ * `mergeTimelineRows` applies to scheduled rows—so this read matches backbone and
+ * reseed paths. Order uses `getBoundaryTime` (`EventScheduledTime` or else
+ * `ScheduledDeparture`), then `arv-dock` before `dep-dock`, then
+ * `TerminalAbbrev`.
  *
  * @param ctx - Convex read context exposing `db`
  * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)
@@ -57,14 +52,10 @@ const readScheduledDockEventsForVesselSailingDay = async (
  * Public Convex query listing scheduled dock events for one vessel and sailing
  * day.
  *
- * Validates arguments and return shape with Convex validators, then delegates
- * to `readScheduledDockEventsForVesselSailingDay`. Realtime clients subscribe
- * here for planned boundary updates without coupling to internal loader names.
- *
- * Returned rows use the same ordering as
- * `readScheduledDockEventsForVesselSailingDay` (`sortScheduledDockEvents`,
- * shared with `mergeTimelineRows`), so UI timelines stay consistent with
- * server-side merged event lists for the same vessel and day.
+ * Validates `args` and `returns` with Convex validators, then calls
+ * `readScheduledDockEventsForVesselSailingDay`, so subscribers get the same
+ * ordered planned boundaries as merge/backbone code without importing the
+ * internal reader.
  *
  * @param ctx - Convex query context (database handle)
  * @param args.vesselAbbrev - Vessel abbreviation (`VesselAbbrev` column)

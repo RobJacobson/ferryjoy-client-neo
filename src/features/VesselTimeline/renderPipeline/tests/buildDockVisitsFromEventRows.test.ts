@@ -1,19 +1,24 @@
 /**
- * Ensures single-vessel domain dock visits from merged events stay stable for
- * the vessel timeline client path.
+ * Unit tests for client-owned event-row to dock-visit assembly.
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ConvexActualDockEvent } from "../../events/actual/schemas";
-import type { ConvexPredictedDockEvent } from "../../events/predicted/schemas";
-import type { ConvexScheduledDockEvent } from "../../events/scheduled/schemas";
-import { buildDomainDockVisitsForVesselDay } from "../buildDomainDockVisitsForVesselDay";
+import type { ConvexActualDockEvent } from "convex/functions/events/eventsActual/schemas";
+import type { ConvexPredictedDockEvent } from "convex/functions/events/eventsPredicted/schemas";
+import type { ConvexScheduledDockEvent } from "convex/functions/events/eventsScheduled/schemas";
+import { buildDockVisitsFromEventRows } from "../buildDockVisitsFromEventRows";
+
+const sailingDay = "2026-03-25";
 
 const at = (hours: number, minutes: number, day = 25) =>
   Date.UTC(2026, 2, day, hours, minutes);
 
-const sailingDay = "2026-03-25";
-
+/**
+ * Builds a scheduled dock event fixture.
+ *
+ * @param partial - Scheduled event fields to override
+ * @returns Scheduled event fixture
+ */
 const makeScheduledEvent = (
   partial: Partial<ConvexScheduledDockEvent> &
     Pick<ConvexScheduledDockEvent, "Key">
@@ -28,7 +33,7 @@ const makeScheduledEvent = (
   ...partial,
 });
 
-describe("buildDomainDockVisitsForVesselDay", () => {
+describe("buildDockVisitsFromEventRows", () => {
   it("pairs scheduled dep and arv boundaries into two dock visits for the sample day", () => {
     const scheduledEvents: ConvexScheduledDockEvent[] = [
       makeScheduledEvent({
@@ -49,7 +54,7 @@ describe("buildDomainDockVisitsForVesselDay", () => {
     const actualEvents: ConvexActualDockEvent[] = [];
     const predictedEvents: ConvexPredictedDockEvent[] = [];
 
-    const direct = buildDomainDockVisitsForVesselDay({
+    const visits = buildDockVisitsFromEventRows({
       scheduledEvents,
       actualEvents,
       predictedEvents,
@@ -57,7 +62,7 @@ describe("buildDomainDockVisitsForVesselDay", () => {
       sailingDay,
     });
 
-    expect(direct).toEqual([
+    expect(visits).toEqual([
       {
         Key: "none::c1--dep-dock",
         VesselAbbrev: "CAT",
@@ -80,7 +85,6 @@ describe("buildDomainDockVisitsForVesselDay", () => {
         VesselAbbrev: "CAT",
         SailingDay: sailingDay,
         TerminalAbbrev: "SHI",
-        Departure: undefined,
         Arrival: {
           Key: "c1--arv-dock",
           SegmentKey: "c1",
@@ -91,6 +95,7 @@ describe("buildDomainDockVisitsForVesselDay", () => {
           EventOccurred: undefined,
           EventActualTime: undefined,
         },
+        Departure: undefined,
       },
     ]);
   });

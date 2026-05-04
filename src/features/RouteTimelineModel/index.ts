@@ -1,7 +1,3 @@
-/**
- * Public API for route timeline domain selectors.
- */
-
 export type {
   RouteTimelineAxisGeometry,
   RouteTimelineAxisGeometryConfig,
@@ -15,15 +11,10 @@ export {
   START_OF_DAY_DOCK_VISUAL_CAP_MINUTES,
 } from "./axisGeometry";
 export type {
-  SelectJourneyDockVisitsArgs,
-  SelectTripDockVisitsArgs,
-} from "./selectors";
-export {
-  selectJourneyDockVisits,
-  selectRouteTimelineVessels,
-  selectTripDockVisits,
-  selectVesselDockVisits,
-} from "./selectors";
+  RouteTimelineBoundary,
+  RouteTimelineDockEventType,
+  RouteTimelineDockVisit,
+} from "./types";
 export type {
   RouteTimelineVisualSpan,
   RouteTimelineVisualSpanEdge,

@@ -2,10 +2,7 @@
  * Pure visual-span derivation from ordered route timeline dock visits.
  */
 
-import type {
-  RouteTimelineBoundary,
-  RouteTimelineDockVisit,
-} from "domain/timelineDockVisits";
+import type { RouteTimelineBoundary, RouteTimelineDockVisit } from "./types";
 
 export type RouteTimelineVisualSpanKind = "at-dock" | "crossing";
 export type RouteTimelineVisualSpanEdge =

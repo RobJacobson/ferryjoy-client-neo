@@ -22,14 +22,14 @@ not force a full event-table reread.
   names.
 
 There is **no** route snapshot Convex function on this screen path: timeline
-structure comes from event rows and shared **`domain/timelineDockVisits`**
-merge/visit assembly (plus **`RouteTimelineModel`** geometry helpers).
+structure comes from event rows and client-owned merge/visit assembly in
+**`renderPipeline`** (plus **`RouteTimelineModel`** geometry helpers).
 
 ## Render pipeline
 
 ```text
 scheduled / actual / predicted rows (Convex list queries)
-  -> buildDomainDockVisitsForVesselDay (domain/timelineDockVisits: merge + visits)
+  -> buildDockVisitsFromEventRows (renderPipeline: merge + visits)
   -> selectDockVisitVisualSpans + deriveRouteTimelineAxisGeometry (RouteTimelineModel)
   -> buildVesselTimelineRenderStateFromAxisGeometry
   -> VesselTimelineRenderState (rows, cards, active indicator inputs)
@@ -58,4 +58,4 @@ see feature **`config`** and **`buildVesselTimelineRenderStateFromAxisGeometry`*
 
 **`getVesselTimelineBackbone`** and other server read models may still exist for
 other consumers; this feature’s **client** path is the three **list** queries plus
-domain **`buildDomainDockVisitsForVesselDay`**.
+client-owned render-pipeline interpretation.

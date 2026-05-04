@@ -3,13 +3,13 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { RouteTimelineBoundary } from "domain/timelineDockVisits";
 import {
   DEFAULT_ROUTE_TIMELINE_AXIS_GEOMETRY_CONFIG,
   deriveRouteTimelineAxisGeometry,
   getDisplayTime,
   getLayoutTime,
 } from "../axisGeometry";
+import type { RouteTimelineBoundary } from "../types";
 import type { RouteTimelineVisualSpan } from "../visualSpans";
 
 /**

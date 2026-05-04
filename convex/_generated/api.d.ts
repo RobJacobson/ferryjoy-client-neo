@@ -69,10 +69,6 @@ import type * as domain_scheduledTrips_officialCrossingTimes from "../domain/sch
 import type * as domain_scheduledTrips_runScheduleTransformPipeline from "../domain/scheduledTrips/runScheduleTransformPipeline.js";
 import type * as domain_timelineBackbone_buildTimelineBackbone from "../domain/timelineBackbone/buildTimelineBackbone.js";
 import type * as domain_timelineBackbone_index from "../domain/timelineBackbone/index.js";
-import type * as domain_timelineDockVisits_buildDomainDockVisitsForVesselDay from "../domain/timelineDockVisits/buildDomainDockVisitsForVesselDay.js";
-import type * as domain_timelineDockVisits_index from "../domain/timelineDockVisits/index.js";
-import type * as domain_timelineDockVisits_mergedEventsToWireDockVisits from "../domain/timelineDockVisits/mergedEventsToWireDockVisits.js";
-import type * as domain_timelineDockVisits_schemas from "../domain/timelineDockVisits/schemas.js";
 import type * as domain_timelineReseed_buildReseedTimelineSlice from "../domain/timelineReseed/buildReseedTimelineSlice.js";
 import type * as domain_timelineReseed_hydrateWithHistory from "../domain/timelineReseed/hydrateWithHistory.js";
 import type * as domain_timelineReseed_index from "../domain/timelineReseed/index.js";
@@ -314,10 +310,6 @@ declare const fullApi: ApiFromModules<{
   "domain/scheduledTrips/runScheduleTransformPipeline": typeof domain_scheduledTrips_runScheduleTransformPipeline;
   "domain/timelineBackbone/buildTimelineBackbone": typeof domain_timelineBackbone_buildTimelineBackbone;
   "domain/timelineBackbone/index": typeof domain_timelineBackbone_index;
-  "domain/timelineDockVisits/buildDomainDockVisitsForVesselDay": typeof domain_timelineDockVisits_buildDomainDockVisitsForVesselDay;
-  "domain/timelineDockVisits/index": typeof domain_timelineDockVisits_index;
-  "domain/timelineDockVisits/mergedEventsToWireDockVisits": typeof domain_timelineDockVisits_mergedEventsToWireDockVisits;
-  "domain/timelineDockVisits/schemas": typeof domain_timelineDockVisits_schemas;
   "domain/timelineReseed/buildReseedTimelineSlice": typeof domain_timelineReseed_buildReseedTimelineSlice;
   "domain/timelineReseed/hydrateWithHistory": typeof domain_timelineReseed_hydrateWithHistory;
   "domain/timelineReseed/index": typeof domain_timelineReseed_index;

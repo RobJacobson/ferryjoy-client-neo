@@ -27,8 +27,7 @@ architecture rationale, read the memo linked above.
 - [VesselOrchestrator pipeline](../../convex/functions/vesselOrchestrator/VesselOrchestratorPipeline.md)
 - [VesselOrchestrator README](../../convex/functions/vesselOrchestrator/README.md)
 - [Events functions](../../convex/functions/events)
-- [Dock visit assembly (domain)](../../convex/domain/timelineDockVisits) —
-  replaced legacy `functions/routeTimeline` + `domain/routeTimeline` (Stage 5)
+- [VesselTimeline render pipeline](../../src/features/VesselTimeline/renderPipeline)
 - [Official Convex rules](../convex_rules.mdc)
 - [Opinionated Convex guide](../opinionated-convex-guide.md)
 - [Convex realtime docs](https://docs.convex.dev/realtime)
@@ -49,8 +48,8 @@ architecture rationale, read the memo linked above.
   functions.
 - Event merge semantics remain covered by tests, especially actual attachment
   and prediction precedence.
-- `convex/functions/routeTimeline` and `convex/domain/routeTimeline` are removed
-  after consumers migrate to `domain/timelineDockVisits` (Stage 5 — done).
+- `convex/functions/routeTimeline`, `convex/domain/routeTimeline`, and
+  `convex/domain/timelineDockVisits` are removed from the `VesselTimeline` path.
 - Typecheck and relevant tests pass:
   `bun run type-check`, `bun run convex:typecheck`, and targeted test commands.
 
@@ -313,11 +312,11 @@ timeline provider tree.
 
 ## Stage 5: delete legacy routeTimeline
 
-**Completed (2026-05-03):** Shared dock-visit assembly moved to
-`convex/domain/timelineDockVisits/` (not a wholesale delete of merge logic).
+**Completed (2026-05-03):** Dock-visit assembly moved to the client-owned
+`VesselTimeline` render pipeline.
 `convex/functions/routeTimeline`, `convex/domain/routeTimeline`, and
-`ConvexRouteTimelineContext` are removed; public event queries unchanged by name;
-internal readers consolidated to `read*ForVesselSailingDay`. See
+`ConvexRouteTimelineContext` are removed; public event queries are unchanged by
+name; internal readers consolidated to `read*ForVesselSailingDay`. See
 [Stage 5 handoff](./2026-05-03-stage-5-route-timeline-removal-and-event-query-consolidation-handoff.md).
 
 ### Goal (original PRD wording)
@@ -327,9 +326,10 @@ Remove `convex/functions/routeTimeline` after all production consumers are gone.
 ### What was removed or relocated
 
 - Deleted: `convex/functions/routeTimeline`, `convex/domain/routeTimeline`, route
-  snapshot–only tests, `ConvexRouteTimelineContext`.
-- Added: `convex/domain/timelineDockVisits/` (wire + merge + dock visits +
-  `buildDomainDockVisitsForVesselDay`).
+  snapshot–only tests, `ConvexRouteTimelineContext`,
+  `convex/domain/timelineDockVisits`.
+- Added: client-owned merge and dock-visit assembly under
+  `src/features/VesselTimeline/renderPipeline`.
 - Updated: `convex/functions/index.ts`, codegen, engineering and feature docs
   (continue `rg "routeTimeline"` for stragglers).
 
