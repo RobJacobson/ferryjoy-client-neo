@@ -11,7 +11,7 @@ import {
   buildScheduledDockEvents,
   type TripContextForActualRow,
 } from "domain/events";
-import type { ConvexActualDockEvent } from "domain/events/actual/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { generateTripKey } from "shared/physicalTripIdentity";

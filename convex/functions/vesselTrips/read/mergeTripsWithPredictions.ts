@@ -3,12 +3,12 @@
  * API reads.
  */
 
-import {
-  type ConvexPredictedDockEvent,
-  type ConvexPredictionSource,
-  type PredictionType,
-  predictedDockCompositeKey,
-} from "domain/events/predicted/schemas";
+import { predictedDockCompositeKey } from "domain/events/predicted/schemas";
+import type {
+  ConvexPredictedDockEvent,
+  ConvexPredictionSource,
+} from "functions/events/eventsPredicted/schemas";
+import type { PredictionType } from "functions/predictions/schemas";
 import type {
   ConvexJoinedTripPrediction,
   ConvexVesselTrip,

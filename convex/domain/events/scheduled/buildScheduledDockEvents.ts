@@ -5,9 +5,9 @@
  * while reload orchestration decides when the rows should be persisted.
  */
 
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { buildBoundaryKey } from "../../../shared/keys";
 import type { DockBoundaryEventRecord } from "../types";
-import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
  * Maps neutral boundary records into Convex scheduled dock rows for one slice.

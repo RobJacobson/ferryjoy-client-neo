@@ -7,14 +7,14 @@
  * is the neutral boundary-event row that downstream confirmation gates use.
  */
 
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { groupBy } from "../../../../shared/groupBy";
 import {
   getBoundaryTime,
   getSegmentKeyFromBoundaryKey,
   sortScheduledDockEvents,
 } from "../../scheduled/scheduledSegmentResolvers";
-import type { ConvexScheduledDockEvent } from "../../scheduled/schemas";
-import type { ConvexActualDockEvent } from "../schemas";
 import type { LocationReconcileBoundaryEvent } from "./types";
 
 /**

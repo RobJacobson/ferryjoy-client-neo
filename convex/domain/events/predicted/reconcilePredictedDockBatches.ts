@@ -6,13 +6,13 @@
  */
 
 import type { Id } from "_generated/dataModel";
+import type {
+  ConvexPredictedDockEvent,
+  ConvexPredictedDockWriteRow,
+} from "functions/events/eventsPredicted/schemas";
 import { buildVesselSailingDayScopeKey } from "shared/keys";
 import { DEPART_NEXT_ML_PREDICTION_TYPES } from "./departNextActualization";
-import {
-  type ConvexPredictedDockEvent,
-  type ConvexPredictedDockWriteRow,
-  predictedDockCompositeKey,
-} from "./schemas";
+import { predictedDockCompositeKey } from "./schemas";
 
 export type ExistingPredictedDockRow = ConvexPredictedDockEvent & {
   _id: Id<"eventsPredicted">;

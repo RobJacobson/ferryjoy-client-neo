@@ -3,8 +3,8 @@
  * persistability, and merge-with-existing before normalization.
  */
 
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type {
-  ConvexActualDockEvent,
   ConvexActualDockWrite,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,

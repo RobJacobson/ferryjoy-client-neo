@@ -9,15 +9,13 @@
  * stage stays unit-testable.
  */
 
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
 import { groupBy } from "../../../../shared/groupBy";
 import { getSailingDay } from "../../../../shared/time";
-import type { ConvexScheduledDockEvent } from "../../scheduled/schemas";
 import { enrichActualDockWritesWithTripContext } from "../bindActualRowsToTrips";
-import type {
-  ConvexActualDockEvent,
-  ConvexActualDockWritePersistable,
-} from "../schemas";
+import type { ConvexActualDockWritePersistable } from "../schemas";
 import { buildLocationReconcileBoundaryEvents } from "./alignActualEventsToScheduledBoundaries";
 import { buildActualDockWritesFromLocation } from "./buildActualDockWritesFromLocation";
 import { buildPhysicalOnlyPatchesFromLocation } from "./buildPhysicalOnlyPatchesFromLocation";

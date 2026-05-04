@@ -7,14 +7,16 @@
  * modules share one vocabulary without circular imports.
  */
 
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type {
+  ConvexScheduledDockEvent,
+  DockEventType,
+} from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
-import type { DockEventType } from "../../scheduled";
-import type { ConvexScheduledDockEvent } from "../../scheduled/schemas";
 import type {
   ActiveTripForPhysicalActualReconcile,
   TripContextForActualRow,
 } from "../bindActualRowsToTrips";
-import type { ConvexActualDockEvent } from "../schemas";
 
 type VesselEventsByAbbrev<T extends { VesselAbbrev: string }> = Map<
   string,

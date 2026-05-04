@@ -5,18 +5,18 @@
  * and clear scopes used by the orchestrator mutation layer.
  */
 
-import type { ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
-import {
-  buildBoundaryKey,
-  buildTripPredictionBoundaryKeys,
-} from "../../../shared/keys";
 import type {
   ConvexPredictedDockEvent,
   ConvexPredictedDockWriteBatch,
   ConvexPredictedDockWriteRow,
   ConvexPredictionSource,
-  PredictionType,
-} from "./schemas";
+} from "functions/events/eventsPredicted/schemas";
+import type { PredictionType } from "functions/predictions/schemas";
+import type { ConvexVesselTripWithML } from "../../../functions/vesselTrips/schemas";
+import {
+  buildBoundaryKey,
+  buildTripPredictionBoundaryKeys,
+} from "../../../shared/keys";
 import { predictedDockCompositeKey } from "./schemas";
 
 /**

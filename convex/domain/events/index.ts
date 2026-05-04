@@ -1,12 +1,4 @@
 export type {
-  ActualDockWriteAnchor,
-  ConvexActualDockEvent,
-  ConvexActualDockWrite,
-  ConvexActualDockWriteBase,
-  ConvexActualDockWritePersistable,
-  ConvexActualDockWriteWithTripKey,
-} from "./actual";
-export type {
   ActiveTripForPhysicalActualReconcile,
   TripContextForActualRow,
 } from "./actual/bindActualRowsToTrips";
@@ -30,24 +22,12 @@ export {
   reconcileActualDockWritesFromLocations,
 } from "./actual/reconcileDockTransitionsFromLocations";
 export { buildDockEventRowsForSailingDayReload } from "./actual/reloadDockEventsForSailingDay";
-export type {
-  ConvexPredictedDockEvent,
-  ConvexPredictedDockWriteBatch,
-  ConvexPredictedDockWriteRow,
-  ConvexPredictionSource,
-  PredictionType,
-} from "./predicted";
-export { predictedDockCompositeKey } from "./predicted";
 export {
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,
 } from "./predicted/buildPredictedDockEventEffects";
+export { predictedDockCompositeKey } from "./predicted/predictedDockCompositeKey";
 export { buildHydratedTransitionsFromReloadInputs } from "./reload/buildHydratedTransitionsFromReloadInputs";
-export type {
-  ConvexInferredScheduledSegment,
-  ConvexScheduledDockEvent,
-  DockEventType,
-} from "./scheduled";
 export {
   buildScheduledDockEventRecords,
   getDirectRawSeedSegments,
@@ -60,6 +40,12 @@ export {
   sortScheduledDockEvents,
 } from "./scheduled/scheduledSegmentResolvers";
 export type {
+  ActualDockWriteAnchor,
+  ConvexActualDockWrite,
+  ConvexActualDockWriteBase,
+  ConvexActualDockWritePersistable,
+  ConvexActualDockWriteWithTripKey,
+  ConvexInferredScheduledSegment,
   DockBoundaryEventRecord,
   DockTransitionRecord,
 } from "./types";

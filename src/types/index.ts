@@ -1,9 +1,15 @@
 export {
   type ActualDockEvent,
-  type ScheduledDockEvent,
   toDomainActualDockEvent,
+} from "convex/functions/events/eventsActual/schemas";
+export {
+  type PredictedDockEvent,
+  toDomainPredictedDockEvent,
+} from "convex/functions/events/eventsPredicted/schemas";
+export {
+  type ScheduledDockEvent,
   toDomainScheduledDockEvent,
-} from "convex/domain/events/dockEventToDomain";
+} from "convex/functions/events/eventsScheduled/schemas";
 export {
   type ScheduledTrip,
   toDomainScheduledTrip,

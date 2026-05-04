@@ -8,9 +8,9 @@
  * keeping reconcile resilient to late or stale schedule data.
  */
 
+import type { DockEventType } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../../shared/keys";
-import type { DockEventType } from "../../scheduled";
 import type { ConvexActualDockWrite } from "../schemas";
 import { strongArrival, strongDeparture } from "./locationMotionGates";
 import type { LocationReconcileBoundaryEvent } from "./types";
