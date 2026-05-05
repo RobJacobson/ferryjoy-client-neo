@@ -2,11 +2,7 @@ import { api } from "convex/_generated/api";
 import { useConvexConnectionState, useQuery } from "convex/react";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  type ConvexVesselPing,
-  toVesselPing,
-  type VesselPing,
-} from "@/types";
+import { type ConvexVesselPing, toVesselPing, type VesselPing } from "@/types";
 
 type VesselPingsByVesselAbbrev = Record<string, VesselPing[]>;
 
@@ -16,7 +12,7 @@ type VesselPingsByVesselAbbrev = Record<string, VesselPing[]>;
  * Provides access to vessel pings data with loading and error states
  */
 type ConvexVesselPingsContextType = {
-  /** Map of `VesselAbbrev` → pings sorted by time (most recent first) */
+  /** Map of vessel abbreviation to pings sorted by time (most recent first) */
   vesselPingsByVesselAbbrev: VesselPingsByVesselAbbrev;
   /** Loading state for vessel pings data */
   isLoading: boolean;
@@ -28,14 +24,14 @@ type ConvexVesselPingsContextType = {
  * React context for sharing vessel pings data across the app.
  *
  * This context provides access to vessel pings data with loading and error states.
- * It loads recent pings from Convex and groups them by `VesselAbbrev`.
+ * It loads recent pings from Convex and groups them by vessel abbreviation.
  * Components can consume this context using the useConvexVesselPings hook.
  */
 const ConvexVesselPingsContext = createContext<
   ConvexVesselPingsContextType | undefined
 >(undefined);
 
-/** Refreshes the time window used by the pings query (client clock; avoids `Date.now()` in queries). */
+/** Refreshes the time window used by the pings query (client clock; avoids Date.now in Convex queries). */
 const QUERY_NOW_REFRESH_MS = 30_000;
 
 /**

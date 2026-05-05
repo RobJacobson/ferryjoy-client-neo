@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { PREDICTION_SPECS } from "domain/ml/prediction/vesselTripPredictions";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import {
   getPredictionModelTypesFromTrip,
   getRunnablePredictionSpecsFromTrip,
@@ -17,7 +16,7 @@ const makeTrip = (
     DepartingTerminalAbbrev: "ORI",
     ArrivingTerminalAbbrev: "LOP",
     RouteAbbrev: "ana-sj",
-    TripKey: generateTripKey("CHE", ms("2026-03-13T09:00:00-07:00")),
+    TripKey: "CHE--2026-03-13--09:30--ORI-LOP",
     ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
     SailingDay: "2026-03-13",
     PrevTerminalAbbrev: "SHI",

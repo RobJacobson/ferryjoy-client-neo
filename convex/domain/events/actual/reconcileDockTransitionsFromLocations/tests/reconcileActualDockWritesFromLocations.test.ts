@@ -14,7 +14,6 @@ import {
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildLocationReconcileBoundaryEvents } from "../alignActualEventsToScheduledBoundaries";
 import { reconcileActualDockWritesFromLocations } from "../reconcileActualDockWritesFromLocations";
 
@@ -22,11 +21,11 @@ const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
 
 /**
- * Builds a segment-key → trip context map for seed events (unique TripKey per
- * segment) so PR3 patches and hydrated actuals resolve `TripKey`.
+ * Builds a segment-key → trip context map for seed events so patches and
+ * hydrated actuals resolve TripKey (TripKey matches ScheduleKey segment string).
  *
  * @param events - Seed boundary events
- * @returns Map for `buildActualDockEvents` / `tripBySegmentKey`
+ * @returns Map for buildActualDockEvents and tripBySegmentKey
  */
 const tripIndexFromSeedEvents = (
   events: { SegmentKey: string }[]
@@ -34,9 +33,9 @@ const tripIndexFromSeedEvents = (
   const map = new Map<string, TripContextForActualRow>();
   const segments = [...new Set(events.map((e) => e.SegmentKey))];
 
-  for (const [i, seg] of segments.entries()) {
+  for (const seg of segments) {
     map.set(seg, {
-      TripKey: generateTripKey("TOK", Date.UTC(2026, 2, 13, 8 + i, 35)),
+      TripKey: seg,
       ScheduleKey: seg,
     });
   }

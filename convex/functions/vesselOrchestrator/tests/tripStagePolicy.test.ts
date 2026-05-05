@@ -1,6 +1,6 @@
 /**
- * Policy tests for domain `updateVesselTrip`: non-null sparse updates vs
- * `null` when the domain emits no durable writes. Keeps trip gating explicit
+ * Policy tests for domain updateVesselTrip: non-null sparse updates vs
+ * null when the domain emits no durable writes. Keeps trip gating explicit
  * without running the full orchestrator ping.
  */
 
@@ -9,7 +9,6 @@ import type { UpdateVesselTripDbAccess } from "domain/vesselOrchestration/update
 import { updateVesselTrip } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -21,7 +20,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",

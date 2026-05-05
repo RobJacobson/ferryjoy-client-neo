@@ -1,3 +1,8 @@
+/**
+ * WSF realtime branch helpers for resolving schedule-facing fields on active
+ * trips when the ping carries destination and scheduled departure.
+ */
+
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildSegmentKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
@@ -12,12 +17,13 @@ export type WsfCompleteSchedulePing = ConvexVesselLocation & {
 /**
  * Builds resolved current-trip fields from authoritative WSF feed values.
  *
- * @param location - Ping with `ScheduledDeparture` and `ArrivingTerminalAbbrev`
- *   set (WSF-complete guard); same shape as `ConvexVesselLocation` with those
- *   fields required. Callers must use the WSF-complete schedule branch guard.
- * @returns Schedule-only resolved fields (canonical {@link buildSegmentKey},
- *   {@link getSailingDay}, source). Destination and departure stay on the ping;
- *   callers merge them into `resolution.current` when applying to a trip row.
+ * @param location - Ping with ScheduledDeparture and ArrivingTerminalAbbrev
+ *   set after the WSF-complete guard; those fields are required. Callers must
+ *   use the WSF-complete schedule branch guard.
+ * @returns Schedule-only fields: segment ScheduleKey from buildSegmentKey,
+ *   SailingDay from getSailingDay, and
+ *   resolution method tag. Callers merge with destination and departure on the
+ *   ping into resolution current when applying to a trip row.
  */
 export const getTripFieldsFromWsf = (
   location: WsfCompleteSchedulePing

@@ -1,5 +1,5 @@
 /**
- * Tests `persistVesselUpdates`: handler ordering and delegation to nested
+ * Tests persistVesselUpdates: handler ordering and delegation to nested
  * upsert helpers (active/completed trip, event rows, patches).
  */
 
@@ -8,7 +8,6 @@ import type { MutationCtx } from "_generated/server";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { persistVesselUpdates } from "../mutations";
 
 type PersistVesselUpdatesHandler = (
@@ -41,7 +40,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
@@ -66,7 +65,7 @@ const makeTrip = (
 });
 
 const makeActualEvent = (vesselAbbrev: string): ConvexActualDockEvent => ({
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   VesselAbbrev: vesselAbbrev,
   SailingDay: "2026-03-13",

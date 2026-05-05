@@ -1,11 +1,16 @@
 /**
  * Active-trip row shaping for first-seen, replacement, and continuing updates.
+ *
+ * TripKey on returned rows is provisional: cold and new paths use the segment
+ * string from deriveTripIdentity when the feed supplies enough geometry,
+ * otherwise an empty string until schedule merge fills ScheduleKey.
+ * applyScheduleForActiveTrip then assigns the canonical segment TripKey after
+ * schedule merge.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { deriveTripIdentity, type TripIdentity } from "shared/tripIdentity";
 import { didLeaveDock, leftDockTimeForUpdate } from "./lifecycleSignals";
 
@@ -217,7 +222,7 @@ const buildColdStartActiveTrip = (
 
   return {
     ...buildLiveLocationFields(curr),
-    TripKey: generateTripKey(curr.VesselAbbrev, curr.TimeStamp),
+    TripKey: identity.ScheduleKey ?? "",
     ...buildCreationScheduleFields(curr, identity),
     ...buildCreationPathUnsetAggregateFields(),
     PrevTerminalAbbrev: undefined,
@@ -246,7 +251,7 @@ const buildNewActiveTrip = (context: BuildTripContext): ConvexVesselTrip => {
 
   return {
     ...buildLiveLocationFields(curr),
-    TripKey: generateTripKey(curr.VesselAbbrev, curr.TimeStamp),
+    TripKey: identity.ScheduleKey ?? "",
     ...buildCreationScheduleFields(curr, identity),
     ...buildCreationPathUnsetAggregateFields(),
     ...buildPriorLegFields(priorLeg),

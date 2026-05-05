@@ -10,7 +10,6 @@ import type {
 } from "domain/events";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { buildDockEventRowsForSailingDayReload } from "../reloadDockEventsForSailingDay";
 
 const at = (hours: number, minutes: number) =>
@@ -24,9 +23,9 @@ const tripIndexFromSeedEvents = (
   const map = new Map<string, TripContextForActualRow>();
   const segments = [...new Set(events.map((e) => e.SegmentKey))];
 
-  for (const [i, seg] of segments.entries()) {
+  for (const seg of segments) {
     map.set(seg, {
-      TripKey: generateTripKey("TOK", Date.UTC(2026, 2, 13, 8 + i, 35)),
+      TripKey: seg,
       ScheduleKey: seg,
     });
   }

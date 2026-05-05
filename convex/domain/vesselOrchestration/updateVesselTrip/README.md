@@ -25,12 +25,27 @@ updateVesselTrip
   -> isNewTrip
   -> buildCompleteTrip? (only when replacement/new trip signal)
   -> buildActiveTrip
-  -> applyScheduleForActiveTrip
+  -> applyScheduleForActiveTrip (schedule merge, then canonical TripKey)
   -> isSameVesselTrip
 ```
 
 The orchestrator calls this per vessel inside its ping loop so failures stay
 isolated.
+
+## TripKey and ScheduleKey
+
+`ScheduleKey` on the active trip row is the schedule segment identity string from
+WSF realtime merge or inferred segments (next-key continuity, schedule tables).
+
+`TripKey` uses that same segment string whenever geometry is known: after each
+ping, `assignCanonicalTripKey` runs inside `applyScheduleForActiveTrip`. When the
+ping carries both `ScheduledDeparture` and `ArrivingTerminalAbbrev`, TripKey is
+recomputed from those feed fields (Pacific-local segment formatting via
+`buildSegmentKey`), which corrects earlier inference when better data arrives.
+When WSF omits those fields but the merged row still has `ScheduleKey`, TripKey
+matches `ScheduleKey`. When geometry is still incomplete, TripKey stays on the
+provisional row (possibly empty until merge) or carries forward from the prior
+active trip until a segment can be formed.
 
 ## Contracts this module enforces
 
@@ -56,7 +71,8 @@ isolated.
   - `tripComparison.ts` — durable equality checks
   - `stripTripPredictionsForStorage.ts` — comparison normalization (predictions stripped)
 - `schedule/` — schedule-facing policy and resolution
-  - `scheduleForActiveTrip.ts` — schedule field policy for active rows
+  - `scheduleForActiveTrip.ts` — schedule field policy for active rows; ends with canonical TripKey assignment
+  - `assignCanonicalTripKey.ts` — segment TripKey from WSF-complete pings or merged ScheduleKey
   - `scheduleEnrichment.ts` — merge resolved schedule into a trip row
   - `activeTripSchedule/` — resolution helpers (WSF realtime, next-key, schedule tables)
 - `tripLifecycle.ts` — compatibility helpers for downstream row-diff consumers

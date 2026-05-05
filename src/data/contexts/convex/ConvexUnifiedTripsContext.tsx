@@ -129,8 +129,7 @@ const ConvexUnifiedTripsDataFetcher = ({
 
   const scheduledTrips = rawScheduledTrips?.map(toScheduledTrip) ?? [];
   const activeVesselTrips = rawActiveVesselTrips?.map(toVesselTrip) ?? [];
-  const completedVesselTrips =
-    rawCompletedVesselTrips?.map(toVesselTrip) ?? [];
+  const completedVesselTrips = rawCompletedVesselTrips?.map(toVesselTrip) ?? [];
 
   const isLoading =
     rawScheduledTrips === undefined ||
@@ -229,7 +228,7 @@ export const useUnifiedTrips = () => {
 
 /**
  * Build a record mapping schedule segment key to unified trip data with denormalized fields.
- * Scheduled rows use `Key`; vessel trips use `ScheduleKey` when aligned.
+ * Scheduled rows use Key; vessel trips use ScheduleKey when aligned.
  *
  * @param scheduledTrips - Direct scheduled trips (all have Key)
  * @param activeVesselTrips - Active vessel trips (ScheduleKey optional)

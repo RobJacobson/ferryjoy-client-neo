@@ -3,7 +3,6 @@ import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/sch
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import type { UpdateVesselTripDbAccess } from "../types";
 import { updateVesselTrip } from "../updateVesselTrip";
@@ -48,7 +47,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey("CHE", ms("2026-03-13T04:33:00-07:00")),
+  TripKey: "CHE--2026-03-13--05:30--ANA-ORI",
   ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",

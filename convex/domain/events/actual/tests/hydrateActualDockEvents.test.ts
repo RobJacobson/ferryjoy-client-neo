@@ -5,6 +5,7 @@ import { describe, expect, it } from "bun:test";
 import type { TerminalIdentity, VesselIdentity } from "adapters";
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import type { DockBoundaryEventRecord } from "domain/events";
+import type { DockEventType } from "functions/events/eventsScheduled/schemas";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { buildScheduledDockEventRecords } from "../../scheduled/buildScheduledDockEventRecords";
 import { createSeededScheduleSegmentResolver } from "../../scheduled/scheduleDepartureLookup";
@@ -19,6 +20,19 @@ import { hydrateActualDockEvents } from "../hydrateActualDockEvents";
  */
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
+
+/**
+ * Looks up EventActualTime by boundary type; seeded rows sort arrival before
+ * departure at equal ScheduledDeparture, so positional indexing is brittle.
+ *
+ * @param events - Hydrated boundary records for one slice
+ * @param eventType - dep-dock or arv-dock
+ * @returns Actual time when present
+ */
+const eventActualTimeByType = (
+  events: DockBoundaryEventRecord[],
+  eventType: DockEventType
+) => events.find((e) => e.EventType === eventType)?.EventActualTime;
 
 const backendVessels: VesselIdentity[] = [
   {
@@ -91,8 +105,12 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
+    expect(eventActualTimeByType(mergedEvents, "dep-dock")).toBe(
+      at(14, 10).getTime()
+    );
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBe(
+      at(14, 24).getTime()
+    );
   });
 
   it("keeps departure actuals when history differs by less than three minutes", () => {
@@ -102,11 +120,13 @@ describe("hydrateActualDockEvents", () => {
       backendVessels,
       backendTerminals
     );
-    const existingEvents = seededEvents.map((event, index) =>
+    const existingEvents = seededEvents.map((event) =>
       makeEvent({
         ...event,
         EventActualTime:
-          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+          event.EventType === "dep-dock"
+            ? at(14, 9).getTime()
+            : at(14, 23).getTime(),
       })
     );
 
@@ -128,7 +148,9 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 9).getTime());
+    expect(eventActualTimeByType(mergedEvents, "dep-dock")).toBe(
+      at(14, 9).getTime()
+    );
   });
 
   it("keeps arrival actuals when ETA proxy differs by only one minute", () => {
@@ -138,11 +160,13 @@ describe("hydrateActualDockEvents", () => {
       backendVessels,
       backendTerminals
     );
-    const existingEvents = seededEvents.map((event, index) =>
+    const existingEvents = seededEvents.map((event) =>
       makeEvent({
         ...event,
         EventActualTime:
-          index === 0 ? at(14, 9).getTime() : at(14, 23).getTime(),
+          event.EventType === "dep-dock"
+            ? at(14, 9).getTime()
+            : at(14, 23).getTime(),
       })
     );
 
@@ -164,7 +188,9 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 23).getTime());
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBe(
+      at(14, 23).getTime()
+    );
   });
 
   it("replaces departure actuals when history differs by three minutes or more", () => {
@@ -174,11 +200,13 @@ describe("hydrateActualDockEvents", () => {
       backendVessels,
       backendTerminals
     );
-    const existingEvents = seededEvents.map((event, index) =>
+    const existingEvents = seededEvents.map((event) =>
       makeEvent({
         ...event,
         EventActualTime:
-          index === 0 ? at(14, 5).getTime() : at(14, 18).getTime(),
+          event.EventType === "dep-dock"
+            ? at(14, 5).getTime()
+            : at(14, 18).getTime(),
       })
     );
 
@@ -200,8 +228,12 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
+    expect(eventActualTimeByType(mergedEvents, "dep-dock")).toBe(
+      at(14, 10).getTime()
+    );
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBe(
+      at(14, 24).getTime()
+    );
   });
 
   it("replaces arrival actuals when ETA proxy differs by two minutes or more", () => {
@@ -211,11 +243,13 @@ describe("hydrateActualDockEvents", () => {
       backendVessels,
       backendTerminals
     );
-    const existingEvents = seededEvents.map((event, index) =>
+    const existingEvents = seededEvents.map((event) =>
       makeEvent({
         ...event,
         EventActualTime:
-          index === 0 ? at(14, 9).getTime() : at(14, 22).getTime(),
+          event.EventType === "dep-dock"
+            ? at(14, 9).getTime()
+            : at(14, 22).getTime(),
       })
     );
 
@@ -237,7 +271,9 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBe(
+      at(14, 24).getTime()
+    );
   });
 
   it("backfills departure actuals even when the arrival proxy is missing", () => {
@@ -265,8 +301,10 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.EventActualTime).toBeUndefined();
+    expect(eventActualTimeByType(mergedEvents, "dep-dock")).toBe(
+      at(14, 10).getTime()
+    );
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBeUndefined();
   });
 
   it("fallback-matches departure when history omits Arriving (CAT-style row)", () => {
@@ -294,8 +332,10 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.EventActualTime).toBeUndefined();
+    expect(eventActualTimeByType(mergedEvents, "dep-dock")).toBe(
+      at(14, 10).getTime()
+    );
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBeUndefined();
   });
 
   it("fallback-matches both boundaries when Arriving is null but EstArrival is set", () => {
@@ -323,8 +363,12 @@ describe("hydrateActualDockEvents", () => {
       terminals: backendTerminals,
     });
 
-    expect(mergedEvents[0]?.EventActualTime).toBe(at(14, 10).getTime());
-    expect(mergedEvents[1]?.EventActualTime).toBe(at(14, 24).getTime());
+    expect(eventActualTimeByType(mergedEvents, "dep-dock")).toBe(
+      at(14, 10).getTime()
+    );
+    expect(eventActualTimeByType(mergedEvents, "arv-dock")).toBe(
+      at(14, 24).getTime()
+    );
   });
 });
 

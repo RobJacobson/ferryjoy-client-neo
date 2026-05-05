@@ -2,7 +2,6 @@ import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/sch
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
 import type { UpdateVesselTripDbAccess } from "../../../types";
 
@@ -46,7 +45,7 @@ export const makeTrip = (
   DepartingTerminalAbbrev: "CLI",
   ArrivingTerminalAbbrev: "MUK",
   RouteAbbrev: "muk-cl",
-  TripKey: generateTripKey("CHE", ms("2026-03-13T11:08:00-07:00")),
+  TripKey: "CHE--2026-03-13--11:00--CLI-MUK",
   ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",

@@ -20,6 +20,13 @@ import {
 import { predictedDockCompositeKey } from "./schemas";
 
 /**
+ * Current sailing segment string: schedule anchor when present, else physical
+ * TripKey (same format for schedule-backed legs).
+ */
+const currentLegSegment = (trip: { ScheduleKey?: string; TripKey: string }) =>
+  trip.ScheduleKey ?? trip.TripKey;
+
+/**
  * Builds the prediction projection write batch for one active trip row.
  *
  * TargetKeys enumerate boundary keys that reconciliation may delete when absent,
@@ -155,8 +162,9 @@ const getCurrentDeparturePrediction = (
   trip: ConvexVesselTripWithML,
   updatedAt: number
 ) => {
+  const segment = currentLegSegment(trip);
   if (
-    !trip.ScheduleKey ||
+    !segment ||
     trip.ScheduledDeparture === undefined ||
     !trip.AtDockDepartCurr
   ) {
@@ -164,7 +172,7 @@ const getCurrentDeparturePrediction = (
   }
 
   return buildPredictedBoundaryEvent({
-    Key: buildBoundaryKey(trip.ScheduleKey, "dep-dock"),
+    Key: buildBoundaryKey(segment, "dep-dock"),
     VesselAbbrev: trip.VesselAbbrev,
     SailingDay: trip.SailingDay ?? "",
     UpdatedAt: updatedAt,
@@ -191,15 +199,16 @@ const getCurrentArrivalPredictions = (
   trip: ConvexVesselTripWithML,
   updatedAt: number
 ): ConvexPredictedDockEvent[] => {
+  const segment = currentLegSegment(trip);
   if (
-    !trip.ScheduleKey ||
+    !segment ||
     trip.ScheduledDeparture === undefined ||
     !trip.ArrivingTerminalAbbrev
   ) {
     return [];
   }
 
-  const arvKey = buildBoundaryKey(trip.ScheduleKey, "arv-dock");
+  const arvKey = buildBoundaryKey(segment, "arv-dock");
   const base = {
     Key: arvKey,
     VesselAbbrev: trip.VesselAbbrev,

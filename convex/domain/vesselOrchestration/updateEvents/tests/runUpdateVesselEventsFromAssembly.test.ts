@@ -4,7 +4,6 @@ import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
 } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { projectEventsFromHandoff } from "../projectEventsFromHandoff";
 import { updateEvents } from "../updateEvents";
 
@@ -18,7 +17,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
@@ -105,14 +104,14 @@ describe("updateEvents", () => {
   it("projects completed rollover clears and replacement predicted rows", () => {
     const existingTrip = makeTrip("TAC", {
       ScheduleKey: "TAC--2026-03-13--05:30--ANA-ORI",
-      TripKey: generateTripKey("TAC", ms("2026-03-13T04:33:00-07:00")),
+      TripKey: "TAC--2026-03-13--05:30--ANA-ORI",
     });
     const completedTrip = makeTrip("TAC", {
       ...existingTrip,
       TripEnd: ms("2026-03-13T06:42:00-07:00"),
     });
     const replacementTrip = makeTrip("TAC", {
-      TripKey: generateTripKey("TAC", ms("2026-03-13T06:43:00-07:00")),
+      TripKey: "TAC--2026-03-13--06:45--ORI-ANA",
       ScheduleKey: "TAC--2026-03-13--06:45--ORI-ANA",
       ScheduledDeparture: ms("2026-03-13T06:45:00-07:00"),
       DepartingTerminalAbbrev: "ORI",

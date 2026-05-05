@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { eventHandoffFromTripUpdate } from "../eventHandoffFromTripUpdate";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -13,7 +12,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
@@ -44,7 +43,7 @@ describe("eventHandoffFromTripUpdate", () => {
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
     });
     const replacement = makeTrip("CHE", {
-      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
+      TripKey: "CHE--2026-03-13--06:50--ORI-LOP",
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "LOP",
       ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",
@@ -106,7 +105,7 @@ describe("eventHandoffFromTripUpdate", () => {
       TripEnd: ms("2026-03-13T06:45:00-07:00"),
     });
     const replacement = makeTrip("CHE", {
-      TripKey: generateTripKey("CHE", ms("2026-03-13T06:46:00-07:00")),
+      TripKey: "CHE--2026-03-13--06:50--ORI-LOP",
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: "LOP",
       ScheduleKey: "CHE--2026-03-13--06:50--ORI-LOP",

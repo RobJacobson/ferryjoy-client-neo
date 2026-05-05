@@ -14,32 +14,30 @@ import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 /**
  * Computes storage and lifecycle changes for one vessel ping.
  *
- * @param vesselLocation - Latest location ping for one vessel
- * @param existingActiveTrip - Existing active trip row for that vessel, when present
+ * @param currLocation - Latest location ping for one vessel
+ * @param prevTrip - Existing active trip row for that vessel, when present
  * @param dbAccess - Schedule tables used to enrich new-trip rows (see
  *   applyScheduleForActiveTrip); not consulted on every ping.
  * @returns Trip update when substantive changes exist, otherwise `null`
  */
 const updateVesselTrip = async (
-  vesselLocation: ConvexVesselLocation,
-  existingActiveTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation,
+  prevTrip: ConvexVesselTrip | undefined,
   dbAccess: UpdateVesselTripDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
     // Extract continuity context from the prior active trip row.
-    const prev = existingActiveTrip;
-    const curr = vesselLocation;
-    const isNewTrip = lifecycle.isNewTrip(prev, curr);
+    const isNewTrip = lifecycle.isNewTrip(prevTrip, currLocation);
     const completedVesselTrip =
-      isNewTrip && prev !== undefined
-        ? buildCompleteTrip(prev, curr)
+      isNewTrip && prevTrip !== undefined
+        ? buildCompleteTrip(prevTrip, currLocation)
         : undefined;
 
     // Build the active trip row for this ping.
     const activeTrip = buildActiveTrip({
-      prev,
+      prev: prevTrip,
       completedVesselTrip,
-      curr,
+      curr: currLocation,
       isNewTrip,
     });
 
@@ -47,15 +45,15 @@ const updateVesselTrip = async (
     // trip rollover while InService; WSF pings use a sync merge path instead.
     const activeVesselTrip = await applyScheduleForActiveTrip({
       activeTrip,
-      prev,
-      location: curr,
+      prevTrip: prevTrip,
+      currLocation: currLocation,
       isNewTrip,
       dbAccess,
     });
 
     // Check if the active vessel trip has meaningfully changed.
     const isActiveVesselTripUnchanged = isSameVesselTrip(
-      prev,
+      prevTrip,
       activeVesselTrip
     );
 
@@ -66,18 +64,18 @@ const updateVesselTrip = async (
 
     // Return the completed vessel trip update (if any) and the active vessel trip update (if any).
     return {
-      vesselAbbrev: vesselLocation.VesselAbbrev,
-      existingVesselTrip: existingActiveTrip,
+      vesselAbbrev: currLocation.VesselAbbrev,
+      existingVesselTrip: prevTrip,
       activeVesselTrip,
       completedVesselTrip,
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("[updateVesselTrip] failed trip update", {
-      vesselAbbrev: vesselLocation.VesselAbbrev,
-      locationTimeStamp: vesselLocation.TimeStamp,
-      existingTripKey: existingActiveTrip?.TripKey,
-      existingScheduleKey: existingActiveTrip?.ScheduleKey,
+      vesselAbbrev: currLocation.VesselAbbrev,
+      locationTimeStamp: currLocation.TimeStamp,
+      existingTripKey: prevTrip?.TripKey,
+      existingScheduleKey: prevTrip?.ScheduleKey,
       message: err.message,
       stack: err.stack,
     });

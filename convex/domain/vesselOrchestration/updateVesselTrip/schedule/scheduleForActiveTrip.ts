@@ -2,10 +2,10 @@
  * Schedule policy application for active-trip rows.
  *
  * This module owns schedule-field resolution for the already-built active trip
- * row during one orchestrator tick. It is used by `updateVesselTrip` to
- * stabilize `ScheduleKey`, `ScheduledDeparture`, and next-leg hints when WSF
+ * row during one orchestrator tick. It is used by updateVesselTrip to
+ * stabilize ScheduleKey, ScheduledDeparture, and next-leg hints when WSF
  * realtime schedule fields are incomplete around dock arrivals and trip starts.
- * Resolution runs before `applyResolvedTripScheduleFields`, which performs the
+ * Resolution runs before applyResolvedTripScheduleFields, which performs the
  * canonical merge into the trip row.
  *
  * It selects one of three alternatives:
@@ -27,14 +27,15 @@ import {
 import { tryResolveScheduledSegmentFromNextTripKey } from "./activeTripSchedule/resolveSegmentFromNextTripKey";
 import { tryResolveScheduledSegmentFromScheduleTables } from "./activeTripSchedule/resolveSegmentFromScheduleLookup";
 import type { ResolvedTripScheduleFields } from "./activeTripSchedule/types";
+import { assignCanonicalTripKey } from "./assignCanonicalTripKey";
 import { applyResolvedTripScheduleFields } from "./scheduleEnrichment";
 
 type ApplyScheduleForActiveTripInput = {
   /** Active trip row built for this ping (before schedule merge). */
   activeTrip: ConvexVesselTrip;
   /** Prior stored active trip for this vessel, when any. */
-  prev: ConvexVesselTrip | undefined;
-  location: ConvexVesselLocation;
+  prevTrip: ConvexVesselTrip | undefined;
+  currLocation: ConvexVesselLocation;
   isNewTrip: boolean;
   dbAccess: UpdateVesselTripDbAccess;
 };
@@ -48,35 +49,44 @@ type ApplyScheduleForActiveTripInput = {
  * centralized merge layer. When no evidence applies, it returns the built trip
  * unchanged so the pipeline can continue without forcing weak schedule values.
  *
- * @param args - Built active trip (`activeTrip`), prior active row (`prev`), ping context
- * @returns Active trip row with schedule fields preserved or enriched; if
- *   unchanged, returns `activeTrip`
+ * @param args.activeTrip - Active trip row built for this ping before schedule merge
+ * @param args.prev - Prior stored active trip for this vessel when present
+ * @param args.location - Current vessel location ping
+ * @param args.isNewTrip - True when this ping starts a new in-service trip leg
+ * @param args.dbAccess - Database access for schedule-table reads during resolution
+ * @returns Active trip row with schedule fields preserved or enriched and
+ *   canonical TripKey assigned; same reference as the built active trip input
+ *   when schedule merge and TripKey are both no-ops
  */
 export const applyScheduleForActiveTrip = async (
   args: ApplyScheduleForActiveTripInput
 ): Promise<ConvexVesselTrip> => {
-  const { activeTrip, prev, location, isNewTrip, dbAccess } = args;
+  const { activeTrip, prevTrip, currLocation, isNewTrip, dbAccess } = args;
 
   // Select the highest-confidence schedule source first so downstream merge logic stays deterministic.
-  const resolution = hasWsfScheduleFields(location)
-    ? resolveScheduleFromWsfRealtime(location)
+  const resolution = hasWsfScheduleFields(currLocation)
+    ? resolveScheduleFromWsfRealtime(currLocation)
     : await resolveScheduleForNewTrip({
-        location,
-        existingTrip: prev,
+        location: currLocation,
+        existingTrip: prevTrip,
         isNewTrip,
         dbAccess,
       });
 
-  if (resolution === undefined) {
-    return activeTrip;
-  }
+  const merged =
+    resolution === undefined
+      ? activeTrip
+      : applyResolvedTripScheduleFields({
+          activeTrip,
+          existingTrip: prevTrip,
+          scheduleKeyChanged: prevTrip?.ScheduleKey !== activeTrip.ScheduleKey,
+          resolution,
+        });
 
-  // Apply resolved schedule fields in one place to preserve continuity and keep write semantics centralized.
-  return applyResolvedTripScheduleFields({
-    activeTrip,
-    existingTrip: prev,
-    scheduleKeyChanged: prev?.ScheduleKey !== activeTrip.ScheduleKey,
-    resolution,
+  return assignCanonicalTripKey({
+    mergedTrip: merged,
+    prevTrip: prevTrip,
+    currLocation: currLocation,
   });
 };
 
@@ -84,12 +94,12 @@ export const applyScheduleForActiveTrip = async (
  * Resolves schedule fields for a new in-service trip using continuity evidence.
  *
  * This helper implements the ordered fallback chain for arrival/start-of-trip
- * schedule recovery. It attempts prior-row `NextScheduleKey` continuity first,
+ * schedule recovery. It attempts prior-row NextScheduleKey continuity first,
  * then queries schedule tables for the next plausible departure segment from
  * the vessel's terminal context. If both strategies fail, it emits a warning
  * and returns undefined so callers can preserve a no-op schedule outcome.
  *
- * @param input - Ping context, prior trip context, and `UpdateVesselTripDbAccess`
+ * @param input - Ping context, prior trip context, and UpdateVesselTripDbAccess
  * @returns Resolved schedule fields when evidence exists, otherwise undefined
  */
 const resolveScheduleForNewTrip = async ({
@@ -153,7 +163,7 @@ const resolveScheduleForNewTrip = async ({
  *
  * This adapter translates schedule-segment vocabulary into vessel-trip-facing
  * field names expected by schedule enrichment. It preserves both the current
- * leg identity (`ScheduleKey`, `ScheduledDeparture`) and next-leg hints used
+ * leg identity (ScheduleKey, ScheduledDeparture) and next-leg hints used
  * by downstream continuity logic. The method tag records which resolution
  * channel produced the segment for diagnostics and traceability.
  *

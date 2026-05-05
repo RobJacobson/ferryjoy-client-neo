@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { updateLeaveDockEventPatch } from "../updateLeaveDockEventPatch";
 
 const ms = (iso: string) => new Date(iso).getTime();
@@ -14,7 +13,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",
