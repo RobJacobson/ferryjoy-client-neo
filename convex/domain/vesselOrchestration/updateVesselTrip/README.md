@@ -45,7 +45,21 @@ recomputed from those feed fields (Pacific-local segment formatting via
 When WSF omits those fields but the merged row still has `ScheduleKey`, TripKey
 matches `ScheduleKey`. When geometry is still incomplete, TripKey stays on the
 provisional row (possibly empty until merge) or carries forward from the prior
-active trip until a segment can be formed.
+active trip until a segment can be formed. Replacement trips without schedule
+evidence never carry forward the prior active trip's TripKey.
+
+## Schedule paths
+
+- Complete WSF fields: use `ArrivingTerminalAbbrev` and `ScheduledDeparture`
+  from the ping to build the current segment without schedule reads.
+- New-trip next-key continuity: when WSF fields are incomplete and the vessel is
+  in service, use the prior row's `NextScheduleKey` as resolver input only.
+- New-trip schedule-table fallback: when keyed continuity is missing or stale,
+  scan current and next service-day schedule rows for the next departure.
+- Continuing sparse pings: preserve built/persisted schedule fields and avoid
+  schedule reads.
+- Unresolved replacement pings: keep the replacement row's provisional identity,
+  clear next-leg schedule hints, and do not reuse prior-leg TripKey.
 
 ## Contracts this module enforces
 
@@ -72,12 +86,10 @@ active trip until a segment can be formed.
   - `stripTripPredictionsForStorage.ts` — comparison normalization (predictions stripped)
 - `schedule/` — schedule-facing policy and resolution
   - `applyScheduleToActiveTrip.ts` — schedule field policy for active rows
-  - `mergeResolvedScheduleFields.ts` — merge resolved schedule into a trip row
-  - `resolveScheduleFromWsfFields.ts` — authoritative WSF realtime schedule path
-  - `resolveScheduleFromContinuity.ts` — next-key and schedule-table inference
-  - `resolveSegmentFromNextScheduleKey.ts` — keyed continuity lookup
-  - `resolveSegmentFromScheduleTables.ts` — schedule-table fallback lookup
-  - `scheduleResolutionDiagnostics.ts` — optional inference log context
+  - `resolveScheduleForActiveTrip.ts` — WSF vs rollover path selection
+  - `mergeScheduleResolutionIntoTrip.ts` — merge resolved schedule into a trip row
+  - `resolveScheduleFromWsfRealtimeFields.ts` — authoritative WSF realtime path
+  - `resolveRolloverScheduleFromContinuity.ts` — next-key and schedule-table inference
 - `dockTransitionEvents.ts` — downstream dock-boundary transition facts
 
 ## Non-ownership

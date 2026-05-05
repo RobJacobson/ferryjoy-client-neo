@@ -339,6 +339,9 @@ describe("updateVesselTrip modules", () => {
       curr: location,
       isNewTrip: true,
     });
+    expect(activeTrip.NextScheduleKey).toBeUndefined();
+    expect(activeTrip.NextScheduledDeparture).toBeUndefined();
+
     const primarySegment = makeScheduledSegment({
       NextKey: "CHE--2026-03-13--08:00--LOP-SHW",
       NextDepartingTime: ms("2026-03-13T08:00:00-07:00"),

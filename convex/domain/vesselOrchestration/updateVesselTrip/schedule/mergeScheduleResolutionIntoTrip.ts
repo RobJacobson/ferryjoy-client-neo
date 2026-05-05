@@ -33,7 +33,7 @@ type MergeResolvedScheduleFieldsInput = {
  * @param resolution - Resolved current leg and optional explicit next-leg fields from resolvers
  * @returns The same trip identity with schedule and next-leg fields finalized for persistence
  */
-const mergeResolvedScheduleFields = ({
+const mergeScheduleResolutionIntoTrip = ({
   activeTrip,
   existingTrip,
   scheduleKeyChanged,
@@ -204,4 +204,4 @@ const attachNextScheduledTripFields = ({
   return { ...baseTrip, ...nextLeg };
 };
 
-export { mergeResolvedScheduleFields };
+export { mergeScheduleResolutionIntoTrip };

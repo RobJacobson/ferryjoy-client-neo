@@ -27,7 +27,7 @@ type WsfCompleteSchedulePing = ConvexVesselLocation & {
  * @param location - Ping with arriving terminal and scheduled departure set
  * @returns Resolution current/next shapes for schedule merge
  */
-const resolveScheduleFromWsfFields = (
+const resolveScheduleFromWsfRealtimeFields = (
   location: WsfCompleteSchedulePing
 ): ResolvedTripScheduleFields => {
   const departureDate = new Date(location.ScheduledDeparture);
@@ -50,4 +50,4 @@ const resolveScheduleFromWsfFields = (
 };
 
 export type { WsfCompleteSchedulePing };
-export { resolveScheduleFromWsfFields };
+export { resolveScheduleFromWsfRealtimeFields };

@@ -1,12 +1,12 @@
 /**
- * Behavioral tests for resolveScheduleFromContinuity.
+ * Behavioral tests for resolveRolloverScheduleFromContinuity.
  *
- * This suite verifies strict fallback order, cross-day schedule lookup, and
- * diagnostic logging context for inferred schedule-field outcomes.
+ * This suite verifies strict fallback order and cross-day schedule lookup for
+ * inferred schedule-field outcomes.
  */
 
 import { describe, expect, it } from "bun:test";
-import { getScheduleResolutionLog, resolveScheduleFromContinuity } from "..";
+import { resolveRolloverScheduleFromContinuity } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -22,8 +22,8 @@ import {
  * @returns Resolver output used by assertions in this suite
  */
 const resolveFields = (
-  input: Parameters<typeof resolveScheduleFromContinuity>[0]
-) => resolveScheduleFromContinuity(input);
+  input: Parameters<typeof resolveRolloverScheduleFromContinuity>[0]
+) => resolveRolloverScheduleFromContinuity(input);
 
 /**
  * Asserts that a continuity resolution exists and returns it.
@@ -32,13 +32,13 @@ const resolveFields = (
  * @returns The defined resolution for chained expectations
  */
 const expectResolved = (
-  resolution: Awaited<ReturnType<typeof resolveScheduleFromContinuity>>
+  resolution: Awaited<ReturnType<typeof resolveRolloverScheduleFromContinuity>>
 ) => {
   expect(resolution).toBeDefined();
   return resolution;
 };
 
-describe("resolveScheduleFromContinuity", () => {
+describe("resolveRolloverScheduleFromContinuity", () => {
   it("prefers next scheduled segment over schedule tables when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
@@ -82,6 +82,7 @@ describe("resolveScheduleFromContinuity", () => {
 
     const resolved = expectResolved(resolution);
     expect(resolved?.current.ScheduleKey).toBe(nextSegment.Key);
+    expect(resolved?.current.tripFieldResolutionMethod).toBe("nextScheduleKey");
   });
 
   it("falls back to schedule lookup when next key segment mismatches terminal", async () => {
@@ -265,37 +266,5 @@ describe("resolveScheduleFromContinuity", () => {
     });
 
     expect(resolution).toBeUndefined();
-  });
-
-  it("builds inference diagnostics from inferred metadata", async () => {
-    const inferenceInput = {
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "SHI",
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-      }),
-      current: {
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-        SailingDay: "2026-03-13",
-        tripFieldResolutionMethod: "nextTripKey" as const,
-      },
-    };
-
-    expect(getScheduleResolutionLog(inferenceInput)).toMatchObject({
-      message:
-        "[TripFields] CHE kept provisional trip fields despite partial WSF conflict",
-      context: {
-        vesselAbbrev: "CHE",
-        reason: "partial_wsf_conflict_with_inference",
-        tripFieldResolutionMethod: "nextTripKey",
-      },
-    });
   });
 });

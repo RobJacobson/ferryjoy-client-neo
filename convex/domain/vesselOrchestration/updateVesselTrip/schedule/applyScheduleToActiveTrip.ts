@@ -1,21 +1,16 @@
 /**
  * Applies schedule evidence to active-trip rows.
  *
- * This module owns schedule-field resolution for the already-built active trip
- * row during one orchestrator tick. It chooses authoritative WSF fields first,
- * then new-trip continuity inference, and finally assigns the canonical segment
- * TripKey from the merged ScheduleKey when schedule evidence exists.
+ * This module applies selected schedule evidence to the already-built active
+ * trip row during one orchestrator tick. It delegates path selection, merges
+ * resolved fields, and assigns the final TripKey policy.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { UpdateVesselTripDbAccess } from "../types";
-import { mergeResolvedScheduleFields } from "./mergeResolvedScheduleFields";
-import { resolveScheduleFromContinuity } from "./resolveScheduleFromContinuity";
-import type { WsfCompleteSchedulePing } from "./resolveScheduleFromWsfFields";
-
-import { resolveScheduleFromWsfFields } from "./resolveScheduleFromWsfFields";
-import type { ResolvedTripScheduleFields } from "./types";
+import { mergeScheduleResolutionIntoTrip } from "./mergeScheduleResolutionIntoTrip";
+import { resolveScheduleForActiveTrip } from "./resolveScheduleForActiveTrip";
 
 type ApplyScheduleToActiveTripInput = {
   activeTrip: ConvexVesselTrip;
@@ -44,8 +39,7 @@ const applyScheduleToActiveTrip = async (
 ): Promise<ConvexVesselTrip> => {
   const { activeTrip, prevTrip, currLocation, isNewTrip, dbAccess } = args;
 
-  // Select the highest-confidence source first so merge output is deterministic.
-  const resolution = await resolveScheduleFieldsForActiveTrip({
+  const resolution = await resolveScheduleForActiveTrip({
     currLocation,
     prevTrip,
     isNewTrip,
@@ -55,89 +49,54 @@ const applyScheduleToActiveTrip = async (
   const merged =
     resolution === undefined
       ? activeTrip
-      : mergeResolvedScheduleFields({
+      : mergeScheduleResolutionIntoTrip({
           activeTrip,
           existingTrip: prevTrip,
           scheduleKeyChanged: prevTrip?.ScheduleKey !== activeTrip.ScheduleKey,
           resolution,
         });
 
-  const tripKey = merged.ScheduleKey ?? prevTrip?.TripKey ?? merged.TripKey;
+  const tripKey = resolveTripKeyForScheduleOutcome({
+    mergedTrip: merged,
+    prevTrip,
+    isNewTrip,
+    hasResolution: resolution !== undefined,
+  });
 
   return tripKey === merged.TripKey ? merged : { ...merged, TripKey: tripKey };
 };
 
 /**
- * Resolves schedule fields for one active-trip update.
+ * Resolves the active-row trip key after schedule policy has run.
  *
- * WSF realtime fields win when complete. Otherwise, only new in-service trips
- * use continuity inference from prior NextScheduleKey followed by schedule-table
- * lookup. Continuing trips with incomplete WSF fields stay read-free.
+ * Resolved schedule evidence provides the canonical trip identity. Continuing
+ * sparse pings may retain the prior key, while replacement trips without
+ * schedule evidence must keep only their own provisional identity so they do
+ * not inherit the completed leg.
  *
- * This split keeps steady-state updates cheap while still allowing trip
- * rollover recovery when WSF briefly omits schedule fields. The function
- * returns undefined for unresolved cases so callers can preserve existing trip
- * data without inventing low-confidence schedule values.
- *
- * @param currLocation - Current vessel location ping under schedule resolution
- * @param prevTrip - Prior persisted active trip row, if one exists
- * @param isNewTrip - Lifecycle signal indicating terminal-transition rollover
- * @param dbAccess - Continuity read access for key and schedule-table fallback
- * @returns Resolved schedule fields when evidence exists, otherwise undefined
+ * @param input - Merged trip, prior trip, lifecycle signal, and resolution state
+ * @returns Trip key to persist on the active row
  */
-const resolveScheduleFieldsForActiveTrip = async ({
-  currLocation,
+const resolveTripKeyForScheduleOutcome = ({
+  mergedTrip,
   prevTrip,
   isNewTrip,
-  dbAccess,
+  hasResolution,
 }: {
-  currLocation: ConvexVesselLocation;
+  mergedTrip: ConvexVesselTrip;
   prevTrip: ConvexVesselTrip | undefined;
   isNewTrip: boolean;
-  dbAccess: UpdateVesselTripDbAccess;
-}): Promise<ResolvedTripScheduleFields | undefined> => {
-  if (hasWsfScheduleFields(currLocation)) {
-    // Authoritative realtime fields bypass continuity reads entirely.
-    return resolveScheduleFromWsfFields(currLocation);
+  hasResolution: boolean;
+}): string => {
+  if (mergedTrip.ScheduleKey !== undefined) {
+    return mergedTrip.ScheduleKey;
   }
 
-  if (!isNewTrip || !currLocation.InService) {
-    return undefined;
+  if (!hasResolution && !isNewTrip && prevTrip?.TripKey !== undefined) {
+    return prevTrip.TripKey;
   }
 
-  const resolution = await resolveScheduleFromContinuity({
-    location: currLocation,
-    existingTrip: prevTrip,
-    dbAccess,
-  });
-
-  if (resolution === undefined) {
-    // Emit an explicit unresolved warning so no-op outcomes are observable during dock-arrival schedule gaps.
-    console.warn(
-      "[TripFields] unable to identify scheduled trip after new-trip start",
-      {
-        vesselAbbrev: currLocation.VesselAbbrev,
-        departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
-        timeStamp: currLocation.TimeStamp,
-        existingScheduleKey: prevTrip?.ScheduleKey,
-        existingNextScheduleKey: prevTrip?.NextScheduleKey,
-      }
-    );
-  }
-
-  return resolution;
+  return mergedTrip.TripKey;
 };
-
-/**
- * Detects whether a ping carries complete WSF schedule fields.
- *
- * @param location - Vessel location row for this ping
- * @returns True when arriving terminal and scheduled departure are both present
- */
-const hasWsfScheduleFields = (
-  location: ConvexVesselLocation
-): location is WsfCompleteSchedulePing =>
-  location.ArrivingTerminalAbbrev !== undefined &&
-  location.ScheduledDeparture !== undefined;
 
 export { applyScheduleToActiveTrip };

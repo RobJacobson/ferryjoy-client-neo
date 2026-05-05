@@ -16,7 +16,7 @@ export type ResolvedCurrentTripFields = {
 
 export type TripFieldResolutionMethod =
   | "wsfRealtimeFields"
-  | "nextTripKey"
+  | "nextScheduleKey"
   | "scheduleLookup";
 
 export type ResolvedTripScheduleFields = {

@@ -492,8 +492,44 @@ describe("updateVesselTrip", () => {
     expect(result?.activeVesselTrip.ScheduleKey).toBe(primarySegment.Key);
   });
 
+  it("does not inherit prior identity when replacement schedule cannot resolve", async () => {
+    const existingTrip = makeTrip({
+      TripKey: "CHE--2026-03-13--05:30--ANA-ORI",
+      ScheduleKey: "CHE--2026-03-13--05:30--ANA-ORI",
+      NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
+      NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
+    });
+    const location = makeLocation({
+      DepartingTerminalAbbrev: "ORI",
+      ArrivingTerminalAbbrev: undefined,
+      ScheduledDeparture: undefined,
+      ScheduleKey: undefined,
+      TimeStamp: ms("2026-03-13T06:49:00-07:00"),
+    });
+    const { dbAccess } = makeDbAccess({
+      scheduledSegmentByKey: {
+        [existingTrip.NextScheduleKey ?? ""]: null,
+      },
+      scheduledDockEventsBySailingDay: {
+        "2026-03-13": [],
+      },
+    });
+
+    const result = await updateVesselTrip(location, existingTrip, dbAccess);
+
+    expect(result?.completedVesselTrip).toBeDefined();
+    expect(result?.activeVesselTrip.TripKey).not.toBe(existingTrip.TripKey);
+    expect(result?.activeVesselTrip.TripKey).toBe("");
+    expect(result?.activeVesselTrip.ScheduleKey).toBeUndefined();
+    expect(result?.activeVesselTrip.NextScheduleKey).toBeUndefined();
+    expect(result?.activeVesselTrip.NextScheduledDeparture).toBeUndefined();
+  });
+
   it("skips schedule lookup for out-of-service replacement trips", async () => {
-    const existingTrip = makeTrip();
+    const existingTrip = makeTrip({
+      NextScheduleKey: "CHE--2026-03-13--07:00--ORI-LOP",
+      NextScheduledDeparture: ms("2026-03-13T07:00:00-07:00"),
+    });
     const location = makeLocation({
       DepartingTerminalAbbrev: "ORI",
       ArrivingTerminalAbbrev: undefined,
@@ -508,6 +544,9 @@ describe("updateVesselTrip", () => {
 
     expect(result?.completedVesselTrip).toBeDefined();
     expect(result?.activeVesselTrip).toBeDefined();
+    expect(result?.activeVesselTrip.TripKey).not.toBe(existingTrip.TripKey);
+    expect(result?.activeVesselTrip.NextScheduleKey).toBeUndefined();
+    expect(result?.activeVesselTrip.NextScheduledDeparture).toBeUndefined();
     expect(counters.getScheduledSegmentByScheduleKey).toBe(0);
     expect(counters.getScheduleRolloverDockEvents).toBe(0);
   });

@@ -301,8 +301,8 @@ const buildNewActiveTrip = (context: BuildTripContext): ConvexVesselTrip => {
     LeftDock: undefined,
     LeftDockActual: undefined,
     TripDelay: undefined,
-    NextScheduleKey: prev?.NextScheduleKey,
-    NextScheduledDeparture: prev?.NextScheduledDeparture,
+    NextScheduleKey: undefined,
+    NextScheduledDeparture: undefined,
   };
 };
 
