@@ -133,6 +133,7 @@ import type * as domain_vesselOrchestration_updateVesselTrip_types from "../doma
 import type * as domain_vesselOrchestration_updateVesselTrip_updateVesselTrip from "../domain/vesselOrchestration/updateVesselTrip/updateVesselTrip.js";
 import type * as functions_events_eventsActual_index from "../functions/events/eventsActual/index.js";
 import type * as functions_events_eventsActual_mutations from "../functions/events/eventsActual/mutations.js";
+import type * as functions_events_eventsActual_planActualRows from "../functions/events/eventsActual/planActualRows.js";
 import type * as functions_events_eventsActual_queries from "../functions/events/eventsActual/queries.js";
 import type * as functions_events_eventsActual_schemas from "../functions/events/eventsActual/schemas.js";
 import type * as functions_events_eventsActual_types from "../functions/events/eventsActual/types.js";
@@ -143,6 +144,7 @@ import type * as functions_events_eventsPredicted_schemas from "../functions/eve
 import type * as functions_events_eventsPredicted_types from "../functions/events/eventsPredicted/types.js";
 import type * as functions_events_eventsScheduled_index from "../functions/events/eventsScheduled/index.js";
 import type * as functions_events_eventsScheduled_mutations from "../functions/events/eventsScheduled/mutations.js";
+import type * as functions_events_eventsScheduled_planScheduledRowsForSailingDay from "../functions/events/eventsScheduled/planScheduledRowsForSailingDay.js";
 import type * as functions_events_eventsScheduled_queries from "../functions/events/eventsScheduled/queries.js";
 import type * as functions_events_eventsScheduled_schemas from "../functions/events/eventsScheduled/schemas.js";
 import type * as functions_events_eventsScheduled_types from "../functions/events/eventsScheduled/types.js";
@@ -377,6 +379,7 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateVesselTrip/updateVesselTrip": typeof domain_vesselOrchestration_updateVesselTrip_updateVesselTrip;
   "functions/events/eventsActual/index": typeof functions_events_eventsActual_index;
   "functions/events/eventsActual/mutations": typeof functions_events_eventsActual_mutations;
+  "functions/events/eventsActual/planActualRows": typeof functions_events_eventsActual_planActualRows;
   "functions/events/eventsActual/queries": typeof functions_events_eventsActual_queries;
   "functions/events/eventsActual/schemas": typeof functions_events_eventsActual_schemas;
   "functions/events/eventsActual/types": typeof functions_events_eventsActual_types;
@@ -387,6 +390,7 @@ declare const fullApi: ApiFromModules<{
   "functions/events/eventsPredicted/types": typeof functions_events_eventsPredicted_types;
   "functions/events/eventsScheduled/index": typeof functions_events_eventsScheduled_index;
   "functions/events/eventsScheduled/mutations": typeof functions_events_eventsScheduled_mutations;
+  "functions/events/eventsScheduled/planScheduledRowsForSailingDay": typeof functions_events_eventsScheduled_planScheduledRowsForSailingDay;
   "functions/events/eventsScheduled/queries": typeof functions_events_eventsScheduled_queries;
   "functions/events/eventsScheduled/schemas": typeof functions_events_eventsScheduled_schemas;
   "functions/events/eventsScheduled/types": typeof functions_events_eventsScheduled_types;

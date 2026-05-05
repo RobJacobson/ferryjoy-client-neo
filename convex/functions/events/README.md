@@ -9,6 +9,9 @@ Execution outline (DockReload vs DockEventLive, reload mutation stages, and orch
 - one folder per table
 - `shared/` is only for persistence helpers shared across the event tables
 - keep business policy in `convex/domain/`; mutation helpers may call pure domain planners and then apply the resulting DB operations
+- table folders may also contain table-local planners when the decision depends
+  only on already-loaded rows and candidate rows; mutations still own Convex reads
+  and writes
 
 ## Tables
 

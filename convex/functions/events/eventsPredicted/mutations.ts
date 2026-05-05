@@ -6,7 +6,9 @@
 import type { MutationCtx } from "_generated/server";
 import { DEPART_NEXT_ML_PREDICTION_TYPES } from "domain/events/predicted/departNextActualization";
 import {
+  type MergedPredictedDockScope,
   mergePredictedDockWriteBatchesByScope,
+  type PredictedDockScopeReconciliationPlan,
   planPredictedDockScopeReconciliation,
 } from "domain/events/predicted/reconcilePredictedDockBatches";
 import { getRoundedMinutesDelta } from "shared/time";
@@ -36,37 +38,72 @@ export const upsertPredictedDockBatches = async (
   const batchesByScope = mergePredictedDockWriteBatchesByScope(batches);
 
   for (const batch of batchesByScope.values()) {
-    if (batch.TargetKeys.size === 0) {
+    if (!shouldReconcilePredictedScope(batch)) {
       continue;
     }
 
-    // Reads the full vessel-day slice so deletes and upserts reconcile against live storage.
-    const existingRows = await ctx.db
-      .query("eventsPredicted")
-      .withIndex("by_vessel_and_sailing_day", (q) =>
-        q
-          .eq("VesselAbbrev", batch.VesselAbbrev)
-          .eq("SailingDay", batch.SailingDay)
-      )
-      .collect();
-
+    const existingRows = await loadPredictedRowsForScope(ctx, batch);
     const plan = planPredictedDockScopeReconciliation({
       scope: batch,
       existingRows,
       updatedAt,
     });
 
-    for (const id of plan.deletes) {
-      await ctx.db.delete(id);
-    }
+    await applyPredictedDockReconciliationPlan(ctx, plan);
+  }
+};
 
-    for (const row of plan.inserts) {
-      await ctx.db.insert("eventsPredicted", row);
-    }
+/**
+ * Returns whether a merged prediction scope needs storage reconciliation.
+ *
+ * @param batch - Merged vessel and sailing-day prediction batch
+ * @returns True when the batch targets at least one dock boundary key
+ */
+const shouldReconcilePredictedScope = (
+  batch: MergedPredictedDockScope
+): boolean => batch.TargetKeys.size > 0;
 
-    for (const replacement of plan.replacements) {
-      await ctx.db.replace(replacement.existingId, replacement.row);
-    }
+/**
+ * Loads the current predicted rows for one vessel and sailing-day scope.
+ *
+ * @param ctx - Convex mutation context
+ * @param batch - Scope whose stored prediction rows should be reconciled
+ * @returns Existing eventsPredicted rows for the batch scope
+ */
+const loadPredictedRowsForScope = (
+  ctx: MutationCtx,
+  batch: MergedPredictedDockScope
+) =>
+  ctx.db
+    .query("eventsPredicted")
+    .withIndex("by_vessel_and_sailing_day", (q) =>
+      q
+        .eq("VesselAbbrev", batch.VesselAbbrev)
+        .eq("SailingDay", batch.SailingDay)
+    )
+    .collect();
+
+/**
+ * Applies a predicted-row reconciliation plan in delete, insert, replace order.
+ *
+ * @param ctx - Convex mutation context
+ * @param plan - Domain-planned persistence operations for one prediction scope
+ * @returns Resolves when all operations have been applied
+ */
+const applyPredictedDockReconciliationPlan = async (
+  ctx: MutationCtx,
+  plan: PredictedDockScopeReconciliationPlan
+): Promise<void> => {
+  for (const id of plan.deletes) {
+    await ctx.db.delete(id);
+  }
+
+  for (const row of plan.inserts) {
+    await ctx.db.insert("eventsPredicted", row);
+  }
+
+  for (const replacement of plan.replacements) {
+    await ctx.db.replace(replacement.existingId, replacement.row);
   }
 };
 
