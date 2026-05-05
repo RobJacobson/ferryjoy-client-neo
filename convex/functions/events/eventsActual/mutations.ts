@@ -18,7 +18,7 @@ import type { ConvexActualDockEvent } from "./schemas";
  *
  * Vessel orchestration can emit multiple pings per flush; dedupeByEventKey collapses
  * those to one payload per EventKey before touching the database. Inserts run only
- * on first sight of a key; otherwise replaces occur solely when actualDockRowsEqual
+ * on first sight of a key; otherwise replaces occur solely when planActualDockRowUpsert
  * detects viewer-visible drift so unchanged pings skip writes entirely.
  *
  * @param ctx - Convex mutation context

@@ -150,7 +150,6 @@ import type * as functions_events_eventsScheduled_queries from "../functions/eve
 import type * as functions_events_eventsScheduled_schemas from "../functions/events/eventsScheduled/schemas.js";
 import type * as functions_events_eventsScheduled_types from "../functions/events/eventsScheduled/types.js";
 import type * as functions_events_index from "../functions/events/index.js";
-import type * as functions_events_shared_actualDockRowsEqual from "../functions/events/shared/actualDockRowsEqual.js";
 import type * as functions_events_sync_actions from "../functions/events/sync/actions.js";
 import type * as functions_events_sync_buildConvexReloadDockDataFromFetchedSlices from "../functions/events/sync/buildConvexReloadDockDataFromFetchedSlices.js";
 import type * as functions_events_sync_fetchHistoryRecordsForDate from "../functions/events/sync/fetchHistoryRecordsForDate.js";
@@ -396,7 +395,6 @@ declare const fullApi: ApiFromModules<{
   "functions/events/eventsScheduled/schemas": typeof functions_events_eventsScheduled_schemas;
   "functions/events/eventsScheduled/types": typeof functions_events_eventsScheduled_types;
   "functions/events/index": typeof functions_events_index;
-  "functions/events/shared/actualDockRowsEqual": typeof functions_events_shared_actualDockRowsEqual;
   "functions/events/sync/actions": typeof functions_events_sync_actions;
   "functions/events/sync/buildConvexReloadDockDataFromFetchedSlices": typeof functions_events_sync_buildConvexReloadDockDataFromFetchedSlices;
   "functions/events/sync/fetchHistoryRecordsForDate": typeof functions_events_sync_fetchHistoryRecordsForDate;
