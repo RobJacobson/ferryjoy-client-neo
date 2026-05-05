@@ -28,18 +28,15 @@ Two complementary **write** paths exist:
 2. Fetch schedule: `fetchAndTransformScheduledTrips` (adapters) for the target sailing day; flatten route payloads to `scheduleSegments` as `RawWsfScheduleSegment` rows (Date-shaped instants).
 3. Fetch vessel history: `fetchHistoryRecordsForDate` uses the schedule context to drive per-vessel history requests for that date.
 4. Build the Convex wire payload: `buildConvexReloadDockDataFromFetchedSlices` converts Date instants to epoch ms in `ConvexReloadDockData`, consistent with other Convex numeric boundaries such as `ConvexVesselLocation`.
-5. Run the internal mutation `internal.functions.events.sync.mutations.replaceDockEventsForSailingDay` with `{ ReloadDockData }` only; identity tables are read inside the mutation.
+5. Run the scheduled internal mutation with `{ ReloadDockScheduleData }`, then the actual internal mutation with `{ ReloadDockData }`; identity tables are read inside each mutation.
 
-**Mutation** — `replaceDockEventsForSailingDayRows` in `functions/events/sync/replaceDockEventsForSailingDay.ts`.
+**Mutations** — `replaceScheduledDockEventsForSailingDayRows` and `reloadActualDockEventsForSailingDayRows` in `functions/events/sync/replaceDockEventsForSailingDay.ts`.
 
-6. Restore fetch-shaped rows: `mapConvexReloadDockDataToRawFetchShapes` maps epoch ms back to `Date` for domain code.
-7. Load identity tables from the database: `vesselsIdentity` and `terminalsIdentity` (full collect; seed-sized tables).
-8. Merge schedule and history into hydrated transitions: `buildHydratedTransitionsFromReloadInputs` in `domain/events/reload/`, which calls `buildScheduledDockEventRecords` and then `hydrateActualDockEvents`.
-9. Load trip context for the sailing day: `loadTripIndexesForSailingDay` (segment to TripKey maps, active trips by vessel, physical-only trip list).
-10. Load live locations: `vesselLocations` full `collect`, stripped of Convex metadata (one small snapshot row per fleet vessel).
-11. Build rows for persistence: `buildDockEventRowsForSailingDayReload` in `domain/events/actual/reloadDockEventsForSailingDay.ts` — normalizes seams, builds scheduled rows, builds base actual rows from schedule and physical-only trips, runs `reconcileActualDockWritesFromLocations` against live samples, and merges patches via `mergeActualDockWritesIntoRows`.
-12. Persist: `upsertScheduledRowsForSailingDay` (scheduled slice for that sailing day) and `replaceActualRowsForSailingDay` (day-wide replace with grandfather rules for ping-only rows that lack `ScheduleKey`).
-13. Return `{ ScheduledCount, ActualCount }` to the action for logging and operator feedback.
+6. Scheduled mutation: load identity tables, build schedule-derived dock boundaries from numeric reload segments, and persist only the scheduled slice through `upsertScheduledRowsForSailingDay`.
+7. Actual mutation: load identity tables, merge numeric schedule and history rows into hydrated transitions via `buildHydratedTransitionsFromReloadInputs`, load trip context for the sailing day, and collect live vessel locations.
+8. Build actual rows: `buildActualDockRowsForSailingDayReload` normalizes seams, builds base actual rows from schedule-backed evidence and physical-only trips, runs `reconcileActualDockWritesFromLocations` against live samples, and merges patches via `mergeActualDockWritesIntoRows`.
+9. Persist actual rows through `upsertActualDockRows`; omitted actual EventKeys are preserved because schedule refreshes no longer delete physical observations.
+10. Return `{ ScheduledCount, ActualCount }` to the action for logging and operator feedback.
 
 ### Multi-day branch
 
@@ -87,5 +84,5 @@ Public list queries under `functions/events/eventsScheduled`, `eventsActual`, an
 
 - **DockReload** never writes `eventsPredicted`; it only refreshes scheduled and actual slices for the targeted sailing day(s).
 - **DockEventLive** never performs a full-day replace; it applies sparse upserts keyed by physical event identity and batches as assembled by `updateEvents`.
-- The reload mutation validates **`ConvexReloadDockData`** at the Convex boundary; domain stages after mapping consume Date-shaped adapter rows.
+- Reload mutations validate numeric Convex payloads at the Convex boundary; domain stages consume numeric reload rows and create `Date` only at key-formatting call sites.
 - Orchestrator event projection uses **the same ping’s** `tripUpdate` and enriched trip — no separate event read pass before `persistVesselUpdates`.

@@ -38,7 +38,6 @@ export type DockTransitionRecord = DockBoundaryEventRecord;
  */
 export type ConvexActualDockWrite = {
   TripKey?: string;
-  ScheduleKey?: string;
   VesselAbbrev: string;
   SailingDay?: string;
   ScheduledDeparture?: number;

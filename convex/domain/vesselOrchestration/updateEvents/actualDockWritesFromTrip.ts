@@ -80,7 +80,6 @@ const buildActualDockWriteFromTrip = (
   return {
     SegmentKey: trip.ScheduleKey,
     TripKey: trip.TripKey,
-    ScheduleKey: trip.ScheduleKey,
     VesselAbbrev: trip.VesselAbbrev,
     ...(trip.SailingDay !== undefined ? { SailingDay: trip.SailingDay } : {}),
     ...(trip.ScheduledDeparture !== undefined

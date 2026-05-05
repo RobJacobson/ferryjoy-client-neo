@@ -44,6 +44,11 @@ const reloadDockDataSchema = v.object({
   HistoryRecords: v.array(reloadDockHistoryRecordSchema),
 });
 
+const reloadDockScheduleDataSchema = v.object({
+  SailingDay: v.string(),
+  ScheduleSegments: v.array(reloadDockScheduleSegmentSchema),
+});
+
 type ConvexReloadDockScheduleSegment = Infer<
   typeof reloadDockScheduleSegmentSchema
 >;
@@ -54,13 +59,17 @@ type ConvexReloadDockHistoryRecord = Infer<
 
 type ConvexReloadDockData = Infer<typeof reloadDockDataSchema>;
 
+type ConvexReloadDockScheduleData = Infer<typeof reloadDockScheduleDataSchema>;
+
 export type {
   ConvexReloadDockData,
   ConvexReloadDockHistoryRecord,
+  ConvexReloadDockScheduleData,
   ConvexReloadDockScheduleSegment,
 };
 export {
   reloadDockDataSchema,
   reloadDockHistoryRecordSchema,
+  reloadDockScheduleDataSchema,
   reloadDockScheduleSegmentSchema,
 };

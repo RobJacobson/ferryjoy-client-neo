@@ -10,8 +10,15 @@
 
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
-import { reloadDockDataSchema } from "./reloadDockDataSchemas";
-import { replaceDockEventsForSailingDayRows } from "./replaceDockEventsForSailingDay";
+import {
+  reloadDockDataSchema,
+  reloadDockScheduleDataSchema,
+} from "./reloadDockDataSchemas";
+import {
+  reloadActualDockEventsForSailingDayRows,
+  replaceDockEventsForSailingDayRows,
+  replaceScheduledDockEventsForSailingDayRows,
+} from "./replaceDockEventsForSailingDay";
 
 /**
  * Internal mutation entrypoint for reloading scheduled and actual dock rows atomically.
@@ -36,4 +43,50 @@ const replaceDockEventsForSailingDay = internalMutation({
   handler: async (ctx, args) => replaceDockEventsForSailingDayRows(ctx, args),
 });
 
-export { replaceDockEventsForSailingDay };
+/**
+ * Internal mutation entrypoint for reloading scheduled dock rows only.
+ *
+ * Validates the schedule payload before invoking the scheduled table helper so
+ * schedule replacement can run independently from actual observation refresh.
+ *
+ * @param ctx - Convex internal mutation context
+ * @param args.ReloadDockScheduleData - Validated schedule payload
+ * @returns ScheduledCount returned by the scheduled replacement helper
+ */
+const replaceScheduledDockEventsForSailingDay = internalMutation({
+  args: {
+    ReloadDockScheduleData: reloadDockScheduleDataSchema,
+  },
+  returns: v.object({
+    ScheduledCount: v.number(),
+  }),
+  handler: async (ctx, args) =>
+    replaceScheduledDockEventsForSailingDayRows(ctx, args),
+});
+
+/**
+ * Internal mutation entrypoint for reloading actual dock rows only.
+ *
+ * Validates the schedule and history payload before invoking the actual table
+ * helper so physical observations upsert without replacing scheduled rows.
+ *
+ * @param ctx - Convex internal mutation context
+ * @param args.ReloadDockData - Validated payload of schedule segments and vessel history rows
+ * @returns ActualCount returned by the actual reload helper
+ */
+const reloadActualDockEventsForSailingDay = internalMutation({
+  args: {
+    ReloadDockData: reloadDockDataSchema,
+  },
+  returns: v.object({
+    ActualCount: v.number(),
+  }),
+  handler: async (ctx, args) =>
+    reloadActualDockEventsForSailingDayRows(ctx, args),
+});
+
+export {
+  reloadActualDockEventsForSailingDay,
+  replaceDockEventsForSailingDay,
+  replaceScheduledDockEventsForSailingDay,
+};

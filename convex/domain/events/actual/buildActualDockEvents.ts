@@ -16,11 +16,10 @@ import type { ConvexActualDockWritePersistable } from "./schemas";
  * Builds normalized actual dock rows from in-memory boundary event records.
  *
  * Reload and hydration produce DockBoundaryEventRecord lists that already
- * carry SegmentKey and optional actual times. This step stitches TripKey and
- * optional ScheduleKey from tripBySegmentKey (segment id; on schedule-backed
- * legs ScheduleKey matches TripKey) so physical EventKey values match the
- * rest of the vessel pipeline. Records still missing TripKey after
- * lookup are skipped because eventsActual rows require physical identity.
+ * carry SegmentKey and optional actual times. This step resolves TripKey from
+ * tripBySegmentKey so physical EventKey values match the rest of the vessel
+ * pipeline. Records still missing TripKey after lookup are skipped because
+ * eventsActual rows require physical identity.
  *
  * @param events - Event records for one vessel/day slice
  * @param updatedAt - Timestamp to stamp onto rows that are inserted or updated
@@ -52,7 +51,6 @@ const buildActualDockEvents = (
         {
           EventKey: eventKey,
           TripKey: trip.TripKey,
-          ScheduleKey: trip.ScheduleKey ?? trip.TripKey,
           EventType: event.EventType,
           VesselAbbrev: event.VesselAbbrev,
           SailingDay: event.SailingDay,
@@ -98,7 +96,6 @@ const buildActualDockEventFromWrite = (
   return {
     EventKey: eventKey,
     TripKey: write.TripKey,
-    ScheduleKey: write.ScheduleKey,
     EventType: write.EventType,
     VesselAbbrev: write.VesselAbbrev,
     SailingDay: sailingDay,

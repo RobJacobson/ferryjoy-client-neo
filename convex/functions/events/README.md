@@ -29,7 +29,7 @@ Periodic full-day rebuild driven from `sync/`:
 
 1. `reloadDockEventsForSailingDay` (action) loads vessel and terminal identities, fetches the WSF schedule slice, and calls the WSF history feed.
 2. `buildConvexReloadDockDataFromFetchedSlices` converts the fetched Date payloads into `ConvexReloadDockData` (epoch milliseconds) so the mutation boundary stays numeric. This mirrors `ConvexVesselLocation` and `ConvexScheduledTrip`.
-3. `replaceDockEventsForSailingDay` (internal mutation) restores Date instants, composes hydrated dock transitions from schedule and history, loads trip indexes, collects `vesselLocations` (full small snapshot), and persists scheduled rows via `upsertScheduledRowsForSailingDay` plus actual rows via `replaceActualRowsForSailingDay`.
+3. `replaceScheduledDockEventsForSailingDay` persists only the scheduled slice, then `reloadActualDockEventsForSailingDay` composes hydrated dock transitions from numeric schedule and history rows, loads trip indexes, collects `vesselLocations` (full small snapshot), and upserts actual rows via `upsertActualDockRows`.
 
 Use this path for cron-backed boundary refreshes and operator-driven reloads.
 

@@ -7,14 +7,17 @@
  */
 
 import {
-  resolveVesselHistory,
+  resolveTerminalByAbbrev,
+  resolveTerminalByName,
   type TerminalIdentity,
   tryResolveVessel,
   type VesselIdentity,
 } from "adapters";
-import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
+import type {
+  EventReloadHistoryRecord,
+  EventReloadScheduleSegment,
+} from "../reload/types";
 import { getDirectRawSeedSegments } from "../scheduled/buildScheduledDockEventRecords";
 import { createSeededScheduleSegmentResolver } from "../scheduled/scheduleDepartureLookup";
 import type { DockBoundaryEventRecord } from "../types";
@@ -27,8 +30,8 @@ const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
 type HydrateSeededEventsWithHistoryArgs = {
   seededEvents: DockBoundaryEventRecord[];
   existingEvents: DockBoundaryEventRecord[];
-  scheduleSegments: RawWsfScheduleSegment[];
-  historyRecords: VesselHistory[];
+  scheduleSegments: EventReloadScheduleSegment[];
+  historyRecords: EventReloadHistoryRecord[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 };
@@ -122,8 +125,8 @@ const getHistoryActualsByEventKey = ({
   terminals,
 }: {
   seededEvents: DockBoundaryEventRecord[];
-  scheduleSegments: RawWsfScheduleSegment[];
-  historyRecords: VesselHistory[];
+  scheduleSegments: EventReloadScheduleSegment[];
+  historyRecords: EventReloadHistoryRecord[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }) => {
@@ -136,8 +139,8 @@ const getHistoryActualsByEventKey = ({
     createSeededScheduleSegmentResolver(seededEvents);
 
   return historyRecords.reduce((actualsByEventKey, record) => {
-    const actualDeparture = record.ActualDepart?.getTime();
-    const arrivalProxy = record.EstArrival?.getTime();
+    const actualDeparture = record.ActualDepart;
+    const arrivalProxy = record.EstArrival;
     const vessel = tryResolveVessel(
       record.Vessel ? String(record.Vessel) : "",
       vessels
@@ -156,9 +159,9 @@ const getHistoryActualsByEventKey = ({
     }
 
     if (tripKey === undefined) {
-      const scheduledDepartRaw = record.ScheduledDepart ?? undefined;
+      const scheduledDepartRaw = record.ScheduledDepart;
       if (
-        scheduledDepartRaw &&
+        scheduledDepartRaw !== undefined &&
         vessel !== null &&
         (actualDeparture !== undefined || arrivalProxy !== undefined)
       ) {
@@ -207,17 +210,21 @@ const getHistoryActualsByEventKey = ({
  * @returns TripKey plus departure and arrival-proxy milliseconds when resolution succeeds
  */
 const normalizeHistoryRecordStrict = (
-  record: VesselHistory,
+  record: EventReloadHistoryRecord,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): NormalizedHistoryRecord | null => {
   const scheduledDepart = record.ScheduledDepart;
-  const actualDeparture = record.ActualDepart?.getTime();
-  const arrivalProxy = record.EstArrival?.getTime();
-  const resolvedHistory = resolveVesselHistory(record, vessels, terminals);
+  const actualDeparture = record.ActualDepart;
+  const arrivalProxy = record.EstArrival;
+  const resolvedHistory = resolveReloadHistoryRecord(
+    record,
+    vessels,
+    terminals
+  );
 
   if (
-    !scheduledDepart ||
+    scheduledDepart === undefined ||
     (actualDeparture === undefined && arrivalProxy === undefined) ||
     resolvedHistory === null
   ) {
@@ -234,7 +241,7 @@ const normalizeHistoryRecordStrict = (
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,
-    scheduledDepart
+    new Date(scheduledDepart)
   );
 
   if (!tripKey) {
@@ -246,6 +253,77 @@ const normalizeHistoryRecordStrict = (
     actualDeparture,
     arrivalProxy,
   };
+};
+
+const HISTORY_TERMINAL_ABBREV_ALIASES: Record<string, string> = {
+  Colman: "P52",
+  Keystone: "COU",
+  Vashon: "VAI",
+};
+
+/**
+ * Resolves vessel and terminal identities for a numeric reload history row.
+ *
+ * This mirrors WSF history identity resolution without requiring the domain
+ * reload path to reconstruct adapter Date-shaped history objects.
+ *
+ * @param record - Numeric reload history row
+ * @param vessels - Backend vessel identity rows
+ * @param terminals - Backend terminal identity rows
+ * @returns Resolved identities, or null when any lookup fails
+ */
+const resolveReloadHistoryRecord = (
+  record: EventReloadHistoryRecord,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+) => {
+  const vessel = tryResolveVessel(
+    record.Vessel ? String(record.Vessel) : "",
+    vessels
+  );
+  const departingTerminal = resolveHistoryTerminal(
+    record.Departing ?? "",
+    terminals
+  );
+  const arrivingTerminal = resolveHistoryTerminal(
+    record.Arriving ?? "",
+    terminals
+  );
+
+  return vessel && departingTerminal && arrivingTerminal
+    ? { vessel, departingTerminal, arrivingTerminal }
+    : null;
+};
+
+/**
+ * Resolves a terminal row from a WSF history terminal label.
+ *
+ * History rows can use canonical terminal names or a small set of legacy labels.
+ * This keeps reload hydration aligned with adapter history resolution.
+ *
+ * @param terminalName - Raw terminal label from a history row
+ * @param terminals - Backend terminal identity rows
+ * @returns Matching terminal row, or null when the label is unknown
+ */
+const resolveHistoryTerminal = (
+  terminalName: string,
+  terminals: ReadonlyArray<TerminalIdentity>
+): TerminalIdentity | null => {
+  const normalized = terminalName.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const exactMatch = resolveTerminalByName(normalized, terminals);
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const aliasAbbrev = HISTORY_TERMINAL_ABBREV_ALIASES[normalized];
+
+  return aliasAbbrev ? resolveTerminalByAbbrev(aliasAbbrev, terminals) : null;
 };
 
 /**

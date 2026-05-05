@@ -15,7 +15,6 @@ const at = (hours: number, minutes: number) =>
 const baseActual = (): ConvexActualDockEvent => ({
   TripKey: "TST 2026-03-25 12:00:00Z seg",
   EventKey: "ek-dep",
-  ScheduleKey: "seg",
   VesselAbbrev: "WEN",
   SailingDay: "2026-03-25",
   UpdatedAt: at(6, 0),

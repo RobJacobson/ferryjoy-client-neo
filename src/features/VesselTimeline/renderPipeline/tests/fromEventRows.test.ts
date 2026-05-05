@@ -24,6 +24,18 @@ const getTerminalNameByAbbrev = (terminalAbbrev: string) =>
     }) as const
   )[terminalAbbrev] ?? null;
 
+/**
+ * Removes the boundary suffix from a fixture event key.
+ *
+ * Actual event rows attach to scheduled rows through TripKey, and scheduled
+ * fixture keys use the same segment string before the boundary suffix.
+ *
+ * @param boundaryKey - Fixture boundary key
+ * @returns Trip key portion of the boundary key
+ */
+const boundaryKeyToTripKey = (boundaryKey: string) =>
+  boundaryKey.replace(/--(?:dep|arv)-dock$/, "");
+
 const makeScheduledEvent = (
   overrides: Partial<ConvexScheduledDockEvent> &
     Pick<ConvexScheduledDockEvent, "Key">
@@ -41,19 +53,22 @@ const makeScheduledEvent = (
 
 const makeActualEvent = (
   overrides: Partial<ConvexActualDockEvent> & { Key: string }
-): ConvexActualDockEvent => ({
-  TripKey: "trip-physical",
-  VesselAbbrev: "WEN",
-  SailingDay: sailingDay,
-  UpdatedAt: u(0, 0),
-  ScheduledDeparture: u(8, 0),
-  TerminalAbbrev: "P52",
-  EventType: "dep-dock",
-  EventOccurred: true,
-  EventKey: `actual-${overrides.Key}`,
-  ScheduleKey: undefined,
-  ...overrides,
-});
+): ConvexActualDockEvent => {
+  const { Key, ...rest } = overrides;
+
+  return {
+    TripKey: rest.TripKey ?? boundaryKeyToTripKey(Key),
+    VesselAbbrev: "WEN",
+    SailingDay: sailingDay,
+    UpdatedAt: u(0, 0),
+    ScheduledDeparture: u(8, 0),
+    TerminalAbbrev: "P52",
+    EventType: "dep-dock",
+    EventOccurred: true,
+    EventKey: `actual-${Key}`,
+    ...rest,
+  };
+};
 
 const makePredictedEvent = (
   overrides: Partial<ConvexPredictedDockEvent> & { Key: string }
@@ -168,7 +183,6 @@ describe("fromEventRows", () => {
     const actualEvents: ConvexActualDockEvent[] = [
       makeActualEvent({
         Key: "wen-p52-open--dep-dock",
-        ScheduleKey: "wen-p52-open",
         EventType: "dep-dock",
         TerminalAbbrev: "P52",
         ScheduledDeparture: u(7, 40),
@@ -427,12 +441,10 @@ describe("fromEventRows", () => {
     const actualEvents: ConvexActualDockEvent[] = [
       makeActualEvent({
         Key: "seg-a--dep-dock",
-        ScheduleKey: "seg-a",
         EventActualTime: u(8, 0),
       }),
       makeActualEvent({
         Key: "seg-b--arv-dock",
-        ScheduleKey: "seg-b",
         EventType: "arv-dock",
         TerminalAbbrev: "BBI",
         ScheduledDeparture: u(8, 0),

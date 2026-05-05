@@ -22,7 +22,6 @@ const actualDockRowsEqual = (
 ): boolean =>
   left.EventKey === right.EventKey &&
   left.TripKey === right.TripKey &&
-  left.ScheduleKey === right.ScheduleKey &&
   left.EventType === right.EventType &&
   left.VesselAbbrev === right.VesselAbbrev &&
   left.SailingDay === right.SailingDay &&

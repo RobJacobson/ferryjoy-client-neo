@@ -56,11 +56,11 @@ describe("planScheduledRowsForSailingDay", () => {
       ]
     );
 
-    expect(plan.deletes).toEqual(["scheduled-stale"]);
+    expect(plan.deletes).toEqual(["scheduled-stale" as Id<"eventsScheduled">]);
     expect(plan.inserts).toEqual([inserted]);
     expect(plan.replacements).toEqual([
       {
-        existingId: "scheduled-changed",
+        existingId: "scheduled-changed" as Id<"eventsScheduled">,
         row: baseRow({ Key: "changed", EventScheduledTime: 1100 }),
       },
     ]);

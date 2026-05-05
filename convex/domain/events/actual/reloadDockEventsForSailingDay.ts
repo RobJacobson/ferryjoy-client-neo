@@ -1,8 +1,8 @@
 /**
- * Builds scheduled and actual dock-event rows for a sailing-day reload.
+ * Builds actual dock-event rows for a sailing-day reload.
  *
  * Composes schedule-derived boundary records, trip indexes, physical-only trips,
- * and live locations into row slices that Convex mutations persist to event tables.
+ * and live locations into the actual row slice that Convex mutations upsert.
  */
 
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
@@ -37,12 +37,12 @@ type BuildDockEventRowsForSailingDayReloadArgs = {
 };
 
 /**
- * Builds scheduled and actual Convex rows for one sailing-day reload pass.
+ * Builds actual Convex rows for one sailing-day reload pass.
  *
- * Normalizes seam artifacts, derives scheduled rows from boundary records,
- * builds base actual rows from schedule-backed evidence plus physical-only trips,
- * then layers live-location reconciliation and merges patches back into the base
- * set. Counts reflect normalized boundary rows and final actual rows after merge.
+ * Normalizes seam artifacts, builds base actual rows from schedule-backed
+ * evidence plus physical-only trips, then layers live-location reconciliation
+ * and merges patches back into the base set. Scheduled rows are built only as
+ * transient context for aligning live locations to boundary records.
  *
  * @param args.sailingDay - Calendar sailing day string for filtering locations
  * @param args.events - Hydrated boundary records for the day (seed plus history)
@@ -51,9 +51,9 @@ type BuildDockEventRowsForSailingDayReloadArgs = {
  * @param args.activeTripsByVesselAbbrev - Active trips for scheduleless patches
  * @param args.physicalOnlyTrips - Trips without ScheduleKey for bare-metal actuals
  * @param args.vesselLocations - Latest locations used for live reconciliation
- * @returns scheduledRows, actualRows, scheduledCount, actualCount for persistence feedback
+ * @returns Actual rows and actual row count for persistence feedback
  */
-const buildDockEventRowsForSailingDayReload = ({
+const buildActualDockRowsForSailingDayReload = ({
   sailingDay,
   events,
   updatedAt,
@@ -85,9 +85,7 @@ const buildDockEventRowsForSailingDayReload = ({
   );
 
   return {
-    scheduledRows,
     actualRows,
-    scheduledCount: normalizedEvents.length,
     actualCount: actualRows.length,
   };
 };
@@ -120,7 +118,6 @@ const buildPhysicalOnlyActualRowsFromTrips = (
           buildActualDockEventFromWrite(
             {
               TripKey: trip.TripKey as string,
-              ScheduleKey: undefined,
               VesselAbbrev: trip.VesselAbbrev,
               ...(trip.SailingDay !== undefined
                 ? { SailingDay: trip.SailingDay }
@@ -146,7 +143,6 @@ const buildPhysicalOnlyActualRowsFromTrips = (
           buildActualDockEventFromWrite(
             {
               TripKey: trip.TripKey as string,
-              ScheduleKey: undefined,
               VesselAbbrev: trip.VesselAbbrev,
               ...(trip.SailingDay !== undefined
                 ? { SailingDay: trip.SailingDay }
@@ -181,4 +177,4 @@ const dedupeActualRowsByEventKey = <T extends { EventKey: string }>(
   rows: T[]
 ) => [...new Map(rows.map((row) => [row.EventKey, row])).values()];
 
-export { buildDockEventRowsForSailingDayReload };
+export { buildActualDockRowsForSailingDayReload };

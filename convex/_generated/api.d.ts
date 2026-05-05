@@ -46,6 +46,7 @@ import type * as domain_events_predicted_predictedDockCompositeKey from "../doma
 import type * as domain_events_predicted_reconcilePredictedDockBatches from "../domain/events/predicted/reconcilePredictedDockBatches.js";
 import type * as domain_events_predicted_schemas from "../domain/events/predicted/schemas.js";
 import type * as domain_events_reload_buildHydratedTransitionsFromReloadInputs from "../domain/events/reload/buildHydratedTransitionsFromReloadInputs.js";
+import type * as domain_events_reload_types from "../domain/events/reload/types.js";
 import type * as domain_events_scheduled_adjacentBoundaryIntervals from "../domain/events/scheduled/adjacentBoundaryIntervals.js";
 import type * as domain_events_scheduled_buildScheduledDockEventRecords from "../domain/events/scheduled/buildScheduledDockEventRecords.js";
 import type * as domain_events_scheduled_buildScheduledDockEvents from "../domain/events/scheduled/buildScheduledDockEvents.js";
@@ -155,7 +156,6 @@ import type * as functions_events_sync_buildConvexReloadDockDataFromFetchedSlice
 import type * as functions_events_sync_fetchHistoryRecordsForDate from "../functions/events/sync/fetchHistoryRecordsForDate.js";
 import type * as functions_events_sync_index from "../functions/events/sync/index.js";
 import type * as functions_events_sync_loadTripIndexesForSailingDay from "../functions/events/sync/loadTripIndexesForSailingDay.js";
-import type * as functions_events_sync_mapConvexReloadDockDataToRawFetchShapes from "../functions/events/sync/mapConvexReloadDockDataToRawFetchShapes.js";
 import type * as functions_events_sync_mutations from "../functions/events/sync/mutations.js";
 import type * as functions_events_sync_reloadDockDataSchemas from "../functions/events/sync/reloadDockDataSchemas.js";
 import type * as functions_events_sync_reloadDockEventsForSailingDay from "../functions/events/sync/reloadDockEventsForSailingDay.js";
@@ -292,6 +292,7 @@ declare const fullApi: ApiFromModules<{
   "domain/events/predicted/reconcilePredictedDockBatches": typeof domain_events_predicted_reconcilePredictedDockBatches;
   "domain/events/predicted/schemas": typeof domain_events_predicted_schemas;
   "domain/events/reload/buildHydratedTransitionsFromReloadInputs": typeof domain_events_reload_buildHydratedTransitionsFromReloadInputs;
+  "domain/events/reload/types": typeof domain_events_reload_types;
   "domain/events/scheduled/adjacentBoundaryIntervals": typeof domain_events_scheduled_adjacentBoundaryIntervals;
   "domain/events/scheduled/buildScheduledDockEventRecords": typeof domain_events_scheduled_buildScheduledDockEventRecords;
   "domain/events/scheduled/buildScheduledDockEvents": typeof domain_events_scheduled_buildScheduledDockEvents;
@@ -401,7 +402,6 @@ declare const fullApi: ApiFromModules<{
   "functions/events/sync/fetchHistoryRecordsForDate": typeof functions_events_sync_fetchHistoryRecordsForDate;
   "functions/events/sync/index": typeof functions_events_sync_index;
   "functions/events/sync/loadTripIndexesForSailingDay": typeof functions_events_sync_loadTripIndexesForSailingDay;
-  "functions/events/sync/mapConvexReloadDockDataToRawFetchShapes": typeof functions_events_sync_mapConvexReloadDockDataToRawFetchShapes;
   "functions/events/sync/mutations": typeof functions_events_sync_mutations;
   "functions/events/sync/reloadDockDataSchemas": typeof functions_events_sync_reloadDockDataSchemas;
   "functions/events/sync/reloadDockEventsForSailingDay": typeof functions_events_sync_reloadDockEventsForSailingDay;

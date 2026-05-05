@@ -66,7 +66,6 @@ const makeTrip = (
 
 const makeActualEvent = (vesselAbbrev: string): ConvexActualDockEvent => ({
   TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
-  ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   VesselAbbrev: vesselAbbrev,
   SailingDay: "2026-03-13",
   ScheduledDeparture: ms("2026-03-13T05:30:00-07:00"),

@@ -19,7 +19,7 @@ import type { DockBoundaryEventRecord } from "../types";
  */
 export const createSeededScheduleSegmentResolver = (
   seededEvents: ReadonlyArray<DockBoundaryEventRecord>
-): ((vesselAbbrev: string, scheduledDepart: Date) => string | undefined) => {
+): ((vesselAbbrev: string, scheduledDepart: number) => string | undefined) => {
   const depRows = seededEvents.filter(
     (event) => event.EventType === "dep-dock"
   );
@@ -27,12 +27,11 @@ export const createSeededScheduleSegmentResolver = (
 
   const resolveSegmentKeyFromHistoryDepart = (
     vesselAbbrev: string,
-    scheduledDepart: Date
+    scheduledDepart: number
   ): string | undefined => {
-    const targetMs = scheduledDepart.getTime();
     return byVessel
       .get(vesselAbbrev)
-      ?.find((row) => row.ScheduledDeparture === targetMs)?.SegmentKey;
+      ?.find((row) => row.ScheduledDeparture === scheduledDepart)?.SegmentKey;
   };
 
   return resolveSegmentKeyFromHistoryDepart;

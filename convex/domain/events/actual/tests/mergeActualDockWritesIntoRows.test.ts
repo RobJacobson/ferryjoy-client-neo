@@ -54,7 +54,6 @@ describe("mergeActualDockWritesIntoRows", () => {
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
-        ScheduleKey: segment,
         EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
@@ -88,7 +87,6 @@ describe("mergeActualDockWritesIntoRows", () => {
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
-        ScheduleKey: segment,
         EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
@@ -121,7 +119,6 @@ describe("mergeActualDockWritesIntoRows", () => {
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
-        ScheduleKey: segment,
         EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
