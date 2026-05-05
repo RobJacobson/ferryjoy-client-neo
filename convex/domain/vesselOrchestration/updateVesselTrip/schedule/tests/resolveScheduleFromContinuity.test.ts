@@ -1,3 +1,10 @@
+/**
+ * Behavioral tests for resolveScheduleFromContinuity.
+ *
+ * This suite verifies strict fallback order, cross-day schedule lookup, and
+ * diagnostic logging context for inferred schedule-field outcomes.
+ */
+
 import { describe, expect, it } from "bun:test";
 import { getScheduleResolutionLog, resolveScheduleFromContinuity } from "..";
 import {
@@ -8,10 +15,22 @@ import {
   ms,
 } from "./testHelpers";
 
+/**
+ * Calls continuity resolution with typed test input.
+ *
+ * @param input - Continuity resolver input payload for one synthetic ping
+ * @returns Resolver output used by assertions in this suite
+ */
 const resolveFields = (
   input: Parameters<typeof resolveScheduleFromContinuity>[0]
 ) => resolveScheduleFromContinuity(input);
 
+/**
+ * Asserts that a continuity resolution exists and returns it.
+ *
+ * @param resolution - Potentially undefined resolver output
+ * @returns The defined resolution for chained expectations
+ */
 const expectResolved = (
   resolution: Awaited<ReturnType<typeof resolveScheduleFromContinuity>>
 ) => {

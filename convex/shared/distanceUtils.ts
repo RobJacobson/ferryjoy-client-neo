@@ -32,7 +32,7 @@ export const calculateDistanceInMiles = (
     const to = point([lon2, lat2]);
     const options = { units: "miles" as const };
 
-    const dist = distance(from, to, options);
+    const dist = Math.max(distance(from, to, options) - 0.1, 0);
 
     // Floor to 1/10th of a mile so small fluctuations do not overstate distance.
     return roundToPrecision(dist, 1);

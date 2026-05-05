@@ -12,10 +12,9 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { UpdateVesselTripDbAccess } from "../types";
 import { mergeResolvedScheduleFields } from "./mergeResolvedScheduleFields";
 import { resolveScheduleFromContinuity } from "./resolveScheduleFromContinuity";
-import {
-  hasWsfScheduleFields,
-  resolveScheduleFromWsfFields,
-} from "./resolveScheduleFromWsfFields";
+import type { WsfCompleteSchedulePing } from "./resolveScheduleFromWsfFields";
+
+import { resolveScheduleFromWsfFields } from "./resolveScheduleFromWsfFields";
 import type { ResolvedTripScheduleFields } from "./types";
 
 type ApplyScheduleToActiveTripInput = {
@@ -75,6 +74,15 @@ const applyScheduleToActiveTrip = async (
  * use continuity inference from prior NextScheduleKey followed by schedule-table
  * lookup. Continuing trips with incomplete WSF fields stay read-free.
  *
+ * This split keeps steady-state updates cheap while still allowing trip
+ * rollover recovery when WSF briefly omits schedule fields. The function
+ * returns undefined for unresolved cases so callers can preserve existing trip
+ * data without inventing low-confidence schedule values.
+ *
+ * @param currLocation - Current vessel location ping under schedule resolution
+ * @param prevTrip - Prior persisted active trip row, if one exists
+ * @param isNewTrip - Lifecycle signal indicating terminal-transition rollover
+ * @param dbAccess - Continuity read access for key and schedule-table fallback
  * @returns Resolved schedule fields when evidence exists, otherwise undefined
  */
 const resolveScheduleFieldsForActiveTrip = async ({
@@ -89,6 +97,7 @@ const resolveScheduleFieldsForActiveTrip = async ({
   dbAccess: UpdateVesselTripDbAccess;
 }): Promise<ResolvedTripScheduleFields | undefined> => {
   if (hasWsfScheduleFields(currLocation)) {
+    // Authoritative realtime fields bypass continuity reads entirely.
     return resolveScheduleFromWsfFields(currLocation);
   }
 
@@ -118,5 +127,17 @@ const resolveScheduleFieldsForActiveTrip = async ({
 
   return resolution;
 };
+
+/**
+ * Detects whether a ping carries complete WSF schedule fields.
+ *
+ * @param location - Vessel location row for this ping
+ * @returns True when arriving terminal and scheduled departure are both present
+ */
+const hasWsfScheduleFields = (
+  location: ConvexVesselLocation
+): location is WsfCompleteSchedulePing =>
+  location.ArrivingTerminalAbbrev !== undefined &&
+  location.ScheduledDeparture !== undefined;
 
 export { applyScheduleToActiveTrip };

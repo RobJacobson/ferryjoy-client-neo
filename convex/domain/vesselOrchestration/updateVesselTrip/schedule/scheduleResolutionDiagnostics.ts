@@ -37,6 +37,10 @@ type TripFieldSnapshot = {
 /**
  * Extracts comparable trip-field values from a row-like object.
  *
+ * This normalizer lets diagnostics compare prior, resolved, and raw WSF
+ * values using one compact shape. Keeping the snapshot intentionally narrow
+ * avoids noisy logs and keeps change reasoning focused on schedule identity.
+ *
  * @param trip - Trip/location/resolved fields object containing trip-field keys
  * @returns Snapshot of arriving terminal, scheduled departure, and schedule key
  */
@@ -50,6 +54,10 @@ const tripFieldSnapshotFrom = (
 
 /**
  * Compares two trip-field snapshots for equality.
+ *
+ * Undefined on either side is treated as absent data rather than a mismatch on
+ * its own. This keeps diagnostics aligned with sparse storage behavior where
+ * optional schedule fields may be omitted entirely.
  *
  * @param left - First snapshot to compare
  * @param right - Second snapshot to compare
@@ -65,6 +73,10 @@ const areTripFieldsEqual = (
 
 /**
  * Detects whether partial WSF fields conflict with resolved inference.
+ *
+ * WSF frequently provides only a subset of trip fields during transitions, so
+ * this check compares only fields that were actually present on the ping. That
+ * lets logs distinguish genuine conflicts from missing feed values.
  *
  * @param location - Raw WSF location row for this ping
  * @param resolvedTripFields - Resolved trip fields from inference path
@@ -85,6 +97,10 @@ const hasPartialWsfConflict = (
 /**
  * Builds structured inference-log context when a meaningful transition occurred.
  *
+ * The function suppresses routine no-op outcomes and emits context only when
+ * operators would need visibility, such as inferred-field start/update,
+ * partial-feed conflicts, or authoritative WSF replacement of prior values.
+ *
  * @param input - Location, prior trip, and resolved trip fields
  * @returns Log context describing the inference outcome, or undefined when no log needed
  */
@@ -94,6 +110,7 @@ const getScheduleResolutionLogContext = ({
   current,
 }: ScheduleResolutionLogInput): ScheduleResolutionLogContext | undefined => {
   const tripFieldResolutionMethod = current.tripFieldResolutionMethod;
+  // Skip diagnostics when no resolver method is attached to this row update.
   if (tripFieldResolutionMethod === undefined) {
     return undefined;
   }
@@ -118,6 +135,7 @@ const getScheduleResolutionLogContext = ({
   };
 
   if (tripFieldResolutionMethod !== "wsfRealtimeFields") {
+    // Inference paths log only on start, update, or explicit conflict cases.
     const reason = hasPartialWsfConflict(location, resolvedTripFields)
       ? "partial_wsf_conflict_with_inference"
       : existingTrip === undefined
@@ -146,6 +164,9 @@ const getScheduleResolutionLogContext = ({
 /**
  * Formats a human-readable message for trip-field inference logs.
  *
+ * Message text is intentionally concise and reason-based so dashboards and
+ * tail logs can be scanned quickly without opening structured payload fields.
+ *
  * @param context - Structured inference-log context
  * @returns Single log line describing the inferred-field transition
  */
@@ -167,6 +188,10 @@ const buildScheduleResolutionMessage = (
 /**
  * Emits structured trip-field inference logs when resolution changed meaningfully.
  *
+ * This adapter centralizes the context-plus-message contract so callers can
+ * write one logging branch and still preserve both readable text and the
+ * structured fields needed for debugging and aggregation.
+ *
  * @param args - Location, prior trip, and resolved trip fields
  * @returns Structured context plus message when a meaningful event occurred
  */
@@ -174,6 +199,7 @@ const getScheduleResolutionLog = (
   args: ScheduleResolutionLogInput
 ): { message: string; context: ScheduleResolutionLogContext } | undefined => {
   const context = getScheduleResolutionLogContext(args);
+  // Preserve quiet defaults by returning undefined for non-meaningful outcomes.
   if (context === undefined) {
     return undefined;
   }

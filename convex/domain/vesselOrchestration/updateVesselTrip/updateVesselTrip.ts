@@ -43,8 +43,7 @@ const updateVesselTrip = async (
       isNewTrip,
     });
 
-    // Schedule-table reads inside applyScheduleToActiveTrip run only on new
-    // trip rollover while InService; WSF pings use a sync merge path instead.
+    // Schedule reads run only for new in-service rollover; complete WSF fields use sync merge instead.
     const activeVesselTrip = await applyScheduleToActiveTrip({
       activeTrip,
       prevTrip: prevTrip,

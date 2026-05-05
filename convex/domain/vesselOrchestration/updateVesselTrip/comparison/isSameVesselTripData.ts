@@ -48,9 +48,7 @@ const isSameVesselTripData = (
     stripVesselTripPredictions(nextTrip)
   );
 
-  // Convex documents omit unset optional fields; trip builders often attach the
-  // full schema shape with explicit undefined. Compare the union of keys so
-  // sparse and dense rows match when the data is equivalent.
+  // Compare unioned keys so sparse Convex docs and dense builder rows match when values are equivalent.
   const allKeys = new Set([
     ...Object.keys(currComparable),
     ...Object.keys(nextComparable),

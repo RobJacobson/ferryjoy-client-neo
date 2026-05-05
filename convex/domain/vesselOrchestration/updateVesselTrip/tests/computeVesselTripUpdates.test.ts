@@ -1,3 +1,11 @@
+/**
+ * End-to-end behavior tests for the updateVesselTrip domain entrypoint.
+ *
+ * These cases validate lifecycle rollover, continuity scheduling, and no-op
+ * suppression behavior by exercising the full per-vessel update pipeline with
+ * deterministic fixture inputs.
+ */
+
 import { describe, expect, it } from "bun:test";
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";

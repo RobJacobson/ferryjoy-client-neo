@@ -17,19 +17,12 @@ type WsfCompleteSchedulePing = ConvexVesselLocation & {
 };
 
 /**
- * Detects whether a ping carries complete WSF schedule fields.
- *
- * @param location - Vessel location row for this ping
- * @returns True when arriving terminal and scheduled departure are both present
- */
-const hasWsfScheduleFields = (
-  location: ConvexVesselLocation
-): location is WsfCompleteSchedulePing =>
-  location.ArrivingTerminalAbbrev !== undefined &&
-  location.ScheduledDeparture !== undefined;
-
-/**
  * Builds schedule resolution from authoritative WSF realtime fields.
+ *
+ * This resolver treats complete WSF schedule fields as the highest-confidence
+ * source and derives a canonical segment key from vessel, terminals, and
+ * scheduled departure. Returning a full current-leg payload here lets merge
+ * logic bypass continuity lookups and keep schedule identity deterministic.
  *
  * @param location - Ping with arriving terminal and scheduled departure set
  * @returns Resolution current/next shapes for schedule merge
@@ -48,6 +41,7 @@ const resolveScheduleFromWsfFields = (
         location.ArrivingTerminalAbbrev,
         departureDate
       ),
+      // Keep sailing-day derivation tied to scheduled departure for stable persisted schedule identity.
       SailingDay: getSailingDay(departureDate),
       tripFieldResolutionMethod: "wsfRealtimeFields",
     },
@@ -56,4 +50,4 @@ const resolveScheduleFromWsfFields = (
 };
 
 export type { WsfCompleteSchedulePing };
-export { hasWsfScheduleFields, resolveScheduleFromWsfFields };
+export { resolveScheduleFromWsfFields };
