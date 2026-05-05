@@ -16,6 +16,7 @@ import {
 import type { ConvexVesselLocationIncoming } from "functions/vesselLocation/schemas";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { calculateDistanceInMiles } from "shared/distanceUtils";
+import { roundToPrecision } from "shared/durationUtils";
 import { deriveTripIdentity } from "shared/tripIdentity";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
@@ -125,8 +126,8 @@ const normalizeWsfVesselLocationRow = (
     ArrivingTerminalName:
       arrTerminal?.TerminalName ?? trimFeedOpt(row.ArrivingTerminalName),
     ArrivingTerminalAbbrev: arrAbbrev,
-    Latitude: row.Latitude,
-    Longitude: row.Longitude,
+    Latitude: roundToPrecision(row.Latitude, 5),
+    Longitude: roundToPrecision(row.Longitude, 5),
     Speed: row.Speed,
     Heading: row.Heading,
     InService: row.InService,
