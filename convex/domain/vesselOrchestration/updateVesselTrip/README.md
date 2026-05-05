@@ -86,10 +86,11 @@ evidence never carry forward the prior active trip's TripKey.
   - `stripTripPredictionsForStorage.ts` — comparison normalization (predictions stripped)
 - `schedule/` — schedule-facing policy and resolution
   - `applyScheduleToActiveTrip.ts` — schedule field policy for active rows
-  - `resolveScheduleForActiveTrip.ts` — WSF vs rollover path selection
+  - `resolveScheduleForActiveTrip.ts` — WSF, next-key, and DB fallback path selection
   - `mergeScheduleResolutionIntoTrip.ts` — merge resolved schedule into a trip row
   - `resolveScheduleFromWsfRealtimeFields.ts` — authoritative WSF realtime path
-  - `resolveRolloverScheduleFromContinuity.ts` — next-key and schedule-table inference
+  - `resolveScheduleFromNextScheduleKey.ts` — prior next-key continuity inference
+  - `resolveScheduleFromScheduledTripsDb.ts` — scheduled-trip table fallback inference
 - `dockTransitionEvents.ts` — downstream dock-boundary transition facts
 
 ## Non-ownership

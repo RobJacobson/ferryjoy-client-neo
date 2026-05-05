@@ -1,12 +1,12 @@
 /**
- * Behavioral tests for resolveRolloverScheduleFromContinuity.
+ * Behavioral tests for resolveScheduleForActiveTrip.
  *
  * This suite verifies strict fallback order and cross-day schedule lookup for
  * inferred schedule-field outcomes.
  */
 
 import { describe, expect, it } from "bun:test";
-import { resolveRolloverScheduleFromContinuity } from "..";
+import { resolveScheduleForActiveTrip } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -16,29 +16,37 @@ import {
 } from "./testHelpers";
 
 /**
- * Calls continuity resolution with typed test input.
+ * Calls active-trip schedule resolution with typed test input.
  *
- * @param input - Continuity resolver input payload for one synthetic ping
+ * @param input - Schedule resolver input payload for one synthetic ping
  * @returns Resolver output used by assertions in this suite
  */
-const resolveFields = (
-  input: Parameters<typeof resolveRolloverScheduleFromContinuity>[0]
-) => resolveRolloverScheduleFromContinuity(input);
+const resolveFields = (input: {
+  location: Parameters<typeof resolveScheduleForActiveTrip>[0]["currLocation"];
+  existingTrip: Parameters<typeof resolveScheduleForActiveTrip>[0]["prevTrip"];
+  dbAccess: Parameters<typeof resolveScheduleForActiveTrip>[0]["dbAccess"];
+}) =>
+  resolveScheduleForActiveTrip({
+    currLocation: input.location,
+    prevTrip: input.existingTrip,
+    isNewTrip: true,
+    dbAccess: input.dbAccess,
+  });
 
 /**
- * Asserts that a continuity resolution exists and returns it.
+ * Asserts that a schedule resolution exists and returns it.
  *
  * @param resolution - Potentially undefined resolver output
  * @returns The defined resolution for chained expectations
  */
 const expectResolved = (
-  resolution: Awaited<ReturnType<typeof resolveRolloverScheduleFromContinuity>>
+  resolution: Awaited<ReturnType<typeof resolveScheduleForActiveTrip>>
 ) => {
   expect(resolution).toBeDefined();
   return resolution;
 };
 
-describe("resolveRolloverScheduleFromContinuity", () => {
+describe("resolveScheduleForActiveTrip", () => {
   it("prefers next scheduled segment over schedule tables when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",

@@ -9,7 +9,8 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { UpdateVesselTripDbAccess } from "../types";
-import { resolveRolloverScheduleFromContinuity } from "./resolveRolloverScheduleFromContinuity";
+import { resolveScheduleFromNextScheduleKey } from "./resolveScheduleFromNextScheduleKey";
+import { resolveScheduleFromScheduledTripsDb } from "./resolveScheduleFromScheduledTripsDb";
 import {
   resolveScheduleFromWsfRealtimeFields,
   type WsfCompleteSchedulePing,
@@ -49,11 +50,16 @@ const resolveScheduleForActiveTrip = async ({
     return undefined;
   }
 
-  const resolution = await resolveRolloverScheduleFromContinuity({
-    location: currLocation,
-    existingTrip: prevTrip,
-    dbAccess,
-  });
+  const resolution =
+    (await resolveScheduleFromNextScheduleKey({
+      existingTrip: prevTrip,
+      departingTerminalAbbrev: currLocation.DepartingTerminalAbbrev,
+      dbAccess,
+    })) ??
+    (await resolveScheduleFromScheduledTripsDb({
+      location: currLocation,
+      dbAccess,
+    }));
 
   if (resolution === undefined) {
     console.warn(
