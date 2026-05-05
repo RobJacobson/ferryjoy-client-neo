@@ -1,6 +1,9 @@
 /**
- * Resolved schedule-facing fields for the **current** trip row, before the
- * trip-field resolver attaches next-leg schedule hints.
+ * Shared schedule resolution payloads for active-trip enrichment.
+ *
+ * Schedule resolvers return these transient shapes before merge code writes
+ * fields onto a ConvexVesselTrip row. The resolution method is diagnostic data
+ * and is not persisted on trip rows.
  */
 export type ResolvedCurrentTripFields = {
   ArrivingTerminalAbbrev?: string;

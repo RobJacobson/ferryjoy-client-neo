@@ -1,5 +1,5 @@
 /**
- * Shared contracts for the pure `updateVesselTrip` pipeline.
+ * Shared contracts for the pure updateVesselTrip pipeline.
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
@@ -10,8 +10,8 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 /**
  * Canonical Stage 2 per-vessel write intents for the orchestrator pipeline.
  *
- * `activeVesselTrip` is always the next **active** row to persist. When a leg
- * completes, that value is the replacement trip; `completedVesselTrip` is set
+ * activeVesselTrip is always the next active row to persist. When a leg
+ * completes, that value is the replacement trip; completedVesselTrip is set
  * for the row being archived. When a field is undefined, no write of that kind
  * is emitted.
  */

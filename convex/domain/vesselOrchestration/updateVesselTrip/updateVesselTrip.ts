@@ -1,14 +1,17 @@
 /**
  * Per-vessel trip update computation from one location ping.
+ *
+ * This module is the domain entrypoint for vessel trip lifecycle updates. It
+ * composes row construction, schedule enrichment, and storage comparison while
+ * keeping Convex reads and writes outside the pure trip-shaping code.
  */
 
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { buildActiveTrip } from "./pipeline/buildActiveTrip";
-import { buildCompleteTrip } from "./pipeline/buildCompleteTrip";
-import * as lifecycle from "./pipeline/lifecycleSignals";
-import { isSameVesselTrip } from "./pipeline/tripComparison";
-import { applyScheduleForActiveTrip } from "./schedule/scheduleForActiveTrip";
+import { isSameVesselTripData } from "./comparison/isSameVesselTripData";
+import { applyScheduleToActiveTrip } from "./schedule/applyScheduleToActiveTrip";
+import { buildActiveTrip } from "./tripRows/buildActiveTrip";
+import { buildCompleteTrip } from "./tripRows/buildCompleteTrip";
 import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**
@@ -17,8 +20,8 @@ import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
  * @param currLocation - Latest location ping for one vessel
  * @param prevTrip - Existing active trip row for that vessel, when present
  * @param dbAccess - Schedule tables used to enrich new-trip rows (see
- *   applyScheduleForActiveTrip); not consulted on every ping.
- * @returns Trip update when substantive changes exist, otherwise `null`
+ *   applyScheduleToActiveTrip); not consulted on every ping.
+ * @returns Trip update when substantive changes exist, otherwise null
  */
 const updateVesselTrip = async (
   currLocation: ConvexVesselLocation,
@@ -26,8 +29,7 @@ const updateVesselTrip = async (
   dbAccess: UpdateVesselTripDbAccess
 ): Promise<VesselTripUpdate | null> => {
   try {
-    // Extract continuity context from the prior active trip row.
-    const isNewTrip = lifecycle.isNewTrip(prevTrip, currLocation);
+    const isNewTrip = startsNewTripLeg(prevTrip, currLocation);
     const completedVesselTrip =
       isNewTrip && prevTrip !== undefined
         ? buildCompleteTrip(prevTrip, currLocation)
@@ -41,9 +43,9 @@ const updateVesselTrip = async (
       isNewTrip,
     });
 
-    // Schedule-table reads (inside applyScheduleForActiveTrip) run only on new
+    // Schedule-table reads inside applyScheduleToActiveTrip run only on new
     // trip rollover while InService; WSF pings use a sync merge path instead.
-    const activeVesselTrip = await applyScheduleForActiveTrip({
+    const activeVesselTrip = await applyScheduleToActiveTrip({
       activeTrip,
       prevTrip: prevTrip,
       currLocation: currLocation,
@@ -51,8 +53,7 @@ const updateVesselTrip = async (
       dbAccess,
     });
 
-    // Check if the active vessel trip has meaningfully changed.
-    const isActiveVesselTripUnchanged = isSameVesselTrip(
+    const isActiveVesselTripUnchanged = isSameVesselTripData(
       prevTrip,
       activeVesselTrip
     );
@@ -82,5 +83,23 @@ const updateVesselTrip = async (
     return null;
   }
 };
+
+/**
+ * Returns whether the incoming ping starts a new trip leg.
+ *
+ * The trip pipeline treats a departing terminal change as the durable rollover
+ * signal. This keeps completion and replacement row construction anchored to a
+ * physical terminal transition rather than schedule field availability.
+ *
+ * @param prevTrip - Stored active trip row for the vessel, if present
+ * @param currLocation - Current location ping for the same vessel
+ * @returns True when the stored departing terminal differs from the ping
+ */
+const startsNewTripLeg = (
+  prevTrip: ConvexVesselTrip | undefined,
+  currLocation: ConvexVesselLocation
+): boolean =>
+  prevTrip !== undefined &&
+  prevTrip.DepartingTerminalAbbrev !== currLocation.DepartingTerminalAbbrev;
 
 export { updateVesselTrip };

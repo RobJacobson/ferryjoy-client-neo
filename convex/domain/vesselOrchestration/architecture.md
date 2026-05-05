@@ -77,27 +77,26 @@ Internal one-vessel flow:
 
 ```text
 updateVesselTrip
-  -> isNewTrip
+  -> startsNewTripLeg
   -> buildCompleteTrip?
   -> buildActiveTrip
-  -> applyScheduleForActiveTrip
+  -> applyScheduleToActiveTrip
   -> classify storage/lifecycle change
 ```
 
-### `activeTripSchedule`
+### updateVesselTrip schedule
 
-`activeTripSchedule/` is private support for `scheduleForActiveTrip.ts`.
-
-It owns focused schedule-resolution helpers (WSF realtime helpers used from
-schedule policy, next-trip-key continuity, schedule-table lookup, and types), but
-it is not the top-level row-construction seam for `updateVesselTrip`.
+`updateVesselTrip/schedule/` is private support for active-trip schedule
+enrichment. It owns the active schedule policy, WSF realtime resolution,
+next-schedule-key continuity, schedule-table lookup, merge rules, diagnostics,
+and schedule resolution types.
 
 ### Downstream contract boundaries
 
 Cross-module contracts are owned by the domain modules that consume them:
 
-- `TripLifecycleEventFlags` is defined in
-  `updateVesselTrip/tripLifecycle.ts` and exported via the
+- Dock transition facts are defined in
+  `updateVesselTrip/dockTransitionEvents.ts` and exported via the
   `updateVesselTrip` barrel.
 - Event handoff DTOs live in `updateEvents/handoffTypes.ts`.
 - Event projection wire helpers live in `updateEvents/projectionWire.ts`.
@@ -108,7 +107,7 @@ Cross-module contracts are owned by the domain modules that consume them:
 
 - **Production:** trip-field code depends only on `UpdateVesselTripDbAccess`, wired from `functions/vesselOrchestrator/actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts` (`createUpdateVesselTripDbAccess`) with key-first internal queries against `eventsScheduled`. The domain tries `NextScheduleKey` continuity before rollover fallback. There is no per-ping read of a materialized full-day schedule snapshot table on this path.
 - **Tests:** schedule-resolution fixtures/helpers live under
-  `updateVesselTrip/schedule/activeTripSchedule/tests/`, and public behavior/module tests live
+  `updateVesselTrip/schedule/tests/`, and public behavior/module tests live
   under `updateVesselTrip/tests/`.
 
 ## Contracts between stages
@@ -141,7 +140,7 @@ Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTr
 - Trip compute stays prediction-free.
 - Schedule reads in production use only **`UpdateVesselTripDbAccess`** (see `functions/vesselOrchestrator/actions/ping/updateVesselTrip/updateVesselTripDbAccess.ts`); do not add a parallel schedule seam for trip-field code.
 - Downstream contracts are owned by their module boundaries
-  (`updateVesselTrip/tripLifecycle.ts` and `updateEvents/*`), not a shared
+  (`updateVesselTrip/dockTransitionEvents.ts` and `updateEvents/*`), not a shared
   cross-folder contract package.
 - Helper-level seams should stay internal unless another subsystem truly consumes them.
-- `tripLifecycle.ts` compatibility helpers remain downstream-facing and do not drive the main trip update pipeline.
+- `dockTransitionEvents.ts` compatibility helpers remain downstream-facing and do not drive the main trip update pipeline.

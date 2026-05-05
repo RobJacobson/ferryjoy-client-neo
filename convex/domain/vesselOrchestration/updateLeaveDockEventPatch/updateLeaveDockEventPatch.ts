@@ -1,25 +1,25 @@
 /**
- * Leave-dock ML patch payload for `eventsPredicted` depart-next rows.
+ * Builds leave-dock ML patch payloads for eventsPredicted depart-next rows.
  *
  * Bridges one ping's sparse trip update to downstream prediction maintenance:
- * when `updateVesselTrip` records a leave-dock transition with
- * `LeftDockActual`, persistence stamps `Actual` / `DeltaTotal` on
+ * when updateVesselTrip records a leave-dock transition with LeftDockActual,
+ * persistence stamps Actual and DeltaTotal on
  * AtDockDepartNext and AtSeaDepartNext ML rows for that leg's dep-dock key.
  * A null result from the exported function means skip patching: missing
  * evidence, no schedule key, or not the leave-dock edge ping.
  */
 
 import {
-  currentTripDockEvents,
+  getDockTransitionEvents,
   type VesselTripUpdate,
 } from "domain/vesselOrchestration/updateVesselTrip";
 import { buildBoundaryKey } from "shared/keys";
 import { floorToSecond } from "shared/time";
 
 /**
- * Arguments forwarded through `persistVesselUpdates` to patch prediction rows.
+ * Arguments forwarded through persistVesselUpdates to patch prediction rows.
  */
-export type UpdateLeaveDockEventPatch = {
+type UpdateLeaveDockEventPatch = {
   vesselAbbrev: string;
   depBoundaryKey: string;
   actualDepartMs: number;
@@ -28,16 +28,16 @@ export type UpdateLeaveDockEventPatch = {
 /**
  * Derives leave-dock ML patch inputs from one sparse trip update, or null.
  *
- * Produces a payload only when this ping is the at-dock→at-sea crossing,
- * `LeftDockActual` is set, and `ScheduleKey` can build a stable dep-dock key.
+ * Produces a payload only when this ping is the at-dock to at-sea crossing,
+ * LeftDockActual is set, and ScheduleKey can build a stable dep-dock key.
  * Otherwise returns null so the orchestrator does not re-patch on routine
- * at-sea location ticks. Non-null results flow to `patchDepartNextMlRowsForDepBoundary` in
- * the same `persistVesselUpdates` transaction as trip and event writes.
+ * at-sea location ticks. Non-null results flow to prediction row patching in
+ * the same persistVesselUpdates transaction as trip and event writes.
  *
- * @param tripUpdate - Sparse trip delta from `updateVesselTrip` for this ping
- * @returns `UpdateLeaveDockEventPatch` for `eventsPredicted` ML rows, or `null`
+ * @param tripUpdate - Sparse trip delta from updateVesselTrip for this ping
+ * @returns UpdateLeaveDockEventPatch for eventsPredicted ML rows, or null
  */
-export const updateLeaveDockEventPatch = (
+const updateLeaveDockEventPatch = (
   tripUpdate: VesselTripUpdate
 ): UpdateLeaveDockEventPatch | null => {
   const activeTrip = tripUpdate.activeVesselTrip;
@@ -48,7 +48,7 @@ export const updateLeaveDockEventPatch = (
   }
 
   // Restrict to leave-dock edge pings so routine at-sea ticks do not re-patch.
-  const { didJustLeaveDock } = currentTripDockEvents(
+  const { didJustLeaveDock } = getDockTransitionEvents(
     tripUpdate.existingVesselTrip,
     activeTrip
   );
@@ -63,3 +63,6 @@ export const updateLeaveDockEventPatch = (
     actualDepartMs: floorToSecond(leftDockActual),
   };
 };
+
+export type { UpdateLeaveDockEventPatch };
+export { updateLeaveDockEventPatch };

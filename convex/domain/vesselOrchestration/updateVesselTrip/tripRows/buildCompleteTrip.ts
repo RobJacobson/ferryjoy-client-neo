@@ -13,7 +13,7 @@ import { calculateTimeDelta } from "shared/durationUtils";
  * @param curr - Incoming vessel location ping that triggered completion
  * @returns Completed trip row with end/duration facts finalized
  */
-export const buildCompleteTrip = (
+const buildCompleteTrip = (
   prev: ConvexVesselTrip,
   curr: ConvexVesselLocation
 ): ConvexVesselTrip => ({
@@ -28,3 +28,5 @@ export const buildCompleteTrip = (
   TotalDuration: calculateTimeDelta(prev.TripStart, curr.TimeStamp),
   LeftDockActual: prev.LeftDockActual ?? prev.LeftDock,
 });
+
+export { buildCompleteTrip };

@@ -1,5 +1,9 @@
 /**
  * Schedule-segment inference from scheduled dock-event tables.
+ *
+ * This module is the fallback schedule recovery path for new trips when prior
+ * NextScheduleKey continuity is missing or stale. It scans current and next
+ * service-day scheduled dock rows for the next matching departure.
  */
 
 import {
@@ -9,7 +13,7 @@ import {
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { UpdateVesselTripDbAccess } from "../../types";
+import type { UpdateVesselTripDbAccess } from "../types";
 
 type ResolveSegmentFromScheduleTablesInput = {
   location: ConvexVesselLocation;
@@ -25,11 +29,10 @@ type ResolveSegmentFromScheduleTablesInput = {
  * at or after the ping timestamp. This allows schedule recovery during WSF
  * realtime gaps immediately after dock arrivals and trip transitions.
  *
- * @param input - Ping context and {@link UpdateVesselTripDbAccess} for current/next
- *   service-day schedule-table lookup
+ * @param input - Ping context and schedule access for current/next service-day lookup
  * @returns Inferred segment for the next departure from current terminal, or null
  */
-export const tryResolveScheduledSegmentFromScheduleTables = async ({
+const tryResolveScheduledSegmentFromScheduleTables = async ({
   location,
   dbAccess,
 }: ResolveSegmentFromScheduleTablesInput): Promise<ConvexInferredScheduledSegment | null> => {
@@ -88,3 +91,5 @@ const segmentAfterDepartureInPool = (
     ? inferScheduledSegmentFromDepartureEvent(departure, pool)
     : null;
 };
+
+export { tryResolveScheduledSegmentFromScheduleTables };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getTripFieldInferenceLog, resolveScheduleFromTripArrival } from "..";
+import { getScheduleResolutionLog, resolveScheduleFromContinuity } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -9,17 +9,17 @@ import {
 } from "./testHelpers";
 
 const resolveFields = (
-  input: Parameters<typeof resolveScheduleFromTripArrival>[0]
-) => resolveScheduleFromTripArrival(input);
+  input: Parameters<typeof resolveScheduleFromContinuity>[0]
+) => resolveScheduleFromContinuity(input);
 
 const expectResolved = (
-  resolution: Awaited<ReturnType<typeof resolveScheduleFromTripArrival>>
+  resolution: Awaited<ReturnType<typeof resolveScheduleFromContinuity>>
 ) => {
   expect(resolution).toBeDefined();
   return resolution;
 };
 
-describe("resolveScheduleFromTripArrival", () => {
+describe("resolveScheduleFromContinuity", () => {
   it("prefers next scheduled segment over schedule tables when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
@@ -269,7 +269,7 @@ describe("resolveScheduleFromTripArrival", () => {
       },
     };
 
-    expect(getTripFieldInferenceLog(inferenceInput)).toMatchObject({
+    expect(getScheduleResolutionLog(inferenceInput)).toMatchObject({
       message:
         "[TripFields] CHE kept provisional trip fields despite partial WSF conflict",
       context: {

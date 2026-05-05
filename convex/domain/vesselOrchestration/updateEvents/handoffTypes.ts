@@ -3,7 +3,7 @@
  * projection.
  */
 
-import type { CurrentTripDockEvents } from "domain/vesselOrchestration/updateVesselTrip";
+import type { DockTransitionEvents } from "domain/vesselOrchestration/updateVesselTrip";
 import type {
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -13,7 +13,7 @@ import type {
  * One completed arrival at dock: rows ready for event and optional
  * prediction-enriched replacement trip for projection.
  *
- * Field names align with `VesselTripUpdate`: prior active row, completed
+ * Field names align with VesselTripUpdate: prior active row, completed
  * closeout row, replacement active row; optional same shape with predictions
  * merged for projection.
  */
@@ -30,7 +30,7 @@ type DockWriteIntentBase = {
   finalProposed?: ConvexVesselTripWithML;
 };
 
-export type ActualDockWriteIntent = DockWriteIntentBase & CurrentTripDockEvents;
+export type ActualDockWriteIntent = DockWriteIntentBase & DockTransitionEvents;
 
 export type PredictedDockWriteIntent = DockWriteIntentBase & {
   existingTrip?: ConvexVesselTrip;

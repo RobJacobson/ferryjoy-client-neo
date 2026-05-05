@@ -1,12 +1,8 @@
-/**
- * Public entry for **updateVesselTrip**.
- */
-
-export { stripVesselTripPredictions } from "./pipeline/stripTripPredictionsForStorage";
+export { stripVesselTripPredictions } from "./comparison/stripTripPredictionsForStorage";
 export {
-  type CurrentTripDockEvents,
-  currentTripDockEvents,
-} from "./tripLifecycle";
+  type DockTransitionEvents,
+  getDockTransitionEvents,
+} from "./dockTransitionEvents";
 export type {
   GetScheduleRolloverDockEventsArgs,
   ScheduleRolloverDockEvents,

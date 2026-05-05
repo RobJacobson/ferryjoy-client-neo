@@ -1,12 +1,15 @@
 /**
- * Storage equality for vessel trips: sparse DB rows vs dense builder objects.
+ * Storage data equality tests for vessel trips.
+ *
+ * These cases verify that sparse Convex rows and dense builder objects compare
+ * as equal when their significant persisted data is the same.
  */
 
 import { describe, expect, it } from "bun:test";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { isSameVesselTrip } from "../pipeline/tripComparison";
+import { isSameVesselTripData } from "../comparison/isSameVesselTripData";
 
-describe("isSameVesselTrip", () => {
+describe("isSameVesselTripData", () => {
   it("treats omitted optional keys like explicit undefined (sparse vs dense)", () => {
     const sparse: ConvexVesselTrip = {
       VesselAbbrev: "CHE",
@@ -45,7 +48,7 @@ describe("isSameVesselTrip", () => {
       NextScheduledDeparture: undefined,
     };
 
-    expect(isSameVesselTrip(sparse, dense)).toBe(true);
+    expect(isSameVesselTripData(sparse, dense)).toBe(true);
   });
 
   it("returns false when a stored field value differs", () => {
@@ -65,6 +68,6 @@ describe("isSameVesselTrip", () => {
       Eta: 501,
     };
 
-    expect(isSameVesselTrip(a, b)).toBe(false);
+    expect(isSameVesselTripData(a, b)).toBe(false);
   });
 });

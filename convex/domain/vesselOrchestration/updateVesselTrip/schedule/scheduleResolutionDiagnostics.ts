@@ -1,17 +1,21 @@
 /**
- * Trip-field diagnostics helpers for optional inference logging.
+ * Builds optional diagnostics for schedule resolution outcomes.
+ *
+ * Schedule inference is expected during WSF gaps, so routine reuse should stay
+ * quiet. These helpers identify meaningful schedule-field transitions and
+ * produce structured context for targeted logs.
  */
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { ResolvedCurrentTripFields } from "./types";
 
-export type TripFieldInferenceInput = {
+type ScheduleResolutionLogInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   current: ResolvedCurrentTripFields;
 };
 
-export type TripFieldInferenceLogContext = {
+type ScheduleResolutionLogContext = {
   vesselAbbrev: string;
   tripFieldResolutionMethod?: ResolvedCurrentTripFields["tripFieldResolutionMethod"];
   reason:
@@ -84,11 +88,11 @@ const hasPartialWsfConflict = (
  * @param input - Location, prior trip, and resolved trip fields
  * @returns Log context describing the inference outcome, or undefined when no log needed
  */
-const getTripFieldInferenceLogContext = ({
+const getScheduleResolutionLogContext = ({
   location,
   existingTrip,
   current,
-}: TripFieldInferenceInput): TripFieldInferenceLogContext | undefined => {
+}: ScheduleResolutionLogInput): ScheduleResolutionLogContext | undefined => {
   const tripFieldResolutionMethod = current.tripFieldResolutionMethod;
   if (tripFieldResolutionMethod === undefined) {
     return undefined;
@@ -145,8 +149,8 @@ const getTripFieldInferenceLogContext = ({
  * @param context - Structured inference-log context
  * @returns Single log line describing the inferred-field transition
  */
-export const buildTripFieldInferenceMessage = (
-  context: TripFieldInferenceLogContext
+const buildScheduleResolutionMessage = (
+  context: ScheduleResolutionLogContext
 ): string => {
   switch (context.reason) {
     case "inferred_trip_fields_started":
@@ -166,16 +170,19 @@ export const buildTripFieldInferenceMessage = (
  * @param args - Location, prior trip, and resolved trip fields
  * @returns Structured context plus message when a meaningful event occurred
  */
-export const getTripFieldInferenceLog = (
-  args: TripFieldInferenceInput
-): { message: string; context: TripFieldInferenceLogContext } | undefined => {
-  const context = getTripFieldInferenceLogContext(args);
+const getScheduleResolutionLog = (
+  args: ScheduleResolutionLogInput
+): { message: string; context: ScheduleResolutionLogContext } | undefined => {
+  const context = getScheduleResolutionLogContext(args);
   if (context === undefined) {
     return undefined;
   }
 
   return {
-    message: buildTripFieldInferenceMessage(context),
+    message: buildScheduleResolutionMessage(context),
     context,
   };
 };
+
+export type { ScheduleResolutionLogContext, ScheduleResolutionLogInput };
+export { buildScheduleResolutionMessage, getScheduleResolutionLog };

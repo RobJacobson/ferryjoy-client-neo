@@ -24,7 +24,7 @@ Vessel sailing-day event logic is split by pipeline:
 - **`eventReseed/`** — Same-day reseed: schedule seeding, history hydration, live reconciliation (`buildReseedEventSlice` and related helpers).
 - **`eventRows/`** — Shared row builders and projection helpers used by reseed and mutations.
 - **`scheduledTrips/`** — Schedule transformation for `ConvexScheduledTrip` rows: direct/indirect classification, estimates, official crossing-time policy, prefetch row policies (`applyPrefetchSchedulePolicies`, `buildInitialScheduledTripRow`), and the `runScheduleTransformPipeline` entrypoint (used by scheduled-trips sync, WSF adapter ingress, and event reseed).
-- **`vesselOrchestration/`** — **`updateVesselTrip/`** (pure trip-update pipeline, **continuity**, `vesselTripsBuildTripAdapters`, **`tripLifecycle/`** helpers); `updateEvent/`; `updateVesselPredictions/`; eligibility; docs. Live location bulk upsert runs in `functions/vesselOrchestrator` (`actions.ts`). Post-fetch ping orchestration is being untangled incrementally. Map: [`vesselOrchestration/architecture.md`](vesselOrchestration/architecture.md).
+- **`vesselOrchestration/`** — **`updateVesselTrip/`** (pure trip-update pipeline, continuity, row builders, schedule enrichment, comparison, and dock transition helpers); `updateEvent/`; `updateVesselPredictions/`; eligibility; docs. Live location bulk upsert runs in `functions/vesselOrchestrator` (`actions.ts`). Post-fetch ping orchestration is being untangled incrementally. Map: [`vesselOrchestration/architecture.md`](vesselOrchestration/architecture.md).
 
 Import these modules directly; there is no `vesselEvent` domain barrel.
 

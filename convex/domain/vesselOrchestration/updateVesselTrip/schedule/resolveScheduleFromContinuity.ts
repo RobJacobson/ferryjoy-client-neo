@@ -1,25 +1,24 @@
 /**
- * Path B schedule resolution for new active trips after vessel arrival.
+ * Resolves inferred schedules for new active trips from continuity evidence.
  *
  * This module packages the ordered next-key and schedule-table strategies so
- * tests and secondary callers can reuse the same continuity logic as
- * `scheduleForActiveTrip` without duplicating fallback ordering. It returns a
- * merge-ready resolution when evidence exists, or `undefined` when neither
- * strategy resolves a segment (callers may warn or no-op).
+ * active-trip schedule application does not duplicate fallback ordering. It
+ * returns a merge-ready resolution when evidence exists, or undefined when
+ * neither strategy resolves a segment.
  */
 
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import type { UpdateVesselTripDbAccess } from "../../types";
-import { tryResolveScheduledSegmentFromNextTripKey } from "./resolveSegmentFromNextTripKey";
-import { tryResolveScheduledSegmentFromScheduleTables } from "./resolveSegmentFromScheduleLookup";
+import type { UpdateVesselTripDbAccess } from "../types";
+import { tryResolveScheduledSegmentFromNextScheduleKey } from "./resolveSegmentFromNextScheduleKey";
+import { tryResolveScheduledSegmentFromScheduleTables } from "./resolveSegmentFromScheduleTables";
 import type {
   ResolvedCurrentTripFields,
   ResolvedTripScheduleFields,
 } from "./types";
 
-export type ResolveScheduleFromTripArrivalInput = {
+type ResolveScheduleFromContinuityInput = {
   location: ConvexVesselLocation;
   existingTrip: ConvexVesselTrip | undefined;
   dbAccess: UpdateVesselTripDbAccess;
@@ -31,27 +30,27 @@ export type ResolveScheduleFromTripArrivalInput = {
  * This coordinator runs the same strict fallback chain as new-trip schedule
  * enrichment: keyed continuity first, then schedule-table inference. It keeps
  * schedule reads targeted and avoids synthesizing fields when no segment is
- * found, so merge layers and orchestration can treat `undefined` as an explicit
+ * found, so merge layers and orchestration can treat undefined as an explicit
  * unresolved outcome.
  *
  * Resolution order is strict:
- * 1) prior-row `NextScheduleKey` continuity (`nextTripKey`)
- * 2) schedule-table lookup across current/next service day (`scheduleLookup`)
+ * 1) prior-row NextScheduleKey continuity through nextTripKey
+ * 2) schedule-table lookup across current/next service day through scheduleLookup
  *
- * @param input - Ping context, prior active row, and {@link UpdateVesselTripDbAccess}
+ * @param input - Ping context, prior active row, and schedule read access
  * @returns Resolved current fields and optional next-leg fields for merge layer;
  *   undefined when no schedule evidence is available
  */
-export const resolveScheduleFromTripArrival = async ({
+const resolveScheduleFromContinuity = async ({
   location,
   existingTrip,
   dbAccess,
-}: ResolveScheduleFromTripArrivalInput): Promise<
+}: ResolveScheduleFromContinuityInput): Promise<
   ResolvedTripScheduleFields | undefined
 > => {
   // Prefer prior-row next-key continuity so schedule identity stays stable when linkage is valid.
   const segmentFromNextTripKey =
-    await tryResolveScheduledSegmentFromNextTripKey({
+    await tryResolveScheduledSegmentFromNextScheduleKey({
       nextScheduleKey: existingTrip?.NextScheduleKey,
       departingTerminalAbbrev: location.DepartingTerminalAbbrev,
       dbAccess,
@@ -77,10 +76,10 @@ export const resolveScheduleFromTripArrival = async ({
 /**
  * Maps one resolved segment into current and next schedule field shapes.
  *
- * This adapter translates schedule-segment vocabulary (`DepartingTime`, `Key`,
- * `NextKey`) into vessel-trip-facing names expected by schedule enrichment.
+ * This adapter translates schedule-segment vocabulary into vessel-trip-facing
+ * names expected by schedule enrichment.
  * It preserves current-leg identity and next-leg hints together so downstream
- * merge logic can attach `NextScheduleKey` consistently with `ScheduleKey`.
+ * merge logic can attach NextScheduleKey consistently with ScheduleKey.
  *
  * @param segment - Scheduled segment selected by one Path B strategy
  * @param method - Resolution strategy used to obtain the segment
@@ -102,3 +101,6 @@ const resolutionFromSegment = (
     NextScheduledDeparture: segment.NextDepartingTime,
   },
 });
+
+export type { ResolveScheduleFromContinuityInput };
+export { resolveScheduleFromContinuity };

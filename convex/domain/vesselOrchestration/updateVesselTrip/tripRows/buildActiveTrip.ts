@@ -4,7 +4,7 @@
  * TripKey on returned rows is provisional: cold and new paths use the segment
  * string from deriveTripIdentity when the feed supplies enough geometry,
  * otherwise an empty string until schedule merge fills ScheduleKey.
- * applyScheduleForActiveTrip then assigns the canonical segment TripKey after
+ * applyScheduleToActiveTrip then assigns the canonical segment TripKey after
  * schedule merge.
  */
 
@@ -12,7 +12,6 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { calculateTimeDelta } from "shared/durationUtils";
 import { deriveTripIdentity, type TripIdentity } from "shared/tripIdentity";
-import { didLeaveDock, leftDockTimeForUpdate } from "./lifecycleSignals";
 
 type BuildActiveTripInput = {
   prev: ConvexVesselTrip | undefined;
@@ -36,7 +35,7 @@ type BuildTripContext = {
  * @param input - Prior trip context, current location, and lifecycle transition
  * @returns Active trip row to persist
  */
-export const buildActiveTrip = ({
+const buildActiveTrip = ({
   prev,
   completedVesselTrip,
   curr,
@@ -192,7 +191,7 @@ const buildContinuingDepartureFields = ({
   ConvexVesselTrip,
   "AtDockDuration" | "LeftDock" | "LeftDockActual" | "TripDelay"
 > => {
-  const resolvedLeftDock = leftDockTimeForUpdate(prev, curr);
+  const resolvedLeftDock = getLeftDockTimeForUpdate(prev, curr);
   const justLeftDock = didLeaveDock(prev, curr);
 
   return {
@@ -206,6 +205,48 @@ const buildContinuingDepartureFields = ({
       (justLeftDock ? (curr.LeftDock ?? curr.TimeStamp) : undefined),
     TripDelay: calculateTimeDelta(resolvedScheduledDeparture, resolvedLeftDock),
   };
+};
+
+/**
+ * Returns whether the vessel just transitioned from docked to at-sea.
+ *
+ * Continuing-trip rows need this transition signal to stamp LeftDockActual when
+ * WSF provides no explicit LeftDock timestamp on the same ping.
+ *
+ * @param prev - Stored active trip row for this vessel
+ * @param curr - Current location ping for the same vessel
+ * @returns True when the prior row was docked and the current ping is not docked
+ */
+const didLeaveDock = (
+  prev: ConvexVesselTrip,
+  curr: ConvexVesselLocation
+): boolean => prev.AtDock === true && curr.AtDockObserved === false;
+
+/**
+ * Resolves the departure timestamp for an active-trip update.
+ *
+ * Persisted departure data wins over feed data so later pings do not rewrite
+ * the original departure. When a dock-to-sea transition has no feed timestamp,
+ * the ping timestamp is used as the best available observed time.
+ *
+ * @param prev - Stored active trip row for this vessel
+ * @param curr - Current location ping for the same vessel
+ * @returns Departure timestamp for update fields, or undefined when unknown
+ */
+const getLeftDockTimeForUpdate = (
+  prev: ConvexVesselTrip,
+  curr: ConvexVesselLocation
+): number | undefined => {
+  const persistedDeparture = prev.LeftDockActual ?? prev.LeftDock;
+  if (persistedDeparture !== undefined) {
+    return persistedDeparture;
+  }
+
+  if (curr.LeftDock !== undefined) {
+    return curr.LeftDock;
+  }
+
+  return didLeaveDock(prev, curr) ? curr.TimeStamp : undefined;
 };
 
 /**
@@ -302,3 +343,5 @@ const buildContinuingActiveTrip = (
     Eta: curr.Eta ?? prev.Eta,
   };
 };
+
+export { buildActiveTrip };
