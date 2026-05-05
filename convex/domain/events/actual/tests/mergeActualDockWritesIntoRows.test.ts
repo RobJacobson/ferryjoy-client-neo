@@ -1,5 +1,5 @@
 /**
- * Tests merging sparse actual-boundary patches into base `eventsActual` rows.
+ * Tests merging sparse actual-boundary patches into base eventsActual rows.
  */
 
 import { describe, expect, it } from "bun:test";

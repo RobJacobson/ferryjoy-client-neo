@@ -88,12 +88,13 @@ export const buildBoundaryKey = (
 ) => `${segmentKey}--${eventType}`;
 
 /**
- * Groups rows by vessel and sailing day (matches `events*` table index scopes).
- * Inverse: {@link parseVesselSailingDayScopeKey}.
+ * Groups rows by vessel and sailing day (matches index scopes on scheduled,
+ * actual, and predicted events tables).
+ * Inverse: parseVesselSailingDayScopeKey.
  *
  * @param vesselAbbrev - Vessel abbreviation
  * @param sailingDay - Sailing day string (YYYY-MM-DD)
- * @returns Stable scope key; vessel abbrev must not contain `:`
+ * @returns Stable scope key; vessel abbrev must not contain a colon
  */
 export const buildVesselSailingDayScopeKey = (
   vesselAbbrev: string,
@@ -101,9 +102,10 @@ export const buildVesselSailingDayScopeKey = (
 ): string => `${vesselAbbrev}:${sailingDay}`;
 
 /**
- * Splits a {@link buildVesselSailingDayScopeKey} string back into parts.
+ * Splits a vessel sailing day scope key string from buildVesselSailingDayScopeKey
+ * back into parts.
  *
- * @param scopeKey - String from {@link buildVesselSailingDayScopeKey}
+ * @param scopeKey - String from buildVesselSailingDayScopeKey
  * @returns Vessel abbrev and sailing day
  */
 export const parseVesselSailingDayScopeKey = (
@@ -120,24 +122,28 @@ export const parseVesselSailingDayScopeKey = (
 };
 
 /**
- * Boundary keys for ML / predicted overlays: current segment dep + arv, next
- * leg departure. Used by trip hydration and `getPredictedBoundaryTargetKeys`.
+ * Boundary keys for ML and predicted overlays: current segment dep and arv,
+ * next leg departure. Used by trip hydration and getPredictedBoundaryTargetKeys.
  *
- * @param trip - Trip row with optional schedule alignment (`ScheduleKey`) and
- *   next schedule segment (`NextScheduleKey`)
+ * @param trip - Trip row with segment identity on ScheduleKey and TripKey,
+ *   plus optional NextScheduleKey for the following segment
  * @returns Dep-dock, arv-dock, and next dep-dock boundary keys
  */
 export const buildTripPredictionBoundaryKeys = (trip: {
   ScheduleKey?: string;
+  TripKey?: string;
   NextScheduleKey?: string;
-}) => ({
-  depDockKey: trip.ScheduleKey
-    ? buildBoundaryKey(trip.ScheduleKey, "dep-dock")
-    : undefined,
-  arvDockKey: trip.ScheduleKey
-    ? buildBoundaryKey(trip.ScheduleKey, "arv-dock")
-    : undefined,
-  nextDepDockKey: trip.NextScheduleKey
-    ? buildBoundaryKey(trip.NextScheduleKey, "dep-dock")
-    : undefined,
-});
+}) => {
+  const currentSegment = trip.ScheduleKey ?? trip.TripKey;
+  return {
+    depDockKey: currentSegment
+      ? buildBoundaryKey(currentSegment, "dep-dock")
+      : undefined,
+    arvDockKey: currentSegment
+      ? buildBoundaryKey(currentSegment, "arv-dock")
+      : undefined,
+    nextDepDockKey: trip.NextScheduleKey
+      ? buildBoundaryKey(trip.NextScheduleKey, "dep-dock")
+      : undefined,
+  };
+};

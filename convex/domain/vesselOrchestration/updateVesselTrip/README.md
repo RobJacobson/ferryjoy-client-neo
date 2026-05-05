@@ -22,15 +22,44 @@ For one vessel, the pipeline is intentionally linear:
 
 ```text
 updateVesselTrip
-  -> isNewTrip
+  -> startsNewTripLeg
   -> buildCompleteTrip? (only when replacement/new trip signal)
   -> buildActiveTrip
-  -> applyScheduleForActiveTrip
-  -> isSameVesselTrip
+  -> applyScheduleToActiveTrip (schedule merge, then canonical TripKey)
+  -> isSameVesselTripData
 ```
 
 The orchestrator calls this per vessel inside its ping loop so failures stay
 isolated.
+
+## TripKey and ScheduleKey
+
+`ScheduleKey` on the active trip row is the schedule segment identity string from
+WSF realtime merge or inferred segments (next-key continuity, schedule tables).
+
+`TripKey` uses that same segment string whenever geometry is known: after each
+ping, `applyScheduleToActiveTrip` assigns the canonical TripKey. When the ping
+carries both `ScheduledDeparture` and `ArrivingTerminalAbbrev`, TripKey is
+recomputed from those feed fields (Pacific-local segment formatting via
+`buildSegmentKey`), which corrects earlier inference when better data arrives.
+When WSF omits those fields but the merged row still has `ScheduleKey`, TripKey
+matches `ScheduleKey`. When geometry is still incomplete, TripKey stays on the
+provisional row (possibly empty until merge) or carries forward from the prior
+active trip until a segment can be formed. Replacement trips without schedule
+evidence never carry forward the prior active trip's TripKey.
+
+## Schedule paths
+
+- Complete WSF fields: use `ArrivingTerminalAbbrev` and `ScheduledDeparture`
+  from the ping to build the current segment without schedule reads.
+- New-trip next-key continuity: when WSF fields are incomplete and the vessel is
+  in service, use the prior row's `NextScheduleKey` as resolver input only.
+- New-trip schedule-table fallback: when keyed continuity is missing or stale,
+  scan current and next service-day schedule rows for the next departure.
+- Continuing sparse pings: preserve built/persisted schedule fields and avoid
+  schedule reads.
+- Unresolved replacement pings: keep the replacement row's provisional identity,
+  clear next-leg schedule hints, and do not reuse prior-leg TripKey.
 
 ## Contracts this module enforces
 
@@ -49,17 +78,20 @@ isolated.
 
 - `updateVesselTrip.ts` — orchestration for one ping and meaningful-change suppression
 - `types.ts` — `VesselTripUpdate`, `UpdateVesselTripDbAccess`, schedule read args
-- `pipeline/` — row shaping and comparison (what the orchestrator steps through before/after schedule)
-  - `lifecycleSignals.ts` — physical lifecycle / new-trip signal helpers
+- `tripRows/` — active and completed row construction
   - `buildCompleteTrip.ts` — completed-row shaping for rollover
   - `buildActiveTrip.ts` — active row shaping before schedule enrichment
-  - `tripComparison.ts` — durable equality checks
+- `comparison/` — storage-data comparison and normalization
+  - `isSameVesselTripData.ts` — significant persisted-data equality checks
   - `stripTripPredictionsForStorage.ts` — comparison normalization (predictions stripped)
 - `schedule/` — schedule-facing policy and resolution
-  - `scheduleForActiveTrip.ts` — schedule field policy for active rows
-  - `scheduleEnrichment.ts` — merge resolved schedule into a trip row
-  - `activeTripSchedule/` — resolution helpers (WSF realtime, next-key, schedule tables)
-- `tripLifecycle.ts` — compatibility helpers for downstream row-diff consumers
+  - `applyScheduleToActiveTrip.ts` — schedule field policy for active rows
+  - `resolveScheduleForActiveTrip.ts` — WSF, next-key, and DB fallback path selection
+  - `mergeScheduleResolutionIntoTrip.ts` — merge resolved schedule into a trip row
+  - `resolveScheduleFromWsfRealtimeFields.ts` — authoritative WSF realtime path
+  - `resolveScheduleFromNextScheduleKey.ts` — prior next-key continuity inference
+  - `resolveScheduleFromScheduledTripsDb.ts` — scheduled-trip table fallback inference
+- `dockTransitionEvents.ts` — downstream dock-boundary transition facts
 
 ## Non-ownership
 

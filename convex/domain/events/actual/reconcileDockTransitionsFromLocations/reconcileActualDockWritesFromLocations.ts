@@ -33,12 +33,12 @@ import type {
  * representedTripBoundaryKeys does not already include that boundary. Caller
  * merges results with base rows afterward.
  *
- * @param args.sailingDay - Calendar sailing day string used for location filtering
- * @param args.scheduledEvents - Planned boundaries loaded for that reload pass
- * @param args.actualEvents - Existing actual rows before merge for duplicate suppression
- * @param args.vesselLocations - Latest locations considered part of this reconcile batch
- * @param args.tripBySegmentKey - Optional segment to TripKey map from trip indexes
- * @param args.activeTripsByVesselAbbrev - Optional active TripKey-only trips per vessel
+ * @param scheduledEvents - Planned boundaries loaded for that reload pass
+ * @param actualEvents - Existing actual rows before merge for duplicate suppression
+ * @param vesselLocations - Latest locations considered part of this reconcile batch
+ * @param tripBySegmentKey - Optional segment to TripKey map from trip indexes
+ * @param activeTripsByVesselAbbrev - Optional active TripKey-only trips per vessel
+ * @param sailingDay - Calendar sailing day string used for location filtering
  * @returns Persistable sparse writes ready for enrichActualDockWritesWithTripContext
  */
 const reconcileActualDockWritesFromLocations = ({

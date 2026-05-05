@@ -50,16 +50,16 @@ describe("buildScheduledDockEventRecords", () => {
     );
 
     expect(events.map((event) => event.EventType)).toEqual([
-      "dep-dock",
       "arv-dock",
+      "dep-dock",
     ]);
     expect(events[0]?.Key).toBe(
-      buildBoundaryKey(segmentKey as string, "dep-dock")
-    );
-    expect(events[1]?.Key).toBe(
       buildBoundaryKey(segmentKey as string, "arv-dock")
     );
-    expect(events[1]?.EventScheduledTime).toBe(at(9, 10));
+    expect(events[1]?.Key).toBe(
+      buildBoundaryKey(segmentKey as string, "dep-dock")
+    );
+    expect(events[0]?.EventScheduledTime).toBe(at(9, 10));
   });
 
   it("filters indirect raw schedule segments before seeding", () => {

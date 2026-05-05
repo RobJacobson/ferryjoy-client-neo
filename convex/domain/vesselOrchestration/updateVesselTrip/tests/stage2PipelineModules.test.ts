@@ -1,6 +1,8 @@
 /**
- * Focused tests for Stage 2 pipeline modules (local fixtures only; do not import
- * `schedule/activeTripSchedule/tests/testHelpers` so this suite stays independent of that folder).
+ * Focused tests for updateVesselTrip implementation modules.
+ *
+ * Local fixtures keep this suite independent from schedule tests while covering
+ * row construction, schedule application, and lifecycle edge behavior.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -8,16 +10,10 @@ import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/sch
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
-import { buildActiveTrip } from "../pipeline/buildActiveTrip";
-import { buildCompleteTrip } from "../pipeline/buildCompleteTrip";
-import {
-  didLeaveDock,
-  isNewTrip,
-  leftDockTimeForUpdate,
-} from "../pipeline/lifecycleSignals";
-import { applyScheduleForActiveTrip } from "../schedule/scheduleForActiveTrip";
+import { applyScheduleToActiveTrip } from "../schedule/applyScheduleToActiveTrip";
+import { buildActiveTrip } from "../tripRows/buildActiveTrip";
+import { buildCompleteTrip } from "../tripRows/buildCompleteTrip";
 import type { UpdateVesselTripDbAccess } from "../types";
 
 const ms = (iso: string): number => new Date(iso).getTime();
@@ -60,7 +56,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "CLI",
   ArrivingTerminalAbbrev: "MUK",
   RouteAbbrev: "muk-cl",
-  TripKey: generateTripKey("CHE", ms("2026-03-13T11:08:00-07:00")),
+  TripKey: "CHE--2026-03-13--11:00--CLI-MUK",
   ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",
@@ -166,26 +162,29 @@ const makeScheduledSegment = (
   ...overrides,
 });
 
-describe("stage-2 pipeline modules", () => {
-  it("reports lifecycle transitions and left-dock precedence", () => {
+describe("updateVesselTrip modules", () => {
+  it("uses feed LeftDock when stamping a dock-to-sea transition", () => {
     const previousTrip = makeTrip({
-      DepartingTerminalAbbrev: "ANA",
       AtDock: true,
       LeftDock: undefined,
       LeftDockActual: undefined,
     });
     const location = makeLocation({
-      DepartingTerminalAbbrev: "ORI",
+      DepartingTerminalAbbrev: previousTrip.DepartingTerminalAbbrev,
       AtDockObserved: false,
       LeftDock: ms("2026-03-13T06:33:00-07:00"),
       TimeStamp: ms("2026-03-13T06:33:05-07:00"),
     });
+    const activeTrip = buildActiveTrip({
+      prev: previousTrip,
+      completedVesselTrip: undefined,
+      curr: location,
+      isNewTrip: false,
+    });
 
-    expect(isNewTrip(previousTrip, location)).toBe(true);
-    expect(didLeaveDock(previousTrip, location)).toBe(true);
-    expect(leftDockTimeForUpdate(previousTrip, location)).toBe(
-      location.LeftDock
-    );
+    expect(activeTrip.AtDock).toBe(false);
+    expect(activeTrip.LeftDock).toBe(location.LeftDock);
+    expect(activeTrip.LeftDockActual).toBe(location.LeftDock);
   });
 
   it("builds completed trip closeout fields and durations on completion", () => {
@@ -244,10 +243,10 @@ describe("stage-2 pipeline modules", () => {
     });
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
 
-    const scheduledTrip = await applyScheduleForActiveTrip({
+    const scheduledTrip = await applyScheduleToActiveTrip({
       activeTrip,
-      prev: undefined,
-      location,
+      prevTrip: undefined,
+      currLocation: location,
       isNewTrip: false,
       dbAccess,
     });
@@ -308,10 +307,10 @@ describe("stage-2 pipeline modules", () => {
     });
     const { dbAccess, counters } = makeDbAccess({ throwOnAnyCall: true });
 
-    const scheduledTrip = await applyScheduleForActiveTrip({
+    const scheduledTrip = await applyScheduleToActiveTrip({
       activeTrip,
-      prev: previousTrip,
-      location,
+      prevTrip: previousTrip,
+      currLocation: location,
       isNewTrip: false,
       dbAccess,
     });
@@ -340,6 +339,9 @@ describe("stage-2 pipeline modules", () => {
       curr: location,
       isNewTrip: true,
     });
+    expect(activeTrip.NextScheduleKey).toBeUndefined();
+    expect(activeTrip.NextScheduledDeparture).toBeUndefined();
+
     const primarySegment = makeScheduledSegment({
       NextKey: "CHE--2026-03-13--08:00--LOP-SHW",
       NextDepartingTime: ms("2026-03-13T08:00:00-07:00"),
@@ -350,10 +352,10 @@ describe("stage-2 pipeline modules", () => {
       },
     });
 
-    const scheduledTrip = await applyScheduleForActiveTrip({
+    const scheduledTrip = await applyScheduleToActiveTrip({
       activeTrip,
-      prev: previousTrip,
-      location,
+      prevTrip: previousTrip,
+      currLocation: location,
       isNewTrip: true,
       dbAccess,
     });
@@ -399,10 +401,10 @@ describe("stage-2 pipeline modules", () => {
       },
     });
 
-    const scheduledTrip = await applyScheduleForActiveTrip({
+    const scheduledTrip = await applyScheduleToActiveTrip({
       activeTrip,
-      prev: previousTrip,
-      location,
+      prevTrip: previousTrip,
+      currLocation: location,
       isNewTrip: true,
       dbAccess,
     });

@@ -1,12 +1,13 @@
 /**
- * Derive a {@link PersistedTripEventHandoff} from a sparse trip update.
+ * Derives an event projection handoff from a sparse trip update.
  *
- * Pure helper colocated with `updateEvents` so the event domain owns its
- * own input derivation from upstream trip rows.
+ * The event domain owns this adapter from upstream trip rows into event-stage
+ * inputs. It reads dock transition booleans from the trip domain without
+ * depending on trip row construction internals.
  */
 
 import {
-  currentTripDockEvents,
+  getDockTransitionEvents,
   type VesselTripUpdate,
 } from "domain/vesselOrchestration/updateVesselTrip";
 import type { PersistedTripEventHandoff } from "./handoffTypes";
@@ -17,7 +18,7 @@ import type { PersistedTripEventHandoff } from "./handoffTypes";
  * @param tripUpdate - Sparse trip update rows for the current vessel branch
  * @returns Event handoff used by the event projection stage
  */
-export const eventHandoffFromTripUpdate = (
+const eventHandoffFromTripUpdate = (
   tripUpdate: VesselTripUpdate
 ): PersistedTripEventHandoff => {
   const existingActiveTrip = tripUpdate.existingVesselTrip;
@@ -33,7 +34,7 @@ export const eventHandoffFromTripUpdate = (
           },
         ]
       : [];
-  const dockEvents = currentTripDockEvents(existingActiveTrip, activeTrip);
+  const dockEvents = getDockTransitionEvents(existingActiveTrip, activeTrip);
   const pendingActualWrite =
     !dockEvents.didJustLeaveDock && !dockEvents.didJustArriveAtDock
       ? undefined
@@ -56,3 +57,5 @@ export const eventHandoffFromTripUpdate = (
     },
   };
 };
+
+export { eventHandoffFromTripUpdate };

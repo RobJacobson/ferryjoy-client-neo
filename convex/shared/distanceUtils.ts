@@ -6,6 +6,7 @@
 
 import distance from "@turf/distance";
 import { point } from "@turf/helpers";
+import { roundToPrecision } from "./durationUtils";
 
 /**
  * Calculates the distance between two points in miles, floored to 1/10th.
@@ -22,16 +23,7 @@ export const calculateDistanceInMiles = (
   lat2: number | undefined | null,
   lon2: number | undefined | null
 ): number | undefined => {
-  if (
-    lat1 === undefined ||
-    lat1 === null ||
-    lon1 === undefined ||
-    lon1 === null ||
-    lat2 === undefined ||
-    lat2 === null ||
-    lon2 === undefined ||
-    lon2 === null
-  ) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) {
     return undefined;
   }
 
@@ -40,10 +32,10 @@ export const calculateDistanceInMiles = (
     const to = point([lon2, lat2]);
     const options = { units: "miles" as const };
 
-    const dist = distance(from, to, options);
+    const dist = Math.max(distance(from, to, options) - 0.1, 0);
 
     // Floor to 1/10th of a mile so small fluctuations do not overstate distance.
-    return Math.floor(dist * 10) / 10;
+    return roundToPrecision(dist, 1);
   } catch (error) {
     console.error("Error calculating distance:", error);
     return undefined;

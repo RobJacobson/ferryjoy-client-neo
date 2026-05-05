@@ -1,13 +1,32 @@
+/**
+ * Test fixtures for updateVesselTrip schedule-resolution suites.
+ *
+ * These helpers produce stable location, trip, segment, and DB-access doubles
+ * so tests can exercise continuity and schedule-table fallback behavior without
+ * touching Convex runtime APIs.
+ */
+
 import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import { addDaysToYyyyMmDd, getSailingDay } from "shared/time";
-import type { UpdateVesselTripDbAccess } from "../../../types";
+import type { UpdateVesselTripDbAccess } from "../../types";
 
+/**
+ * Converts an ISO date-time string into epoch milliseconds.
+ *
+ * @param iso - ISO-8601 date-time string
+ * @returns Epoch-millisecond timestamp
+ */
 export const ms = (iso: string) => new Date(iso).getTime();
 
+/**
+ * Builds a vessel-location fixture with optional field overrides.
+ *
+ * @param overrides - Partial location fields that replace fixture defaults
+ * @returns Complete location row used by schedule tests
+ */
 export const makeLocation = (
   overrides: Partial<ConvexVesselLocation> = {}
 ): ConvexVesselLocation => ({
@@ -39,6 +58,12 @@ export const makeLocation = (
   AtDockObserved: overrides.AtDockObserved ?? true,
 });
 
+/**
+ * Builds an active-trip fixture with optional field overrides.
+ *
+ * @param overrides - Partial trip fields that replace fixture defaults
+ * @returns Complete trip row used by continuity tests
+ */
 export const makeTrip = (
   overrides: Partial<ConvexVesselTrip> = {}
 ): ConvexVesselTrip => ({
@@ -46,7 +71,7 @@ export const makeTrip = (
   DepartingTerminalAbbrev: "CLI",
   ArrivingTerminalAbbrev: "MUK",
   RouteAbbrev: "muk-cl",
-  TripKey: generateTripKey("CHE", ms("2026-03-13T11:08:00-07:00")),
+  TripKey: "CHE--2026-03-13--11:00--CLI-MUK",
   ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "MUK",
@@ -70,6 +95,12 @@ export const makeTrip = (
   ...overrides,
 });
 
+/**
+ * Builds an inferred scheduled-segment fixture with optional overrides.
+ *
+ * @param overrides - Partial segment fields that replace fixture defaults
+ * @returns Inferred segment used by schedule-resolution tests
+ */
 export const makeScheduledSegment = (
   overrides: Partial<ConvexInferredScheduledSegment> = {}
 ): ConvexInferredScheduledSegment => ({
@@ -83,6 +114,12 @@ export const makeScheduledSegment = (
   ...overrides,
 });
 
+/**
+ * Creates a schedule DB-access test double for continuity resolution.
+ *
+ * @param options - Optional sailing-day, segment, and dock-event fixture inputs
+ * @returns UpdateVesselTripDbAccess implementation backed by in-memory fixtures
+ */
 export const makeScheduledTables = (
   options: {
     sailingDay?: string;
@@ -117,6 +154,13 @@ export const makeScheduledTables = (
   },
 });
 
+/**
+ * Converts one inferred segment into a scheduled dep-dock event row.
+ *
+ * @param segment - Inferred segment carrying departure and route details
+ * @param vesselAbbrev - Vessel abbreviation for the generated event row
+ * @returns Scheduled departure event compatible with schedule lookup helpers
+ */
 const scheduledDepartureRowFromSegment = (
   segment: ConvexInferredScheduledSegment,
   vesselAbbrev: string
@@ -131,6 +175,12 @@ const scheduledDepartureRowFromSegment = (
   EventType: "dep-dock",
 });
 
+/**
+ * Builds one sailing-day event pool for a vessel from overrides or segments.
+ *
+ * @param args - Vessel and sailing-day scope plus fixture source options
+ * @returns Scheduled dock-event rows for the requested service-day pool
+ */
 const scheduledRowsForSailingDay = ({
   vesselAbbrev,
   sailingDay,
@@ -181,6 +231,12 @@ const scheduledRowsForSailingDay = ({
     });
 };
 
+/**
+ * Parses departing and arriving terminal abbreviations from a segment key.
+ *
+ * @param segmentKey - Canonical segment key string
+ * @returns Departing and arriving terminal abbreviations, when present
+ */
 const parseRouteTerminalsFromSegmentKey = (
   segmentKey: string
 ): [string | undefined, string | undefined] => {

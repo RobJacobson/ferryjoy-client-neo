@@ -1,5 +1,12 @@
+/**
+ * Behavioral tests for resolveScheduleForActiveTrip.
+ *
+ * This suite verifies strict fallback order and cross-day schedule lookup for
+ * inferred schedule-field outcomes.
+ */
+
 import { describe, expect, it } from "bun:test";
-import { getTripFieldInferenceLog, resolveScheduleFromTripArrival } from "..";
+import { resolveScheduleForActiveTrip } from "..";
 import {
   makeLocation,
   makeScheduledSegment,
@@ -8,18 +15,38 @@ import {
   ms,
 } from "./testHelpers";
 
-const resolveFields = (
-  input: Parameters<typeof resolveScheduleFromTripArrival>[0]
-) => resolveScheduleFromTripArrival(input);
+/**
+ * Calls active-trip schedule resolution with typed test input.
+ *
+ * @param input - Schedule resolver input payload for one synthetic ping
+ * @returns Resolver output used by assertions in this suite
+ */
+const resolveFields = (input: {
+  location: Parameters<typeof resolveScheduleForActiveTrip>[0]["currLocation"];
+  existingTrip: Parameters<typeof resolveScheduleForActiveTrip>[0]["prevTrip"];
+  dbAccess: Parameters<typeof resolveScheduleForActiveTrip>[0]["dbAccess"];
+}) =>
+  resolveScheduleForActiveTrip({
+    currLocation: input.location,
+    prevTrip: input.existingTrip,
+    isNewTrip: true,
+    dbAccess: input.dbAccess,
+  });
 
+/**
+ * Asserts that a schedule resolution exists and returns it.
+ *
+ * @param resolution - Potentially undefined resolver output
+ * @returns The defined resolution for chained expectations
+ */
 const expectResolved = (
-  resolution: Awaited<ReturnType<typeof resolveScheduleFromTripArrival>>
+  resolution: Awaited<ReturnType<typeof resolveScheduleForActiveTrip>>
 ) => {
   expect(resolution).toBeDefined();
   return resolution;
 };
 
-describe("resolveScheduleFromTripArrival", () => {
+describe("resolveScheduleForActiveTrip", () => {
   it("prefers next scheduled segment over schedule tables when both are available", async () => {
     const nextSegment = makeScheduledSegment({
       Key: "CHE--2026-03-13--12:30--CLI-MUK",
@@ -63,6 +90,7 @@ describe("resolveScheduleFromTripArrival", () => {
 
     const resolved = expectResolved(resolution);
     expect(resolved?.current.ScheduleKey).toBe(nextSegment.Key);
+    expect(resolved?.current.tripFieldResolutionMethod).toBe("nextScheduleKey");
   });
 
   it("falls back to schedule lookup when next key segment mismatches terminal", async () => {
@@ -246,37 +274,5 @@ describe("resolveScheduleFromTripArrival", () => {
     });
 
     expect(resolution).toBeUndefined();
-  });
-
-  it("builds inference diagnostics from inferred metadata", async () => {
-    const inferenceInput = {
-      location: makeLocation({
-        ArrivingTerminalAbbrev: "SHI",
-        ScheduledDeparture: undefined,
-        ScheduleKey: undefined,
-      }),
-      existingTrip: makeTrip({
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-      }),
-      current: {
-        ArrivingTerminalAbbrev: "MUK",
-        ScheduledDeparture: ms("2026-03-13T11:00:00-07:00"),
-        ScheduleKey: "CHE--2026-03-13--11:00--CLI-MUK",
-        SailingDay: "2026-03-13",
-        tripFieldResolutionMethod: "nextTripKey" as const,
-      },
-    };
-
-    expect(getTripFieldInferenceLog(inferenceInput)).toMatchObject({
-      message:
-        "[TripFields] CHE kept provisional trip fields despite partial WSF conflict",
-      context: {
-        vesselAbbrev: "CHE",
-        reason: "partial_wsf_conflict_with_inference",
-        tripFieldResolutionMethod: "nextTripKey",
-      },
-    });
   });
 });

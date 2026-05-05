@@ -1,6 +1,9 @@
 /**
- * Strip ML / joined prediction blobs from in-memory trips before Convex persistence.
- * `activeVesselTrips` / `completedVesselTrips` store {@link ConvexVesselTrip} only.
+ * Strips ML and joined prediction blobs from in-memory trips before persistence.
+ *
+ * Active and completed vessel trip tables store only the base trip row shape.
+ * Prediction payloads are enrichment data used by downstream stages and should
+ * not participate in storage comparison or persistence.
  */
 
 import type {
@@ -12,8 +15,9 @@ import type {
  * Returns a storage-shaped trip: same row without optional prediction fields.
  *
  * @param trip - Trip possibly carrying ML or joined prediction payloads
+ * @returns Vessel trip row without prediction enrichment fields
  */
-export const stripVesselTripPredictions = (
+const stripVesselTripPredictions = (
   trip: ConvexVesselTripWithML
 ): ConvexVesselTrip => {
   const {
@@ -26,3 +30,5 @@ export const stripVesselTripPredictions = (
   } = trip;
   return stored;
 };
+
+export { stripVesselTripPredictions };

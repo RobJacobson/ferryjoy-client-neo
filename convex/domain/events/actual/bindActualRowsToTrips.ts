@@ -1,6 +1,10 @@
 /**
  * Shared helpers that bind actual dock rows and writes to physical trip
  * context.
+ *
+ * Segment indexing maps each schedule segment string to TripKey and ScheduleKey.
+ * On schedule-backed legs, TripKey and ScheduleKey are the same segment id;
+ * physical-only legs may have TripKey with no ScheduleKey.
  */
 
 import {
@@ -49,14 +53,13 @@ export type ActiveTripForPhysicalActualReconcile = {
 };
 
 /**
- * Indexes physical TripKey and optional ScheduleKey by schedule segment key.
+ * Indexes physical TripKey and optional ScheduleKey by canonical segment string.
  *
- * Completed and active trips expose ScheduleKey as the bridge between schedule
- * boundary records and physical trip identity. Reload passes filtered trips for
- * one sailing day so segment-key lookups stay small and deterministic.
+ * Uses ScheduleKey when present; otherwise TripKey so segment lookups resolve for
+ * scheduleless trips that only carry physical TripKey.
  *
  * @param trips - Active and/or completed trips (caller filters by sailing day)
- * @returns Map from ScheduleKey string to TripKey context when ScheduleKey exists on the trip
+ * @returns Map from segment string to TripKey context for that leg
  */
 const indexTripsBySegmentKey = (
   trips: TripRowForActualContext[]
@@ -68,11 +71,13 @@ const indexTripsBySegmentKey = (
       continue;
     }
 
-    const row = { TripKey: trip.TripKey, ScheduleKey: trip.ScheduleKey };
+    const scheduleBackedSegment = trip.ScheduleKey ?? trip.TripKey;
+    const row = {
+      TripKey: trip.TripKey,
+      ScheduleKey: trip.ScheduleKey ?? trip.TripKey,
+    };
 
-    if (trip.ScheduleKey) {
-      map.set(trip.ScheduleKey, row);
-    }
+    map.set(scheduleBackedSegment, row);
   }
 
   return map;
@@ -115,8 +120,8 @@ const indexActiveTripsByVesselAbbrev = (
  * Attaches TripKey and ScheduleKey to sparse writes using the segment index.
  *
  * Location reconciliation first emits SegmentKey on each patch. When TripKey is
- * missing, this helper copies TripKey from tripBySegmentKey and prefers the
- * trips ScheduleKey when the write did not specify one. Writes without SegmentKey
+ * missing, this helper copies TripKey from tripBySegmentKey and prefers
+ * ScheduleKey from the matched trip when the write did not specify one. Writes without SegmentKey
  * or without a matching trip are dropped; the result is filtered to persistable
  * anchors only.
  *
@@ -148,7 +153,7 @@ const enrichActualDockWritesWithTripContext = (
         {
           ...write,
           TripKey: trip.TripKey,
-          ScheduleKey: write.ScheduleKey ?? trip.ScheduleKey,
+          ScheduleKey: write.ScheduleKey ?? trip.ScheduleKey ?? trip.TripKey,
         },
       ];
     })

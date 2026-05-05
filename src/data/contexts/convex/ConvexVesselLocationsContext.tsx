@@ -39,13 +39,6 @@ const ConvexVesselLocationsContext = createContext<
  * transforms them into domain values,
  * and provides this data to child components through the context.
  *
- * @example
- * ```tsx
- * <ConvexVesselLocationsProvider>
- *   <App />
- * </ConvexVesselLocationsProvider>
- * ```
- *
  * @param props - Component props
  * @param props.children - Child components that will have access to the vessel locations data
  * @returns A context provider component
@@ -58,7 +51,8 @@ export const ConvexVesselLocationsProvider = ({
   const rawVesselLocations = useQuery(
     api.functions.vesselLocation.queries.getAll
   );
-  const currentVesselLocations = rawVesselLocations?.map(toVesselLocation) ?? [];
+  const currentVesselLocations =
+    rawVesselLocations?.map(toVesselLocation) ?? [];
   const hasConnectionIssue =
     rawVesselLocations === undefined &&
     !connectionState.isWebSocketConnected &&
@@ -86,14 +80,6 @@ export const ConvexVesselLocationsProvider = ({
  *
  * Provides vessel locations data with consistent loading and error states.
  * Must be used within a ConvexVesselLocationsProvider component.
- *
- * @example
- * ```tsx
- * const { vesselLocations, isLoading, error } = useConvexVesselLocations();
- * if (isLoading) return <LoadingSpinner />;
- * if (error) return <ErrorMessage error={error} />;
- * return <VesselList vessels={vesselLocations} />;
- * ```
  *
  * @returns Object with vessel locations, loading state, and error state
  * @throws Error if used outside of ConvexVesselLocationsProvider

@@ -1,7 +1,7 @@
 /**
- * Tests `getVesselTripPredictionsFromTripUpdate` load policy: when the
- * injected `loadPredictionModelParameters` runs vs stays cold (route pair,
- * readiness, at-sea `LeftDockActual`).
+ * Tests getVesselTripPredictionsFromTripUpdate load policy: when the
+ * injected loadPredictionModelParameters runs vs stays cold (route pair,
+ * readiness, at-sea LeftDockActual).
  */
 
 import { describe, expect, it, mock } from "bun:test";
@@ -11,7 +11,6 @@ import {
   type PredictionModelParametersRequest,
 } from "domain/vesselOrchestration/updateVesselPredictions";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -27,7 +26,7 @@ const tripMissingRoutePair = (): ConvexVesselTripWithPredictions =>
     DepartingTerminalAbbrev: "ORI",
     ArrivingTerminalAbbrev: undefined,
     RouteAbbrev: "ana-sj",
-    TripKey: generateTripKey("CHE", ms("2026-03-13T09:00:00-07:00")),
+    TripKey: "CHE--2026-03-13--09:30--ORI-LOP",
     ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
     SailingDay: "2026-03-13",
     PrevTerminalAbbrev: "SHI",
@@ -58,7 +57,7 @@ const predictionReadyAtDockTrip = (
     DepartingTerminalAbbrev: "ORI",
     ArrivingTerminalAbbrev: "LOP",
     RouteAbbrev: "ana-sj",
-    TripKey: generateTripKey("CHE", ms("2026-03-13T09:00:00-07:00")),
+    TripKey: "CHE--2026-03-13--09:30--ORI-LOP",
     ScheduleKey: "CHE--2026-03-13--09:30--ORI-LOP",
     SailingDay: "2026-03-13",
     PrevTerminalAbbrev: "SHI",

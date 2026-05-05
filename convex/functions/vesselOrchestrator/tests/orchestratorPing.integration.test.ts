@@ -1,6 +1,6 @@
 /**
- * Integration-style tests for `updateVesselOrchestrator`: verifies stage wiring
- * (locations mutation → optional per-vessel persist) with mocked domain branches.
+ * Integration-style tests for updateVesselOrchestrator: verifies stage wiring
+ * (locations mutation, optional per-vessel persist) with mocked domain branches.
  */
 
 import {
@@ -18,7 +18,6 @@ import * as updateEventsModule from "domain/vesselOrchestration/updateEvents";
 import * as updateVesselPredictionsModule from "domain/vesselOrchestration/updateVesselPredictions";
 import * as updateVesselTripModule from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
-import { generateTripKey } from "shared/physicalTripIdentity";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 import { updateVesselOrchestrator } from "../actions";
 
@@ -64,7 +63,7 @@ const makeTrip = (
   DepartingTerminalAbbrev: "ANA",
   ArrivingTerminalAbbrev: "ORI",
   RouteAbbrev: "ana-sj",
-  TripKey: generateTripKey(vesselAbbrev, ms("2026-03-13T04:33:00-07:00")),
+  TripKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   ScheduleKey: `${vesselAbbrev}--2026-03-13--05:30--ANA-ORI`,
   SailingDay: "2026-03-13",
   PrevTerminalAbbrev: "ORI",

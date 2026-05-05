@@ -38,7 +38,7 @@ reuses that same enriched trip for completed/current overlay projection.
 - **Parameter request:** [`./getPredictionModelParametersFromTripUpdate.ts`](./getPredictionModelParametersFromTripUpdate.ts)
 - **Runnable spec routing:** [`./tripDockStatePredictionSpecs.ts`](./tripDockStatePredictionSpecs.ts)
 - **Loaded-model apply:** [`./applyVesselPredictions.ts`](./applyVesselPredictions.ts), [`./appendPredictions.ts`](./appendPredictions.ts)
-- **Strip for DB:** [`../updateVesselTrip/pipeline/stripTripPredictionsForStorage.ts`](../updateVesselTrip/pipeline/stripTripPredictionsForStorage.ts)
+- **Strip for DB:** [`../updateVesselTrip/comparison/stripTripPredictionsForStorage.ts`](../updateVesselTrip/comparison/stripTripPredictionsForStorage.ts)
 
 ## Handoff types
 
