@@ -11,7 +11,7 @@ import { buildSegmentKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
 import type { ResolvedTripScheduleFields } from "./types";
 
-type WsfCompleteSchedulePing = ConvexVesselLocation & {
+type VesselLocationWithScheduleFields = ConvexVesselLocation & {
   ScheduledDeparture: number;
   ArrivingTerminalAbbrev: string;
 };
@@ -28,7 +28,7 @@ type WsfCompleteSchedulePing = ConvexVesselLocation & {
  * @returns Resolution current/next shapes for schedule merge
  */
 const resolveScheduleFromWsfRealtimeFields = (
-  location: WsfCompleteSchedulePing
+  location: VesselLocationWithScheduleFields
 ): ResolvedTripScheduleFields => {
   const departureDate = new Date(location.ScheduledDeparture);
   return {
@@ -49,5 +49,4 @@ const resolveScheduleFromWsfRealtimeFields = (
   };
 };
 
-export type { WsfCompleteSchedulePing };
 export { resolveScheduleFromWsfRealtimeFields };

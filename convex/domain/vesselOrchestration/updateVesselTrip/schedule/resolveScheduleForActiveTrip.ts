@@ -11,10 +11,7 @@ import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { UpdateVesselTripDbAccess } from "../types";
 import { resolveScheduleFromNextScheduleKey } from "./resolveScheduleFromNextScheduleKey";
 import { resolveScheduleFromScheduledTripsDb } from "./resolveScheduleFromScheduledTripsDb";
-import {
-  resolveScheduleFromWsfRealtimeFields,
-  type WsfCompleteSchedulePing,
-} from "./resolveScheduleFromWsfRealtimeFields";
+import { resolveScheduleFromWsfRealtimeFields } from "./resolveScheduleFromWsfRealtimeFields";
 import type { ResolvedTripScheduleFields } from "./types";
 
 type ResolveScheduleForActiveTripInput = {
@@ -22,6 +19,11 @@ type ResolveScheduleForActiveTripInput = {
   prevTrip: ConvexVesselTrip | undefined;
   isNewTrip: boolean;
   dbAccess: UpdateVesselTripDbAccess;
+};
+
+type ConvexVesselLocationWithScheduleFields = ConvexVesselLocation & {
+  ScheduledDeparture: number;
+  ArrivingTerminalAbbrev: string;
 };
 
 /**
@@ -85,9 +87,8 @@ const resolveScheduleForActiveTrip = async ({
  */
 const hasWsfScheduleFields = (
   location: ConvexVesselLocation
-): location is WsfCompleteSchedulePing =>
+): location is ConvexVesselLocationWithScheduleFields =>
   location.ArrivingTerminalAbbrev !== undefined &&
   location.ScheduledDeparture !== undefined;
 
-export type { ResolveScheduleForActiveTripInput };
 export { resolveScheduleForActiveTrip };

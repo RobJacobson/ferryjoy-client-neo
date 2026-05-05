@@ -83,5 +83,4 @@ const segmentAfterDepartureInPool = (
     : null;
 };
 
-export type { ResolveScheduleFromScheduledTripsDbInput };
 export { resolveScheduleFromScheduledTripsDb };
