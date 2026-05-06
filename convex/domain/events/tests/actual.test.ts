@@ -5,6 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildActualDockEventFromWrite,
+  buildActualDockRowsForSailingDayReload,
   type ConvexActualDockWritePersistable,
 } from "domain/events/actual";
 
@@ -91,5 +92,38 @@ describe("buildActualDockEventFromWrite", () => {
     );
 
     expect(row.ScheduledDeparture).toBe(at(12, 23));
+  });
+});
+
+describe("buildActualDockRowsForSailingDayReload", () => {
+  it("preserves physical-only observations from trip rows", () => {
+    const result = buildActualDockRowsForSailingDayReload({
+      sailingDay: "2026-03-25",
+      events: [],
+      updatedAt: 42,
+      tripBySegmentKey: new Map(),
+      activeTripsByVesselAbbrev: new Map(),
+      vesselLocations: [],
+      physicalOnlyTrips: [
+        {
+          TripKey: "trip-physical",
+          ScheduleKey: undefined,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(12, 20),
+          LeftDockActual: at(12, 23),
+          TripEnd: at(13, 20),
+        },
+      ],
+    });
+
+    expect(result.actualCount).toBe(2);
+    expect(result.actualRows.map((row) => row.EventType)).toEqual([
+      "dep-dock",
+      "arv-dock",
+    ]);
+    expect(result.actualRows.every((row) => row.UpdatedAt === 42)).toBe(true);
   });
 });

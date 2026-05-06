@@ -5,7 +5,7 @@
 
 import { internalQuery } from "_generated/server";
 import { v } from "convex/values";
-import { inferScheduledSegmentFromDepartureEvent } from "domain/events/scheduled/scheduledSegmentResolvers";
+import { inferScheduledSegmentFromDepartureEvent } from "domain/events/scheduled";
 import { readScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import { eventsScheduledSchema } from "functions/events/eventsScheduled/schemas";
 import { buildBoundaryKey } from "shared/keys";
