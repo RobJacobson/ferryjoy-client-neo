@@ -13,10 +13,12 @@
 import type { MutationCtx } from "_generated/server";
 import {
   buildActualDockRowsForSailingDayReload,
-  buildHydratedTransitionsFromReloadInputs,
+  hydrateActualTransitionsFromReloadInputs,
+} from "domain/events/actual";
+import {
   buildScheduledDockEventRecords,
   buildScheduledDockEvents,
-} from "domain/events";
+} from "domain/events/scheduled";
 import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -97,7 +99,7 @@ const reloadActualDockEventsForSailingDayRows = async (
     ctx.db.query("terminalsIdentity").collect(),
   ]);
 
-  const hydratedTransitions = buildHydratedTransitionsFromReloadInputs({
+  const hydratedTransitions = hydrateActualTransitionsFromReloadInputs({
     scheduleSegments: args.ReloadDockData.ScheduleSegments,
     historyRecords: args.ReloadDockData.HistoryRecords,
     vessels: vessels.map(stripConvexMeta),

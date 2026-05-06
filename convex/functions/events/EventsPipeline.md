@@ -33,8 +33,8 @@ Two complementary **write** paths exist:
 **Mutations** — `replaceScheduledDockEventsForSailingDayRows` and `reloadActualDockEventsForSailingDayRows` in `functions/events/sync/replaceDockEventsForSailingDay.ts`.
 
 6. Scheduled mutation: load identity tables, build schedule-derived dock boundaries from numeric reload segments, and persist only the scheduled slice through `upsertScheduledRowsForSailingDay`.
-7. Actual mutation: load identity tables, merge numeric schedule and history rows into hydrated transitions via `buildHydratedTransitionsFromReloadInputs`, load trip context for the sailing day, and collect live vessel locations.
-8. Build actual rows: `buildActualDockRowsForSailingDayReload` normalizes seams, builds base actual rows from schedule-backed evidence and physical-only trips, runs `reconcileActualDockWritesFromLocations` against live samples, and merges patches via `mergeActualDockWritesIntoRows`.
+7. Actual mutation: load identity tables, hydrate actual-domain boundary context from numeric schedule and history rows via `hydrateActualTransitionsFromReloadInputs`, load trip context for the sailing day, and collect live vessel locations.
+8. Build actual rows: `buildActualDockRowsForSailingDayReload` normalizes seam context, builds base actual rows from schedule-backed evidence and physical-only trips, runs `reconcileActualDockWritesFromLocations` against live samples using neutral scheduled boundary context, and merges patches via `mergeActualDockWritesIntoRows`.
 9. Persist actual rows through `upsertActualDockRows`; omitted actual EventKeys are preserved because schedule refreshes no longer delete physical observations.
 10. Return `{ ScheduledCount, ActualCount }` to the action for logging and operator feedback.
 
@@ -84,5 +84,6 @@ Public list queries under `functions/events/eventsScheduled`, `eventsActual`, an
 
 - **DockReload** never writes `eventsPredicted`; it only refreshes scheduled and actual slices for the targeted sailing day(s).
 - **DockEventLive** never performs a full-day replace; it applies sparse upserts keyed by physical event identity and batches as assembled by `updateEvents`.
-- Reload mutations validate numeric Convex payloads at the Convex boundary; domain stages consume numeric reload rows and create `Date` only at key-formatting call sites.
+- Reload mutations validate numeric Convex payloads at the Convex boundary; scheduled and actual domain stages consume numeric reload rows independently and create `Date` only at key-formatting call sites.
 - Orchestrator event projection uses **the same ping’s** `tripUpdate` and enriched trip — no separate event read pass before `persistVesselUpdates`.
+- Shared event-domain code is limited to neutral primitives such as dock boundary event type and scheduled boundary context; persisted table schemas remain owned by their table folders.

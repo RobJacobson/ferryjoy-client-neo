@@ -4,13 +4,13 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { DockBoundaryEventRecord } from "domain/events";
-import {
-  type ActiveTripForPhysicalActualReconcile,
-  buildActualDockEvents,
-  buildScheduledDockEvents,
-  type TripContextForActualRow,
-} from "domain/events";
+import type {
+  ActiveTripForPhysicalActualReconcile,
+  TripContextForActualRow,
+} from "domain/events/actual";
+import { buildActualDockEvents } from "domain/events/actual/buildActualDockEvents";
+import { buildScheduledDockEvents } from "domain/events/scheduled";
+import type { DockBoundaryEventRecord } from "domain/events/scheduled/types";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";

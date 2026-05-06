@@ -3,14 +3,14 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { DockBoundaryEventRecord } from "domain/events";
-import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import {
   buildActualDockEventFromWrite,
   buildActualDockEvents,
-  buildScheduledDockEvents,
   type TripContextForActualRow,
-} from "..";
+} from "domain/events/actual";
+import { buildScheduledDockEvents } from "domain/events/scheduled";
+import type { DockBoundaryEventRecord } from "domain/events/scheduled/types";
+import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);

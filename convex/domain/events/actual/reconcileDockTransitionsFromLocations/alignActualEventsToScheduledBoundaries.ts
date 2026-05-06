@@ -7,7 +7,7 @@
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
+import type { ScheduledBoundaryContext } from "../../common/types";
 import {
   getSegmentKeyFromBoundaryKey,
   sortScheduledDockEvents,
@@ -29,7 +29,7 @@ const buildLocationReconcileBoundaryEvents = ({
   scheduledEvents,
   actualEvents,
 }: {
-  scheduledEvents: ConvexScheduledDockEvent[];
+  scheduledEvents: ScheduledBoundaryContext[];
   actualEvents: ConvexActualDockEvent[];
 }): LocationReconcileBoundaryEvent[] => {
   const sortedScheduledEvents = [...scheduledEvents].sort(
@@ -85,7 +85,7 @@ const buildExactActualLookup = (actualEvents: ConvexActualDockEvent[]) => {
  * @param event - Scheduled dock boundary whose Key encodes segment suffix
  * @returns Composite key shared with actualLookupKey for schedule-aligned joins
  */
-const scheduledActualLookupKey = (event: ConvexScheduledDockEvent) =>
+const scheduledActualLookupKey = (event: ScheduledBoundaryContext) =>
   actualLookupKey(getSegmentKeyFromBoundaryKey(event.Key), event.EventType);
 
 /**
@@ -97,7 +97,7 @@ const scheduledActualLookupKey = (event: ConvexScheduledDockEvent) =>
  */
 const actualLookupKey = (
   scheduleSegment: string,
-  eventType: ConvexScheduledDockEvent["EventType"]
+  eventType: ScheduledBoundaryContext["EventType"]
 ) => `${scheduleSegment}|${eventType}`;
 
 export { buildLocationReconcileBoundaryEvents };

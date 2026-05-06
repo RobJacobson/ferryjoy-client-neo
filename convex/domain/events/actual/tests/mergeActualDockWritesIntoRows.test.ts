@@ -6,7 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type {
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "domain/events/actual/schemas";
+} from "domain/events/actual/types";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import { mergeActualDockWritesIntoRows } from "../mergeActualDockWritesIntoRows";

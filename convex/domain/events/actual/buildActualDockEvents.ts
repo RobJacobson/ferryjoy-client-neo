@@ -8,9 +8,9 @@
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "../../../shared/physicalTripIdentity";
 import { getSailingDay } from "../../../shared/time";
-import type { DockBoundaryEventRecord } from "../types";
+import type { DockBoundaryEventRecord } from "../scheduled/types";
 import type { TripContextForActualRow } from "./bindActualRowsToTrips";
-import type { ConvexActualDockWritePersistable } from "./schemas";
+import type { ConvexActualDockWritePersistable } from "./types";
 
 /**
  * Builds normalized actual dock rows from in-memory boundary event records.

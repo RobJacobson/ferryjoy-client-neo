@@ -3,12 +3,12 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type { DockBoundaryEventRecord } from "domain/events";
+import type { EventReloadHistoryRecord } from "domain/events/actual/reloadTypes";
+import type { DockEventType } from "domain/events/common/types";
 import type {
-  EventReloadHistoryRecord,
+  DockBoundaryEventRecord,
   EventReloadScheduleSegment,
-} from "domain/events/reload/types";
-import type { DockEventType } from "functions/events/eventsScheduled/schemas";
+} from "domain/events/scheduled/types";
 import { buildScheduledDockEventRecords } from "../../scheduled/buildScheduledDockEventRecords";
 import { createSeededScheduleSegmentResolver } from "../../scheduled/scheduleDepartureLookup";
 import { hydrateActualDockEvents } from "../hydrateActualDockEvents";

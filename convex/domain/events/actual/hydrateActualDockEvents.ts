@@ -14,13 +14,13 @@ import {
   type VesselIdentity,
 } from "adapters";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
-import type {
-  EventReloadHistoryRecord,
-  EventReloadScheduleSegment,
-} from "../reload/types";
 import { getDirectRawSeedSegments } from "../scheduled/buildScheduledDockEventRecords";
 import { createSeededScheduleSegmentResolver } from "../scheduled/scheduleDepartureLookup";
-import type { DockBoundaryEventRecord } from "../types";
+import type {
+  DockBoundaryEventRecord,
+  EventReloadScheduleSegment,
+} from "../scheduled/types";
+import type { EventReloadHistoryRecord } from "./reloadTypes";
 
 // History can disagree slightly with live or prior seed data; only replace the
 // stored actual when the delta exceeds this window (stricter for proxy arrivals).

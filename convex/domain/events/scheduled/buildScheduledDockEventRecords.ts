@@ -16,14 +16,15 @@ import {
   classifyDirectSegments,
   getOfficialCrossingTimeMinutes,
 } from "../../scheduledTrips";
-import type { EventReloadScheduleSegment } from "../reload/types";
-import type { DockBoundaryEventRecord } from "../types";
 import {
+  IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
   normalizeScheduledDockSeams,
   sortDockBoundaryEventRecords,
 } from "./normalizeScheduledDockEventRecords";
-
-const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
+import type {
+  DockBoundaryEventRecord,
+  EventReloadScheduleSegment,
+} from "./types";
 
 /**
  * Produces normalized boundary records for every direct physical sailing segment.

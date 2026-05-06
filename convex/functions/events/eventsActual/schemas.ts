@@ -4,7 +4,7 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { dockEventTypeSchema } from "../eventsScheduled/schemas";
+import { dockEventTypeSchema } from "../common/schemas";
 
 /**
  * Persisted row fields (physical TripKey required).

@@ -1,15 +1,15 @@
 /**
  * Assembles `PingEventWrites` from lifecycle facts and per-vessel messages.
  *
- * Owns imports of `domain/events` projection builders and converts sparse
+ * Owns imports of event-domain projection builders and converts sparse
  * actual writes into persisted actual rows before they cross the DB boundary.
  */
 
+import { buildActualDockEventFromWrite } from "domain/events/actual";
 import {
-  buildActualDockEventFromWrite,
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,
-} from "domain/events";
+} from "domain/events/predicted";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredicted/schemas";
 import type {

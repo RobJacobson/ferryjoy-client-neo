@@ -7,7 +7,7 @@ import type { MutationCtx } from "_generated/server";
 import {
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
-} from "domain/events";
+} from "domain/events/actual";
 
 /**
  * Loads trip rows for one sailing day and builds reload lookup indexes.

@@ -15,7 +15,7 @@ import type {
   ConvexActualDockWrite,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "./schemas";
+} from "./types";
 
 /**
  * Resolved physical context stored on each eventsActual row.

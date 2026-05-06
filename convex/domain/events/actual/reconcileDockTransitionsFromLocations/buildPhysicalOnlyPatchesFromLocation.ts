@@ -11,7 +11,7 @@
 
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
 import type { ActiveTripForPhysicalActualReconcile } from "../bindActualRowsToTrips";
-import type { ConvexActualDockWritePersistable } from "../schemas";
+import type { ConvexActualDockWritePersistable } from "../types";
 import { strongArrival, strongDeparture } from "./locationMotionGates";
 
 /**

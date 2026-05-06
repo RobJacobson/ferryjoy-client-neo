@@ -12,7 +12,7 @@ import type {
 } from "functions/events/eventsPredicted/schemas";
 import { buildVesselSailingDayScopeKey } from "shared/keys";
 import { DEPART_NEXT_ML_PREDICTION_TYPES } from "./departNextActualization";
-import { predictedDockCompositeKey } from "./schemas";
+import { predictedDockCompositeKey } from "./predictedDockCompositeKey";
 
 export type ExistingPredictedDockRow = ConvexPredictedDockEvent & {
   _id: Id<"eventsPredicted">;

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildActualDockEventFromWrite } from "domain/events";
+import { buildActualDockEventFromWrite } from "domain/events/actual";
 import {
   buildArrivalActualDockWriteForTrip,
   buildDepartureActualDockWriteForTrip,

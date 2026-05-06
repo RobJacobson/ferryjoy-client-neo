@@ -5,11 +5,11 @@
  * seams that would otherwise collapse dock intervals to zero duration.
  */
 
-import type { DockEventType } from "functions/events/eventsScheduled/schemas";
 import { buildVesselSailingDayScopeKey } from "../../../shared/keys";
-import type { DockBoundaryEventRecord } from "../types";
+import type { DockEventType } from "../common/types";
+import type { DockBoundaryEventRecord } from "./types";
 
-const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
+export const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 
 /**
  * Comparator for stable vessel-day ordering of in-memory boundary records.

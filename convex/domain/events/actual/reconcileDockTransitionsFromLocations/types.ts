@@ -8,11 +8,11 @@
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import type {
-  ConvexScheduledDockEvent,
-  DockEventType,
-} from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
+import type {
+  DockEventType,
+  ScheduledBoundaryContext,
+} from "../../common/types";
 import type {
   ActiveTripForPhysicalActualReconcile,
   TripContextForActualRow,
@@ -25,12 +25,12 @@ type VesselEventsByAbbrev<T extends { VesselAbbrev: string }> = Map<
 
 type VesselLocationScheduledEventsBundle = {
   location: ConvexVesselLocation;
-  vesselScheduledEvents: ConvexScheduledDockEvent[];
+  vesselScheduledEvents: ScheduledBoundaryContext[];
 };
 
 type ReconcileActualDockWritesFromLocationsArgs = {
   sailingDay: string;
-  scheduledEvents: ConvexScheduledDockEvent[];
+  scheduledEvents: ScheduledBoundaryContext[];
   actualEvents: ConvexActualDockEvent[];
   vesselLocations: ConvexVesselLocation[];
   tripBySegmentKey?: Map<string, TripContextForActualRow>;

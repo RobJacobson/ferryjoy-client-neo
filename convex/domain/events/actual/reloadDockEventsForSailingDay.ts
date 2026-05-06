@@ -6,12 +6,11 @@
  */
 
 import type { ConvexVesselLocation } from "../../../functions/vesselLocation/schemas";
-import { buildScheduledDockEvents } from "../scheduled/buildScheduledDockEvents";
 import {
   normalizeScheduledDockSeams,
   sortDockBoundaryEventRecords,
 } from "../scheduled/normalizeScheduledDockEventRecords";
-import type { DockBoundaryEventRecord } from "../types";
+import type { DockBoundaryEventRecord } from "../scheduled/types";
 import type {
   ActiveTripForPhysicalActualReconcile,
   TripContextForActualRow,
@@ -41,8 +40,8 @@ type BuildDockEventRowsForSailingDayReloadArgs = {
  *
  * Normalizes seam artifacts, builds base actual rows from schedule-backed
  * evidence plus physical-only trips, then layers live-location reconciliation
- * and merges patches back into the base set. Scheduled rows are built only as
- * transient context for aligning live locations to boundary records.
+ * and merges patches back into the base set. Neutral boundary records provide
+ * schedule context without depending on the persisted scheduled table shape.
  *
  * @param args.sailingDay - Calendar sailing day string for filtering locations
  * @param args.events - Hydrated boundary records for the day (seed plus history)
@@ -65,14 +64,13 @@ const buildActualDockRowsForSailingDayReload = ({
   const normalizedEvents = normalizeScheduledDockSeams(events).sort(
     sortDockBoundaryEventRecords
   );
-  const scheduledRows = buildScheduledDockEvents(normalizedEvents, updatedAt);
   const baseActualRows = dedupeActualRowsByEventKey([
     ...buildActualDockEvents(normalizedEvents, updatedAt, tripBySegmentKey),
     ...buildPhysicalOnlyActualRowsFromTrips(physicalOnlyTrips, updatedAt),
   ]);
   const liveLocationActualPatches = reconcileActualDockWritesFromLocations({
     sailingDay,
-    scheduledEvents: scheduledRows,
+    scheduledEvents: normalizedEvents,
     actualEvents: baseActualRows,
     vesselLocations,
     tripBySegmentKey,

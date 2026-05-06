@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type { DockBoundaryEventRecord } from "domain/events";
-import type { EventReloadScheduleSegment } from "domain/events/reload/types";
+import type {
+  DockBoundaryEventRecord,
+  EventReloadScheduleSegment,
+} from "domain/events/scheduled/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { buildActualDockWritesFromLocation } from "../../actual/reconcileDockTransitionsFromLocations";

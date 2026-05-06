@@ -4,7 +4,7 @@
  */
 
 import { groupBy } from "../../../shared/groupBy";
-import type { DockBoundaryEventRecord } from "../types";
+import type { DockBoundaryEventRecord } from "./types";
 
 /**
  * Builds a closure that maps vessel abbrev and history scheduled departure to SegmentKey.

@@ -8,7 +8,7 @@ import type {
   ConvexActualDockWrite,
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "./schemas";
+} from "./types";
 
 /**
  * Narrows a sparse write once TripKey enrichment may have run.

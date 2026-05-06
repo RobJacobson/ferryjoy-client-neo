@@ -5,9 +5,9 @@
 import { describe, expect, it } from "bun:test";
 import type {
   ActiveTripForPhysicalActualReconcile,
-  DockBoundaryEventRecord,
   TripContextForActualRow,
-} from "domain/events";
+} from "domain/events/actual";
+import type { DockBoundaryEventRecord } from "domain/events/scheduled/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { buildActualDockRowsForSailingDayReload } from "../reloadDockEventsForSailingDay";
