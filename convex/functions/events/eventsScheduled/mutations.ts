@@ -57,7 +57,7 @@ const upsertScheduledRowsForSailingDay = async (
 };
 
 /**
- * Compares scheduled rows while ignoring Convex document metadata.
+ * Compares scheduled rows while ignoring Convex document metadata and UpdatedAt.
  *
  * The optional last-arrival marker is compared with Convex optional semantics:
  * an omitted value is distinct from false because both are valid stored row
@@ -65,7 +65,7 @@ const upsertScheduledRowsForSailingDay = async (
  *
  * @param left - Stored eventsScheduled document
  * @param right - Incoming validator-shaped scheduled row
- * @returns True when no comparable scheduled field differs
+ * @returns True when no viewer-visible scheduled field differs
  */
 const areScheduledRowsEqual = (
   left: Doc<"eventsScheduled">,
@@ -74,7 +74,6 @@ const areScheduledRowsEqual = (
   left.Key === right.Key &&
   left.VesselAbbrev === right.VesselAbbrev &&
   left.SailingDay === right.SailingDay &&
-  left.UpdatedAt === right.UpdatedAt &&
   left.ScheduledDeparture === right.ScheduledDeparture &&
   left.TerminalAbbrev === right.TerminalAbbrev &&
   left.NextTerminalAbbrev === right.NextTerminalAbbrev &&

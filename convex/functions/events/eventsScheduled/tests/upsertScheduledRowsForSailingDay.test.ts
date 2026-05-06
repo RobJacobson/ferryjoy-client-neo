@@ -202,16 +202,17 @@ describe("upsertScheduledRowsForSailingDay", () => {
     ]);
   });
 
-  it("ignores Convex metadata when deciding whether to replace", async () => {
+  it("ignores Convex metadata and UpdatedAt when deciding whether to replace", async () => {
     const stored = scheduledDoc({
       _id: "scheduled-stable" as Id<"eventsScheduled">,
       _creationTime: 123,
       Key: "stable",
+      UpdatedAt: 1,
     });
     const mock = makeMutationCtx([stored]);
 
     await upsertScheduledRowsForSailingDay(mock.ctx, "2026-03-25", [
-      scheduledRow({ Key: "stable" }),
+      scheduledRow({ Key: "stable", UpdatedAt: 2 }),
     ]);
 
     expect(mock.deletes).toEqual([]);
