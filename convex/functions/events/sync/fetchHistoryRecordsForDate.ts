@@ -1,5 +1,8 @@
 /**
- * Fetches external vessel history rows for dock-event reload segments.
+ * Fetches WSF vessel-history rows for dock-event reloads.
+ *
+ * The action only requests history for vessels present in the fetched schedule
+ * slice, which keeps the reload bounded to the physical day being refreshed.
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
@@ -7,16 +10,13 @@ import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 
 /**
- * Fetches external vessel history rows for vessels on a schedule slice.
+ * Fetches vessel-history rows for vessels in a schedule slice.
  *
- * Only vessels appearing on provided segments are queried to avoid broad history scans.
- * Parallel per-vessel fetches keep action latency bounded while preserving day-only filtering.
- *
- * @param scheduleSegments - Scheduled segments whose VesselName fields identify vessels
- * @param targetDate - Sailing day YYYY-MM-DD passed through to the history API
- * @returns Concatenated VesselHistory rows across all requested vessel names
+ * @param scheduleSegments - Schedule segments whose VesselName fields identify vessels
+ * @param targetDate - YYYY-MM-DD sailing day passed to the history API
+ * @returns Concatenated history rows across requested vessels
  */
-export const fetchHistoryRecordsForDate = async (
+const fetchHistoryRecordsForDate = async (
   scheduleSegments: RawWsfScheduleSegment[],
   targetDate: string
 ): Promise<VesselHistory[]> => {
@@ -28,7 +28,7 @@ export const fetchHistoryRecordsForDate = async (
     )
   );
 
-  const historyBatches = await Promise.all(
+  const batches = await Promise.all(
     vesselNames.map((vesselName) =>
       fetchVesselHistoriesByVesselAndDates({
         params: {
@@ -40,5 +40,7 @@ export const fetchHistoryRecordsForDate = async (
     )
   );
 
-  return historyBatches.flat();
+  return batches.flat();
 };
+
+export { fetchHistoryRecordsForDate };

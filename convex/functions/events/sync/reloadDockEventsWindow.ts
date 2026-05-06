@@ -1,38 +1,34 @@
 /**
- * Multi-day dock-event reload helper for recovery windows.
+ * Multi-day dock-event reload action helper.
  *
- * The helper is action-side orchestration: it chooses sailing days, calls the
- * single-day reload helper, and aggregates row counts for operator feedback.
+ * Recovery and cron workflows use this helper to reload consecutive sailing
+ * days from the current sailing day and aggregate operator-facing counts.
  */
 
 import type { ActionCtx } from "_generated/server";
-import { getSailingDay } from "../../../shared/time";
+import { getSailingDay } from "shared/time";
 import { runReloadDockEventsForSailingDay } from "./reloadDockEventsForSailingDay";
-import type { WindowReloadDayResult } from "./types";
+import type { WindowReloadDayResult, WindowReloadResult } from "./types";
 
 /**
- * Reloads a consecutive window of sailing days starting from today.
- *
- * Uses current sailing day from getSailingDay as day zero, iterates forward by whole
- * calendar days via addDays, and aggregates counts so operators can verify multi-day recovery jobs.
- * Defaults to two days when override omitted to match legacy cron expectations unless callers pass a wider span.
+ * Reloads a consecutive window of sailing days starting today.
  *
  * @param ctx - Convex action context passed to each single-day reload
- * @param daysToSyncOverride - Optional inclusive day count beginning at startDate
- * @returns Totals plus per-day sailingDay, scheduledCount, and actualCount entries
+ * @param daysToSyncOverride - Optional number of sailing days to reload
+ * @returns Aggregated scheduled and actual counts with per-day entries
  */
 const runReloadDockEventsWindow = async (
   ctx: ActionCtx,
   daysToSyncOverride?: number
-) => {
+): Promise<WindowReloadResult> => {
   const startDate = getSailingDay(new Date());
   const daysToSync = daysToSyncOverride ?? 2;
   const daysProcessed: WindowReloadDayResult[] = [];
   let totalScheduled = 0;
   let totalActual = 0;
 
-  for (let i = 0; i < daysToSync; i++) {
-    const sailingDay = addDays(startDate, i);
+  for (let index = 0; index < daysToSync; index++) {
+    const sailingDay = addDaysToSailingDay(startDate, index);
     const result = await runReloadDockEventsForSailingDay(ctx, sailingDay);
 
     totalScheduled += result.ScheduledCount;
@@ -52,16 +48,13 @@ const runReloadDockEventsWindow = async (
 };
 
 /**
- * Shifts a sailing-day calendar string forward by whole UTC-calendar days.
+ * Adds whole calendar days to a YYYY-MM-DD sailing-day string.
  *
- * Parses components as UTC noon to avoid local-DST edge cases when adding days, then
- * formats back through getSailingDay for consistent YYYY-MM-DD output with the rest of the app.
- *
- * @param dateString - Base sailing day in YYYY-MM-DD format
- * @param days - Non-negative offset count to advance the calendar
+ * @param dateString - Base sailing day
+ * @param days - Whole-day offset
  * @returns Sailing day string for the offset date
  */
-const addDays = (dateString: string, days: number): string => {
+const addDaysToSailingDay = (dateString: string, days: number): string => {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));
   date.setUTCDate(date.getUTCDate() + days);

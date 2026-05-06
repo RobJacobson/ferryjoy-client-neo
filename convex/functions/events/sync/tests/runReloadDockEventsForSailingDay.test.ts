@@ -1,6 +1,8 @@
 /**
- * Verifies single-day reload delegates persistence to split mutations with
- * Convex reload payloads built from fetched slices.
+ * Sync action-helper tests for single-day dock-event reload orchestration.
+ *
+ * The helper is tested with mocked adapter fetches so assertions stay focused
+ * on Convex-shaped payloads and split scheduled/actual mutation delegation.
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
@@ -16,7 +18,7 @@ afterEach(() => {
 });
 
 describe("runReloadDockEventsForSailingDay", () => {
-  it("calls scheduled and actual reload mutations with Convex payloads for the target date", async () => {
+  it("calls scheduled and actual reload mutations with Convex payloads", async () => {
     spyOn(console, "log").mockImplementation(() => {});
     spyOn(adapters, "fetchAndTransformScheduledTrips").mockResolvedValue({
       routes: [],
@@ -37,21 +39,23 @@ describe("runReloadDockEventsForSailingDay", () => {
       },
     } as unknown as ActionCtx;
 
-    await runReloadDockEventsForSailingDay(ctx, "2026-07-04");
+    const result = await runReloadDockEventsForSailingDay(ctx, "2026-07-04");
 
-    expect(mutationPayloads).toHaveLength(2);
-    expect(mutationPayloads[0]).toEqual({
-      ReloadDockScheduleData: {
-        SailingDay: "2026-07-04",
-        ScheduleSegments: [],
+    expect(result).toEqual({ ScheduledCount: 0, ActualCount: 0 });
+    expect(mutationPayloads).toEqual([
+      {
+        ReloadDockScheduleData: {
+          SailingDay: "2026-07-04",
+          ScheduleSegments: [],
+        },
       },
-    });
-    expect(mutationPayloads[1]).toEqual({
-      ReloadDockData: {
-        SailingDay: "2026-07-04",
-        ScheduleSegments: [],
-        HistoryRecords: [],
+      {
+        ReloadDockData: {
+          SailingDay: "2026-07-04",
+          ScheduleSegments: [],
+          HistoryRecords: [],
+        },
       },
-    });
+    ]);
   });
 });

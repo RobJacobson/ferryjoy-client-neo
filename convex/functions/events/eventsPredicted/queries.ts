@@ -1,12 +1,15 @@
 /**
- * Reads from eventsPredicted: ETA and ML predictions per dock boundary, for use
- * next to scheduled and actual event rows in trip and timeline assembly.
+ * Convex queries for eventsPredicted.
+ *
+ * Predicted dock rows feed timeline subscriptions and vessel-trip prediction
+ * joins. Reads stay scoped to vessel/day indexes and group rows by the shared
+ * composite prediction identity when enriching trips.
  */
 
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { v } from "convex/values";
-import { predictedDockCompositeKey } from "domain/events/predicted/predictedDockCompositeKey";
+import { predictedDockCompositeKey } from "domain/events/predicted";
 import {
   buildVesselSailingDayScopeKey,
   parseVesselSailingDayScopeKey,
@@ -17,57 +20,17 @@ import {
   eventsPredictedSchema,
 } from "./schemas";
 
-/**
- * Comparator for client-facing predicted event lists.
- *
- * Sorts by ScheduledDeparture then Key so multiple prediction types on the same
- * boundary stay in a stable, human-predictable order.
- *
- * @param left - First row after metadata strip
- * @param right - Second row after metadata strip
- * @returns Numeric comparison result for array sort
- */
-const sortPredictedDockEventsForPublicList = (
-  left: ConvexPredictedDockEvent,
-  right: ConvexPredictedDockEvent
-) =>
-  left.ScheduledDeparture - right.ScheduledDeparture ||
-  left.Key.localeCompare(right.Key);
-
-/**
- * Reads predicted rows for one vessel and sailing day from storage.
- *
- * Index-scoped collection keeps reads small; stripConvexMeta removes Convex fields
- * before returning validator-shaped objects to callers and list subscriptions.
- *
- * @param ctx - Convex query context exposing db
- * @param args.vesselAbbrev - VesselAbbrev column value
- * @param args.sailingDay - Calendar sailing day YYYY-MM-DD
- * @returns Predicted rows sorted for presentation
- */
-const readPredictedDockEventsForVesselSailingDay = async (
-  ctx: Pick<QueryCtx, "db">,
-  args: { vesselAbbrev: string; sailingDay: string }
-): Promise<ConvexPredictedDockEvent[]> => {
-  const docs = await ctx.db
-    .query("eventsPredicted")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
-    )
-    .collect();
-  return docs.map(stripConvexMeta).sort(sortPredictedDockEventsForPublicList);
+type PredictedQueryArgs = {
+  vesselAbbrev: string;
+  sailingDay: string;
 };
 
 /**
- * Public Convex query listing predicted dock events for vessel scope.
- *
- * Validates inputs and array returns at the Convex boundary; delegates to the reader
- * so tests and internal modules can share the same ordering logic.
+ * Public query listing predicted dock events for a vessel/day scope.
  *
  * @param ctx - Convex query context
- * @param args.vesselAbbrev - VesselAbbrev column value
- * @param args.sailingDay - Calendar sailing day YYYY-MM-DD
- * @returns Validator-shaped predicted rows in deterministic order
+ * @param args - Vessel and sailing-day filters
+ * @returns Predicted dock rows sorted by scheduled departure then key
  */
 const listPredictedDockEventsForVesselSailingDay = query({
   args: {
@@ -80,27 +43,30 @@ const listPredictedDockEventsForVesselSailingDay = query({
 });
 
 /**
- * Loads predictions grouped by vessel-day scope and composite prediction key.
+ * Loads predictions grouped by vessel/day scope and composite prediction key.
  *
- * Builds unique scopes from trip inputs, loads each sailing day once per vessel,
- * then indexes rows by predictedDockCompositeKey so trip joins resolve predictions
- * without scanning unrelated days or duplicating network payloads.
+ * Trips without SailingDay cannot be scoped to the predicted table and are
+ * skipped. Duplicate vessel/day scopes are collected once to avoid repeated
+ * indexed reads for active and completed trip batches.
  *
- * @param ctx - Convex query context exposing db
+ * @param ctx - Convex read context exposing database access
  * @param trips - Trip-like rows carrying VesselAbbrev and optional SailingDay
- * @returns Nested map from scope key to composite-key map of predicted rows
+ * @returns Nested map keyed by vessel/day scope, then prediction composite key
  */
 const loadPredictedRowsGroupedForTrips = async (
   ctx: Pick<QueryCtx, "db">,
   trips: { VesselAbbrev: string; SailingDay?: string }[]
 ): Promise<Map<string, Map<string, ConvexPredictedDockEvent>>> => {
   const scopeKeys = new Set<string>();
+
   for (const trip of trips) {
-    if (trip.SailingDay) {
-      scopeKeys.add(
-        buildVesselSailingDayScopeKey(trip.VesselAbbrev, trip.SailingDay)
-      );
+    if (trip.SailingDay === undefined) {
+      continue;
     }
+
+    scopeKeys.add(
+      buildVesselSailingDayScopeKey(trip.VesselAbbrev, trip.SailingDay)
+    );
   }
 
   const predictedByGroup = new Map<
@@ -108,25 +74,61 @@ const loadPredictedRowsGroupedForTrips = async (
     Map<string, ConvexPredictedDockEvent>
   >();
 
-  for (const g of scopeKeys) {
-    const { vesselAbbrev, sailingDay } = parseVesselSailingDayScopeKey(g);
+  for (const scopeKey of scopeKeys) {
+    const { vesselAbbrev, sailingDay } =
+      parseVesselSailingDayScopeKey(scopeKey);
     const rows = await readPredictedDockEventsForVesselSailingDay(ctx, {
       vesselAbbrev,
       sailingDay,
     });
-    const map = new Map<string, ConvexPredictedDockEvent>();
+    const rowsByCompositeKey = new Map<string, ConvexPredictedDockEvent>();
+
     for (const row of rows) {
-      map.set(predictedDockCompositeKey(row), row);
+      rowsByCompositeKey.set(predictedDockCompositeKey(row), row);
     }
-    predictedByGroup.set(g, map);
+
+    predictedByGroup.set(scopeKey, rowsByCompositeKey);
   }
 
   return predictedByGroup;
 };
 
+/**
+ * Loads predicted dock rows for one vessel and sailing day.
+ *
+ * @param ctx - Convex read context exposing database access
+ * @param args - Vessel and sailing-day filters
+ * @returns Validator-shaped predicted rows in deterministic order
+ */
+const readPredictedDockEventsForVesselSailingDay = async (
+  ctx: Pick<QueryCtx, "db">,
+  args: PredictedQueryArgs
+): Promise<ConvexPredictedDockEvent[]> => {
+  const docs = await ctx.db
+    .query("eventsPredicted")
+    .withIndex("by_vessel_and_sailing_day", (q) =>
+      q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
+    )
+    .collect();
+
+  return docs.map(stripConvexMeta).sort(sortPredictedDockEventsForPublicList);
+};
+
+/**
+ * Sorts predicted dock rows for public list responses.
+ *
+ * @param left - First predicted dock row
+ * @param right - Second predicted dock row
+ * @returns Numeric sort result
+ */
+const sortPredictedDockEventsForPublicList = (
+  left: ConvexPredictedDockEvent,
+  right: ConvexPredictedDockEvent
+): number =>
+  left.ScheduledDeparture - right.ScheduledDeparture ||
+  left.Key.localeCompare(right.Key);
+
 export {
   listPredictedDockEventsForVesselSailingDay,
   loadPredictedRowsGroupedForTrips,
-  readPredictedDockEventsForVesselSailingDay,
-  sortPredictedDockEventsForPublicList,
 };

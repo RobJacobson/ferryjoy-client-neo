@@ -1,7 +1,9 @@
 /**
- * Queries the eventsActual table: observed dock boundaries (times and legs)
- * that events and route overlays merge with eventsScheduled and
- * eventsPredicted.
+ * Convex queries for eventsActual.
+ *
+ * Actual dock rows are indexed by vessel and sailing day for timeline
+ * subscriptions. The public list query returns plain validator-shaped rows in a
+ * deterministic order.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -10,58 +12,17 @@ import { v } from "convex/values";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { type ConvexActualDockEvent, eventsActualSchema } from "./schemas";
 
-/**
- * Comparator that orders actual dock rows for client-facing lists.
- *
- * Primary sort is ScheduledDeparture ascending so timelines read chronologically;
- * EventKey breaks ties when multiple boundaries share the same scheduled depart instant.
- *
- * @param left - First row after Convex metadata stripping
- * @param right - Second row after Convex metadata stripping
- * @returns Negative when left sorts before right
- */
-const sortActualDockEventsForPublicList = (
-  left: ConvexActualDockEvent,
-  right: ConvexActualDockEvent
-) =>
-  left.ScheduledDeparture - right.ScheduledDeparture ||
-  left.EventKey.localeCompare(right.EventKey);
-
-/**
- * Loads actual dock rows for one vessel and sailing day from Convex storage.
- *
- * Uses the by_vessel_and_sailing_day index for efficient scoped reads, strips
- * Convex metadata fields for validator-shaped payloads, then sorts deterministically
- * so subscribers receive stable ordering across reactive updates.
- *
- * @param ctx - Convex query context exposing db
- * @param args.vesselAbbrev - VesselAbbrev column filter
- * @param args.sailingDay - Calendar sailing day YYYY-MM-DD
- * @returns Plain objects matching eventsActualSchema sorted for presentation
- */
-const readActualDockEventsForVesselSailingDay = async (
-  ctx: Pick<QueryCtx, "db">,
-  args: { vesselAbbrev: string; sailingDay: string }
-): Promise<ConvexActualDockEvent[]> => {
-  const docs = await ctx.db
-    .query("eventsActual")
-    .withIndex("by_vessel_and_sailing_day", (q) =>
-      q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
-    )
-    .collect();
-  return docs.map(stripConvexMeta).sort(sortActualDockEventsForPublicList);
+type ActualQueryArgs = {
+  vesselAbbrev: string;
+  sailingDay: string;
 };
 
 /**
- * Public Convex query wrapper listing actual dock events for vessel scope.
+ * Public query listing actual dock events for a vessel/day scope.
  *
- * Validates arguments and return arrays at the Convex boundary so clients cannot
- * bypass schema checks; delegates row loading to readActualDockEventsForVesselSailingDay.
- *
- * @param ctx - Convex query context including authenticated actor when configured
- * @param args.vesselAbbrev - VesselAbbrev column filter
- * @param args.sailingDay - Calendar sailing day YYYY-MM-DD
- * @returns Validator-shaped rows sorted by sortActualDockEventsForPublicList
+ * @param ctx - Convex query context
+ * @param args - Vessel and sailing-day filters
+ * @returns Actual dock rows sorted by scheduled departure then event key
  */
 const listActualDockEventsForVesselSailingDay = query({
   args: {
@@ -73,8 +34,42 @@ const listActualDockEventsForVesselSailingDay = query({
     readActualDockEventsForVesselSailingDay(ctx, args),
 });
 
-export {
-  listActualDockEventsForVesselSailingDay,
-  readActualDockEventsForVesselSailingDay,
-  sortActualDockEventsForPublicList,
+/**
+ * Loads actual dock rows for one vessel and sailing day.
+ *
+ * Uses the vessel/day index, strips Convex document metadata, and sorts
+ * deterministically for stable subscriptions.
+ *
+ * @param ctx - Convex read context exposing database access
+ * @param args - Vessel and sailing-day filters
+ * @returns Validator-shaped actual rows in deterministic order
+ */
+const readActualDockEventsForVesselSailingDay = async (
+  ctx: Pick<QueryCtx, "db">,
+  args: ActualQueryArgs
+): Promise<ConvexActualDockEvent[]> => {
+  const docs = await ctx.db
+    .query("eventsActual")
+    .withIndex("by_vessel_and_sailing_day", (q) =>
+      q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
+    )
+    .collect();
+
+  return docs.map(stripConvexMeta).sort(sortActualDockEventsForPublicList);
 };
+
+/**
+ * Sorts actual dock rows for public list responses.
+ *
+ * @param left - First actual dock row
+ * @param right - Second actual dock row
+ * @returns Numeric sort result
+ */
+const sortActualDockEventsForPublicList = (
+  left: ConvexActualDockEvent,
+  right: ConvexActualDockEvent
+): number =>
+  left.ScheduledDeparture - right.ScheduledDeparture ||
+  left.EventKey.localeCompare(right.EventKey);
+
+export { listActualDockEventsForVesselSailingDay };

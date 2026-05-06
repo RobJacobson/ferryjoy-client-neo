@@ -1,17 +1,25 @@
 /**
- * Shared result shapes for dock-event reload actions.
+ * Shared sync result types for dock-event reload actions.
  *
- * Action helpers return these compact summaries for operator dashboards and
- * cron logs without exposing the row payloads that were written.
+ * These types keep action helpers explicit without introducing a broader sync
+ * framework around the small Stage 6 reload surface.
  */
 
-export type EventReloadResult = {
+type EventReloadResult = {
   ScheduledCount: number;
   ActualCount: number;
 };
 
-export type WindowReloadDayResult = {
+type WindowReloadDayResult = {
   sailingDay: string;
   scheduledCount: number;
   actualCount: number;
 };
+
+type WindowReloadResult = {
+  totalScheduled: number;
+  totalActual: number;
+  daysProcessed: WindowReloadDayResult[];
+};
+
+export type { EventReloadResult, WindowReloadDayResult, WindowReloadResult };

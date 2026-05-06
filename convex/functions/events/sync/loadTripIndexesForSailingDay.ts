@@ -1,6 +1,8 @@
 /**
- * Loads vessel trip rows for a sailing day and builds indexes used during
- * dock-event reload.
+ * Loads vessel-trip indexes used by actual dock-event reloads.
+ *
+ * Static actual reloads need to attach schedule-backed and physical-only
+ * observations to the stable physical TripKey stored in vessel-trip tables.
  */
 
 import type { MutationCtx } from "_generated/server";
@@ -10,18 +12,13 @@ import {
 } from "domain/events/actual";
 
 /**
- * Loads trip rows for one sailing day and builds reload lookup indexes.
+ * Loads active and completed trips for one sailing day.
  *
- * Active trips supply scheduleless reconciliation targets; completed trips extend
- * segment-key coverage for legs that finished earlier in the day. physicalOnlyTrips
- * filters both collections to ScheduleKey undefined rows used when synthesizing bare
- * TripKey actuals without scheduled anchors.
- *
- * @param ctx - Convex mutation context for database reads
- * @param sailingDay - Target calendar sailing day string
- * @returns tripBySegmentKey, activeTripsByVesselAbbrev, and physicalOnlyTrips for reload
+ * @param ctx - Convex mutation context used for trip table reads
+ * @param sailingDay - Target sailing day string
+ * @returns Segment, active-trip, and physical-only indexes for actual reload
  */
-export const loadTripIndexesForSailingDay = async (
+const loadTripIndexesForSailingDay = async (
   ctx: MutationCtx,
   sailingDay: string
 ) => {
@@ -29,7 +26,6 @@ export const loadTripIndexesForSailingDay = async (
     .query("activeVesselTrips")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", sailingDay))
     .collect();
-
   const completedTrips = await ctx.db
     .query("completedVesselTrips")
     .withIndex("by_sailing_day_and_departing_terminal", (q) =>
@@ -48,3 +44,5 @@ export const loadTripIndexesForSailingDay = async (
     ),
   };
 };
+
+export { loadTripIndexesForSailingDay };

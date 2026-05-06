@@ -1,6 +1,8 @@
 /**
- * Covers index use, metadata stripping, and ordering for the public scheduled
- * list query composition (`readScheduledDockEventsForVesselSailingDay`).
+ * Query behavior tests for eventsScheduled vessel/day reads.
+ *
+ * These tests cover the Stage 2 contract: indexed scope reads, Convex metadata
+ * stripping, and stable scheduled dock ordering.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -9,9 +11,91 @@ import type { QueryCtx } from "_generated/server";
 import { readScheduledDockEventsForVesselSailingDay } from "functions/events/eventsScheduled/queries";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 
-const at = (hours: number, minutes: number) =>
+type ScheduledDoc = ConvexScheduledDockEvent & {
+  _id?: Id<"eventsScheduled">;
+  _creationTime?: number;
+};
+
+type MockQueryOptions = {
+  rows: ScheduledDoc[];
+  onWithIndex?: (indexName: string) => void;
+};
+
+const args = { vesselAbbrev: "WEN", sailingDay: "2026-03-25" };
+
+/**
+ * Builds a minimal query context for eventsScheduled index reads.
+ *
+ * @param options - Rows to filter and optional index spy
+ * @returns Query context for the scheduled reader
+ */
+const makeScheduledQueryCtx = (options: MockQueryOptions): QueryCtx =>
+  ({
+    db: {
+      query: (tableName: string) => ({
+        withIndex: (
+          indexName: string,
+          buildRange: (q: {
+            eq: (fieldName: string, value: string) => unknown;
+          }) => unknown
+        ) => {
+          options.onWithIndex?.(indexName);
+          const range = makeRangeRecorder();
+          buildRange(range);
+          const rows =
+            tableName === "eventsScheduled"
+              ? filterRowsByRange(options.rows, range.filters)
+              : [];
+
+          return { collect: async () => rows };
+        },
+      }),
+    },
+  }) as unknown as QueryCtx;
+
+/**
+ * Creates a range recorder compatible with Convex q.eq chaining.
+ *
+ * @returns Range recorder used by mock withIndex callbacks
+ */
+const makeRangeRecorder = () => ({
+  filters: [] as Array<{ fieldName: string; value: string }>,
+  eq(fieldName: string, value: string) {
+    this.filters.push({ fieldName, value });
+    return this;
+  },
+});
+
+/**
+ * Filters mock rows according to recorded q.eq calls.
+ *
+ * @param rows - Rows available in the mock table
+ * @param filters - Recorded equality filters
+ * @returns Rows matching all filters
+ */
+const filterRowsByRange = <Row extends Record<string, unknown>>(
+  rows: Row[],
+  filters: Array<{ fieldName: string; value: string }>
+): Row[] =>
+  rows.filter((row) =>
+    filters.every(({ fieldName, value }) => row[fieldName] === value)
+  );
+
+/**
+ * Builds a UTC timestamp for compact test fixtures.
+ *
+ * @param hours - UTC hour
+ * @param minutes - UTC minute
+ * @returns Epoch milliseconds
+ */
+const at = (hours: number, minutes: number): number =>
   Date.UTC(2026, 2, 25, hours, minutes);
 
+/**
+ * Builds a complete scheduled dock event fixture.
+ *
+ * @returns Scheduled dock event row
+ */
 const baseScheduled = (): ConvexScheduledDockEvent => ({
   Key: "trip-1--dep-dock",
   VesselAbbrev: "WEN",
@@ -22,63 +106,9 @@ const baseScheduled = (): ConvexScheduledDockEvent => ({
   NextTerminalAbbrev: "BBI",
   EventType: "dep-dock",
   EventScheduledTime: at(8, 0),
-  IsLastArrivalOfSailingDay: false,
 });
 
-type ScheduledCtxOpts = {
-  rows: Array<
-    ConvexScheduledDockEvent & {
-      _id?: Id<"eventsScheduled">;
-      _creationTime?: number;
-    }
-  >;
-  onWithIndex?: (indexName: string) => void;
-};
-
-/**
- * Builds a minimal `QueryCtx` that emulates `by_vessel_and_sailing_day` range
- * queries on `eventsScheduled`.
- *
- * @param opts - Rows to filter and optional index spy
- * @returns Context suitable for `readScheduledDockEventsForVesselSailingDay`
- */
-const makeScheduledQueryCtx = (opts: ScheduledCtxOpts): QueryCtx =>
-  ({
-    db: {
-      query: (tableName: string) => ({
-        withIndex: (
-          indexName: string,
-          buildRange: (q: {
-            eq: (fieldName: string, value: string) => unknown;
-          }) => unknown
-        ) => {
-          opts.onWithIndex?.(indexName);
-          if (tableName !== "eventsScheduled") {
-            return { collect: async () => [] };
-          }
-          const range = {
-            filters: [] as Array<{ fieldName: string; value: string }>,
-            eq(fieldName: string, value: string) {
-              this.filters.push({ fieldName, value });
-              return this;
-            },
-          };
-          buildRange(range);
-          const rows = opts.rows.filter((row) =>
-            range.filters.every(
-              ({ fieldName, value }) =>
-                String((row as Record<string, unknown>)[fieldName]) === value
-            )
-          );
-          return { collect: async () => rows };
-        },
-      }),
-    },
-  }) as unknown as QueryCtx;
-
-const args = { vesselAbbrev: "WEN", sailingDay: "2026-03-25" };
-
-describe("listScheduledDockEventsForVesselSailingDay (read + query)", () => {
+describe("readScheduledDockEventsForVesselSailingDay", () => {
   it("loads via by_vessel_and_sailing_day", async () => {
     let indexName = "";
     const ctx = makeScheduledQueryCtx({
@@ -87,64 +117,74 @@ describe("listScheduledDockEventsForVesselSailingDay (read + query)", () => {
         indexName = name;
       },
     });
+
     await readScheduledDockEventsForVesselSailingDay(ctx, args);
+
     expect(indexName).toBe("by_vessel_and_sailing_day");
   });
 
-  it("filters only by vessel and sailing day from the index range", async () => {
+  it("filters rows by vessel and sailing day", async () => {
     const ctx = makeScheduledQueryCtx({
       rows: [
-        {
-          ...baseScheduled(),
-          Key: "other--dep-dock",
-          VesselAbbrev: "OTH",
-        },
-        { ...baseScheduled(), Key: "wen--dep-dock" },
+        { ...baseScheduled(), Key: "other-vessel", VesselAbbrev: "OTH" },
+        { ...baseScheduled(), Key: "other-day", SailingDay: "2026-03-26" },
+        { ...baseScheduled(), Key: "matching-row" },
       ],
     });
+
     const rows = await readScheduledDockEventsForVesselSailingDay(ctx, args);
-    expect(rows.map((r) => r.Key)).toEqual(["wen--dep-dock"]);
+
+    expect(rows.map((row) => row.Key)).toEqual(["matching-row"]);
   });
 
-  it("strips _id and _creationTime from each row", async () => {
+  it("strips Convex metadata from returned rows", async () => {
     const ctx = makeScheduledQueryCtx({
       rows: [
         {
           ...baseScheduled(),
-          _id: "sched1" as Id<"eventsScheduled">,
-          _creationTime: 99,
+          _id: "scheduled1" as Id<"eventsScheduled">,
+          _creationTime: 25,
         },
       ],
     });
+
     const rows = await readScheduledDockEventsForVesselSailingDay(ctx, args);
-    expect(rows).toHaveLength(1);
+
     expect("_id" in rows[0]).toBe(false);
     expect("_creationTime" in rows[0]).toBe(false);
   });
 
-  it("sorts with sortScheduledDockEvents (arv-dock before dep-dock at same boundary)", async () => {
-    const t = at(8, 0);
+  it("sorts equal boundary times with arrivals before departures", async () => {
+    const boundaryTime = at(8, 0);
     const ctx = makeScheduledQueryCtx({
       rows: [
         {
           ...baseScheduled(),
-          Key: "seg--dep-dock",
+          Key: "same-time-dep",
           EventType: "dep-dock",
-          TerminalAbbrev: "Z",
-          ScheduledDeparture: t,
-          EventScheduledTime: t,
+          EventScheduledTime: boundaryTime,
         },
         {
           ...baseScheduled(),
-          Key: "seg--arv-dock",
+          Key: "later-dep",
+          EventScheduledTime: at(9, 0),
+          ScheduledDeparture: at(9, 0),
+        },
+        {
+          ...baseScheduled(),
+          Key: "same-time-arv",
           EventType: "arv-dock",
-          TerminalAbbrev: "A",
-          ScheduledDeparture: t,
-          EventScheduledTime: t,
+          EventScheduledTime: boundaryTime,
         },
       ],
     });
+
     const rows = await readScheduledDockEventsForVesselSailingDay(ctx, args);
-    expect(rows.map((r) => r.Key)).toEqual(["seg--arv-dock", "seg--dep-dock"]);
+
+    expect(rows.map((row) => row.Key)).toEqual([
+      "same-time-arv",
+      "same-time-dep",
+      "later-dep",
+    ]);
   });
 });

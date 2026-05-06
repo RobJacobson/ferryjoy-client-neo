@@ -329,6 +329,157 @@ Required behavior:
 - Combined reload writes scheduled and actual rows.
 - Static reload does not rebuild `eventsPredicted`.
 
+## Confirmed Stage 1 API Inventory
+
+Inventory confirmed against the current broken branch, `events-current-reference`,
+and `events-old-reference`. `events-current-reference` is behavior/API truth;
+`events-old-reference` is useful mainly as a flatter implementation baseline.
+
+| Export | Kind | Required? | Production callers | App callers | Tests | Reference branch notes | Implementation notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `eventsScheduledSchema`, `ConvexScheduledDockEvent`, `DockEventType`, `dockEventTypeSchema` from `convex/functions/events/eventsScheduled/schemas.ts` | Schema/type | Must implement | `convex/schema.ts`; `convex/functions/vesselOrchestrator/queries/vesselTripScheduleQueries.ts`; vessel-orchestrator and vessel-trip domain types | Timeline context and render-pipeline type imports | Current branch timeline, vessel-trip, and schedule tests import the type | Current reference schema fields: `Key`, `VesselAbbrev`, `SailingDay`, `UpdatedAt`, `ScheduledDeparture`, `TerminalAbbrev`, `NextTerminalAbbrev`, `EventType`, optional `EventScheduledTime`, optional `IsLastArrivalOfSailingDay` | Schema/type surface is required even though it is not a runtime function. Keep dock event type shared without making another table depend on scheduled. |
+| `ScheduledDockEvent`, `toScheduledDockEvent` from `convex/functions/events/eventsScheduled/types.ts` | App DTO converter/type | Owner decision | None | Only `src/types/index.ts` re-exports both in the current scan | App type tests may compile through this surface if `src/types` stays unchanged | Present on current reference, absent from old reference | Implement only if preserving `src/types` exports. Otherwise treat as a candidate removal in a bounded app-type cleanup. |
+| `listScheduledDockEventsForVesselSailingDay` | Public query | Must implement | Convex generated API path `api.functions.events.eventsScheduled.queries.listScheduledDockEventsForVesselSailingDay` | `src/data/contexts/convex/ConvexVesselTimelineEventsContext.tsx` subscription | Current reference list query test; current timeline context/render tests depend on row shape | Current reference validates `{ vesselAbbrev, sailingDay }`, returns `v.array(eventsScheduledSchema)`, strips Convex metadata, sorts via scheduled event ordering | Use `by_vessel_and_sailing_day`. Preserve stable timeline ordering, including arrival before departure at equal times. |
+| `readScheduledDockEventsForVesselSailingDay` | Internal reader helper | Must implement | `convex/functions/vesselOrchestrator/queries/vesselTripScheduleQueries.ts` imports it for schedule-key lookup and rollover pools | None | Current reference list query test imports the reader | Current reference returns `Promise<ConvexScheduledDockEvent[]>` for `{ vesselAbbrev, sailingDay }` and shares public-query ordering | This is required by a current production caller. It can live in `queries.ts`; no separate query action is needed. |
+| `upsertScheduledRowsForSailingDay` | Internal mutation helper | Must implement | Current reference sync replacement calls it; expected reload surface requires it | None | Current reference `planScheduledRowsForSailingDay.test.ts` covers delete/insert/replace/skip behavior | Current and old references both load by `by_sailing_day` and reconcile the complete day slice | Keep the behavior, not the planner file. Direct table-local logic is acceptable. |
+| `inferScheduledSegmentFromDepartureEvent`, `findNextDepartureEvent`, `ConvexInferredScheduledSegment` scheduled-domain surface | Domain helper/type | Must implement | `vesselTripScheduleQueries.ts`; `updateVesselTrip/schedule/resolveScheduleFromScheduledTripsDb.ts`; vessel-trip domain types | None | Current vessel-trip tests import `ConvexInferredScheduledSegment`; current reference resolver tests cover next-departure behavior | Current reference lives in nested `domain/events/scheduled/scheduledSegmentResolvers.ts`; old reference has a flatter `domain/events/scheduled.ts` baseline | This is one of the current callers not covered by the expected minimum function list. The helper/type behavior is required, but the nested path is not. Later implementation should prefer a flat `domain/events/scheduled.ts` shape and migrate imports if allowed by the stage scope, or flag the mismatch for owner approval. |
+| `eventsActualSchema`, `ConvexActualDockEvent` from `convex/functions/events/eventsActual/schemas.ts` | Schema/type | Must implement | `convex/schema.ts`; `orchestratorPersistMutations.ts`; event projection wire types | Timeline context and render-pipeline type imports | Current branch orchestrator, timeline, and update-events tests import it | Current reference schema fields: `EventKey`, `TripKey`, `EventType`, `VesselAbbrev`, `SailingDay`, `UpdatedAt`, `ScheduledDeparture`, `TerminalAbbrev`, optional `EventOccurred`, optional `EventActualTime` | Required for table definition, validator args, and app typing. |
+| `ActualDockEvent`, `toActualDockEvent` from `convex/functions/events/eventsActual/types.ts` | App DTO converter/type | Owner decision | None | Only `src/types/index.ts` re-exports both in the current scan | App type tests may compile through this surface if `src/types` stays unchanged | Present on current reference, absent from old reference | Implement only if preserving `src/types` exports. Otherwise treat as a candidate removal in a bounded app-type cleanup. |
+| `listActualDockEventsForVesselSailingDay` | Public query | Must implement | Convex generated API path `api.functions.events.eventsActual.queries.listActualDockEventsForVesselSailingDay` | `ConvexVesselTimelineEventsContext.tsx` subscription | Current reference list query test; current timeline tests depend on row shape | Current reference validates `{ vesselAbbrev, sailingDay }`, returns `v.array(eventsActualSchema)`, strips metadata, sorts by `ScheduledDeparture` then `EventKey` | Use `by_vessel_and_sailing_day`. |
+| `readActualDockEventsForVesselSailingDay` | Internal reader helper | Reference only | No current production caller found | None | Current reference list query test imports it | Current reference shares list-query behavior | Tests do not force an exported helper. Implement only if it reduces query duplication or a later caller appears. |
+| `upsertActualDockRows` | Internal mutation helper | Must implement | `convex/functions/vesselOrchestrator/mutations/orchestratorPersistMutations.ts`; current reference reload mutation | None | Current `persistVesselUpdates.test.ts`; current reference actual mutation/planner tests | Current and old references dedupe by `EventKey`, insert missing, replace changed, skip unchanged | Do not preserve old `projectActualDockWrites` internal mutation unless a current caller reappears. |
+| `ConvexActualDockWritePersistable`, `buildActualDockEventFromWrite` actual-domain surface | Domain helper/type | Must implement | `convex/domain/vesselOrchestration/updateEvents/actualDockWritesFromTrip.ts`; `eventWriteAssembler.ts` | None | Current `actualDockWritesFromTrip.test.ts`; current reference event-row builder tests | Current reference derives `EventKey`, `SailingDay`, and `ScheduledDeparture` when sparse writes omit them | Required by current orchestrator-domain callers and not covered by the expected minimum function list. Keep only the sparse-write normalization needed by callers, preferably in flat `domain/events/actual.ts` if import migration is in scope. |
+| Actual reload domain helpers, including `hydrateActualTransitionsFromReloadInputs` and `buildActualDockRowsForSailingDayReload` | Domain/reload behavior | Reference only | Current reference sync replacement imports them; current broken branch has no live caller because sync was deleted | None | Current reference actual hydrate/reload/reconcile tests | Current reference has deep nested actual reload/reconcile modules; old reference keeps actual logic flatter | Preserve tested reload behavior, especially physical-only reconstruction, but do not preserve nested module architecture by default. |
+| `eventsPredictedSchema`, `ConvexPredictedDockEvent`, `ConvexPredictedDockWriteRow`, `ConvexPredictedDockWriteBatch`, `predictedDockWriteBatchSchema`, `ConvexPredictionSource` | Schema/type | Must implement | `convex/schema.ts`; `orchestratorPersistMutations.ts`; event projection wire types; vessel-trip prediction join types | Timeline context and render-pipeline type imports | Current branch orchestrator, vessel-trip, and timeline tests import these shapes | Current reference schema stores one row per boundary key, prediction type, and source, with optional `Actual` and `DeltaTotal` | Required for table definition, validator args, app typing, and prediction joins. |
+| `PredictedDockEvent`, `toPredictedDockEvent` from `convex/functions/events/eventsPredicted/types.ts` | App DTO converter/type | Owner decision | None | Only `src/types/index.ts` re-exports both in the current scan | App type tests may compile through this surface if `src/types` stays unchanged | Present on current reference, absent from old reference | Implement only if preserving `src/types` exports. Otherwise treat as a candidate removal in a bounded app-type cleanup. |
+| `listPredictedDockEventsForVesselSailingDay` | Public query | Must implement | Convex generated API path `api.functions.events.eventsPredicted.queries.listPredictedDockEventsForVesselSailingDay` | `ConvexVesselTimelineEventsContext.tsx` subscription | Current reference list query test; current timeline tests depend on row shape | Current reference validates `{ vesselAbbrev, sailingDay }`, returns `v.array(eventsPredictedSchema)`, strips metadata, sorts by `ScheduledDeparture` then `Key` | Use `by_vessel_and_sailing_day`. |
+| `readPredictedDockEventsForVesselSailingDay` | Internal reader helper | Reference only | No current production caller found outside the reference helper stack | None | Current reference list query test imports it | Current reference shares list-query behavior and feeds grouped trip loader | Tests do not force an exported helper. Implement if useful for `loadPredictedRowsGroupedForTrips`. |
+| `loadPredictedRowsGroupedForTrips` | Internal query helper | Must implement | `convex/functions/vesselTrips/queries.ts` imports it for active/completed trip API enrichment | None | Current `mergeTripsWithPredictions.test.ts`; current reference predicted query tests | Current and old references build unique vessel/sailing-day scopes, load rows once per scope, and key rows by `predictedDockCompositeKey` | Required by current production caller. Return `Map<string, Map<string, ConvexPredictedDockEvent>>`. |
+| `upsertPredictedDockBatches` | Internal mutation helper | Must implement | `orchestratorPersistMutations.ts` imports it | None | Current `persistVesselUpdates.test.ts`; current reference predicted mutation tests | Current reference merges batches by vessel/sailing-day, reconciles only `TargetKeys`, deletes stale targeted composites, inserts/replaces changed rows, skips unchanged rows | Preserve tested depart-next behavior during target-key clearing. |
+| `patchDepartNextMlRowsForDepBoundary` | Internal mutation helper | Must implement | `orchestratorPersistMutations.ts` imports it for `updateLeaveDockEventPatch` | None | Current `persistVesselUpdates.test.ts`; current reference patch tests | Current and old references query `by_key_type_and_source` for `AtDockDepartNext` and `AtSeaDepartNext` ML rows, skip already actualized rows, patch `Actual` and rounded-minute `DeltaTotal` | Return `Promise<boolean>`. |
+| `predictedDockCompositeKey` predicted-domain surface | Domain identity helper | Must implement | `convex/functions/vesselTrips/read/mergeTripsWithPredictions.ts`; current reference predicted query/mutation helpers | None | Current `mergeTripsWithPredictions.test.ts`; current reference predicted tests | Current reference key is `${Key}|${PredictionType}|${PredictionSource}`; old reference had similar identity helper under the table folder | Required by current caller and not covered by the expected minimum function list. The path is not required; prefer flat `domain/events/predicted.ts` or a table-local helper unless caller migration is disallowed. |
+| `buildPredictedDockWriteBatch`, `buildPredictedDockClearBatch` predicted-domain surface | Domain projection helper | Must implement | `convex/domain/vesselOrchestration/updateEvents/eventWriteAssembler.ts` | None | Current reference predicted projection tests | Current reference maps trip ML/ETA fields to sparse batch rows and clear scopes | Required by current orchestrator-domain caller. Keep helper surface small; avoid bringing the reconciliation planner across, and avoid recreating nested `domain/events/predicted/*` structure without owner approval. |
+| `reloadDockEventsForCurrentSailingDay` | Public action | Must implement | Expected operator/manual API; current reference action helper | None found | Current reference action/sync tests | Derives `getSailingDay(new Date())`, delegates to single-day reload | Keep public action path under `functions/events/sync/actions.ts` and re-export through `sync/index.ts`. |
+| `reloadDockEventsForSailingDay` | Public action | Must implement | Expected operator/manual API; current reference action helper | None found | Current reference action/sync tests | Args `{ targetDate: string }`; delegates to single-day reload | No current app caller found, but PRD marks this required. |
+| `reloadDockEventsWindow` | Internal action | Must implement | Current reference internal API and expected recovery workflow | None | Current reference window tests | Args `{ daysToSync?: number }`; default was two days; reloads consecutive sailing days from today and aggregates counts | Keep the behavior, not necessarily the separate helper export. |
+| `reloadDockEventsAtSailingDayBoundary` | Internal action | Must implement | `convex/crons.ts` uses `internal.functions.events.sync.index.reloadDockEventsAtSailingDayBoundary` twice for DST/standard cron candidates | None | Current reference boundary test and generated internal reference test | Skips outside Pacific 3 AM with `{ skipped: true, reason: "outside_pacific_3am_window", ... }`; otherwise runs window reload | This is the only sync action with a live current-branch caller. Preserve the `sync.index` re-export. |
+| `replaceDockEventsForSailingDay` | Internal mutation | Compatibility / owner decision | No live current-branch caller found outside stale generated path evidence; current reference legacy combined mutation | None | Current reference replace sync tests and generated internal reference test | Args `{ ReloadDockData }`; returns `{ ScheduledCount, ActualCount }`; current reference composes split scheduled and actual helpers | Likely redundant if `replaceScheduledDockEventsForSailingDay` and `reloadActualDockEventsForSailingDay` remain. Preserve only if owner wants the compatibility internal surface or a later live caller appears. |
+| `replaceScheduledDockEventsForSailingDay` | Internal mutation | Must implement | Current reference single-day reload action calls it | None | Current reference single-day reload and generated internal reference tests | Args `{ ReloadDockScheduleData }`; returns `{ ScheduledCount }` | Static reload can refresh scheduled rows independently. |
+| `reloadActualDockEventsForSailingDay` | Internal mutation | Must implement | Current reference single-day reload action calls it | None | Current reference single-day reload and generated internal reference tests | Args `{ ReloadDockData }`; returns `{ ActualCount }` | Static reload should not rebuild `eventsPredicted`; actual refresh upserts physical observations. |
+| `convex/functions/events/index.ts`, table `index.ts` files, `convex/functions/events/sync/index.ts`, and top-level `events` export | Barrel/generated API path | Must implement grouped `events`; owner decision for top-level table aliases | `convex/functions/index.ts`; `convex/crons.ts` depends on `sync.index`; generated API path evidence | App Convex `api.functions.events.*` paths rely on the grouped `events` layout, not top-level `api.functions.eventsActual` aliases | Current reference generated internal-reference test covers several paths | Current reference uses grouped barrels plus top-level table aliases; old reference had fewer generated modules | Keep enough barrels for `api.functions.events.*` and `internal.functions.events.sync.index.*`. Question or remove redundant top-level `eventsActual`, `eventsPredicted`, and `eventsScheduled` aliases unless a live caller requires them. Do not recreate compatibility barrels for deleted planner/domain internals. |
+
+Current branch callers not resolved by the expected minimum function list:
+
+- Table schema/type imports from `convex/schema.ts`, app timeline code,
+  `VesselOrchestrator`, and `vesselTrips` require `schemas.ts` surfaces for all
+  three tables. `src/types/index.ts` re-exports DTO converter types only; those
+  converters are candidates for removal unless the app intentionally preserves
+  that public type surface.
+- `convex/domain/vesselOrchestration/updateEvents` requires actual and
+  predicted event projection helpers. Current imports point at nested
+  `domain/events` paths, but the PRD target shape prefers flat
+  `domain/events/actual.ts` and `domain/events/predicted.ts`.
+- `convex/domain/vesselOrchestration/updateVesselTrip` and
+  `convex/functions/vesselOrchestrator/queries/vesselTripScheduleQueries.ts`
+  require scheduled-domain segment resolver helpers and the
+  `ConvexInferredScheduledSegment` type. Current imports point at nested
+  `domain/events` paths, which should be migrated or explicitly approved before
+  implementation recreates that structure.
+- `convex/functions/vesselTrips/read/mergeTripsWithPredictions.ts` requires
+  `predictedDockCompositeKey`; the helper behavior is required, but its current
+  nested path is not.
+- `convex/functions/index.ts` and `convex/crons.ts` require enough event and sync
+  barrel exports for generated API path stability. The grouped `events` export is
+  required by app subscriptions and cron paths; top-level table aliases are
+  candidate legacy exports unless a live caller appears.
+
+Ambiguous or owner-review behaviors:
+
+- The generated API file on the current branch still references the deleted
+  current-reference module tree, including planner/helper modules. Treat
+  generated references as path evidence only when backed by a live caller or
+  required behavior.
+- Static actual reload behavior around physical-only reconstruction is backed by
+  current-reference tests, but the exact module ownership is not prescribed.
+  Preserve the behavior while choosing the smallest table-local or neutral
+  domain shape.
+- `readActualDockEventsForVesselSailingDay` and
+  `readPredictedDockEventsForVesselSailingDay` are reference helpers, not live
+  current-branch production imports. Export them only if the implementation or
+  rewritten tests need the shared reader API.
+- Old-reference internal mutations `projectActualDockWrites`,
+  `projectPredictedDockWriteBatches`, and old scheduled query names are not
+  current API requirements unless an owner asks for legacy compatibility.
+- Several current branch domain imports point at nested `domain/events` paths.
+  This is a structural mismatch with the PRD target. Later stages should either
+  migrate those imports to flat domain files within an explicitly bounded scope
+  or request owner approval before recreating nested folders.
+- Scheduled helpers such as sorting, boundary-time extraction, and segment-key
+  extraction are behavior requirements where needed, but not automatically public
+  exports. Keep or export only the helpers required by current production
+  callers or by a clearly simpler table-local implementation.
+- `replaceDockEventsForSailingDay`, top-level table aliases, and the app DTO
+  converters are compatibility surfaces rather than hard implementation
+  requirements unless an owner decides to preserve them.
+
+## Test Classification For Rebuild
+
+Behavioral tests to preserve or rewrite:
+
+- Current branch caller tests outside deleted event folders:
+  `convex/functions/vesselOrchestrator/tests/persistVesselUpdates.test.ts`,
+  `convex/functions/vesselTrips/tests/read/mergeTripsWithPredictions.test.ts`,
+  `convex/domain/vesselOrchestration/updateEvents/tests/actualDockWritesFromTrip.test.ts`,
+  `convex/domain/vesselOrchestration/updateVesselTrip/tests/*`, and the
+  timeline context/render-pipeline tests under `src/`. These validate current
+  caller contracts and type shapes.
+- Current-reference query behavior:
+  `listScheduledDockEventsForVesselSailingDay.test.ts`,
+  `listActualDockEventsForVesselSailingDay.test.ts`, and
+  `listPredictedDockEventsForVesselSailingDay.test.ts`. Preserve index-scoped
+  reads, metadata stripping, and deterministic ordering.
+- Current-reference mutation behavior:
+  scheduled full-day reconciliation, actual sparse `EventKey` upsert, predicted
+  targeted reconciliation, depart-next ML actualization, and skip-unchanged
+  semantics. Rewriting these as mutation-level tests is preferred over
+  preserving planner-helper tests verbatim.
+- Current-reference sync behavior:
+  single-day reload delegates to split scheduled/actual mutations, window reload
+  aggregates consecutive sailing days, boundary reload skips outside Pacific
+  3 AM, and static reload does not rebuild `eventsPredicted`.
+- Current-reference domain behavior with product meaning:
+  scheduled segment inference and next-departure lookup, scheduled row
+  construction including final-arrival marking and seam normalization,
+  predicted batch construction from trip ML/ETA fields, actual sparse row
+  normalization, actual hydration from history, and physical-only actual
+  reconstruction during reload.
+
+Structural tests to avoid preserving unless still needed:
+
+- Tests whose main assertion is a helper module boundary, including
+  `planActualRows.test.ts`, `planScheduledRowsForSailingDay.test.ts`, and
+  tests that require nested actual reconciliation file paths. Preserve their
+  behavioral assertions in table-level tests if the helper files disappear.
+- Generated API wiring tests such as
+  `eventsSyncInternalReferences.test.ts` are useful smoke tests only for live
+  public/internal references. Do not expand them to protect deleted planner,
+  reload-helper, or domain-module paths.
+- Tests that import Convex action `_handler` fields are acceptable for behavior
+  during rebuild, but should not force an otherwise unnecessary helper export.
+
+Obsolete tests or references to ignore during rebuild:
+
+- `events-old-reference` has no event-table test files to port. Use it for
+  simpler implementation shape, not as a test source.
+- Old-reference-only surfaces such as `projectActualDockWrites`,
+  `projectPredictedDockWriteBatches`, `projectPredictedDockWriteBatchesInDb`,
+  `actualizeDepartNextMlPredictions`, `loadScheduledDockEventsForVesselSailingDay`,
+  and `getScheduledDepartureEventBySegmentKey` are obsolete unless a current
+  caller or owner decision reintroduces them.
+- Stale generated API references to deleted current-reference planner files,
+  nested domain helpers, and reload helper files should not create placeholder
+  implementation files.
+
 ## Implementation Guidance For Agents
 
 Before implementing a stage, create a small checklist:

@@ -1,13 +1,9 @@
 /**
- * Convex validators for the dock-event reload payload.
+ * Convex validators for dock-event reload payloads.
  *
- * The internal reload mutation crosses the action-to-mutation boundary with
- * fetched schedule and vessel-history slices in epoch-ms shape, mirroring the
- * Convex-prefixed numeric persistence types used elsewhere (for example
- * ConvexVesselLocation, ConvexScheduledTrip). Adapter fetch types still use
- * Date; conversion happens in shared convertDates helpers at the action edge
- * (Date to epoch ms) and at the mutation edge (epoch ms back to Date) so
- * domain stages can keep their existing Date-shaped inputs.
+ * Actions convert adapter Date values into epoch milliseconds before crossing
+ * the action-to-mutation boundary. The internal mutations then receive compact
+ * numeric payloads for scheduled and actual table reloads.
  */
 
 import type { Infer } from "convex/values";
@@ -52,13 +48,10 @@ const reloadDockScheduleDataSchema = v.object({
 type ConvexReloadDockScheduleSegment = Infer<
   typeof reloadDockScheduleSegmentSchema
 >;
-
 type ConvexReloadDockHistoryRecord = Infer<
   typeof reloadDockHistoryRecordSchema
 >;
-
 type ConvexReloadDockData = Infer<typeof reloadDockDataSchema>;
-
 type ConvexReloadDockScheduleData = Infer<typeof reloadDockScheduleDataSchema>;
 
 export type {

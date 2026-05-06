@@ -1,25 +1,28 @@
 /**
- * Writes to eventsScheduled: full-day reconciliation when an adapter delivers
- * a complete planned dock sequence for one sailing day.
+ * Internal mutation helpers for eventsScheduled persistence.
+ *
+ * Scheduled rows are replaced as a complete sailing-day slice after schedule
+ * reloads. The reconciliation stays table-local because it is simple storage
+ * behavior rather than ferry-domain logic.
  */
 
+import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
-import { planScheduledRowsForSailingDay } from "./planScheduledRowsForSailingDay";
 import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
- * Replaces the stored scheduled slice for one SailingDay with the adapter output.
+ * Replaces scheduled dock rows for one sailing day with the supplied slice.
  *
- * Deletes keys the adapter no longer includes, inserts brand-new keys, and uses
- * scheduledRowsEqual to skip no-op replaces so _creationTime and subscription churn
- * stay stable when the schedule is unchanged.
+ * Loads stored rows by sailing day, deletes rows missing from the incoming
+ * slice, inserts new rows, and replaces only rows with visible field changes.
+ * Unchanged rows are skipped so document identity and subscriptions stay stable.
  *
- * @param ctx - Convex mutation context
- * @param SailingDay - Service day YYYY-MM-DD being fully replaced
- * @param nextRows - Complete replacement rows for that day from the domain reload
- * @returns Resolves with no value when deletes, inserts, and replaces finish
+ * @param ctx - Convex mutation context exposing database writes
+ * @param SailingDay - Sailing day whose scheduled rows are fully replaced
+ * @param nextRows - Complete replacement scheduled rows for the sailing day
+ * @returns Promise resolving with no payload after reconciliation completes
  */
-export const upsertScheduledRowsForSailingDay = async (
+const upsertScheduledRowsForSailingDay = async (
   ctx: MutationCtx,
   SailingDay: string,
   nextRows: ConvexScheduledDockEvent[]
@@ -28,17 +31,54 @@ export const upsertScheduledRowsForSailingDay = async (
     .query("eventsScheduled")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
     .collect();
-  const plan = planScheduledRowsForSailingDay(existingRows, nextRows);
+  const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
+  const nextKeys = new Set(nextRows.map((row) => row.Key));
 
   await Promise.all(
-    plan.deletes.map((existingId) => ctx.db.delete(existingId))
+    existingRows
+      .filter((row) => !nextKeys.has(row.Key))
+      .map((row) => ctx.db.delete(row._id))
   );
 
-  for (const row of plan.inserts) {
-    await ctx.db.insert("eventsScheduled", row);
-  }
+  for (const nextRow of nextRows) {
+    const existingRow = existingByKey.get(nextRow.Key);
 
-  for (const replacement of plan.replacements) {
-    await ctx.db.replace(replacement.existingId, replacement.row);
+    if (existingRow === undefined) {
+      await ctx.db.insert("eventsScheduled", nextRow);
+      continue;
+    }
+
+    if (areScheduledRowsEqual(existingRow, nextRow)) {
+      continue;
+    }
+
+    await ctx.db.replace(existingRow._id, nextRow);
   }
 };
+
+/**
+ * Compares scheduled rows while ignoring Convex document metadata and UpdatedAt.
+ *
+ * The optional last-arrival marker is compared with Convex optional semantics:
+ * an omitted value is distinct from false because both are valid stored row
+ * shapes and downstream code can observe that field.
+ *
+ * @param left - Stored eventsScheduled document
+ * @param right - Incoming validator-shaped scheduled row
+ * @returns True when no viewer-visible scheduled field differs
+ */
+const areScheduledRowsEqual = (
+  left: Doc<"eventsScheduled">,
+  right: ConvexScheduledDockEvent
+): boolean =>
+  left.Key === right.Key &&
+  left.VesselAbbrev === right.VesselAbbrev &&
+  left.SailingDay === right.SailingDay &&
+  left.ScheduledDeparture === right.ScheduledDeparture &&
+  left.TerminalAbbrev === right.TerminalAbbrev &&
+  left.NextTerminalAbbrev === right.NextTerminalAbbrev &&
+  left.EventType === right.EventType &&
+  left.EventScheduledTime === right.EventScheduledTime &&
+  left.IsLastArrivalOfSailingDay === right.IsLastArrivalOfSailingDay;
+
+export { upsertScheduledRowsForSailingDay };

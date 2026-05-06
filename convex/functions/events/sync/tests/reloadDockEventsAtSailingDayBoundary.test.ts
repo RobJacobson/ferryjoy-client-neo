@@ -1,10 +1,10 @@
 /**
- * Covers Pacific-hour guard behavior for the cron-backed boundary reload action.
+ * Action tests for the Pacific-hour boundary reload guard.
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { ActionCtx } from "_generated/server";
-import * as time from "../../../../shared/time";
+import * as time from "shared/time";
 import { reloadDockEventsAtSailingDayBoundary } from "../actions";
 import * as windowReload from "../reloadDockEventsWindow";
 
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("reloadDockEventsAtSailingDayBoundary", () => {
-  it("skips outside the Pacific 3 AM hour", async () => {
+  it("skips outside Pacific hour three", async () => {
     spyOn(time, "getPacificTimeComponents").mockReturnValue({
       hour: 4,
       minute: 0,
@@ -35,12 +35,17 @@ describe("reloadDockEventsAtSailingDayBoundary", () => {
 
     const result = await boundaryHandler({} as ActionCtx, { daysToSync: 2 });
 
-    expect(result.skipped).toBe(true);
-    expect(result.reason).toBe("outside_pacific_3am_window");
+    expect(result).toEqual({
+      skipped: true,
+      reason: "outside_pacific_3am_window",
+      totalScheduled: 0,
+      totalActual: 0,
+      daysProcessed: [],
+    });
     expect(windowSpy).not.toHaveBeenCalled();
   });
 
-  it("runs the windowed reload during the Pacific 3 AM hour", async () => {
+  it("runs the window reload during Pacific hour three", async () => {
     spyOn(time, "getPacificTimeComponents").mockReturnValue({
       hour: 3,
       minute: 5,
@@ -55,8 +60,11 @@ describe("reloadDockEventsAtSailingDayBoundary", () => {
 
     const result = await boundaryHandler({} as ActionCtx, { daysToSync: 2 });
 
-    expect(result.skipped).toBe(false);
-    expect(result.totalScheduled).toBe(4);
-    expect(result.totalActual).toBe(6);
+    expect(result).toEqual({
+      skipped: false,
+      totalScheduled: 4,
+      totalActual: 6,
+      daysProcessed: [],
+    });
   });
 });

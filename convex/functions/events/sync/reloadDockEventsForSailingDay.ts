@@ -1,10 +1,8 @@
 /**
- * Single-day dock-event reload helper.
+ * Single-day dock-event reload action helper.
  *
- * Action-side glue: fetch identities, schedule, and history, then hand the
- * Convex reload payloads to table-specific internal mutations. This helper
- * stays responsible only for talking to external APIs and sequencing the
- * independent scheduled and actual refreshes.
+ * This module owns action-side adapter work for one sailing day, then hands the
+ * scheduled and actual payloads to table-specific internal mutations.
  */
 
 import { internal } from "_generated/api";
@@ -19,15 +17,11 @@ import type { EventReloadResult } from "./types";
 const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
 
 /**
- * Reloads scheduled and actual dock-event rows for one sailing day.
+ * Reloads scheduled and actual dock events for one sailing day.
  *
- * Loads vessel and terminal identities for adapter resolution, fetches the
- * WSF schedule slice and per-vessel history rows, then hands Convex-shaped
- * payloads to scheduled and actual reload mutations.
- *
- * @param ctx - Convex action context for adapter calls and mutation scheduling
- * @param targetDate - Sailing day YYYY-MM-DD string used across fetch and persistence
- * @returns ScheduledCount and ActualCount from the replacement mutation result
+ * @param ctx - Convex action context used for fetches and internal mutations
+ * @param targetDate - Sailing day YYYY-MM-DD string
+ * @returns Scheduled and actual row counts produced by split reload mutations
  */
 const runReloadDockEventsForSailingDay = async (
   ctx: ActionCtx,
@@ -43,16 +37,10 @@ const runReloadDockEventsForSailingDay = async (
     terminals
   );
   const scheduleSegments = routeData.flatMap((data) => data.segments);
-
-  console.log(
-    `${LOG_PREFIX} Found ${scheduleSegments.length} schedule segments for ${targetDate}`
-  );
-
   const historyRecords = await fetchHistoryRecordsForDate(
     scheduleSegments,
     targetDate
   );
-
   const reloadDockData = buildConvexReloadDockDataFromFetchedSlices({
     sailingDay: targetDate,
     scheduleSegments,
@@ -75,16 +63,10 @@ const runReloadDockEventsForSailingDay = async (
     { ReloadDockData: reloadDockData }
   );
 
-  const result = {
+  return {
     ScheduledCount: scheduled.ScheduledCount,
     ActualCount: actual.ActualCount,
   };
-
-  console.log(
-    `${LOG_PREFIX} reload completed for ${targetDate}: ${result.ScheduledCount} scheduled rows`
-  );
-
-  return result;
 };
 
 export { runReloadDockEventsForSailingDay };

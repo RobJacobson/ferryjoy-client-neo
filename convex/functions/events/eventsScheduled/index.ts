@@ -1,4 +1,10 @@
-export * from "./mutations";
-export * from "./queries";
-export * from "./schemas";
-export * from "./types";
+export { upsertScheduledRowsForSailingDay } from "./mutations";
+export { listScheduledDockEventsForVesselSailingDay } from "./queries";
+export type {
+  ConvexScheduledDockEvent,
+  DockEventType,
+} from "./schemas";
+export {
+  dockEventTypeSchema,
+  eventsScheduledSchema,
+} from "./schemas";

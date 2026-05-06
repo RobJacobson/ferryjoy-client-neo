@@ -1,26 +1,22 @@
 /**
- * Registers Convex actions for reloading dock-event tables.
+ * Convex actions for static dock-event table reloads.
  *
- * Public actions support manual operator reloads, while internal actions back
- * cron and windowed recovery workflows.
+ * Public actions support manual operator reloads; internal actions support
+ * cron-safe sailing-day boundary and recovery-window workflows.
  */
 
-import type { ActionCtx } from "_generated/server";
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import { getPacificTimeComponents, getSailingDay } from "../../../shared/time";
+import { getPacificTimeComponents, getSailingDay } from "shared/time";
 import { runReloadDockEventsForSailingDay } from "./reloadDockEventsForSailingDay";
 import { runReloadDockEventsWindow } from "./reloadDockEventsWindow";
 import type { EventReloadResult, WindowReloadDayResult } from "./types";
 
 /**
- * Operator-facing reload for the current calendar sailing day in app time.
+ * Reloads dock-event rows for the current sailing day.
  *
- * Derives today via getSailingDay from the action invocation clock, then reuses
- * the same single-day pipeline as manual date-specific reloads.
- *
- * @param ctx - Convex public action context for auth and scheduled mutation calls
- * @returns Scheduled and actual row counts from the internal replacement mutation
+ * @param ctx - Convex action context
+ * @returns Scheduled and actual counts for the current sailing day
  */
 const reloadDockEventsForCurrentSailingDay = action({
   args: {},
@@ -31,14 +27,11 @@ const reloadDockEventsForCurrentSailingDay = action({
 });
 
 /**
- * Operator-facing reload for an explicit YYYY-MM-DD sailing day.
+ * Reloads dock-event rows for an explicit sailing day.
  *
- * Accepts targetDate as a string so JSON action calls stay simple; delegates to
- * runReloadDockEventsForSailingDay for adapter fetch, hydration, and mutation handoff.
- *
- * @param ctx - Convex public action context
- * @param args.targetDate - Sailing day string passed to schedule and history fetches
- * @returns Scheduled and actual row counts written for that date
+ * @param ctx - Convex action context
+ * @param args.targetDate - Target YYYY-MM-DD sailing day
+ * @returns Scheduled and actual counts for the target sailing day
  */
 const reloadDockEventsForSailingDay = action({
   args: {
@@ -49,30 +42,24 @@ const reloadDockEventsForSailingDay = action({
 });
 
 /**
- * Internal action that reloads a consecutive multi-day window starting today.
- *
- * Intended for recovery jobs; forwards optional day count to runReloadDockEventsWindow
- * so cron can widen or narrow the catch-up span without duplicating orchestration code.
+ * Reloads a consecutive window of sailing days.
  *
  * @param ctx - Convex internal action context
- * @param args.daysToSync - Optional day count override for the reload window
- * @returns Aggregated totals and per-day summaries from the window helper
+ * @param args.daysToSync - Optional number of sailing days to reload
+ * @returns Aggregated reload counts for the processed window
  */
 const reloadDockEventsWindow = internalAction({
   args: { daysToSync: v.optional(v.number()) },
-  handler: async (ctx: ActionCtx, args) =>
+  handler: async (ctx, args) =>
     await runReloadDockEventsWindow(ctx, args.daysToSync),
 });
 
 /**
- * Cron-safe window reload gated on Pacific hour three for sailing-day turnover.
- *
- * Skips work outside the 3am Pacific window so duplicate scheduler ticks do not hammer
- * adapters; returns structured skip metadata instead of throwing when not eligible.
+ * Runs the boundary reload only during Pacific hour three.
  *
  * @param ctx - Convex internal action context
- * @param args.daysToSync - Optional day count passed through when the gate opens
- * @returns Either skip metadata or aggregate counts from runReloadDockEventsWindow
+ * @param args.daysToSync - Optional number of sailing days to reload
+ * @returns Skip metadata outside the window or aggregate reload counts
  */
 const reloadDockEventsAtSailingDayBoundary = internalAction({
   args: { daysToSync: v.optional(v.number()) },

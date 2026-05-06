@@ -1,11 +1,9 @@
 /**
- * Builds the Convex reload payload from fetched schedule and history slices.
+ * Converts action-side fetched schedule and history slices into reload payloads.
  *
- * Action-side mappers normalize Date-shaped adapter rows into the epoch-ms
- * Convex payload that the internal reload mutation accepts. Centralizing the
- * Date-to-epoch conversion here keeps action callers free of ad-hoc getTime
- * sprinkling and matches the pattern used by mapWsfVesselLocations and
- * createScheduledTripFromRawSegment.
+ * Adapter rows carry Date objects, while Convex validators for internal
+ * mutations use epoch milliseconds. Keeping conversion here avoids ad-hoc date
+ * handling in the action orchestration.
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
@@ -24,18 +22,12 @@ type BuildConvexReloadDockDataFromFetchedSlicesArgs = {
 };
 
 /**
- * Assembles a ConvexReloadDockData payload from action-side fetch results.
+ * Builds a Convex-shaped reload payload from fetched WSF slices.
  *
- * Converts Date instants on schedule segments and vessel history rows into
- * epoch milliseconds via shared convertDates helpers so the Convex mutation
- * boundary stays numeric (matching ConvexVesselLocation and ConvexScheduledTrip
- * conventions). Empty optional Date fields collapse to undefined rather than
- * null to keep validator unions tight.
- *
- * @param args.sailingDay - Calendar sailing day string for the reload window
- * @param args.scheduleSegments - Direct WSF schedule segments fetched for the day
- * @param args.historyRecords - WSF vessel-history rows fetched for the day
- * @returns Convex-shaped payload accepted by replaceDockEventsForSailingDay
+ * @param args.sailingDay - Target sailing day string
+ * @param args.scheduleSegments - Date-shaped schedule segments from adapter
+ * @param args.historyRecords - Date-shaped WSF vessel history records
+ * @returns Numeric reload payload accepted by internal mutations
  */
 const buildConvexReloadDockDataFromFetchedSlices = ({
   sailingDay,
@@ -48,10 +40,10 @@ const buildConvexReloadDockDataFromFetchedSlices = ({
 });
 
 /**
- * Maps one raw WSF schedule segment into the epoch-ms wire shape.
+ * Converts one schedule segment to numeric reload shape.
  *
- * @param segment - Date-shaped fetch-layer schedule segment
- * @returns Convex-shaped schedule segment using epoch milliseconds
+ * @param segment - Adapter schedule segment
+ * @returns Convex reload schedule segment
  */
 const toConvexReloadDockScheduleSegment = (
   segment: RawWsfScheduleSegment
@@ -71,15 +63,10 @@ const toConvexReloadDockScheduleSegment = (
 });
 
 /**
- * Maps one raw WSF vessel-history row into the epoch-ms wire shape.
+ * Converts one history record to numeric reload shape.
  *
- * Strips fields the reload pipeline does not consume (VesselId is retained for
- * traceability, but feed-only labels like Date are dropped) so the payload
- * stays as small as the validator allows. Optional Date and string fields
- * become undefined when absent so Convex unions match the schema exactly.
- *
- * @param record - Date-shaped fetch-layer vessel history row
- * @returns Convex-shaped vessel history row using epoch milliseconds
+ * @param record - WSF vessel history record
+ * @returns Convex reload history record
  */
 const toConvexReloadDockHistoryRecord = (
   record: VesselHistory
