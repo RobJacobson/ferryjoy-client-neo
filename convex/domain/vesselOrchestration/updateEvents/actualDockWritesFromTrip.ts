@@ -5,7 +5,7 @@
  * actuals can recover if an earlier leave-dock ping was missed.
  */
 
-import type { ConvexActualDockWritePersistable } from "domain/events/actual/types";
+import type { ConvexActualDockWritePersistable } from "domain/events/actual";
 import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/schemas";
 
 type DockTerminalRole = "departing" | "arriving";
