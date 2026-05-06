@@ -3,7 +3,7 @@
  * API reads.
  */
 
-import { predictedDockCompositeKey } from "domain/events/predicted/predictedDockCompositeKey";
+import { predictedDockCompositeKey } from "domain/events/predicted";
 import type {
   ConvexPredictedDockEvent,
   ConvexPredictionSource,

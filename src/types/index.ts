@@ -1,16 +1,4 @@
 export {
-  type ActualDockEvent,
-  toActualDockEvent,
-} from "convex/functions/events/eventsActual/types";
-export {
-  type PredictedDockEvent,
-  toPredictedDockEvent,
-} from "convex/functions/events/eventsPredicted/types";
-export {
-  type ScheduledDockEvent,
-  toScheduledDockEvent,
-} from "convex/functions/events/eventsScheduled/types";
-export {
   type ScheduledTrip,
   toScheduledTrip,
 } from "convex/functions/scheduledTrips/types";
