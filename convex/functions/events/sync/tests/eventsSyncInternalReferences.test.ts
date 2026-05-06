@@ -23,4 +23,15 @@ describe("events sync internal references", () => {
       internal.functions.events.sync.mutations.replaceDockEventsForSailingDay
     ).toBeDefined();
   });
+
+  it("exposes split scheduled and actual reload mutations", () => {
+    expect(
+      internal.functions.events.sync.mutations
+        .replaceScheduledDockEventsForSailingDay
+    ).toBeDefined();
+    expect(
+      internal.functions.events.sync.mutations
+        .reloadActualDockEventsForSailingDay
+    ).toBeDefined();
+  });
 });

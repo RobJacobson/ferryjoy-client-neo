@@ -3,14 +3,14 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { DockBoundaryEventRecord } from "domain/events";
-import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import {
   buildActualDockEventFromWrite,
   buildActualDockEvents,
-  buildScheduledDockEvents,
   type TripContextForActualRow,
-} from "..";
+} from "domain/events/actual";
+import { buildScheduledDockEvents } from "domain/events/scheduled";
+import type { DockBoundaryEventRecord } from "domain/events/scheduled/types";
+import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 25, hours, minutes);
@@ -67,7 +67,7 @@ describe("buildScheduledDockEvents", () => {
 describe("buildActualDockEvents", () => {
   const tripMap = (): Map<string, TripContextForActualRow> => {
     const tripKey = "WEN 2026-03-25 19:20:00Z";
-    return new Map([["trip-1", { TripKey: tripKey, ScheduleKey: "trip-1" }]]);
+    return new Map([["trip-1", { TripKey: tripKey }]]);
   };
 
   it("keeps occurrence-only rows without inventing an actual time", () => {
@@ -91,7 +91,6 @@ describe("buildActualDockEvents", () => {
       expect.objectContaining({
         EventKey: buildPhysicalActualEventKey(tk, "dep-dock"),
         TripKey: tk,
-        ScheduleKey: "trip-1",
         EventType: "dep-dock",
         EventOccurred: true,
         EventActualTime: undefined,

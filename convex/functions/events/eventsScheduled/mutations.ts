@@ -3,8 +3,8 @@
  * a complete planned dock sequence for one sailing day.
  */
 
-import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
+import { planScheduledRowsForSailingDay } from "./planScheduledRowsForSailingDay";
 import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
@@ -24,62 +24,21 @@ export const upsertScheduledRowsForSailingDay = async (
   SailingDay: string,
   nextRows: ConvexScheduledDockEvent[]
 ): Promise<void> => {
-  // Reads every scheduled row for this sailing day before computing deletes and upserts.
   const existingRows = await ctx.db
     .query("eventsScheduled")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
     .collect();
+  const plan = planScheduledRowsForSailingDay(existingRows, nextRows);
 
-  // Indexes existing rows by Key for replace lookups; nextKeys lists keys in the adapter slice.
-  const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
-
-  // Removes stored boundaries the adapter no longer reports for this day.
-  const nextKeys = new Set(nextRows.map((row) => row.Key));
   await Promise.all(
-    existingRows
-      .filter((existing) => !nextKeys.has(existing.Key))
-      .map((existing) => ctx.db.delete(existing._id))
+    plan.deletes.map((existingId) => ctx.db.delete(existingId))
   );
 
-  // Inserts new keys or replaces when visible schedule fields changed.
-  for (const nextRow of nextRows) {
-    const existing = existingByKey.get(nextRow.Key);
+  for (const row of plan.inserts) {
+    await ctx.db.insert("eventsScheduled", row);
+  }
 
-    if (!existing) {
-      await ctx.db.insert("eventsScheduled", nextRow);
-      continue;
-    }
-
-    // Skip replace when fields match so _creationTime and bandwidth stay stable.
-    if (scheduledRowsEqual(existing, nextRow)) {
-      continue;
-    }
-
-    await ctx.db.replace(existing._id, nextRow);
+  for (const replacement of plan.replacements) {
+    await ctx.db.replace(replacement.existingId, replacement.row);
   }
 };
-
-/**
- * Compares stored scheduled rows with hydrated candidates for semantic drift.
- *
- * Ignores Convex metadata fields and compares every persisted schedule column used
- * by clients so benign reordering or duplicate submits do not trigger pointless replaces.
- *
- * @param left - Stored eventsScheduled document from the database
- * @param right - Candidate row produced by buildScheduledDockEvents
- * @returns True when no visible column differs between left and right
- */
-const scheduledRowsEqual = (
-  left: Doc<"eventsScheduled">,
-  right: ConvexScheduledDockEvent
-) =>
-  left.Key === right.Key &&
-  left.VesselAbbrev === right.VesselAbbrev &&
-  left.SailingDay === right.SailingDay &&
-  left.ScheduledDeparture === right.ScheduledDeparture &&
-  left.TerminalAbbrev === right.TerminalAbbrev &&
-  left.NextTerminalAbbrev === right.NextTerminalAbbrev &&
-  left.EventType === right.EventType &&
-  left.EventScheduledTime === right.EventScheduledTime &&
-  (left.IsLastArrivalOfSailingDay ?? false) ===
-    (right.IsLastArrivalOfSailingDay ?? false);

@@ -10,12 +10,12 @@
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
 import { groupBy } from "../../../../shared/groupBy";
 import { getSailingDay } from "../../../../shared/time";
+import type { ScheduledBoundaryContext } from "../../common/types";
 import { enrichActualDockWritesWithTripContext } from "../bindActualRowsToTrips";
-import type { ConvexActualDockWritePersistable } from "../schemas";
+import type { ConvexActualDockWritePersistable } from "../types";
 import { buildLocationReconcileBoundaryEvents } from "./alignActualEventsToScheduledBoundaries";
 import { buildActualDockWritesFromLocation } from "./buildActualDockWritesFromLocation";
 import { buildPhysicalOnlyPatchesFromLocation } from "./buildPhysicalOnlyPatchesFromLocation";
@@ -92,7 +92,7 @@ const reconcileActualDockWritesFromLocations = ({
  * @returns Function that bundles one location with its candidate scheduled rows
  */
 const attachScheduledEventsByVessel =
-  (scheduledByVessel: VesselEventsByAbbrev<ConvexScheduledDockEvent>) =>
+  (scheduledByVessel: VesselEventsByAbbrev<ScheduledBoundaryContext>) =>
   (location: ConvexVesselLocation): VesselLocationScheduledEventsBundle => ({
     location,
     vesselScheduledEvents: scheduledByVessel.get(location.VesselAbbrev) ?? [],

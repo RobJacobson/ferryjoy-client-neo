@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildActualDockEventFromWrite } from "domain/events";
+import { buildActualDockEventFromWrite } from "domain/events/actual";
 import {
   buildArrivalActualDockWriteForTrip,
   buildDepartureActualDockWriteForTrip,
@@ -74,7 +74,6 @@ describe("buildArrivalActualDockWriteForTrip", () => {
 
     const row = buildActualDockEventFromWrite(write, at(15, 0));
     expect(row.TerminalAbbrev).toBe("P52");
-    expect(row.ScheduleKey).toBeUndefined();
     expect(row.ScheduledDeparture).toBe(at(12, 59));
   });
 

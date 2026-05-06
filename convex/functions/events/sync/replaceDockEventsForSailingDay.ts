@@ -1,13 +1,9 @@
 /**
- * Mutation glue that turns a Convex reload payload into persisted event rows.
+ * Mutation glue that turns Convex reload payloads into persisted event rows.
  *
- * The internal reload mutation hands this helper validated schedule and
- * history slices in epoch-ms shape; the helper restores Date instants, loads
- * the identity, trip, and live-location context required for live-actual
- * reconciliation, composes hydrated dock transitions, and finally persists
- * scheduled and actual rows. Keeping the flow linear here makes the
- * action-to-mutation seam explicit and easier to reason about than the prior
- * split that hydrated history twice across the boundary.
+ * Scheduled and actual reload helpers intentionally persist their own table
+ * slices separately. Actual reloads may use schedule rows as transient context,
+ * but they do not replace scheduled rows or delete physical observations.
  *
  * vesselLocations uses a full-table collect: the live location snapshot is one
  * row per fleet vessel and stays tiny; reconcile already filters by sailing day
@@ -16,52 +12,96 @@
 
 import type { MutationCtx } from "_generated/server";
 import {
-  buildDockEventRowsForSailingDayReload,
-  buildHydratedTransitionsFromReloadInputs,
-} from "domain/events";
-import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
+  buildActualDockRowsForSailingDayReload,
+  hydrateActualTransitionsFromReloadInputs,
+} from "domain/events/actual";
+import {
+  buildScheduledDockEventRecords,
+  buildScheduledDockEvents,
+} from "domain/events/scheduled";
+import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { loadTripIndexesForSailingDay } from "./loadTripIndexesForSailingDay";
-import { mapConvexReloadDockDataToRawFetchShapes } from "./mapConvexReloadDockDataToRawFetchShapes";
-import type { ConvexReloadDockData } from "./reloadDockDataSchemas";
+import type {
+  ConvexReloadDockData,
+  ConvexReloadDockScheduleData,
+} from "./reloadDockDataSchemas";
 
-type ReplaceDockEventsForSailingDayRowsArgs = {
+type ReplaceScheduledDockEventsForSailingDayRowsArgs = {
+  ReloadDockScheduleData: ConvexReloadDockScheduleData;
+};
+
+type ReloadActualDockEventsForSailingDayRowsArgs = {
   ReloadDockData: ConvexReloadDockData;
 };
 
 /**
- * Replaces scheduled and actual event-table rows for one sailing day reload.
+ * Replaces scheduled event-table rows for one sailing day reload.
  *
- * Restores Date-shaped fetch payloads, loads vessel and terminal identity
- * rows plus trip indexes and live vessel locations, composes hydrated dock
- * transitions from schedule plus history, then delegates row construction to
- * buildDockEventRowsForSailingDayReload. Persistence routes scheduled rows
- * through bulk upsert and actual rows through the grandfather-aware replace
- * helper so ping-only actuals survive a reload.
+ * Loads vessel and terminal identity rows, builds schedule-derived dock
+ * boundaries from the numeric reload payload, and reconciles only the
+ * eventsScheduled day slice.
  *
  * @param ctx - Convex mutation context with database access
- * @param args.ReloadDockData - Validated reload payload built by the action layer
- * @returns ScheduledCount and ActualCount reflecting rows produced for operators
+ * @param args.ReloadDockScheduleData - Validated schedule reload payload
+ * @returns ScheduledCount reflecting rows produced for operators
  */
-const replaceDockEventsForSailingDayRows = async (
+const replaceScheduledDockEventsForSailingDayRows = async (
   ctx: MutationCtx,
-  args: ReplaceDockEventsForSailingDayRowsArgs
+  args: ReplaceScheduledDockEventsForSailingDayRowsArgs
 ) => {
   const updatedAt = Date.now();
-  const sailingDay = args.ReloadDockData.SailingDay;
-
-  const { scheduleSegments, historyRecords } =
-    mapConvexReloadDockDataToRawFetchShapes(args.ReloadDockData);
+  const sailingDay = args.ReloadDockScheduleData.SailingDay;
 
   const [vessels, terminals] = await Promise.all([
     ctx.db.query("vesselsIdentity").collect(),
     ctx.db.query("terminalsIdentity").collect(),
   ]);
 
-  const hydratedTransitions = buildHydratedTransitionsFromReloadInputs({
-    scheduleSegments,
-    historyRecords,
+  const scheduledTransitions = buildScheduledDockEventRecords(
+    args.ReloadDockScheduleData.ScheduleSegments,
+    vessels.map(stripConvexMeta),
+    terminals.map(stripConvexMeta)
+  );
+  const scheduledRows = buildScheduledDockEvents(
+    scheduledTransitions,
+    updatedAt
+  );
+
+  await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
+
+  return {
+    ScheduledCount: scheduledRows.length,
+  };
+};
+
+/**
+ * Upserts actual event-table rows for one sailing day reload.
+ *
+ * Loads identity, trip, and live-location context, composes hydrated dock
+ * transitions from schedule plus history, builds physical actual rows, and
+ * upserts those observations by EventKey without deleting omitted rows.
+ *
+ * @param ctx - Convex mutation context with database access
+ * @param args.ReloadDockData - Validated reload payload built by the action layer
+ * @returns ActualCount reflecting rows produced for operators
+ */
+const reloadActualDockEventsForSailingDayRows = async (
+  ctx: MutationCtx,
+  args: ReloadActualDockEventsForSailingDayRowsArgs
+) => {
+  const updatedAt = Date.now();
+  const sailingDay = args.ReloadDockData.SailingDay;
+
+  const [vessels, terminals] = await Promise.all([
+    ctx.db.query("vesselsIdentity").collect(),
+    ctx.db.query("terminalsIdentity").collect(),
+  ]);
+
+  const hydratedTransitions = hydrateActualTransitionsFromReloadInputs({
+    scheduleSegments: args.ReloadDockData.ScheduleSegments,
+    historyRecords: args.ReloadDockData.HistoryRecords,
     vessels: vessels.map(stripConvexMeta),
     terminals: terminals.map(stripConvexMeta),
   });
@@ -73,25 +113,54 @@ const replaceDockEventsForSailingDayRows = async (
     stripConvexMeta
   );
 
-  const { scheduledRows, actualRows, scheduledCount, actualCount } =
-    buildDockEventRowsForSailingDayReload({
-      sailingDay,
-      events: hydratedTransitions,
-      updatedAt,
-      tripBySegmentKey,
-      activeTripsByVesselAbbrev,
-      physicalOnlyTrips,
-      vesselLocations,
-    });
+  const { actualRows, actualCount } = buildActualDockRowsForSailingDayReload({
+    sailingDay,
+    events: hydratedTransitions,
+    updatedAt,
+    tripBySegmentKey,
+    activeTripsByVesselAbbrev,
+    physicalOnlyTrips,
+    vesselLocations,
+  });
 
-  await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
-
-  await replaceActualRowsForSailingDay(ctx, sailingDay, actualRows);
+  await upsertActualDockRows(ctx, actualRows);
 
   return {
-    ScheduledCount: scheduledCount,
     ActualCount: actualCount,
   };
 };
 
-export { replaceDockEventsForSailingDayRows };
+/**
+ * Runs the legacy combined reload helper by composing the split table helpers.
+ *
+ * This preserves internal callers while the action layer migrates to the
+ * table-specific mutations. The scheduled and actual writes still run through
+ * separate helpers and keep their independent persistence policy.
+ *
+ * @param ctx - Convex mutation context with database access
+ * @param args.ReloadDockData - Validated reload payload built by the action layer
+ * @returns ScheduledCount and ActualCount reflecting rows produced for operators
+ */
+const replaceDockEventsForSailingDayRows = async (
+  ctx: MutationCtx,
+  args: ReloadActualDockEventsForSailingDayRowsArgs
+) => {
+  const scheduled = await replaceScheduledDockEventsForSailingDayRows(ctx, {
+    ReloadDockScheduleData: {
+      SailingDay: args.ReloadDockData.SailingDay,
+      ScheduleSegments: args.ReloadDockData.ScheduleSegments,
+    },
+  });
+  const actual = await reloadActualDockEventsForSailingDayRows(ctx, args);
+
+  return {
+    ScheduledCount: scheduled.ScheduledCount,
+    ActualCount: actual.ActualCount,
+  };
+};
+
+export {
+  reloadActualDockEventsForSailingDayRows,
+  replaceDockEventsForSailingDayRows,
+  replaceScheduledDockEventsForSailingDayRows,
+};

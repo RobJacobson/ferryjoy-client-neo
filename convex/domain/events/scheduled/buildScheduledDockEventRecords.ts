@@ -6,23 +6,25 @@
  */
 
 import {
-  resolveScheduleSegment,
+  resolveTerminalById,
   type TerminalIdentity,
+  tryResolveVessel,
   type VesselIdentity,
 } from "adapters";
-import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import { buildBoundaryKey, buildSegmentKey } from "../../../shared/keys";
 import {
   classifyDirectSegments,
   getOfficialCrossingTimeMinutes,
 } from "../../scheduledTrips";
-import type { DockBoundaryEventRecord } from "../types";
 import {
+  IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
   normalizeScheduledDockSeams,
   sortDockBoundaryEventRecords,
 } from "./normalizeScheduledDockEventRecords";
-
-const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
+import type {
+  DockBoundaryEventRecord,
+  EventReloadScheduleSegment,
+} from "./types";
 
 /**
  * Produces normalized boundary records for every direct physical sailing segment.
@@ -37,7 +39,7 @@ const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
  * @returns Ordered DockBoundaryEventRecord list ready for hydration and reload
  */
 export const buildScheduledDockEventRecords = (
-  segments: RawWsfScheduleSegment[],
+  segments: EventReloadScheduleSegment[],
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): DockBoundaryEventRecord[] =>
@@ -134,7 +136,7 @@ const buildSeedEventsForSegment = (
  * @returns Direct segments only, each with Key and crossing metadata
  */
 export const getDirectRawSeedSegments = (
-  segments: RawWsfScheduleSegment[],
+  segments: EventReloadScheduleSegment[],
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ) =>
@@ -169,11 +171,15 @@ export type RawSeedSegment = {
  * @returns Normalized seed or null when required identity fields are missing
  */
 const toRawSeedSegment = (
-  segment: RawWsfScheduleSegment,
+  segment: EventReloadScheduleSegment,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): RawSeedSegment | null => {
-  const resolvedSegment = resolveScheduleSegment(segment, vessels, terminals);
+  const resolvedSegment = resolveEventReloadScheduleSegment(
+    segment,
+    vessels,
+    terminals
+  );
 
   if (!resolvedSegment) {
     return null;
@@ -189,7 +195,7 @@ const toRawSeedSegment = (
     vesselAbbrev,
     departingTerminalAbbrev,
     arrivingTerminalAbbrev,
-    segment.DepartingTime
+    new Date(segment.DepartingTime)
   );
 
   if (!key) {
@@ -201,12 +207,43 @@ const toRawSeedSegment = (
     VesselAbbrev: vesselAbbrev,
     DepartingTerminalAbbrev: departingTerminalAbbrev,
     ArrivingTerminalAbbrev: arrivingTerminalAbbrev,
-    DepartingTime: segment.DepartingTime.getTime(),
-    ArrivingTime: segment.ArrivingTime?.getTime(),
+    DepartingTime: segment.DepartingTime,
+    ArrivingTime: segment.ArrivingTime,
     SailingDay: segment.SailingDay,
     RouteID: segment.RouteID,
     RouteAbbrev: segment.RouteAbbrev,
   };
+};
+
+/**
+ * Resolves vessel and terminal identities for a numeric reload segment.
+ *
+ * Reload-domain inputs intentionally avoid adapter Date shapes, but identity
+ * resolution still follows the same WSF vessel-name and terminal-id rules.
+ *
+ * @param segment - Numeric reload schedule segment
+ * @param vessels - Backend vessel identity rows
+ * @param terminals - Backend terminal identity rows
+ * @returns Resolved identities, or null when any lookup fails
+ */
+const resolveEventReloadScheduleSegment = (
+  segment: EventReloadScheduleSegment,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+) => {
+  const vessel = tryResolveVessel(segment.VesselName, vessels);
+  const departingTerminal = resolveTerminalById(
+    segment.DepartingTerminalID,
+    terminals
+  );
+  const arrivingTerminal = resolveTerminalById(
+    segment.ArrivingTerminalID,
+    terminals
+  );
+
+  return vessel && departingTerminal && arrivingTerminal
+    ? { vessel, departingTerminal, arrivingTerminal }
+    : null;
 };
 
 /**

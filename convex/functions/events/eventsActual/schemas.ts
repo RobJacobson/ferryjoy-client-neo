@@ -4,14 +4,13 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { dockEventTypeSchema } from "../eventsScheduled/schemas";
+import { dockEventTypeSchema } from "../common/schemas";
 
 /**
  * Persisted row fields (physical TripKey required).
  */
 const persistedActualDockFields = {
   TripKey: v.string(),
-  ScheduleKey: v.optional(v.string()),
   VesselAbbrev: v.string(),
   SailingDay: v.string(),
   ScheduledDeparture: v.number(),
@@ -22,8 +21,8 @@ const persistedActualDockFields = {
 /**
  * Convex validator for one persisted eventsActual document.
  *
- * Physical identity is EventKey; EventType is first-class. Optional ScheduleKey
- * ties the row to schedule continuity without replacing physical keys.
+ * Physical identity is EventKey; EventType is first-class so departures and
+ * arrivals stay independent under the same trip.
  */
 const eventsActualSchema = v.object({
   ...persistedActualDockFields,

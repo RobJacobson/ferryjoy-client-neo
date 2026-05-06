@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type { DockBoundaryEventRecord } from "domain/events";
+import type {
+  DockBoundaryEventRecord,
+  EventReloadScheduleSegment,
+} from "domain/events/scheduled/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { buildActualDockWritesFromLocation } from "../../actual/reconcileDockTransitionsFromLocations";
@@ -33,7 +35,7 @@ describe("buildScheduledDockEventRecords", () => {
           VesselName: "Tokitae",
           DepartingTerminalName: "Seattle",
           ArrivingTerminalName: "Bainbridge Island",
-          DepartingTime: new Date(at(8, 35)),
+          DepartingTime: at(8, 35),
           RouteID: 7,
           RouteAbbrev: "sea-bi",
         }),
@@ -69,7 +71,7 @@ describe("buildScheduledDockEventRecords", () => {
           VesselName: "Tokitae",
           DepartingTerminalName: "Seattle",
           ArrivingTerminalName: "Bainbridge Island",
-          DepartingTime: new Date(at(8, 35)),
+          DepartingTime: at(8, 35),
           RouteID: 7,
           RouteAbbrev: "sea-bi",
         }),
@@ -78,7 +80,7 @@ describe("buildScheduledDockEventRecords", () => {
           DepartingTerminalName: "Seattle",
           ArrivingTerminalName: "Bremerton",
           ArrivingTerminalID: 3,
-          DepartingTime: new Date(at(8, 35)),
+          DepartingTime: at(8, 35),
           RouteID: 8,
           RouteAbbrev: "sea-br",
         }),
@@ -88,7 +90,7 @@ describe("buildScheduledDockEventRecords", () => {
           ArrivingTerminalName: "Seattle",
           DepartingTerminalID: 2,
           ArrivingTerminalID: 4,
-          DepartingTime: new Date(at(9, 20)),
+          DepartingTime: at(9, 20),
           RouteID: 7,
           RouteAbbrev: "sea-bi",
         }),
@@ -282,16 +284,16 @@ const makeLocation = (
 });
 
 const makeRawSegment = (
-  overrides: Partial<RawWsfScheduleSegment>
-): RawWsfScheduleSegment => ({
+  overrides: Partial<EventReloadScheduleSegment>
+): EventReloadScheduleSegment => ({
   VesselName: "Tokitae",
   // IDs must match backendTerminals (resolveScheduleSegment resolves by ID).
   DepartingTerminalID: 4,
   ArrivingTerminalID: 2,
   DepartingTerminalName: "Seattle",
   ArrivingTerminalName: "Bainbridge Island",
-  DepartingTime: new Date(at(8, 35)),
-  ArrivingTime: null,
+  DepartingTime: at(8, 35),
+  ArrivingTime: undefined,
   SailingNotes: "",
   Annotations: [],
   RouteID: 7,

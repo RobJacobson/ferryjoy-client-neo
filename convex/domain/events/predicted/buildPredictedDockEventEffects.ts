@@ -17,7 +17,7 @@ import {
   buildBoundaryKey,
   buildTripPredictionBoundaryKeys,
 } from "../../../shared/keys";
-import { predictedDockCompositeKey } from "./schemas";
+import { predictedDockCompositeKey } from "./predictedDockCompositeKey";
 
 /**
  * Current sailing segment string: schedule anchor when present, else physical

@@ -24,14 +24,14 @@ afterEach(() => {
 });
 
 describe("replaceDockEventsForSailingDay (internal)", () => {
-  it("upserts scheduled rows and replaces actual rows for the same sailing day", async () => {
+  it("upserts scheduled and actual rows through split table helpers", async () => {
     const scheduledSpy = spyOn(
       eventsScheduled,
       "upsertScheduledRowsForSailingDay"
     ).mockResolvedValue(undefined);
     const actualSpy = spyOn(
       eventsActual,
-      "replaceActualRowsForSailingDay"
+      "upsertActualDockRows"
     ).mockResolvedValue(undefined);
 
     const result = await replaceHandler(makeEmptyDbMutationCtx(), {
@@ -48,7 +48,7 @@ describe("replaceDockEventsForSailingDay (internal)", () => {
       "2026-04-10",
       []
     );
-    expect(actualSpy).toHaveBeenCalledWith(expect.anything(), "2026-04-10", []);
+    expect(actualSpy).toHaveBeenCalledWith(expect.anything(), []);
   });
 });
 

@@ -4,13 +4,13 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { DockBoundaryEventRecord } from "domain/events";
-import {
-  type ActiveTripForPhysicalActualReconcile,
-  buildActualDockEvents,
-  buildScheduledDockEvents,
-  type TripContextForActualRow,
-} from "domain/events";
+import type {
+  ActiveTripForPhysicalActualReconcile,
+  TripContextForActualRow,
+} from "domain/events/actual";
+import { buildActualDockEvents } from "domain/events/actual/buildActualDockEvents";
+import { buildScheduledDockEvents } from "domain/events/scheduled";
+import type { DockBoundaryEventRecord } from "domain/events/scheduled/types";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
@@ -21,8 +21,8 @@ const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
 
 /**
- * Builds a segment-key → trip context map for seed events so patches and
- * hydrated actuals resolve TripKey (TripKey matches ScheduleKey segment string).
+ * Builds a segment-key to trip context map for seed events so patches and
+ * hydrated actuals resolve TripKey.
  *
  * @param events - Seed boundary events
  * @returns Map for buildActualDockEvents and tripBySegmentKey
@@ -36,7 +36,6 @@ const tripIndexFromSeedEvents = (
   for (const seg of segments) {
     map.set(seg, {
       TripKey: seg,
-      ScheduleKey: seg,
     });
   }
 
@@ -59,7 +58,7 @@ describe("buildLocationReconcileBoundaryEvents", () => {
       scheduledEvents,
       actualEvents: [
         makeActualEvent({
-          ScheduleKey: events[0]?.SegmentKey,
+          TripKey: events[0]?.SegmentKey,
           EventType: "dep-dock",
           TerminalAbbrev: "P52",
           ScheduledDeparture: at(8, 35),
@@ -75,7 +74,7 @@ describe("buildLocationReconcileBoundaryEvents", () => {
     });
   });
 
-  it("reattaches stale-key arrival actuals by terminal and scheduled departure", () => {
+  it("does not reattach stale-trip arrival actuals to scheduled boundaries", () => {
     const events = makeSeedEvents([
       {
         VesselAbbrev: "TOK",
@@ -98,7 +97,7 @@ describe("buildLocationReconcileBoundaryEvents", () => {
       actualEvents: [
         makeActualEvent({
           EventKey: "stale-arrival-key",
-          ScheduleKey: "stale-segment-key",
+          TripKey: "stale-segment-key",
           EventType: "arv-dock",
           TerminalAbbrev: "BBI",
           ScheduledDeparture: at(8, 35),
@@ -107,12 +106,12 @@ describe("buildLocationReconcileBoundaryEvents", () => {
       ],
     });
 
-    expect(
-      reconciled.find((event) => event.Key === events[1]?.Key)
-    ).toMatchObject({
-      EventOccurred: true,
-      EventActualTime: at(9, 14),
-    });
+    expect(reconciled.find((event) => event.Key === events[1]?.Key)).toEqual(
+      expect.objectContaining({
+        EventOccurred: undefined,
+        EventActualTime: undefined,
+      })
+    );
   });
 
   it("does not attach physical-only arrival actual rows to scheduled boundaries", () => {
@@ -129,7 +128,7 @@ describe("buildLocationReconcileBoundaryEvents", () => {
       scheduledEvents: buildScheduledDockEvents(events, 0),
       actualEvents: [
         makeActualEvent({
-          ScheduleKey: undefined,
+          TripKey: "physical-only-trip",
           EventType: "arv-dock",
           TerminalAbbrev: "BBI",
           ScheduledDeparture: at(8, 35),
@@ -188,7 +187,6 @@ describe("reconcileActualDockWritesFromLocations", () => {
     expect(effects).toEqual([
       {
         TripKey: ctx0.TripKey,
-        ScheduleKey: seg0,
         SegmentKey: seg0,
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
@@ -252,7 +250,6 @@ describe("reconcileActualDockWritesFromLocations", () => {
     expect(effects).toEqual([
       {
         TripKey: ctx1.TripKey,
-        ScheduleKey: seg1,
         SegmentKey: seg1,
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
@@ -335,7 +332,6 @@ describe("reconcileActualDockWritesFromLocations", () => {
     expect(effects).toHaveLength(1);
     expect(effects[0]).toMatchObject({
       TripKey: trip.TripKey,
-      ScheduleKey: undefined,
       VesselAbbrev: "SAL",
       SailingDay: "2026-03-13",
       TerminalAbbrev: "SOU",
@@ -410,7 +406,6 @@ describe("reconcileActualDockWritesFromLocations", () => {
     expect(effects).toHaveLength(1);
     expect(effects[0]).toMatchObject({
       TripKey: trip.TripKey,
-      ScheduleKey: undefined,
       VesselAbbrev: "SAL",
       SailingDay: "2026-03-13",
       TerminalAbbrev: "VAI",
@@ -468,7 +463,6 @@ describe("reconcileActualDockWritesFromLocations", () => {
         {
           EventKey: "SAL 2026-03-13 17:20:00Z--dep-dock",
           TripKey: trip.TripKey,
-          ScheduleKey: undefined,
           EventType: "dep-dock",
           VesselAbbrev: "SAL",
           SailingDay: "2026-03-13",
@@ -548,7 +542,6 @@ describe("reconcileActualDockWritesFromLocations", () => {
     expect(effects).toHaveLength(1);
     expect(effects[0]).toMatchObject({
       TripKey: "SAL 2026-03-13 17:20:00Z",
-      ScheduleKey: undefined,
       VesselAbbrev: "SAL",
       TerminalAbbrev: "VAI",
       EventType: "arv-dock",
@@ -681,7 +674,6 @@ const makeActualEvent = (
 ): ConvexActualDockEvent => ({
   EventKey: "actual-1",
   TripKey: "TOK 2026-03-13 15:35:00Z",
-  ScheduleKey: "schedule-1",
   EventType: "dep-dock",
   VesselAbbrev: "TOK",
   SailingDay: "2026-03-13",

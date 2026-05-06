@@ -6,11 +6,12 @@
  */
 
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
-import type { ConvexInferredScheduledSegment } from "../types";
+import type { ScheduledBoundaryContext } from "../common/types";
 import {
   type AdjacentDockInterval,
   buildAdjacentBoundaryIntervals,
 } from "./adjacentBoundaryIntervals";
+import type { ConvexInferredScheduledSegment } from "./types";
 
 /**
  * Builds the portable inferred-segment contract shared across schedule readers.
@@ -125,7 +126,7 @@ export const findNextDepartureEvent = (
  */
 export const getBoundaryTime = (
   event: Pick<
-    ConvexScheduledDockEvent,
+    ScheduledBoundaryContext,
     "EventScheduledTime" | "ScheduledDeparture"
   >
 ) => event.EventScheduledTime ?? event.ScheduledDeparture;
@@ -140,9 +141,14 @@ export const getBoundaryTime = (
  * @param right - Second scheduled boundary in a comparison
  * @returns Negative when left precedes right in timeline order
  */
-export const sortScheduledDockEvents = (
-  left: ConvexScheduledDockEvent,
-  right: ConvexScheduledDockEvent
+export const sortScheduledDockEvents = <
+  T extends Pick<
+    ScheduledBoundaryContext,
+    "EventScheduledTime" | "ScheduledDeparture" | "EventType" | "TerminalAbbrev"
+  >,
+>(
+  left: T,
+  right: T
 ) =>
   getBoundaryTime(left) - getBoundaryTime(right) ||
   getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
@@ -204,5 +210,5 @@ const buildScheduledIntervalContext = (events: ConvexScheduledDockEvent[]) => {
  * @param eventType - dep-dock or arv-dock discriminator
  * @returns Sort rank; lower values sort earlier at equal getBoundaryTime results
  */
-const getEventTypeOrder = (eventType: ConvexScheduledDockEvent["EventType"]) =>
+const getEventTypeOrder = (eventType: ScheduledBoundaryContext["EventType"]) =>
   eventType === "arv-dock" ? 0 : 1;

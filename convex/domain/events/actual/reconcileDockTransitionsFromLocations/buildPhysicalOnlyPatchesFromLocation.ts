@@ -11,7 +11,7 @@
 
 import type { ConvexVesselLocation } from "../../../../functions/vesselLocation/schemas";
 import type { ActiveTripForPhysicalActualReconcile } from "../bindActualRowsToTrips";
-import type { ConvexActualDockWritePersistable } from "../schemas";
+import type { ConvexActualDockWritePersistable } from "../types";
 import { strongArrival, strongDeparture } from "./locationMotionGates";
 
 /**
@@ -24,7 +24,7 @@ import { strongArrival, strongDeparture } from "./locationMotionGates";
  * @param location - Live sample evaluated for motion-based confirmation
  * @param activeTripsByVesselAbbrev - Active TripKey-only trips keyed by vessel
  * @param representedTripBoundaryKeys - TripKey and EventType pairs already covered
- * @returns Persistable sparse writes with TripKey set and ScheduleKey undefined
+ * @returns Persistable sparse writes with TripKey set
  */
 const buildPhysicalOnlyPatchesFromLocation = (
   location: ConvexVesselLocation,
@@ -51,7 +51,6 @@ const buildPhysicalOnlyPatchesFromLocation = (
   ) {
     patches.push({
       TripKey: trip.TripKey,
-      ScheduleKey: undefined,
       VesselAbbrev: trip.VesselAbbrev,
       ...(trip.SailingDay !== undefined ? { SailingDay: trip.SailingDay } : {}),
       ...(trip.ScheduledDeparture !== undefined
@@ -71,7 +70,6 @@ const buildPhysicalOnlyPatchesFromLocation = (
   ) {
     patches.push({
       TripKey: trip.TripKey,
-      ScheduleKey: undefined,
       VesselAbbrev: trip.VesselAbbrev,
       ...(trip.SailingDay !== undefined ? { SailingDay: trip.SailingDay } : {}),
       ...(trip.ScheduledDeparture !== undefined

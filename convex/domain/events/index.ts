@@ -21,7 +21,7 @@ export {
   buildLocationReconcileBoundaryEvents,
   reconcileActualDockWritesFromLocations,
 } from "./actual/reconcileDockTransitionsFromLocations";
-export { buildDockEventRowsForSailingDayReload } from "./actual/reloadDockEventsForSailingDay";
+export { buildActualDockRowsForSailingDayReload } from "./actual/reloadDockEventsForSailingDay";
 export {
   buildPredictedDockClearBatch,
   buildPredictedDockWriteBatch,

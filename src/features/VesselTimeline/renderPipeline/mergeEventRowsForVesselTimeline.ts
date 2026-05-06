@@ -2,7 +2,7 @@
  * Client-owned merge policy for vessel timeline event rows.
  *
  * `VesselTimeline` subscribes to raw Convex event tables and interprets those
- * rows locally. This module keeps the actual-attachment and prediction
+ * rows locally. This module keeps exact actual attachment and prediction
  * precedence rules next to the render pipeline that consumes them.
  */
 
@@ -28,8 +28,8 @@ type VesselTimelineMergedEvent = {
  * Merges raw event table rows into ordered vessel timeline boundary events.
  *
  * The client owns this interpretation because `VesselTimeline` renders from
- * raw row subscriptions. Actual rows attach by schedule segment and boundary
- * type, with bounded arrival fallbacks for legacy or partial evidence.
+ * raw row subscriptions. Actual rows attach by physical TripKey and boundary
+ * type; schedule-backed TripKeys match scheduled segment keys.
  *
  * @param args - Scheduled backbone rows plus actual and predicted overlays
  * @returns Ordered boundary events ready for dock-visit assembly
@@ -43,128 +43,23 @@ const mergeEventRowsForVesselTimeline = ({
   actualEvents: ConvexActualDockEvent[];
   predictedEvents: ConvexPredictedDockEvent[];
 }): VesselTimelineMergedEvent[] => {
-  const actualByScheduleKeyAndType = new Map<string, ConvexActualDockEvent>();
+  const actualByTripKeyAndType = new Map<string, ConvexActualDockEvent>();
 
   for (const actual of actualEvents) {
-    if (!actual.ScheduleKey) {
-      continue;
-    }
-
-    const key = scheduleAttachmentKey(actual.ScheduleKey, actual.EventType);
-    if (!actualByScheduleKeyAndType.has(key)) {
-      actualByScheduleKeyAndType.set(key, actual);
+    const key = actualAttachmentKey(actual.TripKey, actual.EventType);
+    if (!actualByTripKeyAndType.has(key)) {
+      actualByTripKeyAndType.set(key, actual);
     }
   }
 
   const sortedScheduledEvents = [...scheduledEvents].sort(
     sortScheduledDockEvents
   );
-  const scheduleKeyedArrivalActuals = actualEvents
-    .filter(
-      (event): event is ConvexActualDockEvent & { EventActualTime: number } =>
-        event.EventType === "arv-dock" &&
-        event.EventActualTime !== undefined &&
-        event.ScheduleKey !== undefined
-    )
-    .sort(
-      (left, right) =>
-        left.EventActualTime - right.EventActualTime ||
-        left.ScheduledDeparture - right.ScheduledDeparture ||
-        left.EventKey.localeCompare(right.EventKey)
-    );
-  const assignedArrivalActualByScheduledKey = new Map<
-    string,
-    ConvexActualDockEvent
-  >();
-  const usedActualArrivalEventKeys = new Set<string>();
-
-  for (const event of sortedScheduledEvents) {
-    if (event.EventType !== "arv-dock") {
-      continue;
-    }
-
-    const segment = getSegmentKeyFromBoundaryKey(event.Key);
-    const direct = actualByScheduleKeyAndType.get(
-      scheduleAttachmentKey(segment, "arv-dock")
-    );
-
-    if (direct) {
-      assignedArrivalActualByScheduledKey.set(event.Key, direct);
-      usedActualArrivalEventKeys.add(direct.EventKey);
-    }
-  }
-
-  for (const event of sortedScheduledEvents) {
-    if (
-      event.EventType !== "arv-dock" ||
-      assignedArrivalActualByScheduledKey.has(event.Key)
-    ) {
-      continue;
-    }
-
-    const anchored = scheduleKeyedArrivalActuals.find(
-      (actual) =>
-        !usedActualArrivalEventKeys.has(actual.EventKey) &&
-        actual.TerminalAbbrev === event.TerminalAbbrev &&
-        actual.ScheduledDeparture === event.ScheduledDeparture
-    );
-
-    if (anchored) {
-      assignedArrivalActualByScheduledKey.set(event.Key, anchored);
-      usedActualArrivalEventKeys.add(anchored.EventKey);
-    }
-  }
-
-  const scheduledArrivalEventsByTerminal = groupScheduledArrivalsByTerminal(
-    sortedScheduledEvents
-  );
-
-  for (const [
-    terminalAbbrev,
-    terminalArrivalEvents,
-  ] of scheduledArrivalEventsByTerminal) {
-    let previousAssignedArrivalActualTime: number | undefined;
-
-    for (let index = 0; index < terminalArrivalEvents.length; index += 1) {
-      const event = terminalArrivalEvents[index];
-      const existing = assignedArrivalActualByScheduledKey.get(event.Key);
-
-      if (existing?.EventActualTime !== undefined) {
-        previousAssignedArrivalActualTime = existing.EventActualTime;
-        continue;
-      }
-
-      const candidate = scheduleKeyedArrivalActuals.find(
-        (actual) =>
-          !usedActualArrivalEventKeys.has(actual.EventKey) &&
-          actual.TerminalAbbrev === terminalAbbrev &&
-          (previousAssignedArrivalActualTime === undefined ||
-            actual.EventActualTime > previousAssignedArrivalActualTime)
-      );
-
-      if (!candidate) {
-        continue;
-      }
-
-      const nextEquivalentArrival = terminalArrivalEvents[index + 1];
-      if (
-        nextEquivalentArrival &&
-        candidate.EventActualTime > getBoundaryTime(nextEquivalentArrival)
-      ) {
-        continue;
-      }
-
-      assignedArrivalActualByScheduledKey.set(event.Key, candidate);
-      usedActualArrivalEventKeys.add(candidate.EventKey);
-      previousAssignedArrivalActualTime = candidate.EventActualTime;
-    }
-  }
 
   return sortedScheduledEvents.map((event) => {
     const actualRow = resolveActualForScheduledEvent({
       event,
-      actualByScheduleKeyAndType,
-      assignedArrivalActualByScheduledKey,
+      actualByTripKeyAndType,
     });
 
     return {
@@ -186,60 +81,22 @@ const mergeEventRowsForVesselTimeline = ({
 };
 
 /**
- * Groups scheduled arrival rows by terminal in existing timeline order.
- *
- * @param events - Sorted scheduled boundary rows
- * @returns Arrival rows keyed by terminal abbreviation
- */
-const groupScheduledArrivalsByTerminal = (
-  events: ConvexScheduledDockEvent[]
-) => {
-  const scheduledArrivalEventsByTerminal = new Map<
-    string,
-    ConvexScheduledDockEvent[]
-  >();
-
-  for (const event of events) {
-    if (event.EventType !== "arv-dock") {
-      continue;
-    }
-
-    const terminalEvents =
-      scheduledArrivalEventsByTerminal.get(event.TerminalAbbrev) ?? [];
-    terminalEvents.push(event);
-    scheduledArrivalEventsByTerminal.set(event.TerminalAbbrev, terminalEvents);
-  }
-
-  return scheduledArrivalEventsByTerminal;
-};
-
-/**
  * Resolves the actual row that should attach to one scheduled boundary.
  *
- * @param args - Scheduled row plus precomputed exact and fallback actual maps
+ * @param args - Scheduled row plus precomputed exact actual map
  * @returns Matching actual row when one is available
  */
 const resolveActualForScheduledEvent = ({
   event,
-  actualByScheduleKeyAndType,
-  assignedArrivalActualByScheduledKey,
+  actualByTripKeyAndType,
 }: {
   event: ConvexScheduledDockEvent;
-  actualByScheduleKeyAndType: Map<string, ConvexActualDockEvent>;
-  assignedArrivalActualByScheduledKey: Map<string, ConvexActualDockEvent>;
+  actualByTripKeyAndType: Map<string, ConvexActualDockEvent>;
 }) => {
   const segment = getSegmentKeyFromBoundaryKey(event.Key);
-  const exact = actualByScheduleKeyAndType.get(
-    scheduleAttachmentKey(segment, event.EventType)
+  return actualByTripKeyAndType.get(
+    actualAttachmentKey(segment, event.EventType)
   );
-
-  if (exact) {
-    return exact;
-  }
-
-  return event.EventType === "arv-dock"
-    ? assignedArrivalActualByScheduledKey.get(event.Key)
-    : undefined;
 };
 
 /**
@@ -283,17 +140,16 @@ const pickPredictedTimeForKey = (
 };
 
 /**
- * Builds the exact actual-attachment key for a scheduled segment and event
- * type.
+ * Builds the exact actual-attachment key for a TripKey and event type.
  *
- * @param scheduleSegment - Scheduled segment key without boundary suffix
+ * @param tripKey - Physical trip key
  * @param eventType - Boundary event type
  * @returns Composite map key for exact actual lookups
  */
-const scheduleAttachmentKey = (
-  scheduleSegment: string,
+const actualAttachmentKey = (
+  tripKey: string,
   eventType: ConvexScheduledDockEvent["EventType"]
-) => `${scheduleSegment}|${eventType}`;
+) => `${tripKey}|${eventType}`;
 
 /**
  * Orders scheduled rows in the client timeline sequence.

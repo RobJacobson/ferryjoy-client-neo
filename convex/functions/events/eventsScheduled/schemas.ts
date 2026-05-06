@@ -4,12 +4,7 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-export const dockEventTypeSchema = v.union(
-  v.literal("dep-dock"),
-  v.literal("arv-dock")
-);
-
-export type DockEventType = Infer<typeof dockEventTypeSchema>;
+import { type DockEventType, dockEventTypeSchema } from "../common/schemas";
 
 export const eventsScheduledSchema = v.object({
   Key: v.string(),
@@ -25,3 +20,5 @@ export const eventsScheduledSchema = v.object({
 });
 
 export type ConvexScheduledDockEvent = Infer<typeof eventsScheduledSchema>;
+export type { DockEventType };
+export { dockEventTypeSchema };

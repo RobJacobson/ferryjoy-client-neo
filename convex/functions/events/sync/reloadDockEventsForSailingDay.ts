@@ -2,9 +2,9 @@
  * Single-day dock-event reload helper.
  *
  * Action-side glue: fetch identities, schedule, and history, then hand the
- * Convex reload payload to the internal mutation. The mutation owns
- * schedule-to-transition merging and history hydration so this helper stays
- * responsible only for talking to external APIs.
+ * Convex reload payloads to table-specific internal mutations. This helper
+ * stays responsible only for talking to external APIs and sequencing the
+ * independent scheduled and actual refreshes.
  */
 
 import { internal } from "_generated/api";
@@ -22,9 +22,8 @@ const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
  * Reloads scheduled and actual dock-event rows for one sailing day.
  *
  * Loads vessel and terminal identities for adapter resolution, fetches the
- * WSF schedule slice and per-vessel history rows, then hands a Convex-shaped
- * payload to replaceDockEventsForSailingDay. The mutation performs the
- * schedule and history merges and persists rows in one transaction.
+ * WSF schedule slice and per-vessel history rows, then hands Convex-shaped
+ * payloads to scheduled and actual reload mutations.
  *
  * @param ctx - Convex action context for adapter calls and mutation scheduling
  * @param targetDate - Sailing day YYYY-MM-DD string used across fetch and persistence
@@ -60,10 +59,26 @@ const runReloadDockEventsForSailingDay = async (
     historyRecords,
   });
 
-  const result = await ctx.runMutation(
-    internal.functions.events.sync.mutations.replaceDockEventsForSailingDay,
+  const scheduled = await ctx.runMutation(
+    internal.functions.events.sync.mutations
+      .replaceScheduledDockEventsForSailingDay,
+    {
+      ReloadDockScheduleData: {
+        SailingDay: reloadDockData.SailingDay,
+        ScheduleSegments: reloadDockData.ScheduleSegments,
+      },
+    }
+  );
+  const actual = await ctx.runMutation(
+    internal.functions.events.sync.mutations
+      .reloadActualDockEventsForSailingDay,
     { ReloadDockData: reloadDockData }
   );
+
+  const result = {
+    ScheduledCount: scheduled.ScheduledCount,
+    ActualCount: actual.ActualCount,
+  };
 
   console.log(
     `${LOG_PREFIX} reload completed for ${targetDate}: ${result.ScheduledCount} scheduled rows`

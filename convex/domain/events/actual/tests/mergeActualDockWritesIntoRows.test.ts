@@ -6,7 +6,7 @@ import { describe, expect, it } from "bun:test";
 import type {
   ConvexActualDockWritePersistable,
   ConvexActualDockWriteWithTripKey,
-} from "domain/events/actual/schemas";
+} from "domain/events/actual/types";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import { mergeActualDockWritesIntoRows } from "../mergeActualDockWritesIntoRows";
@@ -54,7 +54,6 @@ describe("mergeActualDockWritesIntoRows", () => {
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
-        ScheduleKey: segment,
         EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
@@ -88,7 +87,6 @@ describe("mergeActualDockWritesIntoRows", () => {
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
-        ScheduleKey: segment,
         EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",
@@ -121,7 +119,6 @@ describe("mergeActualDockWritesIntoRows", () => {
       {
         EventKey: eventKeyDep,
         TripKey: tripKey,
-        ScheduleKey: segment,
         EventType: "dep-dock",
         VesselAbbrev: "TOK",
         SailingDay: "2026-03-13",

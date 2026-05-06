@@ -6,7 +6,7 @@
  * modules so each resolver can focus on its evidence source.
  */
 
-import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/schemas";
+import type { ConvexInferredScheduledSegment } from "domain/events/scheduled/types";
 import type {
   ResolvedCurrentTripFields,
   ResolvedTripScheduleFields,

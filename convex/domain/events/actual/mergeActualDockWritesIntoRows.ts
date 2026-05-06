@@ -12,7 +12,7 @@ import {
   mergeActualDockWriteWithExistingRow,
 } from "./actualDockWriteHelpers";
 import { buildActualDockEventFromWrite } from "./buildActualDockEvents";
-import type { ConvexActualDockWriteWithTripKey } from "./schemas";
+import type { ConvexActualDockWriteWithTripKey } from "./types";
 
 /**
  * Folds sparse writes into an in-memory map of actual rows by EventKey.

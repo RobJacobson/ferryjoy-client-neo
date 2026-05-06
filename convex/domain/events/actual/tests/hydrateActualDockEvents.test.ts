@@ -3,10 +3,12 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type { DockBoundaryEventRecord } from "domain/events";
-import type { DockEventType } from "functions/events/eventsScheduled/schemas";
-import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import type { EventReloadHistoryRecord } from "domain/events/actual/reloadTypes";
+import type { DockEventType } from "domain/events/common/types";
+import type {
+  DockBoundaryEventRecord,
+  EventReloadScheduleSegment,
+} from "domain/events/scheduled/types";
 import { buildScheduledDockEventRecords } from "../../scheduled/buildScheduledDockEventRecords";
 import { createSeededScheduleSegmentResolver } from "../../scheduled/scheduleDepartureLookup";
 import { hydrateActualDockEvents } from "../hydrateActualDockEvents";
@@ -20,6 +22,34 @@ import { hydrateActualDockEvents } from "../hydrateActualDockEvents";
  */
 const at = (hours: number, minutes: number) =>
   new Date(Date.UTC(2026, 2, 18, hours, minutes));
+
+type DateLikeMs = Date | number;
+
+type ScheduleSegmentOverrides = Partial<
+  Omit<EventReloadScheduleSegment, "ArrivingTime" | "DepartingTime">
+> & {
+  ArrivingTime?: DateLikeMs;
+  DepartingTime?: DateLikeMs;
+};
+
+type HistoryOverrides = Partial<
+  Omit<
+    EventReloadHistoryRecord,
+    | "ActualDepart"
+    | "Arriving"
+    | "Departing"
+    | "EstArrival"
+    | "ScheduledDepart"
+    | "Vessel"
+  >
+> & {
+  ActualDepart?: DateLikeMs;
+  Arriving?: string | null;
+  Departing?: string | null;
+  EstArrival?: DateLikeMs;
+  ScheduledDepart?: DateLikeMs;
+  Vessel?: string | null;
+};
 
 /**
  * Looks up EventActualTime by boundary type; seeded rows sort arrival before
@@ -424,7 +454,7 @@ describe("createSeededScheduleSegmentResolver", () => {
       seedDeps([{ segmentKey: segKeyA, scheduledMs: ms }])
     );
 
-    expect(resolve("CAT", at(14, 5))).toBe(segKeyA);
+    expect(resolve("CAT", at(14, 5).getTime())).toBe(segKeyA);
   });
 
   it("returns undefined when scheduled departure does not match exactly", () => {
@@ -433,48 +463,56 @@ describe("createSeededScheduleSegmentResolver", () => {
       seedDeps([{ segmentKey: segKeyA, scheduledMs: ms }])
     );
 
-    expect(resolve("CAT", at(14, 6))).toBeUndefined();
+    expect(resolve("CAT", at(14, 6).getTime())).toBeUndefined();
   });
 });
 
 /**
  * Creates a route-14 schedule segment fixture.
  *
- * @returns Raw WSF schedule segment for a Vashon to Fauntleroy sailing
+ * @returns Numeric reload schedule segment for a Vashon to Fauntleroy sailing
  */
-const makeRoute14Segment = (): RawWsfScheduleSegment =>
+const makeRoute14Segment = (): EventReloadScheduleSegment =>
   makeRawSegment({
     VesselName: "Cathlamet",
     DepartingTerminalName: "Vashon Island",
     ArrivingTerminalName: "Fauntleroy",
-    DepartingTime: at(14, 5),
+    DepartingTime: at(14, 5).getTime(),
     RouteID: 14,
     RouteAbbrev: "f-v-s",
   });
 
 /**
- * Creates a raw WSF schedule segment fixture with overrides.
+ * Creates a numeric reload schedule segment fixture with overrides.
  *
- * @param overrides - Partial raw segment fields to override
+ * @param overrides - Partial reload segment fields to override
  * @returns Raw schedule segment fixture
  */
 const makeRawSegment = (
-  overrides: Partial<RawWsfScheduleSegment>
-): RawWsfScheduleSegment => ({
-  VesselName: "Tokitae",
-  DepartingTerminalID: 1,
-  ArrivingTerminalID: 2,
-  DepartingTerminalName: "Seattle",
-  ArrivingTerminalName: "Bainbridge Island",
-  DepartingTime: at(15, 35),
-  ArrivingTime: null,
-  SailingNotes: "",
-  Annotations: [],
-  RouteID: 7,
-  RouteAbbrev: "sea-bi",
-  SailingDay: "2026-03-18",
-  ...overrides,
-});
+  overrides: ScheduleSegmentOverrides
+): EventReloadScheduleSegment => {
+  const { ArrivingTime, DepartingTime, ...rest } = overrides;
+
+  return {
+    VesselName: "Tokitae",
+    DepartingTerminalID: 1,
+    ArrivingTerminalID: 2,
+    DepartingTerminalName: "Seattle",
+    ArrivingTerminalName: "Bainbridge Island",
+    DepartingTime:
+      DepartingTime === undefined
+        ? at(15, 35).getTime()
+        : toEpochMs(DepartingTime),
+    ArrivingTime:
+      ArrivingTime === undefined ? undefined : toEpochMs(ArrivingTime),
+    SailingNotes: "",
+    Annotations: [],
+    RouteID: 7,
+    RouteAbbrev: "sea-bi",
+    SailingDay: "2026-03-18",
+    ...rest,
+  };
+};
 
 /**
  * Creates a vessel history fixture with overrides.
@@ -482,18 +520,58 @@ const makeRawSegment = (
  * @param overrides - Partial history fields to override
  * @returns Vessel history fixture
  */
-const makeHistory = (overrides: Partial<VesselHistory>): VesselHistory =>
-  ({
+const makeHistory = (overrides: HistoryOverrides): EventReloadHistoryRecord => {
+  const {
+    ActualDepart,
+    Arriving,
+    Departing,
+    EstArrival,
+    ScheduledDepart,
+    Vessel,
+    ...rest
+  } = overrides;
+
+  return {
     VesselId: 1,
-    Vessel: "Tokitae",
-    Departing: "Seattle",
-    Arriving: "Bainbridge Island",
-    ScheduledDepart: at(15, 35),
-    ActualDepart: at(15, 36),
-    EstArrival: at(16, 10),
-    Date: at(15, 35),
-    ...overrides,
-  }) as VesselHistory;
+    Vessel: Vessel === null ? undefined : (Vessel ?? "Tokitae"),
+    Departing: Departing === null ? undefined : (Departing ?? "Seattle"),
+    Arriving: Arriving === null ? undefined : (Arriving ?? "Bainbridge Island"),
+    ScheduledDepart: !("ScheduledDepart" in overrides)
+      ? at(15, 35).getTime()
+      : toOptionalEpochMs(ScheduledDepart),
+    ActualDepart: !("ActualDepart" in overrides)
+      ? at(15, 36).getTime()
+      : toOptionalEpochMs(ActualDepart),
+    EstArrival: !("EstArrival" in overrides)
+      ? at(16, 10).getTime()
+      : toOptionalEpochMs(EstArrival),
+    ...rest,
+  };
+};
+
+/**
+ * Converts a Date or epoch millisecond fixture value to epoch milliseconds.
+ *
+ * Tests still read naturally with Date fixtures while the reload domain accepts
+ * numeric Convex payloads.
+ *
+ * @param value - Date or epoch millisecond fixture value
+ * @returns Epoch millisecond value
+ */
+const toEpochMs = (value: DateLikeMs): number =>
+  value instanceof Date ? value.getTime() : value;
+
+/**
+ * Converts an optional Date or epoch millisecond fixture value.
+ *
+ * Explicit undefined overrides model missing optional reload payload fields,
+ * while absent overrides keep the fixture defaults.
+ *
+ * @param value - Optional Date or epoch millisecond fixture value
+ * @returns Epoch millisecond value, or undefined for omitted payload fields
+ */
+const toOptionalEpochMs = (value: DateLikeMs | undefined) =>
+  value === undefined ? undefined : toEpochMs(value);
 
 const makeEvent = (
   overrides: Partial<DockBoundaryEventRecord>

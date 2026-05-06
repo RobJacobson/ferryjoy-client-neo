@@ -5,12 +5,12 @@
 import { describe, expect, it } from "bun:test";
 import type {
   ActiveTripForPhysicalActualReconcile,
-  DockBoundaryEventRecord,
   TripContextForActualRow,
-} from "domain/events";
+} from "domain/events/actual";
+import type { DockBoundaryEventRecord } from "domain/events/scheduled/types";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
-import { buildDockEventRowsForSailingDayReload } from "../reloadDockEventsForSailingDay";
+import { buildActualDockRowsForSailingDayReload } from "../reloadDockEventsForSailingDay";
 
 const at = (hours: number, minutes: number) =>
   Date.UTC(2026, 2, 13, hours + 7, minutes);
@@ -26,7 +26,6 @@ const tripIndexFromSeedEvents = (
   for (const seg of segments) {
     map.set(seg, {
       TripKey: seg,
-      ScheduleKey: seg,
     });
   }
 
@@ -110,8 +109,8 @@ const makeLocation = (
   AtDockObserved: overrides.AtDockObserved ?? true,
 });
 
-describe("buildDockEventRowsForSailingDayReload", () => {
-  it("builds scheduled rows from hydrated events; base actual rows only when events carry occurrence or actual time", () => {
+describe("buildActualDockRowsForSailingDayReload", () => {
+  it("builds base actual rows only when events carry occurrence or actual time", () => {
     const events = makeSeedEvents([
       {
         VesselAbbrev: "TOK",
@@ -124,19 +123,16 @@ describe("buildDockEventRowsForSailingDayReload", () => {
     const updatedAt = 1;
     const tripIdx = tripIndexFromSeedEvents(events);
 
-    const { scheduledRows, actualRows, scheduledCount, actualCount } =
-      buildDockEventRowsForSailingDayReload({
-        sailingDay: SAILING_DAY,
-        events,
-        updatedAt,
-        tripBySegmentKey: tripIdx,
-        activeTripsByVesselAbbrev: new Map(),
-        physicalOnlyTrips: [],
-        vesselLocations: [],
-      });
+    const { actualRows, actualCount } = buildActualDockRowsForSailingDayReload({
+      sailingDay: SAILING_DAY,
+      events,
+      updatedAt,
+      tripBySegmentKey: tripIdx,
+      activeTripsByVesselAbbrev: new Map(),
+      physicalOnlyTrips: [],
+      vesselLocations: [],
+    });
 
-    expect(scheduledCount).toBe(events.length);
-    expect(scheduledRows.length).toBe(events.length);
     expect(actualCount).toBe(0);
     expect(actualRows.length).toBe(0);
   });
@@ -154,7 +150,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events,
       updatedAt,
@@ -192,28 +188,30 @@ describe("buildDockEventRowsForSailingDayReload", () => {
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(events);
 
-    const { actualRows: withWrongDay } = buildDockEventRowsForSailingDayReload({
-      sailingDay: SAILING_DAY,
-      events,
-      updatedAt,
-      tripBySegmentKey: tripIdx,
-      activeTripsByVesselAbbrev: new Map(),
-      physicalOnlyTrips: [],
-      vesselLocations: [
-        makeLocation({
-          VesselAbbrev: "SAL",
-          DepartingTerminalAbbrev: "SOU",
-          ArrivingTerminalAbbrev: undefined,
-          ScheduledDeparture: undefined,
-          RouteAbbrev: "f-v-s",
-          TimeStamp: at(17, 31),
-          AtDock: true,
-          Speed: 0,
-        }),
-      ],
-    });
+    const { actualRows: withWrongDay } = buildActualDockRowsForSailingDayReload(
+      {
+        sailingDay: SAILING_DAY,
+        events,
+        updatedAt,
+        tripBySegmentKey: tripIdx,
+        activeTripsByVesselAbbrev: new Map(),
+        physicalOnlyTrips: [],
+        vesselLocations: [
+          makeLocation({
+            VesselAbbrev: "SAL",
+            DepartingTerminalAbbrev: "SOU",
+            ArrivingTerminalAbbrev: undefined,
+            ScheduledDeparture: undefined,
+            RouteAbbrev: "f-v-s",
+            TimeStamp: at(17, 31),
+            AtDock: true,
+            Speed: 0,
+          }),
+        ],
+      }
+    );
 
-    const { actualRows: baseline } = buildDockEventRowsForSailingDayReload({
+    const { actualRows: baseline } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events,
       updatedAt,
@@ -244,7 +242,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
     const updatedAt = 0;
     const tripIdx = tripIndexFromSeedEvents(withOccurred);
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events: withOccurred,
       updatedAt,
@@ -279,7 +277,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       ScheduledDeparture: at(17, 20),
     });
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events: [],
       updatedAt: 0,
@@ -305,7 +303,6 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       expect.objectContaining({
         EventKey: "SAL 2026-03-13 17:20:00Z--dep-dock",
         TripKey: trip.TripKey,
-        ScheduleKey: undefined,
         TerminalAbbrev: "SOU",
         EventType: "dep-dock",
         EventActualTime: at(17, 29),
@@ -323,7 +320,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       ScheduledDeparture: at(17, 20),
     });
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events: [],
       updatedAt: 0,
@@ -348,7 +345,6 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       expect.objectContaining({
         EventKey: "SAL 2026-03-13 17:20:00Z--arv-dock",
         TripKey: trip.TripKey,
-        ScheduleKey: undefined,
         TerminalAbbrev: "VAI",
         EventType: "arv-dock",
         EventActualTime: at(17, 31),
@@ -368,7 +364,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       LeftDockActual: at(17, 30),
     });
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events: [],
       updatedAt: 0,
@@ -396,7 +392,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       LeftDockActual: at(17, 29),
     });
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events: [],
       updatedAt: 0,
@@ -430,7 +426,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
       ScheduledDeparture: at(17, 20),
     });
 
-    const { actualRows } = buildDockEventRowsForSailingDayReload({
+    const { actualRows } = buildActualDockRowsForSailingDayReload({
       sailingDay: SAILING_DAY,
       events,
       updatedAt: 0,
@@ -462,11 +458,7 @@ describe("buildDockEventRowsForSailingDayReload", () => {
     });
 
     expect(actualRows.some((row) => row.VesselAbbrev === "TOK")).toBe(true);
-    expect(
-      actualRows.some(
-        (row) => row.VesselAbbrev === "SAL" && row.ScheduleKey === undefined
-      )
-    ).toBe(true);
+    expect(actualRows.some((row) => row.VesselAbbrev === "SAL")).toBe(true);
   });
 });
 

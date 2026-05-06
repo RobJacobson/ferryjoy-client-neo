@@ -6,7 +6,7 @@
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { v } from "convex/values";
-import { predictedDockCompositeKey } from "domain/events/predicted/schemas";
+import { predictedDockCompositeKey } from "domain/events/predicted/predictedDockCompositeKey";
 import {
   buildVesselSailingDayScopeKey,
   parseVesselSailingDayScopeKey,
