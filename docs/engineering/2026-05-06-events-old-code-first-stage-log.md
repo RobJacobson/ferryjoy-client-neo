@@ -17,8 +17,10 @@ compact audit trail.
 | 6 | `eventsActual/schemas.ts` | 38 | 28 | 28 | 0 | 0 | 0 | Not run; no code changed. Orchestrator reviewed schema callers and confirmed no persisted actual-row caller requires `ScheduleKey`. | No-op recommended. Current schema is already smaller than old, keeps shared `common` event type import, and leaves physical-only preservation in Stage 5 TripKey context instead of re-adding `ScheduleKey`. | Committed `305f8eb9` |
 | 7 | `eventsActual/queries.ts` | 25 | 75 | 55 | 0 | 207 | 154 | `bun test convex/functions/events/eventsActual/tests/listActualDockEventsForVesselSailingDay.test.ts` passed, 4 tests | Inlined the local-only reader into the public query and reduced focused test harness boilerplate. Kept the live app query, metadata stripping, and deterministic ordering. | Committed `4b3eac57` |
 | 8 | `eventsActual/mutations.ts` | 138 | 147 | 147 | 0 | 366 | 366 | Not run; no code or test files changed. | No-op recommended. Current production file is roughly old-sized, no live caller needs the old `projectActualDockWrites` wrapper, and the remaining delta preserves Stage 5 `preserveAbsentTripKeys` replacement semantics without re-adding `ScheduleKey`. | Pending orchestrator review |
+| 9 | `domain/events/actual.ts` | 108 | 87 | 78 | 0 | 186 | 201 | `bun test convex/domain/vesselOrchestration/updateEvents/tests convex/domain/events/tests/actual.test.ts convex/functions/events/eventsActual/tests` passed, 26 tests; `bun run check:fix`, `bun run type-check`, `bun run convex:typecheck` passed. | Approved by orchestrator. Inlined anchor resolution; aligned row `ScheduledDeparture` with old three-part expression; added runtime-guard test. See Stage 9 handoff. | Committed `6a6847e6` |
 
 ## Notes
+
 
 - Stage 1 remains two raw lines longer than old code because it preserves the
   current `DockEventType` type export. Revisit during Stage 20 barrel/export
@@ -46,3 +48,7 @@ compact audit trail.
 - Stage 8 is intentionally no-op. The production file is only 9 raw lines over
   old while carrying current direct helper exports and the approved Stage 5
   physical-only preservation mechanism.
+- Stage 9 production `actual.ts` is below the old split baseline (108 lines
+  combined on `events-old-reference`) because contracts and normalization live in
+  one file, anchor resolution is inlined, and `ScheduleKey` stays off persisted
+  rows per Stage 6. Test LoC rose due to the runtime-guard case.

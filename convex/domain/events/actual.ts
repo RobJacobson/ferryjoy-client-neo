@@ -29,8 +29,10 @@ type ConvexActualDockWritePersistable = {
  * Builds one persisted actual dock event from a sparse write.
  *
  * EventKey defaults from TripKey and EventType when omitted. SailingDay derives
- * from EventActualTime first, then ScheduledDeparture, and ScheduledDeparture
- * falls back to EventActualTime so physical-only writes remain persistable.
+ * from EventActualTime first, then ScheduledDeparture. Row ScheduledDeparture
+ * prefers write.ScheduledDeparture, then EventActualTime, then the anchor ms.
+ * At least one of EventActualTime or ScheduledDeparture must be present for
+ * the calendar anchor (runtime guard; the persistable type encodes this).
  *
  * @param write - Persistable sparse actual dock write
  * @param updatedAt - Timestamp to stamp onto the normalized row
@@ -40,12 +42,23 @@ const buildActualDockEventFromWrite = (
   write: ConvexActualDockWritePersistable,
   updatedAt: number
 ): ConvexActualDockEvent => {
-  const anchorMs = getActualDockWriteAnchorMs(write);
+  let anchorMs: number;
+  if (write.EventActualTime !== undefined) {
+    anchorMs = write.EventActualTime;
+  } else if (write.ScheduledDeparture !== undefined) {
+    anchorMs = write.ScheduledDeparture;
+  } else {
+    throw new Error(
+      "Persistable actual dock write requires an anchor timestamp."
+    );
+  }
+
   const eventKey =
     write.EventKey ??
     buildPhysicalActualEventKey(write.TripKey, write.EventType);
   const sailingDay = write.SailingDay ?? getSailingDay(new Date(anchorMs));
-  const scheduledDeparture = write.ScheduledDeparture ?? anchorMs;
+  const scheduledDeparture =
+    write.ScheduledDeparture ?? write.EventActualTime ?? anchorMs;
 
   return {
     EventKey: eventKey,
@@ -59,28 +72,6 @@ const buildActualDockEventFromWrite = (
     EventOccurred: true,
     EventActualTime: write.EventActualTime,
   };
-};
-
-/**
- * Resolves the timestamp anchor from a persistable actual dock write.
- *
- * @param write - Persistable sparse actual dock write
- * @returns EventActualTime when present, otherwise ScheduledDeparture
- */
-const getActualDockWriteAnchorMs = (
-  write: ConvexActualDockWritePersistable
-): number => {
-  if (write.EventActualTime !== undefined) {
-    return write.EventActualTime;
-  }
-
-  if (write.ScheduledDeparture !== undefined) {
-    return write.ScheduledDeparture;
-  }
-
-  throw new Error(
-    "Persistable actual dock write requires an anchor timestamp."
-  );
 };
 
 export type { ConvexActualDockWritePersistable };

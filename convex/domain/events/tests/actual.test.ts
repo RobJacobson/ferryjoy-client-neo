@@ -92,4 +92,19 @@ describe("buildActualDockEventFromWrite", () => {
 
     expect(row.ScheduledDeparture).toBe(at(12, 23));
   });
+
+  it("throws when neither EventActualTime nor ScheduledDeparture is present", () => {
+    expect(() =>
+      buildActualDockEventFromWrite(
+        {
+          TripKey: "trip-a",
+          VesselAbbrev: "WEN",
+          TerminalAbbrev: "P52",
+          EventType: "dep-dock",
+          EventOccurred: true,
+        } as ConvexActualDockWritePersistable,
+        at(15, 0)
+      )
+    ).toThrow("Persistable actual dock write requires an anchor timestamp.");
+  });
 });

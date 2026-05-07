@@ -4,9 +4,9 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  type ConvexScheduledDockEvent,
   findNextDepartureEvent,
   inferScheduledSegmentFromDepartureEvent,
-  type ConvexScheduledDockEvent,
 } from "../scheduled";
 
 describe("inferScheduledSegmentFromDepartureEvent", () => {
