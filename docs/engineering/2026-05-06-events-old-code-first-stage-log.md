@@ -14,7 +14,8 @@ compact audit trail.
 | 3 | `eventsScheduled/mutations.ts` | 81 | 84 | 86 | 0 | 262 | 262 | `bun test convex/functions/events/eventsScheduled/tests/upsertScheduledRowsForSailingDay.test.ts` passed, 4 tests | Revised after owner feedback. Entry was already tight, so documentation was preserved. Only code-shape change is restoring the old `scheduledRowsEqual` helper name while keeping strict optional comparison. | Committed `42a96a70` |
 | 4 | `domain/events/scheduled.ts` | 37 | 500 | 139 | 0 | 121 | 107 | `bun test convex/domain/events/tests/scheduled.test.ts` passed, 2 tests | Implemented approved old-code-first continuity surface. Kept only old type contracts, `inferScheduledSegmentFromDepartureEvent`, `findNextDepartureEvent`, and private support helpers; deferred reload builders as Stage 5 blockers. | Committed `b154545d` |
 | 5 | scheduled + actual reload reseed | 1,462 | 903 | 1,556 | 0 | 516 | 690 | `bun test convex/domain/events/tests/actual.test.ts convex/domain/events/tests/reload.test.ts convex/functions/events/eventsActual/tests/upsertActualDockRows.test.ts convex/functions/events/sync/tests/reloadMutations.test.ts` passed, 13 tests; `bun run type-check` passed; `bun run convex:typecheck` passed. | Implemented required old reseed behavior in flat `domain/events/reload.ts`, moved reload coupling out of `actual.ts`, and preserved physical-only actual rows through physical-only TripKey context because `eventsActual` no longer stores `ScheduleKey`. Requires owner approval for the 1,142-LoC helper exceeding the plan-first threshold, though total production LoC is close to the corrected old baseline. | Committed `0fcd5703` |
-| 6 | `eventsActual/schemas.ts` | 38 | 28 | 28 | 0 | 0 | 0 | Not run; no code changed. Orchestrator reviewed schema callers and confirmed no persisted actual-row caller requires `ScheduleKey`. | No-op recommended. Current schema is already smaller than old, keeps shared `common` event type import, and leaves physical-only preservation in Stage 5 TripKey context instead of re-adding `ScheduleKey`. | Pending owner approval |
+| 6 | `eventsActual/schemas.ts` | 38 | 28 | 28 | 0 | 0 | 0 | Not run; no code changed. Orchestrator reviewed schema callers and confirmed no persisted actual-row caller requires `ScheduleKey`. | No-op recommended. Current schema is already smaller than old, keeps shared `common` event type import, and leaves physical-only preservation in Stage 5 TripKey context instead of re-adding `ScheduleKey`. | Committed `305f8eb9` |
+| 7 | `eventsActual/queries.ts` | 25 | 75 | 55 | 0 | 207 | 154 | `bun test convex/functions/events/eventsActual/tests/listActualDockEventsForVesselSailingDay.test.ts` passed, 4 tests | Inlined the local-only reader into the public query and reduced focused test harness boilerplate. Kept the live app query, metadata stripping, and deterministic ordering. | Pending orchestrator review |
 
 ## Notes
 
@@ -38,3 +39,6 @@ compact audit trail.
   size tradeoff before commit.
 - Stage 6 is intentionally no-op unless a future caller proves `ScheduleKey`
   belongs back on persisted `eventsActual` rows.
+- Stage 7 remains larger than old code because the old baseline had no public
+  app query wrapper, return validator, metadata stripping, or deterministic
+  app-facing sort.
