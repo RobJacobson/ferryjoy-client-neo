@@ -9,10 +9,14 @@ compact audit trail.
 
 | Stage | Scope | Prod LoC old | Prod LoC before | Prod LoC after | Test LoC old | Test LoC before | Test LoC after | Verification | Review result | Commit |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |
-| 1 | `eventsScheduled/schemas.ts` | 26 | 28 | 28 | 0 | 0 | 0 | `bun test convex/functions/events/eventsScheduled/tests/listScheduledDockEventsForVesselSailingDay.test.ts convex/functions/events/eventsScheduled/tests/upsertScheduledRowsForSailingDay.test.ts` passed, 8 tests | Approved by orchestrator; owner approval pending. Kept `DockEventType` only for current barrel compatibility. | Pending |
+| 1 | `eventsScheduled/schemas.ts` | 26 | 28 | 28 | 0 | 0 | 0 | `bun test convex/functions/events/eventsScheduled/tests/listScheduledDockEventsForVesselSailingDay.test.ts convex/functions/events/eventsScheduled/tests/upsertScheduledRowsForSailingDay.test.ts` passed, 8 tests | Approved by orchestrator. Kept `DockEventType` only for current barrel compatibility. | Committed `3c707c56` |
+| 2 | `eventsScheduled/queries.ts` | 74 | 112 | 78 | 0 | 190 | 190 | `bun test convex/functions/events/eventsScheduled/tests/listScheduledDockEventsForVesselSailingDay.test.ts` passed, 4 tests | Approved by orchestrator; owner approval pending. Kept public app query, direct reader import, and compact deterministic ordering; deleted old internal wrappers and verbose sort helper split. | Pending |
 
 ## Notes
 
 - Stage 1 remains two raw lines longer than old code because it preserves the
   current `DockEventType` type export. Revisit during Stage 20 barrel/export
   surface cleanup if no live caller appears.
+- Stage 2 remains four raw lines longer than old code because current live
+  callers require a public app query plus an exported reader, and focused tests
+  require stable scheduled timeline ordering.

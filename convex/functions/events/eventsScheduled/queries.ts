@@ -1,9 +1,9 @@
 /**
- * Convex queries for eventsScheduled.
+ * Reads scheduled dock events by vessel and sailing day.
  *
- * Scheduled dock rows are read by client subscriptions and by the vessel
- * orchestrator schedule lookup path. This module keeps the indexed read and
- * deterministic timeline ordering table-local.
+ * The app subscribes through the public query while vessel-trip continuity code
+ * imports the same reader directly, so both paths share one indexed read and
+ * timeline ordering contract.
  */
 
 import type { QueryCtx } from "_generated/server";
@@ -15,18 +15,8 @@ import {
   eventsScheduledSchema,
 } from "./schemas";
 
-type ScheduledQueryArgs = {
-  vesselAbbrev: string;
-  sailingDay: string;
-};
-
 /**
  * Loads scheduled dock rows for one vessel and sailing day.
- *
- * Uses the vessel/day index, removes Convex document metadata, and applies the
- * local scheduled ordering required by timeline reads and orchestrator rollover
- * pools. Arrival rows sort before departure rows when their boundary times are
- * equal.
  *
  * @param ctx - Convex read context exposing database access
  * @param args - Vessel and sailing-day filters
@@ -34,7 +24,7 @@ type ScheduledQueryArgs = {
  */
 const readScheduledDockEventsForVesselSailingDay = async (
   ctx: Pick<QueryCtx, "db">,
-  args: ScheduledQueryArgs
+  args: { vesselAbbrev: string; sailingDay: string }
 ): Promise<ConvexScheduledDockEvent[]> => {
   const docs = await ctx.db
     .query("eventsScheduled")
@@ -43,15 +33,11 @@ const readScheduledDockEventsForVesselSailingDay = async (
     )
     .collect();
 
-  return docs.map(stripConvexMeta).sort(sortScheduledDockEvents);
+  return docs.map(stripConvexMeta).sort(compareScheduledDockEvents);
 };
 
 /**
  * Public query listing scheduled dock events for a vessel/day scope.
- *
- * Delegates to the internal reader so production lookups and client
- * subscriptions share exactly the same index use, metadata stripping, and
- * ordering.
  *
  * @param ctx - Convex query context
  * @param args - Vessel and sailing-day filters
@@ -68,43 +54,23 @@ const listScheduledDockEventsForVesselSailingDay = query({
 });
 
 /**
- * Sorts scheduled dock rows in stable chronological order.
- *
- * EventScheduledTime carries the boundary instant when present; ScheduledDeparture
- * is the stable fallback. Arrival-before-departure ties keep a vessel arriving
- * at a dock before the next departure from that same boundary.
+ * Compares scheduled dock rows by timeline order.
  *
  * @param left - First scheduled dock row
  * @param right - Second scheduled dock row
  * @returns Numeric sort result
  */
-const sortScheduledDockEvents = (
+const compareScheduledDockEvents = (
   left: ConvexScheduledDockEvent,
   right: ConvexScheduledDockEvent
 ): number =>
-  getScheduledBoundaryTime(left) - getScheduledBoundaryTime(right) ||
-  getScheduledEventTypeRank(left) - getScheduledEventTypeRank(right) ||
+  (left.EventScheduledTime ?? left.ScheduledDeparture) -
+    (right.EventScheduledTime ?? right.ScheduledDeparture) ||
+  (left.EventType === "arv-dock" ? 0 : 1) -
+    (right.EventType === "arv-dock" ? 0 : 1) ||
   left.ScheduledDeparture - right.ScheduledDeparture ||
   left.TerminalAbbrev.localeCompare(right.TerminalAbbrev) ||
   left.Key.localeCompare(right.Key);
-
-/**
- * Resolves the comparable boundary time for a scheduled dock row.
- *
- * @param row - Scheduled dock row to compare
- * @returns EventScheduledTime when present, otherwise ScheduledDeparture
- */
-const getScheduledBoundaryTime = (row: ConvexScheduledDockEvent): number =>
-  row.EventScheduledTime ?? row.ScheduledDeparture;
-
-/**
- * Ranks arrivals before departures for equal scheduled boundary times.
- *
- * @param row - Scheduled dock row to rank
- * @returns Zero for arrivals and one for departures
- */
-const getScheduledEventTypeRank = (row: ConvexScheduledDockEvent): number =>
-  row.EventType === "arv-dock" ? 0 : 1;
 
 export {
   listScheduledDockEventsForVesselSailingDay,
