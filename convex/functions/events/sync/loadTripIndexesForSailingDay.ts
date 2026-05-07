@@ -9,7 +9,7 @@ import type { MutationCtx } from "_generated/server";
 import {
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
-} from "domain/events/actual";
+} from "domain/events/reload";
 
 /**
  * Loads active and completed trips for one sailing day.

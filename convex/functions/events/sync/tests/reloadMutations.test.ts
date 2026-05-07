@@ -37,7 +37,7 @@ describe("split dock-event reload mutations", () => {
     ).mockResolvedValue(undefined);
     const actualSpy = spyOn(
       eventsActual,
-      "upsertActualDockRows"
+      "replaceActualRowsForSailingDay"
     ).mockResolvedValue(undefined);
     const ctx = makeEmptyDbMutationCtx();
 
@@ -64,7 +64,9 @@ describe("split dock-event reload mutations", () => {
     expect(scheduledSpy).toHaveBeenCalledTimes(1);
     expect(scheduledSpy).toHaveBeenCalledWith(ctx, "2026-04-10", []);
     expect(actualSpy).toHaveBeenCalledTimes(1);
-    expect(actualSpy).toHaveBeenCalledWith(ctx, []);
+    expect(actualSpy).toHaveBeenCalledWith(ctx, "2026-04-10", [], {
+      preserveAbsentTripKeys: new Set(),
+    });
   });
 });
 

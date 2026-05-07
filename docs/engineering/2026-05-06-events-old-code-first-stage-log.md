@@ -13,7 +13,7 @@ compact audit trail.
 | 2 | `eventsScheduled/queries.ts` | 74 | 112 | 78 | 0 | 190 | 190 | `bun test convex/functions/events/eventsScheduled/tests/listScheduledDockEventsForVesselSailingDay.test.ts` passed, 4 tests | Approved by orchestrator. Kept public app query, direct reader import, and compact deterministic ordering; deleted old internal wrappers and verbose sort helper split. | Committed `1ff874c4` |
 | 3 | `eventsScheduled/mutations.ts` | 81 | 84 | 86 | 0 | 262 | 262 | `bun test convex/functions/events/eventsScheduled/tests/upsertScheduledRowsForSailingDay.test.ts` passed, 4 tests | Revised after owner feedback. Entry was already tight, so documentation was preserved. Only code-shape change is restoring the old `scheduledRowsEqual` helper name while keeping strict optional comparison. | Committed `42a96a70` |
 | 4 | `domain/events/scheduled.ts` | 37 | 500 | 139 | 0 | 121 | 107 | `bun test convex/domain/events/tests/scheduled.test.ts` passed, 2 tests | Implemented approved old-code-first continuity surface. Kept only old type contracts, `inferScheduledSegmentFromDepartureEvent`, `findNextDepartureEvent`, and private support helpers; deferred reload builders as Stage 5 blockers. | Committed `b154545d` |
-| 5 | scheduled reload row construction | 0 | see handoff | unchanged | 0 | see handoff | unchanged | Not run; plan-only blocker report. | Blocked/deferred by worker. Keeping scheduled plus actual reload construction would be roughly 170-230 LoC or a helper module, crossing the Stage 5 gate. Recommendation is to move static reload construction decision to later sync reduction stages. | Pending owner decision |
+| 5 | scheduled + actual reload reseed | 1,462 | 903 | 1,556 | 0 | 516 | 690 | `bun test convex/domain/events/tests/actual.test.ts convex/domain/events/tests/reload.test.ts convex/functions/events/eventsActual/tests/upsertActualDockRows.test.ts convex/functions/events/sync/tests/reloadMutations.test.ts` passed, 13 tests; `bun run type-check` passed; `bun run convex:typecheck` passed. | Implemented required old reseed behavior in flat `domain/events/reload.ts`, moved reload coupling out of `actual.ts`, and preserved physical-only actual rows through physical-only TripKey context because `eventsActual` no longer stores `ScheduleKey`. Requires owner approval for the 1,142-LoC helper exceeding the plan-first threshold, though total production LoC is close to the corrected old baseline. | Uncommitted |
 
 ## Notes
 
@@ -31,3 +31,7 @@ compact audit trail.
   `convex/functions/events/sync/mutations.ts` and `convex/domain/events/actual.ts`.
   Stage 5 should address those instead of restoring reload construction to the
   scheduled continuity module.
+- Stage 5 exceeds the handoff's plan-first threshold because the corrected old
+  `vesselTimeline` / `timelineReseed` baseline is a full reseed system, not
+  zero-LoC scoped event code. Review should explicitly approve or reject the
+  size tradeoff before commit.

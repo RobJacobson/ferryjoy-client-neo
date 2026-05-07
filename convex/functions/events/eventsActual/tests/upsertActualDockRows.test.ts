@@ -8,7 +8,10 @@
 import { describe, expect, it } from "bun:test";
 import type { Doc, Id } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
-import { upsertActualDockRows } from "../mutations";
+import {
+  replaceActualRowsForSailingDay,
+  upsertActualDockRows,
+} from "../mutations";
 import type { ConvexActualDockEvent } from "../schemas";
 
 type ActualDoc = Doc<"eventsActual">;
@@ -17,7 +20,7 @@ type QueryCall = {
   tableName: string;
   indexName: string;
   filters: Array<{ fieldName: string; value: string }>;
-  terminal: "unique";
+  terminal: "collect" | "unique";
 };
 
 type MockMutationCtx = {
@@ -31,6 +34,7 @@ type MockMutationCtx = {
     id: Id<"eventsActual">;
     row: ConvexActualDockEvent;
   }>;
+  deletes: Id<"eventsActual">[];
 };
 
 /**
@@ -43,6 +47,7 @@ const makeMutationCtx = (rows: ActualDoc[]): MockMutationCtx => {
   const queryCalls: MockMutationCtx["queryCalls"] = [];
   const inserts: MockMutationCtx["inserts"] = [];
   const replacements: MockMutationCtx["replacements"] = [];
+  const deletes: MockMutationCtx["deletes"] = [];
 
   const ctx = {
     db: {
@@ -61,6 +66,15 @@ const makeMutationCtx = (rows: ActualDoc[]): MockMutationCtx => {
               : [];
 
           return {
+            collect: async () => {
+              queryCalls.push({
+                tableName,
+                indexName,
+                filters: range.filters,
+                terminal: "collect",
+              });
+              return matchingRows;
+            },
             unique: async () => {
               queryCalls.push({
                 tableName,
@@ -79,10 +93,13 @@ const makeMutationCtx = (rows: ActualDoc[]): MockMutationCtx => {
       replace: async (id: Id<"eventsActual">, row: ConvexActualDockEvent) => {
         replacements.push({ id, row });
       },
+      delete: async (id: Id<"eventsActual">) => {
+        deletes.push(id);
+      },
     },
   } as unknown as MutationCtx;
 
-  return { ctx, queryCalls, inserts, replacements };
+  return { ctx, queryCalls, inserts, replacements, deletes };
 };
 
 /**
@@ -283,5 +300,67 @@ describe("upsertActualDockRows", () => {
         row: changedOccurrence,
       },
     ]);
+  });
+});
+
+describe("replaceActualRowsForSailingDay", () => {
+  it("deletes stale same-day rows, preserves absent physical-only rows, and upserts the replacement slice", async () => {
+    const stale = actualDoc({
+      _id: "actual-stale" as Id<"eventsActual">,
+      EventKey: "stale",
+      TripKey: "trip-stale-schedule",
+      SailingDay: "2026-03-25",
+    });
+    const physicalOnly = actualDoc({
+      _id: "actual-physical-only" as Id<"eventsActual">,
+      EventKey: "physical-only",
+      TripKey: "trip-physical-only",
+      SailingDay: "2026-03-25",
+    });
+    const changed = actualDoc({
+      _id: "actual-changed" as Id<"eventsActual">,
+      EventKey: "changed",
+      SailingDay: "2026-03-25",
+      TerminalAbbrev: "P52",
+    });
+    const otherDay = actualDoc({
+      _id: "actual-other-day" as Id<"eventsActual">,
+      EventKey: "other-day",
+      SailingDay: "2026-03-26",
+    });
+    const changedNext = actualRow({
+      EventKey: "changed",
+      SailingDay: "2026-03-25",
+      TerminalAbbrev: "BBI",
+    });
+    const inserted = actualRow({
+      EventKey: "inserted",
+      SailingDay: "2026-03-25",
+    });
+    const mock = makeMutationCtx([stale, physicalOnly, changed, otherDay]);
+
+    await replaceActualRowsForSailingDay(
+      mock.ctx,
+      "2026-03-25",
+      [changedNext, inserted],
+      { preserveAbsentTripKeys: new Set(["trip-physical-only"]) }
+    );
+
+    expect(mock.deletes).toEqual(["actual-stale" as Id<"eventsActual">]);
+    expect(mock.inserts).toEqual([
+      { tableName: "eventsActual", row: inserted },
+    ]);
+    expect(mock.replacements).toEqual([
+      {
+        id: "actual-changed" as Id<"eventsActual">,
+        row: changedNext,
+      },
+    ]);
+    expect(mock.queryCalls[0]).toEqual({
+      tableName: "eventsActual",
+      indexName: "by_sailing_day",
+      filters: [{ fieldName: "SailingDay", value: "2026-03-25" }],
+      terminal: "collect",
+    });
   });
 });

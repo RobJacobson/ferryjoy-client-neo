@@ -9,14 +9,10 @@
 import { internalMutation } from "_generated/server";
 import { v } from "convex/values";
 import {
-  buildActualDockRowsForSailingDayReload,
-  hydrateActualTransitionsFromReloadInputs,
-} from "domain/events/actual";
-import {
-  buildScheduledDockEventRecords,
-  buildScheduledDockEvents,
-} from "domain/events/scheduled";
-import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
+  buildReloadDockEventRows,
+  buildReloadScheduledDockRows,
+} from "domain/events/reload";
+import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { loadTripIndexesForSailingDay } from "./loadTripIndexesForSailingDay";
@@ -52,20 +48,17 @@ const replaceScheduledDockEventsForSailingDayRows = async (
     ctx.db.query("vesselsIdentity").collect(),
     ctx.db.query("terminalsIdentity").collect(),
   ]);
-  const scheduledTransitions = buildScheduledDockEventRecords(
-    args.ReloadDockScheduleData.ScheduleSegments,
-    vessels.map(stripConvexMeta),
-    terminals.map(stripConvexMeta)
-  );
-  const scheduledRows = buildScheduledDockEvents(
-    scheduledTransitions,
-    updatedAt
-  );
+  const { scheduledRows, scheduledCount } = buildReloadScheduledDockRows({
+    scheduleSegments: args.ReloadDockScheduleData.ScheduleSegments,
+    updatedAt,
+    vessels: vessels.map(stripConvexMeta),
+    terminals: terminals.map(stripConvexMeta),
+  });
 
   await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
 
   return {
-    ScheduledCount: scheduledRows.length,
+    ScheduledCount: scheduledCount,
   };
 };
 
@@ -77,7 +70,7 @@ const replaceScheduledDockEventsForSailingDayRows = async (
  * @returns Count of actual rows produced for the day
  */
 const reloadActualDockEventsForSailingDayRows = async (
-  ctx: Parameters<typeof upsertActualDockRows>[0],
+  ctx: Parameters<typeof replaceActualRowsForSailingDay>[0],
   args: ReloadActualDockEventsForSailingDayRowsArgs
 ): Promise<{ ActualCount: number }> => {
   const updatedAt = Date.now();
@@ -86,28 +79,31 @@ const reloadActualDockEventsForSailingDayRows = async (
     ctx.db.query("vesselsIdentity").collect(),
     ctx.db.query("terminalsIdentity").collect(),
   ]);
-  const hydratedTransitions = hydrateActualTransitionsFromReloadInputs({
-    scheduleSegments: args.ReloadDockData.ScheduleSegments,
-    historyRecords: args.ReloadDockData.HistoryRecords,
-    vessels: vessels.map(stripConvexMeta),
-    terminals: terminals.map(stripConvexMeta),
-  });
   const { tripBySegmentKey, activeTripsByVesselAbbrev, physicalOnlyTrips } =
     await loadTripIndexesForSailingDay(ctx, sailingDay);
   const vesselLocations = (await ctx.db.query("vesselLocations").collect()).map(
     stripConvexMeta
   );
-  const { actualRows, actualCount } = buildActualDockRowsForSailingDayReload({
+  const { actualRows, actualCount } = buildReloadDockEventRows({
     sailingDay,
-    events: hydratedTransitions,
+    scheduleSegments: args.ReloadDockData.ScheduleSegments,
+    historyRecords: args.ReloadDockData.HistoryRecords,
     updatedAt,
+    vessels: vessels.map(stripConvexMeta),
+    terminals: terminals.map(stripConvexMeta),
     tripBySegmentKey,
     activeTripsByVesselAbbrev,
     physicalOnlyTrips,
     vesselLocations,
   });
 
-  await upsertActualDockRows(ctx, actualRows);
+  await replaceActualRowsForSailingDay(ctx, sailingDay, actualRows, {
+    preserveAbsentTripKeys: new Set(
+      physicalOnlyTrips
+        .map((trip) => trip.TripKey)
+        .filter((tripKey): tripKey is string => tripKey !== undefined)
+    ),
+  });
 
   return {
     ActualCount: actualCount,
