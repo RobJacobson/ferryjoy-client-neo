@@ -57,11 +57,23 @@ const buildPredictedDockWriteBatch = (
     return null;
   }
 
+  const rows: ConvexPredictedDockWriteRow[] = [];
+  const currentDeparture = buildCurrentDeparturePredictionRow(trip);
+  if (currentDeparture !== null) {
+    rows.push(currentDeparture);
+  }
+  rows.push(...buildCurrentArrivalPredictionRows(trip));
+
+  const nextDeparture = buildNextDeparturePredictionRow(trip);
+  if (nextDeparture !== null) {
+    rows.push(nextDeparture);
+  }
+
   return {
     VesselAbbrev: trip.VesselAbbrev,
     SailingDay: trip.SailingDay,
     TargetKeys: targetKeys,
-    Rows: buildPredictedDockWriteRows(trip),
+    Rows: rows,
   };
 };
 
@@ -117,21 +129,6 @@ const getPredictedBoundaryTargetKeys = (trip: {
     )
   );
 };
-
-/**
- * Builds all sparse predicted rows implied by the trip prediction fields.
- *
- * @param trip - Prediction-enriched trip row
- * @returns Deduped write rows for the trip's prediction scope
- */
-const buildPredictedDockWriteRows = (
-  trip: ConvexVesselTripWithML
-): ConvexPredictedDockWriteRow[] =>
-  dedupePredictedDockRows([
-    ...toArray(buildCurrentDeparturePredictionRow(trip)),
-    ...buildCurrentArrivalPredictionRows(trip),
-    ...toArray(buildNextDeparturePredictionRow(trip)),
-  ]);
 
 /**
  * Builds the current departure ML row when prerequisites are present.
@@ -340,22 +337,6 @@ const buildPredictedDockWriteRow = (
 });
 
 /**
- * Dedupes predicted rows by boundary key, prediction type, and source.
- *
- * Iteration order stays stable and later rows win for a repeated composite key,
- * matching the table mutation merge behavior.
- *
- * @param rows - Candidate rows from the projection phases
- * @returns Deterministically deduped sparse write rows
- */
-const dedupePredictedDockRows = (
-  rows: ConvexPredictedDockWriteRow[]
-): ConvexPredictedDockWriteRow[] =>
-  Array.from(
-    new Map(rows.map((row) => [predictedDockCompositeKey(row), row])).values()
-  );
-
-/**
  * Resolves the current trip segment key for prediction boundaries.
  *
  * @param trip - Trip with optional schedule alignment and physical identity
@@ -365,14 +346,6 @@ const getCurrentLegSegment = (trip: {
   ScheduleKey?: string;
   TripKey?: string;
 }): string | undefined => trip.ScheduleKey ?? trip.TripKey;
-
-/**
- * Converts a nullable value to a zero-or-one element array.
- *
- * @param value - Nullable projected row
- * @returns Empty array for null, otherwise an array containing value
- */
-const toArray = <T>(value: T | null): T[] => (value === null ? [] : [value]);
 
 export {
   buildPredictedDockClearBatch,
