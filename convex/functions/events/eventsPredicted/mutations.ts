@@ -6,7 +6,7 @@
  * shared domain helper supplies only the stable composite prediction identity.
  */
 
-import type { Doc, Id } from "_generated/dataModel";
+import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import { predictedDockCompositeKey } from "domain/events/predicted";
 import { buildVesselSailingDayScopeKey } from "shared/keys";
@@ -35,11 +35,6 @@ type MergedPredictedDockScope = {
   RowsByComposite: Map<string, ConvexPredictedDockWriteRow>;
 };
 
-type PredictedDockReplacement = {
-  existingId: Id<"eventsPredicted">;
-  row: ConvexPredictedDockEvent;
-};
-
 /**
  * Reconciles sparse predicted dock batches by vessel and sailing day.
  *
@@ -56,7 +51,34 @@ const upsertPredictedDockBatches = async (
   batches: ReadonlyArray<PredictedDockWriteBatchLike>
 ): Promise<void> => {
   const updatedAt = Date.now();
-  const scopesByKey = mergePredictedDockBatchesByScope(batches);
+  const scopesByKey = new Map<string, MergedPredictedDockScope>();
+
+  for (const batch of batches) {
+    const scopeKey = buildVesselSailingDayScopeKey(
+      batch.VesselAbbrev,
+      batch.SailingDay
+    );
+    const scope = scopesByKey.get(scopeKey);
+
+    if (scope !== undefined) {
+      for (const targetKey of batch.TargetKeys) {
+        scope.TargetKeys.add(targetKey);
+      }
+      for (const row of batch.Rows) {
+        scope.RowsByComposite.set(predictedDockCompositeKey(row), row);
+      }
+      continue;
+    }
+
+    scopesByKey.set(scopeKey, {
+      VesselAbbrev: batch.VesselAbbrev,
+      SailingDay: batch.SailingDay,
+      TargetKeys: new Set(batch.TargetKeys),
+      RowsByComposite: new Map(
+        batch.Rows.map((row) => [predictedDockCompositeKey(row), row])
+      ),
+    });
+  }
 
   for (const scope of scopesByKey.values()) {
     if (scope.TargetKeys.size === 0) {
@@ -72,22 +94,53 @@ const upsertPredictedDockBatches = async (
       )
       .collect();
 
-    const reconciliation = reconcilePredictedDockScope({
-      scope,
-      existingRows,
-      updatedAt,
-    });
+    const existingByComposite = new Map(
+      existingRows.map((row) => [predictedDockCompositeKey(row), row])
+    );
+    const incomingCompositeKeys = new Set(scope.RowsByComposite.keys());
+    const incomingSourceKeys = buildIncomingSourceKeys(
+      scope.RowsByComposite.values()
+    );
 
-    for (const id of reconciliation.deletes) {
-      await ctx.db.delete(id);
+    for (const existing of existingRows) {
+      if (!scope.TargetKeys.has(existing.Key)) {
+        continue;
+      }
+
+      const compositeKey = predictedDockCompositeKey(existing);
+      if (incomingCompositeKeys.has(compositeKey)) {
+        continue;
+      }
+
+      if (shouldPreserveOmittedDepartNextMlRow(existing, incomingSourceKeys)) {
+        continue;
+      }
+
+      await ctx.db.delete(existing._id);
+      existingByComposite.delete(compositeKey);
     }
 
-    for (const row of reconciliation.inserts) {
-      await ctx.db.insert("eventsPredicted", row);
-    }
+    for (const row of scope.RowsByComposite.values()) {
+      if (!scope.TargetKeys.has(row.Key)) {
+        continue;
+      }
 
-    for (const replacement of reconciliation.replacements) {
-      await ctx.db.replace(replacement.existingId, replacement.row);
+      const nextRow: ConvexPredictedDockEvent = {
+        ...row,
+        UpdatedAt: updatedAt,
+      };
+      const existing = existingByComposite.get(predictedDockCompositeKey(row));
+
+      if (existing === undefined) {
+        await ctx.db.insert("eventsPredicted", nextRow);
+        continue;
+      }
+
+      if (arePredictedRowsEqual(existing, nextRow)) {
+        continue;
+      }
+
+      await ctx.db.replace(existing._id, nextRow);
     }
   }
 };
@@ -134,146 +187,6 @@ const patchDepartNextMlRowsForDepBoundary = async (
   }
 
   return didPatch;
-};
-
-/**
- * Merges ordered predicted write batches into one object per table scope.
- *
- * Target keys are unioned and duplicate composite rows keep the later payload,
- * matching the order produced by a single orchestrator persistence flush.
- *
- * @param batches - Ordered sparse write batches
- * @returns Map of vessel and sailing-day scope keys to merged scopes
- */
-const mergePredictedDockBatchesByScope = (
-  batches: ReadonlyArray<PredictedDockWriteBatchLike>
-): Map<string, MergedPredictedDockScope> => {
-  const scopesByKey = new Map<string, MergedPredictedDockScope>();
-
-  for (const batch of batches) {
-    const scopeKey = buildVesselSailingDayScopeKey(
-      batch.VesselAbbrev,
-      batch.SailingDay
-    );
-    const scope = scopesByKey.get(scopeKey);
-
-    if (scope !== undefined) {
-      mergePredictedDockBatchIntoScope(scope, batch);
-      continue;
-    }
-
-    scopesByKey.set(scopeKey, {
-      VesselAbbrev: batch.VesselAbbrev,
-      SailingDay: batch.SailingDay,
-      TargetKeys: new Set(batch.TargetKeys),
-      RowsByComposite: new Map(
-        batch.Rows.map((row) => [predictedDockCompositeKey(row), row])
-      ),
-    });
-  }
-
-  return scopesByKey;
-};
-
-/**
- * Adds one batch into an existing merged prediction scope.
- *
- * @param scope - Existing merged vessel and sailing-day prediction scope
- * @param batch - Incoming batch that belongs to the same scope
- * @returns No return value; the merged scope is mutated in place
- */
-const mergePredictedDockBatchIntoScope = (
-  scope: MergedPredictedDockScope,
-  batch: PredictedDockWriteBatchLike
-): void => {
-  for (const targetKey of batch.TargetKeys) {
-    scope.TargetKeys.add(targetKey);
-  }
-
-  for (const row of batch.Rows) {
-    scope.RowsByComposite.set(predictedDockCompositeKey(row), row);
-  }
-};
-
-/**
- * Derives table writes for one merged predicted dock scope.
- *
- * Existing targeted rows missing from incoming composites are deleted unless
- * depart-next ML preservation applies. Incoming rows outside TargetKeys are
- * ignored so sparse callers cannot affect untargeted boundaries.
- *
- * @param args.scope - Merged scope to reconcile
- * @param args.existingRows - Stored documents for the scope
- * @param args.updatedAt - Fresh timestamp for inserted and replaced rows
- * @returns Delete, insert, and replace operations for the scope
- */
-const reconcilePredictedDockScope = (args: {
-  scope: MergedPredictedDockScope;
-  existingRows: Doc<"eventsPredicted">[];
-  updatedAt: number;
-}): {
-  deletes: Array<Id<"eventsPredicted">>;
-  inserts: ConvexPredictedDockEvent[];
-  replacements: PredictedDockReplacement[];
-} => {
-  const { scope, existingRows, updatedAt } = args;
-  const existingByComposite = new Map(
-    existingRows.map((row) => [predictedDockCompositeKey(row), row])
-  );
-  const incomingCompositeKeys = new Set(scope.RowsByComposite.keys());
-  const incomingSourceKeys = buildIncomingSourceKeys(
-    scope.RowsByComposite.values()
-  );
-  const deletes: Array<Id<"eventsPredicted">> = [];
-
-  for (const existing of existingRows) {
-    if (!scope.TargetKeys.has(existing.Key)) {
-      continue;
-    }
-
-    const compositeKey = predictedDockCompositeKey(existing);
-    if (incomingCompositeKeys.has(compositeKey)) {
-      continue;
-    }
-
-    if (shouldPreserveOmittedDepartNextMlRow(existing, incomingSourceKeys)) {
-      continue;
-    }
-
-    deletes.push(existing._id);
-    existingByComposite.delete(compositeKey);
-  }
-
-  const inserts: ConvexPredictedDockEvent[] = [];
-  const replacements: PredictedDockReplacement[] = [];
-
-  for (const row of scope.RowsByComposite.values()) {
-    if (!scope.TargetKeys.has(row.Key)) {
-      continue;
-    }
-
-    const nextRow: ConvexPredictedDockEvent = {
-      ...row,
-      UpdatedAt: updatedAt,
-    };
-    const existing = existingByComposite.get(predictedDockCompositeKey(row));
-
-    if (existing === undefined) {
-      inserts.push(nextRow);
-      continue;
-    }
-
-    if (arePredictedRowsEqual(existing, nextRow)) {
-      continue;
-    }
-
-    replacements.push({
-      existingId: existing._id,
-      row: nextRow,
-    });
-  }
-
-  return { deletes, inserts, replacements };
 };
 
 /**

@@ -22,6 +22,7 @@ compact audit trail.
 | 11 | `eventsPredicted/schemas.ts` | 64 | 62 | 62 | 0 | 0 | 0 | Not run; no code changed. | Approved by orchestrator. Current schema preserves the old validator/type surface, keeps live write-batch and prediction-source contracts, and is already two raw lines smaller than old. | Pending owner approval |
 | 12 | predicted public vessel-day list query | 18 comparable helper / 72 full file | 134 | 134 | 0 | 276 | 276 | Not run; no code or test files changed. | Approved by orchestrator. Current public-list path keeps the live app query, Convex return validator, metadata stripping, deterministic app-facing sort, and shared indexed reader; grouped-loader coupling belongs to Stage 13. | Pending owner approval |
 | 13 | predicted grouped trip loader | 33 grouped slice / 72 full file | 134 | 126 | 0 | 276 | 276 | `bun test convex/functions/events/eventsPredicted/tests/listPredictedDockEventsForVesselSailingDay.test.ts` passed, 5 tests | Approved by orchestrator. Restored the shared indexed reader to old-style raw stored rows, kept metadata stripping and deterministic sort only at the public query boundary, and avoided a second raw reader or options mode. | Pending owner approval |
+| 14 | predicted `upsertPredictedDockBatches` | about 148 upsert slice / 207 full file | 350 | 263 | 0 | 474 | 474 | `bun test convex/functions/events/eventsPredicted/tests/mutations.test.ts` passed, 7 tests | Approved by orchestrator. Inlined scope merge and direct delete/insert/replace reconciliation back into the upsert path, deleted write-plan helper indirection, and kept narrow depart-next ML omitted-row preservation for same-transaction leave-dock actualization. | Pending owner approval |
 
 ## Notes
 
@@ -87,3 +88,8 @@ compact audit trail.
   out of the shared indexed reader. `loadPredictedRowsGroupedForTrips` now reads
   raw stored rows like the old flow, while `listPredictedDockEventsForVesselSailingDay`
   still strips Convex metadata and sorts for the app-facing return validator.
+- Stage 14 restores the predicted sparse upsert to a direct old-style
+  reconciliation loop while retaining the current depart-next ML omission guard
+  needed by leave-dock patching. The remaining extra production lines over the
+  old writer are mostly the Stage 15 patch helper plus that preservation guard,
+  not a write-plan abstraction.
