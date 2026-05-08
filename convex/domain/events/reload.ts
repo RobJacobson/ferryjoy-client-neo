@@ -20,7 +20,7 @@ import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/
 import type {
   ConvexReloadDockHistoryRecord,
   ConvexReloadDockScheduleSegment,
-} from "functions/events/sync/reloadDockDataSchemas";
+} from "functions/events/sync/reloadDockPayload";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
@@ -89,7 +89,7 @@ type ActiveTripForPhysicalActualReconcile = {
   TripEnd?: number;
 };
 
-type BuildReloadDockEventRowsArgs = {
+type BuildReloadDockRowSliceArgs = {
   sailingDay: string;
   scheduleSegments: ConvexReloadDockScheduleSegment[];
   historyRecords: ConvexReloadDockHistoryRecord[];
@@ -105,10 +105,23 @@ type BuildReloadDockEventRowsArgs = {
   vesselLocations: ConvexVesselLocation[];
 };
 
-type BuildReloadDockEventRowsResult = {
+type BuildReloadDockSliceFromHydratedArgs = {
+  sailingDay: string;
+  events: DockBoundaryEventRecord[];
+  updatedAt: number;
+  tripBySegmentKey: Map<string, TripContextForActualRow>;
+  activeTripsByVesselAbbrev: Map<
+    string,
+    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+  >;
+  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
+  vesselLocations: ConvexVesselLocation[];
+};
+
+type BuildReloadDockSliceResult = {
   scheduledRows: ConvexScheduledDockEvent[];
-  actualRows: ConvexActualDockEvent[];
   scheduledCount: number;
+  actualRows: ConvexActualDockEvent[];
   actualCount: number;
 };
 
@@ -133,79 +146,61 @@ type ReloadActualDockWrite = {
 };
 
 /**
- * Builds scheduled dock rows for one static sailing-day reload.
+ * Hydrates schedule-derived boundary records with WSF history for reload.
  *
- * This is the scheduled-only half of the old reseed flow. Actual reload uses
- * buildReloadDockEventRows so history, physical rows, and live locations stay
- * assembled from the same seeded boundary records.
+ * Matches the old vessel timeline action step before the unified persistence
+ * mutation receives Events.
  *
  * @param args.scheduleSegments - Numeric schedule reload segments
- * @param args.updatedAt - Timestamp to stamp onto produced rows
- * @param args.vessels - Vessel identities for WSF segment resolution
- * @param args.terminals - Terminal identities for WSF segment resolution
- * @returns Scheduled rows plus the count represented by the normalized slice
+ * @param args.historyRecords - Numeric WSF history rows for the sailing day
+ * @param args.vessels - Vessel identities for adapter resolution
+ * @param args.terminals - Terminal identities for adapter resolution
+ * @returns Hydrated boundary event records for one sailing day
  */
-const buildReloadScheduledDockRows = ({
+const buildHydratedDockBoundaryEventsForReload = ({
   scheduleSegments,
-  updatedAt,
+  historyRecords,
   vessels,
   terminals,
 }: {
   scheduleSegments: ConvexReloadDockScheduleSegment[];
-  updatedAt: number;
+  historyRecords: ConvexReloadDockHistoryRecord[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-}): {
-  scheduledRows: ConvexScheduledDockEvent[];
-  scheduledCount: number;
-} => {
-  const normalizedEvents = buildScheduledDockEventRecords(
-    scheduleSegments,
-    vessels,
-    terminals
-  ).sort(sortDockBoundaryEventRecords);
-
-  return {
-    scheduledRows: buildScheduledDockEvents(normalizedEvents, updatedAt),
-    scheduledCount: normalizedEvents.length,
-  };
-};
-
-/**
- * Builds scheduled and actual dock rows for one static sailing-day reload.
- *
- * Schedule records are seeded first, history actuals hydrate those boundary
- * records, then actual rows are assembled from hydrated records, physical-only
- * trip evidence, and live-location reconciliation.
- *
- * @param args - Schedule, history, identity, trip, and location reload context
- * @returns Scheduled and actual rows plus operator-facing counts
- */
-const buildReloadDockEventRows = ({
-  sailingDay,
-  scheduleSegments,
-  historyRecords,
-  updatedAt,
-  vessels,
-  terminals,
-  tripBySegmentKey,
-  activeTripsByVesselAbbrev,
-  physicalOnlyTrips,
-  vesselLocations,
-}: BuildReloadDockEventRowsArgs): BuildReloadDockEventRowsResult => {
+}): DockBoundaryEventRecord[] => {
   const seededEvents = buildScheduledDockEventRecords(
     scheduleSegments,
     vessels,
     terminals
   );
-  const hydratedEvents = hydrateDockEventRecordsWithHistory({
+  return hydrateDockEventRecordsWithHistory({
     seededEvents,
     scheduleSegments,
     historyRecords,
     vessels,
     terminals,
   });
-  const normalizedEvents = normalizeScheduledDockSeams(hydratedEvents).sort(
+};
+
+/**
+ * Builds scheduled and actual dock rows from hydrated boundary events.
+ *
+ * Mirrors the old buildReseedTimelineSlice contract: one normalized event list
+ * drives both table projections plus live-location reconciliation.
+ *
+ * @param args - Hydrated events, sailing day, trip indexes, and locations
+ * @returns Scheduled and actual rows plus operator-facing counts
+ */
+const buildReloadDockSliceFromHydratedEvents = ({
+  sailingDay,
+  events,
+  updatedAt,
+  tripBySegmentKey,
+  activeTripsByVesselAbbrev,
+  physicalOnlyTrips,
+  vesselLocations,
+}: BuildReloadDockSliceFromHydratedArgs): BuildReloadDockSliceResult => {
+  const normalizedEvents = normalizeScheduledDockSeams(events).sort(
     sortDockBoundaryEventRecords
   );
   const scheduledRows = buildScheduledDockEvents(normalizedEvents, updatedAt);
@@ -229,10 +224,39 @@ const buildReloadDockEventRows = ({
 
   return {
     scheduledRows,
-    actualRows,
     scheduledCount: normalizedEvents.length,
+    actualRows,
     actualCount: actualRows.length,
   };
+};
+
+/**
+ * Builds scheduled and actual dock rows from raw reload schedule and history.
+ *
+ * Used by tests and any caller that still assembles numeric adapter payloads
+ * before loading trip context.
+ *
+ * @param args - Schedule, history, identities, trip indexes, and locations
+ * @returns Scheduled and actual rows plus operator-facing counts
+ */
+const buildReloadDockRowSlice = (
+  args: BuildReloadDockRowSliceArgs
+): BuildReloadDockSliceResult => {
+  const hydratedEvents = buildHydratedDockBoundaryEventsForReload({
+    scheduleSegments: args.scheduleSegments,
+    historyRecords: args.historyRecords,
+    vessels: args.vessels,
+    terminals: args.terminals,
+  });
+  return buildReloadDockSliceFromHydratedEvents({
+    sailingDay: args.sailingDay,
+    events: hydratedEvents,
+    updatedAt: args.updatedAt,
+    tripBySegmentKey: args.tripBySegmentKey,
+    activeTripsByVesselAbbrev: args.activeTripsByVesselAbbrev,
+    physicalOnlyTrips: args.physicalOnlyTrips,
+    vesselLocations: args.vesselLocations,
+  });
 };
 
 /**
@@ -1129,12 +1153,14 @@ const toAdapterHistoryRecord = (
 
 export type {
   ActiveTripForPhysicalActualReconcile,
+  BuildReloadDockSliceResult,
   DockBoundaryEventRecord,
   TripContextForActualRow,
 };
 export {
-  buildReloadDockEventRows,
-  buildReloadScheduledDockRows,
+  buildHydratedDockBoundaryEventsForReload,
+  buildReloadDockRowSlice,
+  buildReloadDockSliceFromHydratedEvents,
   buildScheduledDockEventRecords,
   hydrateDockEventRecordsWithHistory,
   indexActiveTripsByVesselAbbrev,

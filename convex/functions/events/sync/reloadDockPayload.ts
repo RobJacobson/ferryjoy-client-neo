@@ -1,13 +1,14 @@
 /**
- * Convex validators for dock-event reload payloads.
+ * Convex validators and payload types for dock-event reload boundaries.
  *
  * Actions convert adapter Date values into epoch milliseconds before crossing
- * the action-to-mutation boundary. The internal mutations then receive compact
- * numeric payloads for scheduled and actual table reloads.
+ * into internal mutations. These validators and inferred types define that
+ * boundary payload for scheduled and actual reload persistence.
  */
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
+import { dockEventTypeSchema } from "functions/events/eventsScheduled/schemas";
 
 const reloadDockScheduleSegmentSchema = v.object({
   VesselName: v.string(),
@@ -34,15 +35,23 @@ const reloadDockHistoryRecordSchema = v.object({
   EstArrival: v.optional(v.number()),
 });
 
-const reloadDockDataSchema = v.object({
+const reloadDockBoundaryEventRecordSchema = v.object({
+  SegmentKey: v.string(),
+  Key: v.string(),
+  VesselAbbrev: v.string(),
   SailingDay: v.string(),
-  ScheduleSegments: v.array(reloadDockScheduleSegmentSchema),
-  HistoryRecords: v.array(reloadDockHistoryRecordSchema),
+  ScheduledDeparture: v.number(),
+  TerminalAbbrev: v.string(),
+  EventType: dockEventTypeSchema,
+  EventScheduledTime: v.optional(v.number()),
+  EventPredictedTime: v.optional(v.number()),
+  EventOccurred: v.optional(v.literal(true)),
+  EventActualTime: v.optional(v.number()),
 });
 
-const reloadDockScheduleDataSchema = v.object({
+const reseedDockEventsForSailingDayArgsSchema = v.object({
   SailingDay: v.string(),
-  ScheduleSegments: v.array(reloadDockScheduleSegmentSchema),
+  Events: v.array(reloadDockBoundaryEventRecordSchema),
 });
 
 type ConvexReloadDockScheduleSegment = Infer<
@@ -51,18 +60,20 @@ type ConvexReloadDockScheduleSegment = Infer<
 type ConvexReloadDockHistoryRecord = Infer<
   typeof reloadDockHistoryRecordSchema
 >;
-type ConvexReloadDockData = Infer<typeof reloadDockDataSchema>;
-type ConvexReloadDockScheduleData = Infer<typeof reloadDockScheduleDataSchema>;
+type ConvexReloadDockBoundaryEventRecord = Infer<
+  typeof reloadDockBoundaryEventRecordSchema
+>;
+type ReseedDockEventsForSailingDayArgs = Infer<
+  typeof reseedDockEventsForSailingDayArgsSchema
+>;
 
 export type {
-  ConvexReloadDockData,
+  ConvexReloadDockBoundaryEventRecord,
   ConvexReloadDockHistoryRecord,
-  ConvexReloadDockScheduleData,
   ConvexReloadDockScheduleSegment,
+  ReseedDockEventsForSailingDayArgs,
 };
 export {
-  reloadDockDataSchema,
-  reloadDockHistoryRecordSchema,
-  reloadDockScheduleDataSchema,
-  reloadDockScheduleSegmentSchema,
+  reloadDockBoundaryEventRecordSchema,
+  reseedDockEventsForSailingDayArgsSchema,
 };

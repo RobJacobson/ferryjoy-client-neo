@@ -27,6 +27,8 @@ compact audit trail.
 | 16 | predicted projection helpers | 119 comparable: 62 contracts + 57 proposal mapper | 381 | 354 | 68 | 262 | 262 | `bun test convex/domain/events/tests/predicted.test.ts` passed, 11 tests | Approved by orchestrator. Inlined the one-call row assembly wrapper into `buildPredictedDockWriteBatch` and deleted defensive row dedupe plus generic nullable-to-array helper; kept target-key, boundary-row, selector, and actual-field copier helpers because they map live table-row behavior old proposal code did not own. | Pending owner approval |
 | 17 | sync cron boundary action | 84 action / 69 window / 122 cron | 91 action / 64 window / 121 cron | 91 action / 64 window / 121 cron | 0 | 70 | 70 | Not run; no code or test files changed. | Approved by orchestrator. Current boundary action and cron wiring are the old VesselTimeline DST-safe two-cron plus Pacific hour-three guard flow translated to event-table reloads; manual actions defer to Stage 18. | Pending owner approval |
 | 18 | sync manual/operator actions | about 43 manual/window slice / 84 full action file | about 45 manual/window slice / 91 full action file | about 45 manual/window slice / 91 full action file | 0 | 0 | 0 | Not run; no code or test files changed. | Approved by orchestrator. Current public current-day and explicit-date reload actions mirror the old VesselTimeline operator surface and are called by `scripts/sync-dock-events.ts`; the internal window action mirrors old recovery support. | Pending owner approval |
+| 19 | sync internal mutations + reload payload validators | 416 comparable old slice (`reseedVesselTimelineForDate` + `mutations` + `runReseedBoundaryEventsForSailingDay` + `schemas` + `sync/types` + `buildReseedTimelineSlice`) | 1,677 | 1,664 | 0 | 229 | 223 | `bun test convex/functions/events/sync/tests/reloadMutations.test.ts` passed, 1 test; `bun test convex/functions/events/sync/tests/runReloadDockEventsForSailingDay.test.ts` passed, 1 test; `bun test convex/functions/events/sync/tests/runReloadDockEventsWindow.test.ts` passed, 1 test; `bun test convex/domain/events/tests/reload.test.ts` passed, 1 test; `bun run type-check` passed; `bun run convex:typecheck` passed; `bun run convex:codegen` passed. | Removed Stage 10 deferred duplication by narrowing `buildReloadDockEventRows` to actual rows only, moved reload validators/types into `reloadDockPayload.ts` so domain no longer imports the old schemas file, deleted `sync/types.ts` by colocating result types with their owning helpers, and preserved split scheduled/actual mutation boundaries plus TripKey preservation semantics. | Pending owner approval |
+| 19b | baseline-first unified dock reseed (PRD old-first) | **Domain:** old `timelineReseed` production sum ~1,245 vs current `reload.ts` **~1,168**. **Shell:** sync `*.ts` sum ~**519** after Tier 2–3 (trip load in `mutations.ts`; history fetch + epoch maps inlined into `reloadDockEventsForSailingDay.ts`; removed `buildConvexReloadDockDataFromFetchedSlices.ts` and `fetchHistoryRecordsForDate.ts`). | 1,768 | **~1,687** (`reload.ts` + sync folder) | 0 | 348 | 317 | `bun test convex/functions/events/sync/tests/` passed; `bun test convex/domain/events/tests/reload.test.ts` passed; `bun run type-check`; `bun run convex:typecheck`; `bun run convex:codegen`. | Unified internal mutation + action hydrate; Tier 2 trip inline; Tier 3 shell inline per baseline-first plan. | Pending owner approval |
 
 ## Notes
 
@@ -72,12 +74,10 @@ compact audit trail.
   entrypoint deletion, scheduled/actual builder unification). Marginal helper
   inlining within scope (~30-50 LoC) is rejected per PRD as a tiny reduction
   to a still-overgrown shape.
-- Deferred Stage 10 observation for Stages 17-19: `buildReloadDockEventRows`
-  builds and returns `scheduledRows`/`scheduledCount` (via
-  `buildScheduledDockEvents` plus `lastArrivalKey` computation) that the only
-  production caller (`reloadActualDockEventsForSailingDayRows`) does not
-  consume. Removing this work cleanly couples to the scheduled reload
-  entrypoint and so belongs to the same later sync/reload reduction.
+- Historical Stage 10 note: before Stage 19b, the split-mutation layout had the
+  actual path computing scheduled-shaped rows it did not persist. Stage 19b
+  restores one slice builder from hydrated events (old `buildReseedTimelineSlice`
+  shape).
 - Stage 11 is intentionally no-op. The current predicted schema file preserves
   the old schema validators and inferred type surface while keeping live current
   callers for table schema wiring, predicted queries and mutations,
@@ -116,3 +116,11 @@ compact audit trail.
   explicit-date reload, and internal windowed recovery. The public actions are
   live through `package.json` `sync:dock-events` and
   `scripts/sync-dock-events.ts`.
+- Stage 19 (first pass) narrowed the actual-only builder and introduced
+  `reloadDockPayload.ts` plus colocated sync result types.
+- Stage 19b (baseline-first): compare **domain** old `timelineReseed` folder sum
+  to `reload.ts` (not the 416 narrow slice, which embeds only one domain file).
+  Current `reload.ts` at ~1,168 lines is below the old multi-file domain total
+  ~1,245. **Shell** sync tree remains larger than old narrow sync-only ~274
+  lines because the 416 baseline still counted `buildReseedTimelineSlice` (142)
+  inside the handoff slice while today that logic lives in `reload.ts`.

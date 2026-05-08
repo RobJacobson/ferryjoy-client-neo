@@ -261,8 +261,10 @@ has roughly 643 production lines and 294 test lines across:
 - `buildConvexReloadDockDataFromFetchedSlices.ts`
 - `fetchHistoryRecordsForDate.ts`
 - `loadTripIndexesForSailingDay.ts`
-- `reloadDockDataSchemas.ts`
-- `types.ts`
+- `reloadDockPayload.ts` (Stage 19: replaces the old `reloadDockDataSchemas.ts`
+  file)
+- colocated reload result types on `reloadDockEventsForSailingDay.ts` and
+  `reloadDockEventsWindow.ts` (Stage 19: replaces the old `types.ts` file)
 - four sync test files
 
 Obvious reduction questions for the sync stages:
@@ -277,7 +279,8 @@ Obvious reduction questions for the sync stages:
 - Can `buildConvexReloadDockDataFromFetchedSlices` be inlined into the single
   action path?
 - Can `fetchHistoryRecordsForDate` be inlined unless it has independent value?
-- Can `reloadDockDataSchemas.ts` and `types.ts` collapse into the mutation file?
+- Can `reloadDockPayload.ts` collapse into the mutation file without harming
+  domain imports of inferred payload types?
 - Can sync tests be reduced to one cron/window behavior test and one mutation
   behavior test?
 - Should any static reload transformation live with scheduled-trip or shared

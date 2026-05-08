@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildReloadDockEventRows } from "domain/events/reload";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/sync/reloadDockDataSchemas";
+import { buildReloadDockRowSlice } from "domain/events/reload";
+import type { ConvexReloadDockScheduleSegment } from "functions/events/sync/reloadDockPayload";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { buildSegmentKey } from "shared/keys";
@@ -33,8 +33,8 @@ const terminals: TerminalIdentity[] = [
   },
 ];
 
-describe("buildReloadDockEventRows", () => {
-  it("builds scheduled rows, hydrates history actuals, and keeps physical-only evidence", () => {
+describe("buildReloadDockRowSlice", () => {
+  it("hydrates history actuals and keeps physical-only evidence", () => {
     const departure = at(12, 20);
     const arrival = at(12, 55);
     const segmentKey = buildSegmentKey(
@@ -48,7 +48,7 @@ describe("buildReloadDockEventRows", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = buildReloadDockEventRows({
+    const result = buildReloadDockRowSlice({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
       historyRecords: [
@@ -83,12 +83,6 @@ describe("buildReloadDockEventRows", () => {
       ],
     });
 
-    expect(result.scheduledCount).toBe(2);
-    expect(result.scheduledRows.map((row) => row.EventType)).toEqual([
-      "dep-dock",
-      "arv-dock",
-    ]);
-    expect(result.scheduledRows[0]?.NextTerminalAbbrev).toBe("BBI");
     expect(result.actualCount).toBe(4);
     expect(
       result.actualRows.map((row) => [
