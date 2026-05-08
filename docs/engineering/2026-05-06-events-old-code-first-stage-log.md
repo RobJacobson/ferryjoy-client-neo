@@ -25,6 +25,7 @@ compact audit trail.
 | 14 | predicted `upsertPredictedDockBatches` | about 148 upsert slice / 207 full file | 350 | 263 | 0 | 474 | 474 | `bun test convex/functions/events/eventsPredicted/tests/mutations.test.ts` passed, 7 tests | Approved by orchestrator. Inlined scope merge and direct delete/insert/replace reconciliation back into the upsert path, deleted write-plan helper indirection, and kept narrow depart-next ML omitted-row preservation for same-transaction leave-dock actualization. | Pending owner approval |
 | 15 | predicted depart-next ML actualization | 40 actualization slice / 207 full file | 263 | 263 | 0 | 474 | 474 | Not run; no code or test files changed. | Approved by orchestrator. Current helper matches the old query/skip/patch/boolean-return loop, with only live caller naming, final export style, exact Convex null check, and table-local depart-next constant retained. | Pending owner approval |
 | 16 | predicted projection helpers | 119 comparable: 62 contracts + 57 proposal mapper | 381 | 354 | 68 | 262 | 262 | `bun test convex/domain/events/tests/predicted.test.ts` passed, 11 tests | Approved by orchestrator. Inlined the one-call row assembly wrapper into `buildPredictedDockWriteBatch` and deleted defensive row dedupe plus generic nullable-to-array helper; kept target-key, boundary-row, selector, and actual-field copier helpers because they map live table-row behavior old proposal code did not own. | Pending owner approval |
+| 17 | sync cron boundary action | 84 action / 69 window / 122 cron | 91 action / 64 window / 121 cron | 91 action / 64 window / 121 cron | 0 | 70 | 70 | Not run; no code or test files changed. | Approved by orchestrator. Current boundary action and cron wiring are the old VesselTimeline DST-safe two-cron plus Pacific hour-three guard flow translated to event-table reloads; manual actions defer to Stage 18. | Pending owner approval |
 
 ## Notes
 
@@ -105,3 +106,7 @@ compact audit trail.
   unique composite identities, so row dedupe and `toArray` were unnecessary
   inside the domain projection; table mutation reconciliation still owns
   duplicate incoming row handling.
+- Stage 17 is intentionally no-op. The current dock-event reload boundary cron
+  keeps the old two-UTC-candidate schedule plus Pacific hour-three guard, now
+  pointing at `functions.events.sync.index.reloadDockEventsAtSailingDayBoundary`
+  instead of the old `vesselTimeline` boundary action.
