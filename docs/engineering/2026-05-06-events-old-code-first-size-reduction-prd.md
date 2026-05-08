@@ -143,6 +143,16 @@ Missing a target is allowed only with a serious stage-by-stage explanation.
 A stage is not successful merely because it reduces LoC versus the current
 implementation.
 
+The old code is the baseline. Each stage starts from the old implementation and
+adds only what is required by current live callers, current product behavior, a
+real bug fix, or a concrete separation-of-concerns improvement. Any additional
+code beyond the old baseline needs a damn good reason, written down before it is
+accepted.
+
+Numeric caps are tripwires, not success criteria. A worker who meets a cap but
+does not re-derive the implementation from the old flow has not satisfied this
+PRD.
+
 For each stage, the old implementation is the benchmark. The worker must either:
 
 1. produce code close to the old implementation in size and directness,
@@ -158,6 +168,11 @@ the old LoC requires explicit owner approval before acceptance.
 
 Passing tests is not sufficient for approval. Tests prove that the chosen shape
 works; they do not prove that the chosen shape is appropriately small.
+
+Do not optimize to a local cap. When old comparable code is materially smaller
+than current code, the worker must explain why the final code remains larger
+than old. A small reduction against current code is not meaningful if the
+result is still centered on the oversized current architecture.
 
 ## Deferred Code Is Not Preserved Code
 
@@ -194,6 +209,15 @@ The plan must include:
 - stage responsible for fixing those imports
 
 No code edits should proceed until the orchestrator or owner approves the plan.
+
+The plan must be old-flow-first. It should not start with the current file and
+ask how to trim it. It must start with the old behavior and rebuild forward:
+
+- what did old code do?
+- which current requirements force additions?
+- which current helpers disappear because those additions are not required?
+- what code remains only because the current implementation is coupled, and
+  should that be handled now or deferred?
 
 ## Sync Code Reduction Focus
 
@@ -268,6 +292,47 @@ entrypoint without owner or orchestrator approval.
 19. sync internal mutations and reload payload validators
 20. barrel/export surface cleanup
 21. test reduction and final audit
+
+## Stage 10 Special Rule
+
+Stage 10 is actual static reload. This stage is especially vulnerable to the
+wrong kind of reduction because the current reload implementation lives in a
+large `convex/domain/events/reload.ts` module.
+
+Do not treat this stage as "make `reload.ts` slightly smaller." The worker must
+start from the old actual reload behavior and rebuild forward.
+
+Stage 10 must answer these questions before code edits:
+
+- What exact old flow produced actual reload rows?
+- Which current requirements force extra code beyond that old flow?
+- Is the current large reload module the correct shape, or should Stage 10 stop
+  and defer a holistic sync/reload reduction?
+- Can the actual static reload path be simplified by deleting or merging code,
+  rather than adding options, modes, or parallel entrypoints?
+
+Disallowed Stage 10 success arguments:
+
+- `reload.ts` is under a local line cap.
+- tests pass.
+- the new path is "clearer" but increases or barely reduces the large reload
+  module.
+- a broad aggregate of old timeline reseed files is used to justify retaining
+  the current mega-file shape.
+
+Allowed Stage 10 outcomes:
+
+1. A plan-only blocker report that says actual static reload cannot be reduced
+   responsibly until Stages 17-19 collapse sync/reload architecture.
+2. A net simplification that removes more reload code than it adds, with every
+   addition justified against the old actual reload flow.
+3. An owner-approved correctness or measured performance fix that is explicitly
+   not claimed as size reduction.
+
+Adding an `options` mode or second entrypoint to the current combined reload
+builder is presumed wrong unless it deletes more code than it adds and is
+justified by a live requirement. A local LoC reduction of a few lines is not
+enough.
 
 ## Stage 4 Special Rule
 

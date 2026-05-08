@@ -18,7 +18,7 @@ compact audit trail.
 | 7 | `eventsActual/queries.ts` | 25 | 75 | 55 | 0 | 207 | 154 | `bun test convex/functions/events/eventsActual/tests/listActualDockEventsForVesselSailingDay.test.ts` passed, 4 tests | Inlined the local-only reader into the public query and reduced focused test harness boilerplate. Kept the live app query, metadata stripping, and deterministic ordering. | Committed `4b3eac57` |
 | 8 | `eventsActual/mutations.ts` | 138 | 147 | 147 | 0 | 366 | 366 | Not run; no code or test files changed. | No-op recommended. Current production file is roughly old-sized, no live caller needs the old `projectActualDockWrites` wrapper, and the remaining delta preserves Stage 5 `preserveAbsentTripKeys` replacement semantics without re-adding `ScheduleKey`. | Pending orchestrator review |
 | 9 | `domain/events/actual.ts` | 108 | 87 | 78 | 0 | 186 | 201 | `bun test convex/domain/vesselOrchestration/updateEvents/tests convex/domain/events/tests/actual.test.ts convex/functions/events/eventsActual/tests` passed, 26 tests; `bun run check:fix`, `bun run type-check`, `bun run convex:typecheck` passed. | Approved by orchestrator. Inlined anchor resolution; aligned row `ScheduledDeparture` with old three-part expression; added runtime-guard test. See Stage 9 handoff. | Committed `fc3739eb` |
-| 10 | actual static reload (`domain/events/reload.ts` + sync actual path) | — | ~1142 | — | — | — | — | — | **Rejected** owner review 2026-05-07: first submission grew `reload.ts` (≈1142→1212 LoC) without prior approval—contrary to PRD size goal. Implementation **reverted**; handoff reset to **plan-first** Phase 1 (see Stage 10 disposition). | — |
+| 10 | actual static reload (`domain/events/reload.ts` + sync actual path) | 1,232 | 1,142 | 1,142 | 0 | 229 | 229 | Not run; plan-only blocker report. | **Blocker reported** (Acceptance Criteria #1). Within Stage 10 scope, current `reload.ts` is ~7% smaller than the comparable old `vesselTimeline` / `timelineReseed` reseed slice (1,142 vs 1,232 raw LoC). Real reduction levers — numeric payload collapse, hydration back to action layer, deletion of scheduled-only reload entrypoint, unification of scheduled/actual builders — are all out of Stage 10 scope and belong to Stages 17-19. Recorded an in-scope but deferred observation: `buildReloadDockEventRows` returns `scheduledRows` that the actual path never consumes. | Pending owner approval |
 
 ## Notes
 
@@ -53,7 +53,20 @@ compact audit trail.
   combined on `events-old-reference`) because contracts and normalization live in
   one file, anchor resolution is inlined, and `ScheduleKey` stays off persisted
   rows per Stage 6. Test LoC rose due to the runtime-guard case.
-- Stage 10 first submission was rejected: shrinking unnecessary scheduled-row
-  work cannot justify increasing `reload.ts` without owner pre-approved net-size
-  plan. Retry requires approved Phase 1 plan targeting **≤ pre-stage prod LoC**
-  on `reload.ts` unless an explicit accepted tradeoff is negotiated first.
+- Stage 10 returned a plan-only blocker report. The current
+  `convex/domain/events/reload.ts` (1,142 LoC) is already ~7% smaller than the
+  comparable old static reseed slice (1,232 LoC summed across
+  `seedScheduledEvents.ts`, `hydrateWithHistory.ts`, `buildReseedTimelineSlice.ts`,
+  `normalizeEventRecords.ts`, `reconcileLiveLocations.ts`,
+  `scheduleDepartureLookup.ts`, `mergeActualDockWritesIntoRows.ts`). Meaningful
+  further reduction requires Stages 17-19 sync/reload architecture work
+  (numeric reload payload collapse, action-layer hydration, scheduled-only
+  entrypoint deletion, scheduled/actual builder unification). Marginal helper
+  inlining within scope (~30-50 LoC) is rejected per PRD as a tiny reduction
+  to a still-overgrown shape.
+- Deferred Stage 10 observation for Stages 17-19: `buildReloadDockEventRows`
+  builds and returns `scheduledRows`/`scheduledCount` (via
+  `buildScheduledDockEvents` plus `lastArrivalKey` computation) that the only
+  production caller (`reloadActualDockEventsForSailingDayRows`) does not
+  consume. Removing this work cleanly couples to the scheduled reload
+  entrypoint and so belongs to the same later sync/reload reduction.
