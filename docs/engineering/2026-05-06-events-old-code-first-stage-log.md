@@ -26,6 +26,7 @@ compact audit trail.
 | 15 | predicted depart-next ML actualization | 40 actualization slice / 207 full file | 263 | 263 | 0 | 474 | 474 | Not run; no code or test files changed. | Approved by orchestrator. Current helper matches the old query/skip/patch/boolean-return loop, with only live caller naming, final export style, exact Convex null check, and table-local depart-next constant retained. | Pending owner approval |
 | 16 | predicted projection helpers | 119 comparable: 62 contracts + 57 proposal mapper | 381 | 354 | 68 | 262 | 262 | `bun test convex/domain/events/tests/predicted.test.ts` passed, 11 tests | Approved by orchestrator. Inlined the one-call row assembly wrapper into `buildPredictedDockWriteBatch` and deleted defensive row dedupe plus generic nullable-to-array helper; kept target-key, boundary-row, selector, and actual-field copier helpers because they map live table-row behavior old proposal code did not own. | Pending owner approval |
 | 17 | sync cron boundary action | 84 action / 69 window / 122 cron | 91 action / 64 window / 121 cron | 91 action / 64 window / 121 cron | 0 | 70 | 70 | Not run; no code or test files changed. | Approved by orchestrator. Current boundary action and cron wiring are the old VesselTimeline DST-safe two-cron plus Pacific hour-three guard flow translated to event-table reloads; manual actions defer to Stage 18. | Pending owner approval |
+| 18 | sync manual/operator actions | about 43 manual/window slice / 84 full action file | about 45 manual/window slice / 91 full action file | about 45 manual/window slice / 91 full action file | 0 | 0 | 0 | Not run; no code or test files changed. | Approved by orchestrator. Current public current-day and explicit-date reload actions mirror the old VesselTimeline operator surface and are called by `scripts/sync-dock-events.ts`; the internal window action mirrors old recovery support. | Pending owner approval |
 
 ## Notes
 
@@ -110,3 +111,8 @@ compact audit trail.
   keeps the old two-UTC-candidate schedule plus Pacific hour-three guard, now
   pointing at `functions.events.sync.index.reloadDockEventsAtSailingDayBoundary`
   instead of the old `vesselTimeline` boundary action.
+- Stage 18 is intentionally no-op. The current manual/operator action surface
+  mirrors the old VesselTimeline surface: public current-day reload, public
+  explicit-date reload, and internal windowed recovery. The public actions are
+  live through `package.json` `sync:dock-events` and
+  `scripts/sync-dock-events.ts`.
