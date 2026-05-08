@@ -6,6 +6,7 @@
  * composite prediction identity when enriching trips.
  */
 
+import type { Doc } from "_generated/dataModel";
 import type { QueryCtx } from "_generated/server";
 import { query } from "_generated/server";
 import { v } from "convex/values";
@@ -38,8 +39,16 @@ const listPredictedDockEventsForVesselSailingDay = query({
     sailingDay: v.string(),
   },
   returns: v.array(eventsPredictedSchema),
-  handler: async (ctx, args) =>
-    readPredictedDockEventsForVesselSailingDay(ctx, args),
+  handler: async (ctx, args) => {
+    const rows = await readPredictedDockEventsForVesselSailingDay(ctx, args);
+    return rows
+      .map(stripConvexMeta)
+      .sort(
+        (left, right) =>
+          left.ScheduledDeparture - right.ScheduledDeparture ||
+          left.Key.localeCompare(right.Key)
+      );
+  },
 });
 
 /**
@@ -98,35 +107,18 @@ const loadPredictedRowsGroupedForTrips = async (
  *
  * @param ctx - Convex read context exposing database access
  * @param args - Vessel and sailing-day filters
- * @returns Validator-shaped predicted rows in deterministic order
+ * @returns Stored predicted rows for the vessel/day scope
  */
 const readPredictedDockEventsForVesselSailingDay = async (
   ctx: Pick<QueryCtx, "db">,
   args: PredictedQueryArgs
-): Promise<ConvexPredictedDockEvent[]> => {
-  const docs = await ctx.db
+): Promise<Doc<"eventsPredicted">[]> =>
+  ctx.db
     .query("eventsPredicted")
     .withIndex("by_vessel_and_sailing_day", (q) =>
       q.eq("VesselAbbrev", args.vesselAbbrev).eq("SailingDay", args.sailingDay)
     )
     .collect();
-
-  return docs.map(stripConvexMeta).sort(sortPredictedDockEventsForPublicList);
-};
-
-/**
- * Sorts predicted dock rows for public list responses.
- *
- * @param left - First predicted dock row
- * @param right - Second predicted dock row
- * @returns Numeric sort result
- */
-const sortPredictedDockEventsForPublicList = (
-  left: ConvexPredictedDockEvent,
-  right: ConvexPredictedDockEvent
-): number =>
-  left.ScheduledDeparture - right.ScheduledDeparture ||
-  left.Key.localeCompare(right.Key);
 
 export {
   listPredictedDockEventsForVesselSailingDay,
