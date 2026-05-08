@@ -19,6 +19,7 @@ compact audit trail.
 | 8 | `eventsActual/mutations.ts` | 138 | 147 | 147 | 0 | 366 | 366 | Not run; no code or test files changed. | No-op recommended. Current production file is roughly old-sized, no live caller needs the old `projectActualDockWrites` wrapper, and the remaining delta preserves Stage 5 `preserveAbsentTripKeys` replacement semantics without re-adding `ScheduleKey`. | Pending orchestrator review |
 | 9 | `domain/events/actual.ts` | 108 | 87 | 78 | 0 | 186 | 201 | `bun test convex/domain/vesselOrchestration/updateEvents/tests convex/domain/events/tests/actual.test.ts convex/functions/events/eventsActual/tests` passed, 26 tests; `bun run check:fix`, `bun run type-check`, `bun run convex:typecheck` passed. | Approved by orchestrator. Inlined anchor resolution; aligned row `ScheduledDeparture` with old three-part expression; added runtime-guard test. See Stage 9 handoff. | Committed `fc3739eb` |
 | 10 | actual static reload (`domain/events/reload.ts` + sync actual path) | 1,232 | 1,142 | 1,142 | 0 | 229 | 229 | Not run; plan-only blocker report. | **Blocker reported** (Acceptance Criteria #1). Within Stage 10 scope, current `reload.ts` is ~7% smaller than the comparable old `vesselTimeline` / `timelineReseed` reseed slice (1,142 vs 1,232 raw LoC). Real reduction levers — numeric payload collapse, hydration back to action layer, deletion of scheduled-only reload entrypoint, unification of scheduled/actual builders — are all out of Stage 10 scope and belong to Stages 17-19. Recorded an in-scope but deferred observation: `buildReloadDockEventRows` returns `scheduledRows` that the actual path never consumes. | Pending owner approval |
+| 11 | `eventsPredicted/schemas.ts` | 64 | 62 | 62 | 0 | 0 | 0 | Not run; no code changed. | Approved by orchestrator. Current schema preserves the old validator/type surface, keeps live write-batch and prediction-source contracts, and is already two raw lines smaller than old. | Pending owner approval |
 
 ## Notes
 
@@ -70,3 +71,8 @@ compact audit trail.
   production caller (`reloadActualDockEventsForSailingDayRows`) does not
   consume. Removing this work cleanly couples to the scheduled reload
   entrypoint and so belongs to the same later sync/reload reduction.
+- Stage 11 is intentionally no-op. The current predicted schema file preserves
+  the old schema validators and inferred type surface while keeping live current
+  callers for table schema wiring, predicted queries and mutations,
+  vessel-orchestration persistence, vessel-trip prediction merging, and app
+  timeline types.

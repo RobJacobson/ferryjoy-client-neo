@@ -174,6 +174,34 @@ than current code, the worker must explain why the final code remains larger
 than old. A small reduction against current code is not meaningful if the
 result is still centered on the oversized current architecture.
 
+## Comparable Old-Flow Baselines
+
+The old baseline must be the narrow old flow that corresponds to the current
+stage's behavior. Do not compare against an unrelated old file simply because
+the path names look similar, and do not use a broad summed old subsystem to
+excuse retaining an oversized current shape.
+
+If the old behavior was spread across several files, summing those files may be
+appropriate only when all of those files participated in the same behavior now
+owned by the stage. The stage report must list each old file, its raw LoC, and
+the specific part of the old flow it provided.
+
+The worker must separate these two questions:
+
+- Is the current implementation larger than the truly comparable old flow?
+- Even if the current implementation is not larger, is it still shaped
+  unnecessarily because of coupling to later stages?
+
+When meaningful reduction requires work outside the approved stage scope, the
+right outcome is a blocker report, not a token cleanup. The blocker report must
+name the out-of-scope levers, the later stage that should own them, and any
+small in-scope cleanup candidates that should be reconsidered when that broader
+work happens.
+
+Avoid adding options, modes, wrapper entrypoints, or parallel builders to make a
+narrow stage look cleaner. Those additions are presumed wrong unless they delete
+more code than they add and are required by a live caller.
+
 ## Deferred Code Is Not Preserved Code
 
 If a function belongs to a later stage, do not keep it in the current stage
@@ -254,6 +282,8 @@ Obvious reduction questions for the sync stages:
   behavior test?
 - Should any static reload transformation live with scheduled-trip or shared
   ferry logic instead of `functions/events/sync`?
+- Does any reload builder return or construct data that the live caller never
+  consumes, such as scheduled rows during an actual-only persistence path?
 
 Do not preserve sync code merely because the current branch has it. The only
 known live current caller is the cron boundary path:
@@ -292,73 +322,6 @@ entrypoint without owner or orchestrator approval.
 19. sync internal mutations and reload payload validators
 20. barrel/export surface cleanup
 21. test reduction and final audit
-
-## Stage 10 Special Rule
-
-Stage 10 is actual static reload. This stage is especially vulnerable to the
-wrong kind of reduction because the current reload implementation lives in a
-large `convex/domain/events/reload.ts` module.
-
-Do not treat this stage as "make `reload.ts` slightly smaller." The worker must
-start from the old actual reload behavior and rebuild forward.
-
-Stage 10 must answer these questions before code edits:
-
-- What exact old flow produced actual reload rows?
-- Which current requirements force extra code beyond that old flow?
-- Is the current large reload module the correct shape, or should Stage 10 stop
-  and defer a holistic sync/reload reduction?
-- Can the actual static reload path be simplified by deleting or merging code,
-  rather than adding options, modes, or parallel entrypoints?
-
-Disallowed Stage 10 success arguments:
-
-- `reload.ts` is under a local line cap.
-- tests pass.
-- the new path is "clearer" but increases or barely reduces the large reload
-  module.
-- a broad aggregate of old timeline reseed files is used to justify retaining
-  the current mega-file shape.
-
-Allowed Stage 10 outcomes:
-
-1. A plan-only blocker report that says actual static reload cannot be reduced
-   responsibly until Stages 17-19 collapse sync/reload architecture.
-2. A net simplification that removes more reload code than it adds, with every
-   addition justified against the old actual reload flow.
-3. An owner-approved correctness or measured performance fix that is explicitly
-   not claimed as size reduction.
-
-Adding an `options` mode or second entrypoint to the current combined reload
-builder is presumed wrong unless it deletes more code than it adds and is
-justified by a live requirement. A local LoC reduction of a few lines is not
-enough.
-
-## Stage 4 Special Rule
-
-`convex/domain/events/scheduled.ts` was 37 raw LoC in `events-old-reference`
-and roughly 500 raw LoC before this reduction pass.
-
-Stage 4 must not accept a tiny reduction to this file. The expected Stage 4
-result is the old type contract plus only live scheduled-continuity helpers.
-
-Reload construction helpers are out of scope for Stage 4 and must be deleted,
-deferred, or reported as blockers for Stage 5.
-
-Out of scope for Stage 4 unless the owner explicitly expands the stage:
-
-- `buildScheduledDockEventRecords`
-- `buildScheduledDockEvents`
-- raw seed segment builders
-- seam normalization
-- official arrival-time fallback logic
-- reload schedule segment DTOs unless required by a kept continuity helper
-
-If removing these would break current sync or actual reload imports, stop and
-report the exact blockers. Do not use those imports as a reason to preserve
-reload code in Stage 4.
-
-A Stage 4 result over 200 raw LoC requires owner approval before acceptance.
 
 ## Stage Verification
 
