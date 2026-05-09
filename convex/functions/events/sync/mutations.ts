@@ -16,11 +16,11 @@ import {
 } from "domain/events/reload";
 import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
-import { stripConvexMeta } from "shared/stripConvexMeta";
 import {
   type ReseedDockEventsForSailingDayArgs,
   reseedDockEventsForSailingDayArgsSchema,
-} from "./reloadDockPayload";
+} from "functions/events/eventsScheduled/schemas";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
  * Loads trip indexes for reload slice assembly (same logic as old

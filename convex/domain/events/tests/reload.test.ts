@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { buildReloadDockRowSlice } from "domain/events/reload";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/sync/reloadDockPayload";
+import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { buildSegmentKey } from "shared/keys";

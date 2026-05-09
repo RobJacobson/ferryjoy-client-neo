@@ -10,16 +10,14 @@ import type { ActionCtx } from "_generated/server";
 import { fetchAndTransformScheduledTrips } from "adapters";
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import { buildHydratedDockBoundaryEventsForReload } from "domain/events/reload";
+import type { ConvexReloadDockHistoryRecord } from "functions/events/eventsActual/schemas";
+import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
 import { loadTerminalIdentities } from "functions/terminals/actions";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type {
-  ConvexReloadDockHistoryRecord,
-  ConvexReloadDockScheduleSegment,
-} from "./reloadDockPayload";
 
 type EventReloadResult = {
   ScheduledCount: number;

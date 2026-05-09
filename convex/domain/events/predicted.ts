@@ -12,6 +12,7 @@ import type {
 } from "functions/events/eventsPredicted/schemas";
 import type { PredictionType } from "functions/predictions/schemas";
 import type {
+  ConvexJoinedTripPrediction,
   ConvexPrediction,
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -22,6 +23,33 @@ type PredictionPayload = Pick<
   ConvexPrediction,
   "PredTime" | "Actual" | "DeltaTotal"
 >;
+
+/**
+ * Prefers at-sea ML payload when present, otherwise at-dock ML for the same leg.
+ *
+ * @param atSea - At-sea prediction field when trained
+ * @param atDock - At-dock prediction field when trained
+ * @param atSeaType - PredictionType for the at-sea row
+ * @param atDockType - PredictionType for the at-dock row
+ * @returns Chosen payload and type, or null when neither exists
+ */
+const preferAtSeaThenAtDockMl = (
+  atSea: ConvexPrediction | ConvexJoinedTripPrediction | undefined,
+  atDock: ConvexPrediction | ConvexJoinedTripPrediction | undefined,
+  atSeaType: PredictionType,
+  atDockType: PredictionType
+): {
+  prediction: PredictionPayload;
+  predictionType: PredictionType;
+} | null => {
+  if (atSea !== undefined) {
+    return { prediction: atSea, predictionType: atSeaType };
+  }
+  if (atDock !== undefined) {
+    return { prediction: atDock, predictionType: atDockType };
+  }
+  return null;
+};
 
 /**
  * Builds the map key for one predicted dock row identity.
@@ -262,23 +290,13 @@ const getBestCurrentArrivalMlPrediction = (
 ): {
   prediction: PredictionPayload;
   predictionType: PredictionType;
-} | null => {
-  if (trip.AtSeaArriveNext !== undefined) {
-    return {
-      prediction: trip.AtSeaArriveNext,
-      predictionType: "AtSeaArriveNext",
-    };
-  }
-
-  if (trip.AtDockArriveNext !== undefined) {
-    return {
-      prediction: trip.AtDockArriveNext,
-      predictionType: "AtDockArriveNext",
-    };
-  }
-
-  return null;
-};
+} | null =>
+  preferAtSeaThenAtDockMl(
+    trip.AtSeaArriveNext,
+    trip.AtDockArriveNext,
+    "AtSeaArriveNext",
+    "AtDockArriveNext"
+  );
 
 /**
  * Selects the strongest next-departure ML payload.
@@ -291,23 +309,13 @@ const getBestNextDepartureMlPrediction = (
 ): {
   prediction: PredictionPayload;
   predictionType: PredictionType;
-} | null => {
-  if (trip.AtSeaDepartNext !== undefined) {
-    return {
-      prediction: trip.AtSeaDepartNext,
-      predictionType: "AtSeaDepartNext",
-    };
-  }
-
-  if (trip.AtDockDepartNext !== undefined) {
-    return {
-      prediction: trip.AtDockDepartNext,
-      predictionType: "AtDockDepartNext",
-    };
-  }
-
-  return null;
-};
+} | null =>
+  preferAtSeaThenAtDockMl(
+    trip.AtSeaDepartNext,
+    trip.AtDockDepartNext,
+    "AtSeaDepartNext",
+    "AtDockDepartNext"
+  );
 
 /**
  * Builds one sparse predicted dock write row and copies optional actual fields.
