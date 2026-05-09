@@ -31,6 +31,7 @@ const upsertScheduledRowsForSailingDay = async (
     .query("eventsScheduled")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
     .collect();
+
   const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
   const nextKeys = new Set(nextRows.map((row) => row.Key));
 
@@ -48,7 +49,7 @@ const upsertScheduledRowsForSailingDay = async (
       continue;
     }
 
-    if (areScheduledRowsEqual(existingRow, nextRow)) {
+    if (scheduledRowsEqual(existingRow, nextRow)) {
       continue;
     }
 
@@ -59,15 +60,16 @@ const upsertScheduledRowsForSailingDay = async (
 /**
  * Compares scheduled rows while ignoring Convex document metadata and UpdatedAt.
  *
- * The optional last-arrival marker is compared with Convex optional semantics:
- * an omitted value is distinct from false because both are valid stored row
- * shapes and downstream code can observe that field.
+ * UpdatedAt is reload churn, not a viewer-visible schedule change, so equality
+ * intentionally skips it. Optional scheduled fields use strict Convex optional
+ * semantics: omitted IsLastArrivalOfSailingDay remains distinct from false
+ * because both values can be stored and observed downstream.
  *
  * @param left - Stored eventsScheduled document
  * @param right - Incoming validator-shaped scheduled row
  * @returns True when no viewer-visible scheduled field differs
  */
-const areScheduledRowsEqual = (
+const scheduledRowsEqual = (
   left: Doc<"eventsScheduled">,
   right: ConvexScheduledDockEvent
 ): boolean =>

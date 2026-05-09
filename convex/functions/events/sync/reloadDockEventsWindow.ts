@@ -8,7 +8,18 @@
 import type { ActionCtx } from "_generated/server";
 import { getSailingDay } from "shared/time";
 import { runReloadDockEventsForSailingDay } from "./reloadDockEventsForSailingDay";
-import type { WindowReloadDayResult, WindowReloadResult } from "./types";
+
+type WindowReloadDayResult = {
+  sailingDay: string;
+  scheduledCount: number;
+  actualCount: number;
+};
+
+type WindowReloadResult = {
+  totalScheduled: number;
+  totalActual: number;
+  daysProcessed: WindowReloadDayResult[];
+};
 
 /**
  * Reloads a consecutive window of sailing days starting today.
@@ -61,4 +72,5 @@ const addDaysToSailingDay = (dateString: string, days: number): string => {
   return getSailingDay(date);
 };
 
+export type { WindowReloadDayResult, WindowReloadResult };
 export { runReloadDockEventsWindow };

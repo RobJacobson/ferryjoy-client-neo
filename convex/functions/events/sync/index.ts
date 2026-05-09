@@ -4,7 +4,4 @@ export {
   reloadDockEventsForSailingDay,
   reloadDockEventsWindow,
 } from "./actions";
-export {
-  reloadActualDockEventsForSailingDay,
-  replaceScheduledDockEventsForSailingDay,
-} from "./mutations";
+export { reseedDockEventsForSailingDay } from "./mutations";

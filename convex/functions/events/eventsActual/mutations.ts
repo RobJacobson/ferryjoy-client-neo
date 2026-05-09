@@ -10,6 +10,10 @@ import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
 import type { ConvexActualDockEvent } from "./schemas";
 
+type ReplaceActualRowsForSailingDayOptions = {
+  preserveAbsentTripKeys?: ReadonlySet<string>;
+};
+
 /**
  * Upserts sparse actual dock rows by physical EventKey.
  *
@@ -45,6 +49,45 @@ const upsertActualDockRows = async (
 
     await ctx.db.replace(existing._id, row);
   }
+};
+
+/**
+ * Replaces actual dock rows for one sailing day.
+ *
+ * Static reload owns the schedule-aligned day slice, so rows absent from the
+ * incoming normalized payload are deleted unless their TripKey is known to be a
+ * current physical-only trip for the day.
+ *
+ * @param ctx - Convex mutation context exposing database writes
+ * @param SailingDay - Service day whose actual rows should be replaced
+ * @param rows - Normalized actual dock rows for the replacement slice
+ * @param options.preserveAbsentTripKeys - Physical-only TripKeys whose absent
+ * rows should survive the scheduled reload replacement pass
+ * @returns Promise resolving with no payload after reconciliation completes
+ */
+const replaceActualRowsForSailingDay = async (
+  ctx: MutationCtx,
+  SailingDay: string,
+  rows: ConvexActualDockEvent[],
+  options: ReplaceActualRowsForSailingDayOptions = {}
+): Promise<void> => {
+  const existingRows = await ctx.db
+    .query("eventsActual")
+    .withIndex("by_sailing_day", (q) => q.eq("SailingDay", SailingDay))
+    .collect();
+  const nextRows = dedupeActualRowsByEventKey(rows);
+  const nextEventKeys = new Set(nextRows.map((row) => row.EventKey));
+
+  for (const existing of existingRows) {
+    if (
+      !nextEventKeys.has(existing.EventKey) &&
+      !options.preserveAbsentTripKeys?.has(existing.TripKey)
+    ) {
+      await ctx.db.delete(existing._id);
+    }
+  }
+
+  await upsertActualDockRows(ctx, nextRows);
 };
 
 /**
@@ -101,4 +144,4 @@ const getEffectiveEventOccurred = (row: {
   EventActualTime?: number;
 }): boolean => row.EventOccurred === true || row.EventActualTime !== undefined;
 
-export { upsertActualDockRows };
+export { replaceActualRowsForSailingDay, upsertActualDockRows };

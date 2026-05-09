@@ -1,136 +1,114 @@
 /**
- * Internal mutations for static dock-event reload persistence.
+ * Internal mutation for static dock-event reload persistence.
  *
- * Scheduled and actual reloads persist through their table-owned helpers.
- * Static reload keeps the table writes split so scheduled and actual refreshes
- * remain independently callable and no predicted rows are touched.
+ * One entrypoint matches the old vessel timeline reseed: hydrated boundary
+ * events cross the action boundary, then scheduled and actual tables are
+ * replaced in one mutation with a single trip-index pass (no separate identity
+ * queries).
  */
 
-import { internalMutation } from "_generated/server";
+import { internalMutation, type MutationCtx } from "_generated/server";
 import { v } from "convex/values";
 import {
-  buildActualDockRowsForSailingDayReload,
-  hydrateActualTransitionsFromReloadInputs,
-} from "domain/events/actual";
-import {
-  buildScheduledDockEventRecords,
-  buildScheduledDockEvents,
-} from "domain/events/scheduled";
-import { upsertActualDockRows } from "functions/events/eventsActual/mutations";
+  buildReloadDockSliceFromHydratedEvents,
+  indexActiveTripsByVesselAbbrev,
+  indexTripsBySegmentKey,
+} from "domain/events/reload";
+import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
-import { stripConvexMeta } from "shared/stripConvexMeta";
-import { loadTripIndexesForSailingDay } from "./loadTripIndexesForSailingDay";
 import {
-  type ConvexReloadDockData,
-  type ConvexReloadDockScheduleData,
-  reloadDockDataSchema,
-  reloadDockScheduleDataSchema,
-} from "./reloadDockDataSchemas";
-
-type ReplaceScheduledDockEventsForSailingDayRowsArgs = {
-  ReloadDockScheduleData: ConvexReloadDockScheduleData;
-};
-
-type ReloadActualDockEventsForSailingDayRowsArgs = {
-  ReloadDockData: ConvexReloadDockData;
-};
+  type ReseedDockEventsForSailingDayArgs,
+  reseedDockEventsForSailingDayArgsSchema,
+} from "functions/events/eventsScheduled/schemas";
+import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Replaces scheduled dock-event rows for one sailing day.
+ * Loads trip indexes for reload slice assembly (same logic as old
+ * runReseedBoundaryEventsForSailingDay trip reads).
  *
- * @param ctx - Convex mutation context
- * @param args.ReloadDockScheduleData - Schedule reload payload
- * @returns Count of scheduled rows produced for the day
+ * @param ctx - Convex mutation context for vessel-trip table reads
+ * @param sailingDay - Target sailing day string
+ * @returns Segment key map, active-trip map, and physical-only trips
  */
-const replaceScheduledDockEventsForSailingDayRows = async (
-  ctx: Parameters<typeof upsertScheduledRowsForSailingDay>[0],
-  args: ReplaceScheduledDockEventsForSailingDayRowsArgs
-): Promise<{ ScheduledCount: number }> => {
-  const updatedAt = Date.now();
-  const sailingDay = args.ReloadDockScheduleData.SailingDay;
-  const [vessels, terminals] = await Promise.all([
-    ctx.db.query("vesselsIdentity").collect(),
-    ctx.db.query("terminalsIdentity").collect(),
-  ]);
-  const scheduledTransitions = buildScheduledDockEventRecords(
-    args.ReloadDockScheduleData.ScheduleSegments,
-    vessels.map(stripConvexMeta),
-    terminals.map(stripConvexMeta)
-  );
-  const scheduledRows = buildScheduledDockEvents(
-    scheduledTransitions,
-    updatedAt
-  );
+const loadTripIndexesForReloadDockMutation = async (
+  ctx: MutationCtx,
+  sailingDay: string
+) => {
+  const activeTrips = await ctx.db
+    .query("activeVesselTrips")
+    .withIndex("by_sailing_day", (q) => q.eq("SailingDay", sailingDay))
+    .collect();
+  const completedTrips = await ctx.db
+    .query("completedVesselTrips")
+    .withIndex("by_sailing_day_and_departing_terminal", (q) =>
+      q.eq("SailingDay", sailingDay)
+    )
+    .collect();
 
-  await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
+  const mergedTrips = [...activeTrips, ...completedTrips];
 
   return {
-    ScheduledCount: scheduledRows.length,
+    tripBySegmentKey: indexTripsBySegmentKey(mergedTrips),
+    activeTripsByVesselAbbrev: indexActiveTripsByVesselAbbrev(activeTrips),
+    physicalOnlyTrips: mergedTrips.filter(
+      (trip) => trip.ScheduleKey === undefined
+    ),
   };
 };
 
 /**
- * Upserts actual dock-event rows for one sailing day.
+ * Replaces scheduled and actual dock-event rows for one sailing day.
  *
  * @param ctx - Convex mutation context
- * @param args.ReloadDockData - Schedule, history, and sailing-day reload payload
- * @returns Count of actual rows produced for the day
+ * @param args.SailingDay - Target sailing day
+ * @param args.Events - Hydrated boundary events from the reload action
+ * @returns Scheduled and actual row counts for the replaced slice
  */
-const reloadActualDockEventsForSailingDayRows = async (
-  ctx: Parameters<typeof upsertActualDockRows>[0],
-  args: ReloadActualDockEventsForSailingDayRowsArgs
-): Promise<{ ActualCount: number }> => {
+const reseedDockEventsForSailingDayRows = async (
+  ctx: Parameters<typeof upsertScheduledRowsForSailingDay>[0],
+  args: ReseedDockEventsForSailingDayArgs
+): Promise<{ ScheduledCount: number; ActualCount: number }> => {
   const updatedAt = Date.now();
-  const sailingDay = args.ReloadDockData.SailingDay;
-  const [vessels, terminals] = await Promise.all([
-    ctx.db.query("vesselsIdentity").collect(),
-    ctx.db.query("terminalsIdentity").collect(),
-  ]);
-  const hydratedTransitions = hydrateActualTransitionsFromReloadInputs({
-    scheduleSegments: args.ReloadDockData.ScheduleSegments,
-    historyRecords: args.ReloadDockData.HistoryRecords,
-    vessels: vessels.map(stripConvexMeta),
-    terminals: terminals.map(stripConvexMeta),
-  });
+  const sailingDay = args.SailingDay;
   const { tripBySegmentKey, activeTripsByVesselAbbrev, physicalOnlyTrips } =
-    await loadTripIndexesForSailingDay(ctx, sailingDay);
+    await loadTripIndexesForReloadDockMutation(ctx, sailingDay);
   const vesselLocations = (await ctx.db.query("vesselLocations").collect()).map(
     stripConvexMeta
   );
-  const { actualRows, actualCount } = buildActualDockRowsForSailingDayReload({
-    sailingDay,
-    events: hydratedTransitions,
-    updatedAt,
-    tripBySegmentKey,
-    activeTripsByVesselAbbrev,
-    physicalOnlyTrips,
-    vesselLocations,
+  const { scheduledRows, scheduledCount, actualRows, actualCount } =
+    buildReloadDockSliceFromHydratedEvents({
+      sailingDay,
+      events: args.Events,
+      updatedAt,
+      tripBySegmentKey,
+      activeTripsByVesselAbbrev,
+      physicalOnlyTrips,
+      vesselLocations,
+    });
+
+  await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
+  await replaceActualRowsForSailingDay(ctx, sailingDay, actualRows, {
+    preserveAbsentTripKeys: new Set(
+      physicalOnlyTrips
+        .map((trip) => trip.TripKey)
+        .filter((tripKey): tripKey is string => tripKey !== undefined)
+    ),
   });
 
-  await upsertActualDockRows(ctx, actualRows);
-
   return {
+    ScheduledCount: scheduledCount,
     ActualCount: actualCount,
   };
 };
 
-const replaceScheduledDockEventsForSailingDay = internalMutation({
-  args: { ReloadDockScheduleData: reloadDockScheduleDataSchema },
-  returns: v.object({ ScheduledCount: v.number() }),
+const reseedDockEventsForSailingDay = internalMutation({
+  args: reseedDockEventsForSailingDayArgsSchema,
+  returns: v.object({
+    ScheduledCount: v.number(),
+    ActualCount: v.number(),
+  }),
   handler: async (ctx, args) =>
-    await replaceScheduledDockEventsForSailingDayRows(ctx, args),
+    await reseedDockEventsForSailingDayRows(ctx, args),
 });
 
-const reloadActualDockEventsForSailingDay = internalMutation({
-  args: { ReloadDockData: reloadDockDataSchema },
-  returns: v.object({ ActualCount: v.number() }),
-  handler: async (ctx, args) =>
-    await reloadActualDockEventsForSailingDayRows(ctx, args),
-});
-
-export {
-  reloadActualDockEventsForSailingDay,
-  reloadActualDockEventsForSailingDayRows,
-  replaceScheduledDockEventsForSailingDay,
-  replaceScheduledDockEventsForSailingDayRows,
-};
+export { reseedDockEventsForSailingDay, reseedDockEventsForSailingDayRows };

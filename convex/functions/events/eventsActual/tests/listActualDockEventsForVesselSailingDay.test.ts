@@ -1,8 +1,5 @@
 /**
  * Query behavior tests for eventsActual vessel/day reads.
- *
- * These tests exercise the public query handler contract without exporting a
- * reference-only internal reader from the actual table module.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -27,27 +24,14 @@ type RegisteredQuery<TArgs, TReturn> = {
 
 const args = { vesselAbbrev: "WEN", sailingDay: "2026-03-25" };
 
-/**
- * Invokes a Convex registered query handler in unit tests.
- *
- * @param queryRef - Registered query object
- * @param ctx - Mock query context
- * @param queryArgs - Query arguments
- * @returns Query handler result
- */
-const invokeRegisteredQuery = <TArgs, TReturn>(
-  queryRef: unknown,
-  ctx: QueryCtx,
-  queryArgs: TArgs
-): Promise<TReturn> =>
-  (queryRef as RegisteredQuery<TArgs, TReturn>)._handler(ctx, queryArgs);
+const runListQuery = (ctx: QueryCtx): Promise<ConvexActualDockEvent[]> =>
+  (
+    listActualDockEventsForVesselSailingDay as unknown as RegisteredQuery<
+      typeof args,
+      ConvexActualDockEvent[]
+    >
+  )._handler(ctx, args);
 
-/**
- * Builds a minimal query context for eventsActual index reads.
- *
- * @param options - Rows to filter and optional index spy
- * @returns Query context for the actual list query
- */
 const makeActualQueryCtx = (options: MockQueryOptions): QueryCtx =>
   ({
     db: {
@@ -72,11 +56,6 @@ const makeActualQueryCtx = (options: MockQueryOptions): QueryCtx =>
     },
   }) as unknown as QueryCtx;
 
-/**
- * Creates a range recorder compatible with Convex q.eq chaining.
- *
- * @returns Range recorder used by mock withIndex callbacks
- */
 const makeRangeRecorder = () => ({
   filters: [] as Array<{ fieldName: string; value: string }>,
   eq(fieldName: string, value: string) {
@@ -85,13 +64,6 @@ const makeRangeRecorder = () => ({
   },
 });
 
-/**
- * Filters mock rows according to recorded q.eq calls.
- *
- * @param rows - Rows available in the mock table
- * @param filters - Recorded equality filters
- * @returns Rows matching all filters
- */
 const filterRowsByRange = <Row extends Record<string, unknown>>(
   rows: Row[],
   filters: Array<{ fieldName: string; value: string }>
@@ -100,22 +72,10 @@ const filterRowsByRange = <Row extends Record<string, unknown>>(
     filters.every(({ fieldName, value }) => row[fieldName] === value)
   );
 
-/**
- * Builds a UTC timestamp for compact test fixtures.
- *
- * @param hours - UTC hour
- * @param minutes - UTC minute
- * @returns Epoch milliseconds
- */
 const at = (hours: number, minutes: number): number =>
   Date.UTC(2026, 2, 25, hours, minutes);
 
-/**
- * Builds a complete actual dock event fixture.
- *
- * @returns Actual dock event row
- */
-const baseActual = (): ConvexActualDockEvent => ({
+const baseActual: ConvexActualDockEvent = {
   EventKey: "trip-1--dep-dock",
   TripKey: "trip-1",
   EventType: "dep-dock",
@@ -126,7 +86,7 @@ const baseActual = (): ConvexActualDockEvent => ({
   TerminalAbbrev: "P52",
   EventOccurred: true,
   EventActualTime: at(8, 5),
-});
+};
 
 describe("listActualDockEventsForVesselSailingDay", () => {
   it("loads via by_vessel_and_sailing_day", async () => {
@@ -138,11 +98,7 @@ describe("listActualDockEventsForVesselSailingDay", () => {
       },
     });
 
-    await invokeRegisteredQuery<typeof args, ConvexActualDockEvent[]>(
-      listActualDockEventsForVesselSailingDay,
-      ctx,
-      args
-    );
+    await runListQuery(ctx);
 
     expect(indexName).toBe("by_vessel_and_sailing_day");
   });
@@ -150,16 +106,13 @@ describe("listActualDockEventsForVesselSailingDay", () => {
   it("filters rows by vessel and sailing day", async () => {
     const ctx = makeActualQueryCtx({
       rows: [
-        { ...baseActual(), EventKey: "other-vessel", VesselAbbrev: "OTH" },
-        { ...baseActual(), EventKey: "other-day", SailingDay: "2026-03-26" },
-        { ...baseActual(), EventKey: "matching-row" },
+        { ...baseActual, EventKey: "other-vessel", VesselAbbrev: "OTH" },
+        { ...baseActual, EventKey: "other-day", SailingDay: "2026-03-26" },
+        { ...baseActual, EventKey: "matching-row" },
       ],
     });
 
-    const rows = await invokeRegisteredQuery<
-      typeof args,
-      ConvexActualDockEvent[]
-    >(listActualDockEventsForVesselSailingDay, ctx, args);
+    const rows = await runListQuery(ctx);
 
     expect(rows.map((row) => row.EventKey)).toEqual(["matching-row"]);
   });
@@ -168,17 +121,14 @@ describe("listActualDockEventsForVesselSailingDay", () => {
     const ctx = makeActualQueryCtx({
       rows: [
         {
-          ...baseActual(),
+          ...baseActual,
           _id: "actual1" as Id<"eventsActual">,
           _creationTime: 25,
         },
       ],
     });
 
-    const rows = await invokeRegisteredQuery<
-      typeof args,
-      ConvexActualDockEvent[]
-    >(listActualDockEventsForVesselSailingDay, ctx, args);
+    const rows = await runListQuery(ctx);
 
     expect("_id" in rows[0]).toBe(false);
     expect("_creationTime" in rows[0]).toBe(false);
@@ -187,16 +137,13 @@ describe("listActualDockEventsForVesselSailingDay", () => {
   it("sorts by ScheduledDeparture then EventKey", async () => {
     const ctx = makeActualQueryCtx({
       rows: [
-        { ...baseActual(), EventKey: "event-b", ScheduledDeparture: at(9, 0) },
-        { ...baseActual(), EventKey: "event-a", ScheduledDeparture: at(7, 0) },
-        { ...baseActual(), EventKey: "event-c", ScheduledDeparture: at(9, 0) },
+        { ...baseActual, EventKey: "event-b", ScheduledDeparture: at(9, 0) },
+        { ...baseActual, EventKey: "event-a", ScheduledDeparture: at(7, 0) },
+        { ...baseActual, EventKey: "event-c", ScheduledDeparture: at(9, 0) },
       ],
     });
 
-    const rows = await invokeRegisteredQuery<
-      typeof args,
-      ConvexActualDockEvent[]
-    >(listActualDockEventsForVesselSailingDay, ctx, args);
+    const rows = await runListQuery(ctx);
 
     expect(rows.map((row) => row.EventKey)).toEqual([
       "event-a",

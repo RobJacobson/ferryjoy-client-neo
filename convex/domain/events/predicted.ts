@@ -12,6 +12,7 @@ import type {
 } from "functions/events/eventsPredicted/schemas";
 import type { PredictionType } from "functions/predictions/schemas";
 import type {
+  ConvexJoinedTripPrediction,
   ConvexPrediction,
   ConvexVesselTrip,
   ConvexVesselTripWithML,
@@ -22,6 +23,33 @@ type PredictionPayload = Pick<
   ConvexPrediction,
   "PredTime" | "Actual" | "DeltaTotal"
 >;
+
+/**
+ * Prefers at-sea ML payload when present, otherwise at-dock ML for the same leg.
+ *
+ * @param atSea - At-sea prediction field when trained
+ * @param atDock - At-dock prediction field when trained
+ * @param atSeaType - PredictionType for the at-sea row
+ * @param atDockType - PredictionType for the at-dock row
+ * @returns Chosen payload and type, or null when neither exists
+ */
+const preferAtSeaThenAtDockMl = (
+  atSea: ConvexPrediction | ConvexJoinedTripPrediction | undefined,
+  atDock: ConvexPrediction | ConvexJoinedTripPrediction | undefined,
+  atSeaType: PredictionType,
+  atDockType: PredictionType
+): {
+  prediction: PredictionPayload;
+  predictionType: PredictionType;
+} | null => {
+  if (atSea !== undefined) {
+    return { prediction: atSea, predictionType: atSeaType };
+  }
+  if (atDock !== undefined) {
+    return { prediction: atDock, predictionType: atDockType };
+  }
+  return null;
+};
 
 /**
  * Builds the map key for one predicted dock row identity.
@@ -57,11 +85,23 @@ const buildPredictedDockWriteBatch = (
     return null;
   }
 
+  const rows: ConvexPredictedDockWriteRow[] = [];
+  const currentDeparture = buildCurrentDeparturePredictionRow(trip);
+  if (currentDeparture !== null) {
+    rows.push(currentDeparture);
+  }
+  rows.push(...buildCurrentArrivalPredictionRows(trip));
+
+  const nextDeparture = buildNextDeparturePredictionRow(trip);
+  if (nextDeparture !== null) {
+    rows.push(nextDeparture);
+  }
+
   return {
     VesselAbbrev: trip.VesselAbbrev,
     SailingDay: trip.SailingDay,
     TargetKeys: targetKeys,
-    Rows: buildPredictedDockWriteRows(trip),
+    Rows: rows,
   };
 };
 
@@ -117,21 +157,6 @@ const getPredictedBoundaryTargetKeys = (trip: {
     )
   );
 };
-
-/**
- * Builds all sparse predicted rows implied by the trip prediction fields.
- *
- * @param trip - Prediction-enriched trip row
- * @returns Deduped write rows for the trip's prediction scope
- */
-const buildPredictedDockWriteRows = (
-  trip: ConvexVesselTripWithML
-): ConvexPredictedDockWriteRow[] =>
-  dedupePredictedDockRows([
-    ...toArray(buildCurrentDeparturePredictionRow(trip)),
-    ...buildCurrentArrivalPredictionRows(trip),
-    ...toArray(buildNextDeparturePredictionRow(trip)),
-  ]);
 
 /**
  * Builds the current departure ML row when prerequisites are present.
@@ -265,23 +290,13 @@ const getBestCurrentArrivalMlPrediction = (
 ): {
   prediction: PredictionPayload;
   predictionType: PredictionType;
-} | null => {
-  if (trip.AtSeaArriveNext !== undefined) {
-    return {
-      prediction: trip.AtSeaArriveNext,
-      predictionType: "AtSeaArriveNext",
-    };
-  }
-
-  if (trip.AtDockArriveNext !== undefined) {
-    return {
-      prediction: trip.AtDockArriveNext,
-      predictionType: "AtDockArriveNext",
-    };
-  }
-
-  return null;
-};
+} | null =>
+  preferAtSeaThenAtDockMl(
+    trip.AtSeaArriveNext,
+    trip.AtDockArriveNext,
+    "AtSeaArriveNext",
+    "AtDockArriveNext"
+  );
 
 /**
  * Selects the strongest next-departure ML payload.
@@ -294,23 +309,13 @@ const getBestNextDepartureMlPrediction = (
 ): {
   prediction: PredictionPayload;
   predictionType: PredictionType;
-} | null => {
-  if (trip.AtSeaDepartNext !== undefined) {
-    return {
-      prediction: trip.AtSeaDepartNext,
-      predictionType: "AtSeaDepartNext",
-    };
-  }
-
-  if (trip.AtDockDepartNext !== undefined) {
-    return {
-      prediction: trip.AtDockDepartNext,
-      predictionType: "AtDockDepartNext",
-    };
-  }
-
-  return null;
-};
+} | null =>
+  preferAtSeaThenAtDockMl(
+    trip.AtSeaDepartNext,
+    trip.AtDockDepartNext,
+    "AtSeaDepartNext",
+    "AtDockDepartNext"
+  );
 
 /**
  * Builds one sparse predicted dock write row and copies optional actual fields.
@@ -340,22 +345,6 @@ const buildPredictedDockWriteRow = (
 });
 
 /**
- * Dedupes predicted rows by boundary key, prediction type, and source.
- *
- * Iteration order stays stable and later rows win for a repeated composite key,
- * matching the table mutation merge behavior.
- *
- * @param rows - Candidate rows from the projection phases
- * @returns Deterministically deduped sparse write rows
- */
-const dedupePredictedDockRows = (
-  rows: ConvexPredictedDockWriteRow[]
-): ConvexPredictedDockWriteRow[] =>
-  Array.from(
-    new Map(rows.map((row) => [predictedDockCompositeKey(row), row])).values()
-  );
-
-/**
  * Resolves the current trip segment key for prediction boundaries.
  *
  * @param trip - Trip with optional schedule alignment and physical identity
@@ -365,14 +354,6 @@ const getCurrentLegSegment = (trip: {
   ScheduleKey?: string;
   TripKey?: string;
 }): string | undefined => trip.ScheduleKey ?? trip.TripKey;
-
-/**
- * Converts a nullable value to a zero-or-one element array.
- *
- * @param value - Nullable projected row
- * @returns Empty array for null, otherwise an array containing value
- */
-const toArray = <T>(value: T | null): T[] => (value === null ? [] : [value]);
 
 export {
   buildPredictedDockClearBatch,
