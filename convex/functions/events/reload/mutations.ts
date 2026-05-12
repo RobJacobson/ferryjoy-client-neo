@@ -97,8 +97,8 @@ const reseedDockEventsForSailingDayRows = async (
   });
 
   return {
-    ScheduledCount: scheduledCount,
-    ActualCount: actualCount,
+    scheduledCount,
+    actualCount,
   };
 };
 

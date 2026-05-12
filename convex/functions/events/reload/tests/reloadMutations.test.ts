@@ -14,7 +14,7 @@ import {
 type ReseedHandler = (
   ctx: MutationCtx,
   args: ReseedDockEventsForSailingDayArgs
-) => Promise<{ ScheduledCount: number; ActualCount: number }>;
+) => Promise<{ scheduledCount: number; actualCount: number }>;
 
 afterEach(() => {
   mock.restore();
@@ -40,7 +40,7 @@ describe("reseedDockEventsForSailingDay", () => {
       }
     );
 
-    expect(counts).toEqual({ ScheduledCount: 0, ActualCount: 0 });
+    expect(counts).toEqual({ scheduledCount: 0, actualCount: 0 });
     expect(scheduledSpy).toHaveBeenCalledTimes(1);
     expect(scheduledSpy).toHaveBeenCalledWith(ctx, "2026-04-10", []);
     expect(actualSpy).toHaveBeenCalledTimes(1);

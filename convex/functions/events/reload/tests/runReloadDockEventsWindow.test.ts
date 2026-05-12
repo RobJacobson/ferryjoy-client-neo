@@ -33,8 +33,8 @@ describe("runReloadDockEventsWindow", () => {
       "runReloadDockEventsForSailingDay"
     ).mockImplementation(async (_ctx, sailingDay) =>
       sailingDay === "2026-05-10"
-        ? { ScheduledCount: 2, ActualCount: 1 }
-        : { ScheduledCount: 3, ActualCount: 4 }
+        ? { scheduledCount: 2, actualCount: 1 }
+        : { scheduledCount: 3, actualCount: 4 }
     );
 
     const result = await runReloadDockEventsWindow({} as ActionCtx);

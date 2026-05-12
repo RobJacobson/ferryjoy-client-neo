@@ -33,7 +33,7 @@ describe("runReloadDockEventsForSailingDay", () => {
     const ctx = {
       runMutation: async (_ref: unknown, args: unknown) => {
         mutationPayloads.push(args);
-        return { ScheduledCount: 0, ActualCount: 0 };
+        return { scheduledCount: 0, actualCount: 0 };
       },
     } as unknown as ActionCtx;
 
@@ -42,7 +42,7 @@ describe("runReloadDockEventsForSailingDay", () => {
       "2026-07-04"
     );
 
-    expect(result).toEqual({ ScheduledCount: 0, ActualCount: 0 });
+    expect(result).toEqual({ scheduledCount: 0, actualCount: 0 });
     expect(mutationPayloads).toEqual([
       {
         SailingDay: "2026-07-04",

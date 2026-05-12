@@ -42,12 +42,12 @@ const runReloadDockEventsWindow = async (
     const sailingDay = addDaysToSailingDay(startDate, index);
     const result = await runReloadDockEventsForSailingDay(ctx, sailingDay);
 
-    totalScheduled += result.ScheduledCount;
-    totalActual += result.ActualCount;
+    totalScheduled += result.scheduledCount;
+    totalActual += result.actualCount;
     daysProcessed.push({
       sailingDay,
-      scheduledCount: result.ScheduledCount,
-      actualCount: result.ActualCount,
+      scheduledCount: result.scheduledCount,
+      actualCount: result.actualCount,
     });
   }
 

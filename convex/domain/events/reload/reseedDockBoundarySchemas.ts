@@ -30,8 +30,8 @@ const reseedDockEventsForSailingDayArgsSchema = v.object({
 });
 
 const reseedDockEventsDayCountReturnSchema = v.object({
-  ScheduledCount: v.number(),
-  ActualCount: v.number(),
+  scheduledCount: v.number(),
+  actualCount: v.number(),
 });
 
 type DockBoundaryEventRecord = Infer<typeof reseedDockBoundaryEventRecordArgs>;
