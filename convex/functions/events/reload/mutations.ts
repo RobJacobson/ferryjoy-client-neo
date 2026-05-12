@@ -8,14 +8,15 @@
  */
 
 import { internalMutation, type MutationCtx } from "_generated/server";
-import { v } from "convex/values";
 import {
   buildReloadDockSliceFromHydratedEvents,
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "domain/events/reload";
 import {
+  type ReloadDockDayCountResult,
   type ReseedDockEventsForSailingDayArgs,
+  reseedDockEventsDayCountReturnSchema,
   reseedDockEventsForSailingDayArgsSchema,
 } from "domain/events/reload/reseedDockBoundarySchemas";
 import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
@@ -67,7 +68,7 @@ const loadTripIndexesForReloadDockMutation = async (
 const reseedDockEventsForSailingDayRows = async (
   ctx: Parameters<typeof upsertScheduledRowsForSailingDay>[0],
   args: ReseedDockEventsForSailingDayArgs
-): Promise<{ ScheduledCount: number; ActualCount: number }> => {
+): Promise<ReloadDockDayCountResult> => {
   const updatedAt = Date.now();
   const sailingDay = args.SailingDay;
   const { tripBySegmentKey, activeTripsByVesselAbbrev, physicalOnlyTrips } =
@@ -103,15 +104,13 @@ const reseedDockEventsForSailingDayRows = async (
 
 const reseedDockEventsForSailingDay = internalMutation({
   args: reseedDockEventsForSailingDayArgsSchema,
-  returns: v.object({
-    ScheduledCount: v.number(),
-    ActualCount: v.number(),
-  }),
+  returns: reseedDockEventsDayCountReturnSchema,
   handler: async (ctx, args) =>
     await reseedDockEventsForSailingDayRows(ctx, args),
 });
 
 export type {
+  ReloadDockDayCountResult,
   ReseedDockBoundaryEventRecordArgs,
   ReseedDockEventsForSailingDayArgs,
 } from "domain/events/reload/reseedDockBoundarySchemas";

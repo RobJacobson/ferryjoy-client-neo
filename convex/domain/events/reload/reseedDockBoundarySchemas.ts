@@ -1,7 +1,9 @@
 /**
  * Convex validators and inferred types for internal dock-event reseed mutation
- * args. These are not database table schemas; they describe hydrated boundary
- * rows passed from the reload action into reseedDockEventsForSailingDay.
+ * args and return payload. These are not database table schemas; args describe
+ * hydrated boundary rows passed from the reload action into
+ * reseedDockEventsForSailingDay, and the day-count return shape matches the
+ * mutation returns validator.
  */
 
 import type { Infer } from "convex/values";
@@ -27,6 +29,11 @@ const reseedDockEventsForSailingDayArgsSchema = v.object({
   Events: v.array(reseedDockBoundaryEventRecordArgs),
 });
 
+const reseedDockEventsDayCountReturnSchema = v.object({
+  ScheduledCount: v.number(),
+  ActualCount: v.number(),
+});
+
 type DockBoundaryEventRecord = Infer<typeof reseedDockBoundaryEventRecordArgs>;
 
 type ReseedDockBoundaryEventRecordArgs = DockBoundaryEventRecord;
@@ -35,12 +42,18 @@ type ReseedDockEventsForSailingDayArgs = Infer<
   typeof reseedDockEventsForSailingDayArgsSchema
 >;
 
+type ReloadDockDayCountResult = Infer<
+  typeof reseedDockEventsDayCountReturnSchema
+>;
+
 export type {
   DockBoundaryEventRecord,
+  ReloadDockDayCountResult,
   ReseedDockBoundaryEventRecordArgs,
   ReseedDockEventsForSailingDayArgs,
 };
 export {
   reseedDockBoundaryEventRecordArgs,
+  reseedDockEventsDayCountReturnSchema,
   reseedDockEventsForSailingDayArgsSchema,
 };

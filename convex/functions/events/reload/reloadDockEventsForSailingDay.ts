@@ -9,15 +9,11 @@ import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { fetchAndTransformScheduledTrips } from "adapters";
 import { buildHydratedDockBoundaryEventsForReload } from "domain/events/reload";
+import type { ReloadDockDayCountResult } from "domain/events/reload/reseedDockBoundarySchemas";
 import { loadTerminalIdentities } from "functions/terminals/actions";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 import { fetchReloadWsfInputs } from "./reloadDockInputs";
-
-type EventReloadResult = {
-  ScheduledCount: number;
-  ActualCount: number;
-};
 
 const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
 
@@ -31,7 +27,7 @@ const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
 const runReloadDockEventsForSailingDay = async (
   ctx: ActionCtx,
   targetDate: string
-): Promise<EventReloadResult> => {
+): Promise<ReloadDockDayCountResult> => {
   console.log(`${LOG_PREFIX} Starting reload for ${targetDate}`);
 
   const vessels = await loadVesselIdentities(ctx);
@@ -51,19 +47,13 @@ const runReloadDockEventsForSailingDay = async (
     terminals: terminals.map(stripConvexMeta),
   });
 
-  const result = await ctx.runMutation(
+  return await ctx.runMutation(
     internal.functions.events.reload.mutations.reseedDockEventsForSailingDay,
     {
       SailingDay: targetDate,
       Events: events,
     }
   );
-
-  return {
-    ScheduledCount: result.ScheduledCount,
-    ActualCount: result.ActualCount,
-  };
 };
 
-export type { EventReloadResult };
 export { runReloadDockEventsForSailingDay };

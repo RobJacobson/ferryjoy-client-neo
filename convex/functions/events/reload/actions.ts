@@ -7,11 +7,9 @@
 
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
+import type { ReloadDockDayCountResult } from "domain/events/reload/reseedDockBoundarySchemas";
 import { getPacificTimeComponents, getSailingDay } from "shared/time";
-import {
-  type EventReloadResult,
-  runReloadDockEventsForSailingDay,
-} from "./reloadDockEventsForSailingDay";
+import { runReloadDockEventsForSailingDay } from "./reloadDockEventsForSailingDay";
 import {
   runReloadDockEventsWindow,
   type WindowReloadDayResult,
@@ -25,7 +23,7 @@ import {
  */
 const reloadDockEventsForCurrentSailingDay = action({
   args: {},
-  handler: async (ctx): Promise<EventReloadResult> => {
+  handler: async (ctx): Promise<ReloadDockDayCountResult> => {
     const sailingDay = getSailingDay(new Date());
     return await runReloadDockEventsForSailingDay(ctx, sailingDay);
   },
@@ -42,7 +40,7 @@ const reloadDockEventsForSailingDay = action({
   args: {
     targetDate: v.string(),
   },
-  handler: async (ctx, args): Promise<EventReloadResult> =>
+  handler: async (ctx, args): Promise<ReloadDockDayCountResult> =>
     await runReloadDockEventsForSailingDay(ctx, args.targetDate),
 });
 
