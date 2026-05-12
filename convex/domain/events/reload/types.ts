@@ -9,6 +9,7 @@ import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { DockBoundaryEventRecord } from "./reseedDockBoundarySchemas";
 
 type WsfVesselHistory = {
   VesselId: number;
@@ -33,20 +34,6 @@ type WsfScheduledSegment = {
   RouteID: number;
   RouteAbbrev: string;
   SailingDay: string;
-};
-
-type DockBoundaryEventRecord = {
-  SegmentKey: string;
-  Key: string;
-  VesselAbbrev: string;
-  SailingDay: string;
-  ScheduledDeparture: number;
-  TerminalAbbrev: string;
-  EventType: DockEventType;
-  EventScheduledTime?: number;
-  EventPredictedTime?: number;
-  EventOccurred?: true;
-  EventActualTime?: number;
 };
 
 type RawSeedSegment = {
@@ -122,11 +109,11 @@ type ReloadActualDockWrite = {
   EventActualTime?: number;
 };
 
+export type { DockBoundaryEventRecord } from "./reseedDockBoundarySchemas";
 export type {
   ActiveTripForPhysicalActualReconcile,
   BuildReloadDockSliceFromHydratedArgs,
   BuildReloadDockSliceResult,
-  DockBoundaryEventRecord,
   DockEventType,
   HistoryActualSource,
   NormalizedHistoryRecord,

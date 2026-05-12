@@ -37,6 +37,7 @@ import type * as domain_events_reload_historyActuals from "../domain/events/relo
 import type * as domain_events_reload_index from "../domain/events/reload/index.js";
 import type * as domain_events_reload_liveLocationReconciliation from "../domain/events/reload/liveLocationReconciliation.js";
 import type * as domain_events_reload_rawSeedSegments from "../domain/events/reload/rawSeedSegments.js";
+import type * as domain_events_reload_reseedDockBoundarySchemas from "../domain/events/reload/reseedDockBoundarySchemas.js";
 import type * as domain_events_reload_scheduleSeedAndHydration from "../domain/events/reload/scheduleSeedAndHydration.js";
 import type * as domain_events_reload_tripIndexMaps from "../domain/events/reload/tripIndexMaps.js";
 import type * as domain_events_reload_types from "../domain/events/reload/types.js";
@@ -259,6 +260,7 @@ declare const fullApi: ApiFromModules<{
   "domain/events/reload/index": typeof domain_events_reload_index;
   "domain/events/reload/liveLocationReconciliation": typeof domain_events_reload_liveLocationReconciliation;
   "domain/events/reload/rawSeedSegments": typeof domain_events_reload_rawSeedSegments;
+  "domain/events/reload/reseedDockBoundarySchemas": typeof domain_events_reload_reseedDockBoundarySchemas;
   "domain/events/reload/scheduleSeedAndHydration": typeof domain_events_reload_scheduleSeedAndHydration;
   "domain/events/reload/tripIndexMaps": typeof domain_events_reload_tripIndexMaps;
   "domain/events/reload/types": typeof domain_events_reload_types;
