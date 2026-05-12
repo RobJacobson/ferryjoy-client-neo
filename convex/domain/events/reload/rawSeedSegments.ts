@@ -8,7 +8,7 @@ import {
   type TerminalIdentity,
   type VesselIdentity,
 } from "adapters";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
+import type { WsfScheduledSegment } from "functions/events/reload/types";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import {
   classifyDirectSegments,
@@ -92,7 +92,7 @@ const buildSeedEventsForSegment = (segment: {
 };
 
 const toRawSeedSegment = (
-  segment: ConvexReloadDockScheduleSegment,
+  segment: WsfScheduledSegment,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): RawSeedSegment | null => {
@@ -139,7 +139,7 @@ const toRawSeedSegment = (
  * @returns Direct physical segments only
  */
 const getDirectRawSeedSegments = (
-  segments: ConvexReloadDockScheduleSegment[],
+  segments: WsfScheduledSegment[],
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ) =>

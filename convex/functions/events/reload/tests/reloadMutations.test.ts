@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { MutationCtx } from "_generated/server";
 import * as eventsActual from "functions/events/eventsActual/mutations";
 import * as eventsScheduled from "functions/events/eventsScheduled/mutations";
-import type { ReseedDockEventsForSailingDayArgs } from "functions/events/eventsScheduled/schemas";
-import { reseedDockEventsForSailingDay } from "../mutations";
+import {
+  type ReseedDockEventsForSailingDayArgs,
+  reseedDockEventsForSailingDay,
+} from "../mutations";
 
 type ReseedHandler = (
   ctx: MutationCtx,

@@ -24,22 +24,5 @@ const eventsActualSchema = v.object({
 
 type ConvexActualDockEvent = Infer<typeof eventsActualSchema>;
 
-/**
- * Reload wire: WSF vessel history row with numeric timestamps from the sync action.
- */
-const reloadDockHistoryRecordSchema = v.object({
-  VesselId: v.number(),
-  Vessel: v.optional(v.string()),
-  Departing: v.optional(v.string()),
-  Arriving: v.optional(v.string()),
-  ScheduledDepart: v.optional(v.number()),
-  ActualDepart: v.optional(v.number()),
-  EstArrival: v.optional(v.number()),
-});
-
-type ConvexReloadDockHistoryRecord = Infer<
-  typeof reloadDockHistoryRecordSchema
->;
-
-export type { ConvexActualDockEvent, ConvexReloadDockHistoryRecord };
-export { eventsActualSchema, reloadDockHistoryRecordSchema };
+export type { ConvexActualDockEvent };
+export { eventsActualSchema };

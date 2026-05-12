@@ -8,6 +8,7 @@
  */
 
 import { internalMutation, type MutationCtx } from "_generated/server";
+import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import {
   buildReloadDockSliceFromHydratedEvents,
@@ -16,11 +17,35 @@ import {
 } from "domain/events/reload";
 import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
-import {
-  type ReseedDockEventsForSailingDayArgs,
-  reseedDockEventsForSailingDayArgsSchema,
-} from "functions/events/eventsScheduled/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
+import { dockEventTypeSchema } from "../common/schemas";
+
+const reseedDockBoundaryEventRecordArgs = v.object({
+  SegmentKey: v.string(),
+  Key: v.string(),
+  VesselAbbrev: v.string(),
+  SailingDay: v.string(),
+  ScheduledDeparture: v.number(),
+  TerminalAbbrev: v.string(),
+  EventType: dockEventTypeSchema,
+  EventScheduledTime: v.optional(v.number()),
+  EventPredictedTime: v.optional(v.number()),
+  EventOccurred: v.optional(v.literal(true)),
+  EventActualTime: v.optional(v.number()),
+});
+
+const reseedDockEventsForSailingDayArgsSchema = v.object({
+  SailingDay: v.string(),
+  Events: v.array(reseedDockBoundaryEventRecordArgs),
+});
+
+type ReseedDockBoundaryEventRecordArgs = Infer<
+  typeof reseedDockBoundaryEventRecordArgs
+>;
+
+type ReseedDockEventsForSailingDayArgs = Infer<
+  typeof reseedDockEventsForSailingDayArgsSchema
+>;
 
 /**
  * Loads trip indexes for reload slice assembly (same logic as old
@@ -111,4 +136,8 @@ const reseedDockEventsForSailingDay = internalMutation({
     await reseedDockEventsForSailingDayRows(ctx, args),
 });
 
+export type {
+  ReseedDockBoundaryEventRecordArgs,
+  ReseedDockEventsForSailingDayArgs,
+};
 export { reseedDockEventsForSailingDay, reseedDockEventsForSailingDayRows };

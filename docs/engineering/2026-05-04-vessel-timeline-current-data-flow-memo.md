@@ -1,6 +1,6 @@
 # Engineering memo: VesselTimeline current data flow
 
-**Status:** Current architecture (aligned with dock-boundary event modules under `convex/domain/events` and `functions/events/sync`)  
+**Status:** Current architecture (aligned with dock-boundary event modules under `convex/domain/events` and `convex/functions/events/reload`)  
 **Audience:** Engineers and coding agents working on `VesselTimeline`  
 **Scope:** How event rows are persisted on the backend, how the client fetches them, and how the UI assembles and renders timeline times for one vessel and sailing day
 
@@ -28,28 +28,23 @@ Two complementary paths feed the same three tables:
 
 ### 1. DockReload — sailing-day reload (scheduled + actual slices)
 
-For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/functions/events/sync/reloadDockEventsForSailingDay.ts`):
+For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/functions/events/reload/reloadDockEventsForSailingDay.ts`):
 
 1. Loads vessel and terminal identity context.
-2. Pulls WSF schedule data via `fetchAndTransformScheduledTrips` (adapters) and per-vessel WSF history rows.
-3. Hands the action a single Convex-shaped payload built by **`buildConvexReloadDockDataFromFetchedSlices`**: `ConvexReloadDockData` carries epoch-millisecond fields only, mirroring `ConvexVesselLocation` and `ConvexScheduledTrip`. Adapter fetch types still expose `Date` (e.g. `RawWsfScheduleSegment`); conversion happens in `shared/convertDates.ts`.
-4. Calls the internal mutation **`replaceDockEventsForSailingDay`**, which:
-   - restores `Date` instants via `mapConvexReloadDockDataToRawFetchShapes`,
-   - composes hydrated `DockTransitionRecord` rows with **`buildScheduledDockEventRecords`** + **`hydrateActualDockEvents`** through **`buildHydratedTransitionsFromReloadInputs`**,
-   - loads trip indexes for the day and collects all `vesselLocations` rows (one per fleet vessel; table stays tiny),
-   - delegates row construction to **`buildDockEventRowsForSailingDayReload`**, then persists:
-     - **`upsertScheduledRowsForSailingDay`** on `eventsScheduled`,
-     - **`replaceActualRowsForSailingDay`** on `eventsActual`.
+2. Pulls WSF schedule data via **`fetchAndTransformScheduledTrips`** (adapters). Segments are **`RawWsfScheduleSegment`** rows (`convex/adapters/fetch/fetchWsfScheduledTripsTypes.ts`) with **`Date`** departure/arrival instants.
+3. **`fetchReloadWsfInputs`** (`convex/functions/events/reload/reloadDockInputs.ts`) loads per-vessel WSF history for the sailing day and maps each raw segment and history row into **`WsfScheduledSegment`** and **`WsfVesselHistory`** (epoch-ms time fields; types in `convex/functions/events/reload/types.ts`).
+4. **`buildHydratedDockBoundaryEventsForReload`** (`convex/domain/events/reload/scheduleSeedAndHydration.ts` and related reload domain modules) merges schedule seeds with history actuals into hydrated boundary-event records.
+5. **`ctx.runMutation`** to internal **`reseedDockEventsForSailingDay`** (`convex/functions/events/reload/mutations.ts`). That mutation loads trip indexes for the day, **`collect`**s all **`vesselLocations`** rows, runs **`buildReloadDockSliceFromHydratedEvents`**, then persists via **`upsertScheduledRowsForSailingDay`** (`eventsScheduled`) and **`replaceActualRowsForSailingDay`** (`eventsActual`). Reseed **`args`** validators are defined in the same file as the mutation.
 
-**Crons** (`convex/crons.ts`): at the Pacific ~3:00 AM sailing-day boundary, **`reloadDockEventsAtSailingDayBoundary`** runs (with an in-action guard so only the true 3 AM Pacific hour executes), typically with a small multi-day window via **`runReloadDockEventsWindow`**. Public actions for manual/operator use live on **`functions/events/sync/actions`** (e.g. `reloadDockEventsForSailingDay`, `reloadDockEventsForCurrentSailingDay`).
+**Crons** (`convex/crons.ts`): at the Pacific ~3:00 AM sailing-day boundary, **`reloadDockEventsAtSailingDayBoundary`** runs (with an in-action guard so only the true 3 AM Pacific hour executes), typically with a small multi-day window via **`runReloadDockEventsWindow`**. Public actions for manual/operator use live on **`convex/functions/events/reload/actions.ts`** (e.g. `reloadDockEventsForSailingDay`, `reloadDockEventsForCurrentSailingDay`).
 
-**Operator CLI:** `bun run sync:dock-events` / `scripts/sync-dock-events.ts` invokes those public reload actions over HTTP.
+**Operator CLI:** `bun run reload:dock-events` / `scripts/reload-dock-events.ts` invokes those public reload actions over HTTP.
 
 Predicted rows are **not** produced by this daily reload; they come from the live orchestrator path below.
 
 ### 2. DockEventLive — orchestrator ping pipeline (sparse actual + predicted)
 
-On each orchestrator cycle, trip updates are merged into **actual** and **predicted** dock event writes (and related patches) through **`updateEvents`** / projection and **`persistVesselUpdates`** (`convex/functions/vesselOrchestrator/`), which upsert into `eventsActual` and reconcile `eventsPredicted` in line with active vessel trips and ML/WSF prediction payloads. The reconcile module backing this path lives at `convex/domain/events/actual/reconcileDockTransitionsFromLocations/`.
+On each orchestrator cycle, trip updates are merged into **actual** and **predicted** dock event writes (and related patches) through **`updateEvents`** / projection and **`persistVesselUpdates`** (`convex/functions/vesselOrchestrator/`), which upsert into `eventsActual` and reconcile `eventsPredicted` in line with active vessel trips and ML/WSF prediction payloads. Assembly and wire shapes live under **`convex/domain/vesselOrchestration/updateEvents/`**; predicted write batches are built with helpers from **`convex/domain/events/predicted.ts`** and persisted via **`convex/functions/events/eventsPredicted/mutations.ts`**.
 
 So: **DockReload** reshapes full-day scheduled + actual snapshots from schedule + history; **DockEventLive** keeps actual/predicted aligned with live trips between reloads.
 
@@ -95,7 +90,7 @@ The public list queries live under:
 - `convex/functions/events/eventsActual/queries.ts`
 - `convex/functions/events/eventsPredicted/queries.ts`
 
-They are grouped under `api.functions.events.*` (see `convex/functions/events/index.ts`). Reload and replace helpers live separately under **`functions/events/sync/`** and are not used by these read queries.
+They are grouped under `api.functions.events.*` (see `convex/functions/events/index.ts`). Reload persistence and actions live under **`convex/functions/events/reload/`** and are not used by these read queries.
 
 All three list queries use the `by_vessel_and_sailing_day` index and strip Convex metadata before returning rows.
 

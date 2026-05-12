@@ -1,21 +1,12 @@
 /**
  * Type shapes for dock-event reload assembly: hydrated boundary records, trip
- * indexes, and mutation slice results. Validators and inferred wire types live
- * under functions/events table schema modules.
+ * indexes, and mutation slice results.
  */
 
-import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type {
-  ConvexActualDockEvent,
-  ConvexReloadDockHistoryRecord,
-} from "functions/events/eventsActual/schemas";
-import type {
-  ConvexReloadDockScheduleSegment,
-  ConvexScheduledDockEvent,
-} from "functions/events/eventsScheduled/schemas";
+import type { DockEventType } from "functions/events/common/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-
-type DockEventType = ConvexScheduledDockEvent["EventType"];
 
 type DockBoundaryEventRecord = {
   SegmentKey: string;
@@ -64,22 +55,6 @@ type ActiveTripForPhysicalActualReconcile = {
   TripEnd?: number;
 };
 
-type BuildReloadDockRowSliceArgs = {
-  sailingDay: string;
-  scheduleSegments: ConvexReloadDockScheduleSegment[];
-  historyRecords: ConvexReloadDockHistoryRecord[];
-  updatedAt: number;
-  vessels: ReadonlyArray<VesselIdentity>;
-  terminals: ReadonlyArray<TerminalIdentity>;
-  tripBySegmentKey: Map<string, TripContextForActualRow>;
-  activeTripsByVesselAbbrev: Map<
-    string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
-  >;
-  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
-  vesselLocations: ConvexVesselLocation[];
-};
-
 type BuildReloadDockSliceFromHydratedArgs = {
   sailingDay: string;
   events: DockBoundaryEventRecord[];
@@ -122,7 +97,6 @@ type ReloadActualDockWrite = {
 
 export type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockRowSliceArgs,
   BuildReloadDockSliceFromHydratedArgs,
   BuildReloadDockSliceResult,
   DockBoundaryEventRecord,

@@ -6,12 +6,14 @@
  * terminal, and maps that inferred segment into vessel-trip schedule fields.
  */
 
-import type { ConvexInferredScheduledSegment } from "domain/events/scheduled";
+import type {
+  ConvexInferredScheduledSegment,
+  ConvexScheduledDockEvent,
+} from "domain/events/scheduled";
 import {
   findNextDepartureEvent,
   inferScheduledSegmentFromDepartureEvent,
 } from "domain/events/scheduled";
-import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { UpdateVesselTripDbAccess } from "../types";
 import { mapScheduledSegmentToTripScheduleResolution } from "./mapScheduledSegmentToTripScheduleResolution";

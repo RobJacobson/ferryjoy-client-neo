@@ -1,4 +1,3 @@
-export { buildReloadDockRowSlice } from "./buildReloadDockRowSlice";
 export { buildReloadDockSliceFromHydratedEvents } from "./buildReloadDockSliceFromHydratedEvents";
 export {
   buildHydratedDockBoundaryEventsForReload,

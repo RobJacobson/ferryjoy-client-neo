@@ -9,8 +9,10 @@ import {
   tryResolveVessel,
   type VesselIdentity,
 } from "adapters";
-import type { ConvexReloadDockHistoryRecord } from "functions/events/eventsActual/schemas";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
+import type {
+  WsfScheduledSegment,
+  WsfVesselHistory,
+} from "functions/events/reload/types";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { toAdapterHistoryRecord } from "./adapterConverters";
 import { groupBy } from "./collections";
@@ -38,7 +40,7 @@ const createSeededScheduleSegmentResolver = (
 };
 
 const normalizeHistoryRecordStrict = (
-  record: ConvexReloadDockHistoryRecord,
+  record: WsfVesselHistory,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): NormalizedHistoryRecord | null => {
@@ -81,8 +83,8 @@ const normalizeHistoryRecordStrict = (
  * Indexes history-derived actual depart and arrival-proxy times by event Key.
  *
  * @param args.seededEvents - Schedule-derived boundary rows before history merge
- * @param args.scheduleSegments - Same-day numeric schedule segments
- * @param args.historyRecords - Numeric WSF history rows for the sailing day
+ * @param args.scheduleSegments - Same-day WSF scheduled segments (epoch-ms times)
+ * @param args.historyRecords - WSF vessel history rows (epoch-ms times) for the day
  * @param args.vessels - Vessel identities for adapter resolution
  * @param args.terminals - Terminal identities for adapter resolution
  * @returns Map from boundary Key to epoch actual ms from history
@@ -95,8 +97,8 @@ const getHistoryActualsByEventKey = ({
   terminals,
 }: {
   seededEvents: DockBoundaryEventRecord[];
-  scheduleSegments: ConvexReloadDockScheduleSegment[];
-  historyRecords: ConvexReloadDockHistoryRecord[];
+  scheduleSegments: WsfScheduledSegment[];
+  historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }) => {

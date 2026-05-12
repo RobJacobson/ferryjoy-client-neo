@@ -1,8 +1,8 @@
 /**
- * Sync action-helper tests for single-day dock-event reload orchestration.
+ * Tests for runReloadDockEventsForSailingDay.
  *
- * The helper is tested with mocked adapter fetches so assertions stay focused
- * on Convex-shaped payloads and unified reseed mutation delegation.
+ * Mocks adapter and identity seams; asserts reseed mutation payloads from the
+ * public orchestration entrypoint only.
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
@@ -28,7 +28,6 @@ describe("runReloadDockEventsForSailingDay", () => {
     });
     spyOn(vesselActions, "loadVesselIdentities").mockResolvedValue([]);
     spyOn(terminalActions, "loadTerminalIdentities").mockResolvedValue([]);
-    spyOn(reloadSailingDay, "fetchHistoryRecordsForDate").mockResolvedValue([]);
 
     const mutationPayloads: unknown[] = [];
     const ctx = {
