@@ -66,7 +66,7 @@ const loadTripIndexesForReloadDockMutation = async (
  * @returns Scheduled and actual row counts for the replaced slice
  */
 const reseedDockEventsForSailingDayRows = async (
-  ctx: Parameters<typeof upsertScheduledRowsForSailingDay>[0],
+  ctx: MutationCtx,
   args: ReseedDockEventsForSailingDayArgs
 ): Promise<ReloadDockDayCountResult> => {
   const updatedAt = Date.now();
@@ -114,4 +114,4 @@ export type {
   ReseedDockBoundaryEventRecordArgs,
   ReseedDockEventsForSailingDayArgs,
 } from "domain/events/reload/reseedDockBoundarySchemas";
-export { reseedDockEventsForSailingDay, reseedDockEventsForSailingDayRows };
+export { reseedDockEventsForSailingDay };
