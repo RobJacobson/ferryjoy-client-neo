@@ -153,10 +153,10 @@ const buildReloadDockSliceFromHydratedEvents = ({
     sortDockBoundaryEventRecords
   );
   const scheduledRows = buildScheduledDockEvents(normalizedEvents, updatedAt);
-  const baseActualRows = dedupeActualRowsByEventKey([
+  const baseActualRows = [
     ...buildActualDockEvents(normalizedEvents, updatedAt, tripBySegmentKey),
     ...buildPhysicalOnlyActualRowsFromTrips(physicalOnlyTrips, updatedAt),
-  ]);
+  ];
   const liveLocationRows = buildLiveLocationActualRows({
     sailingDay,
     events: normalizedEvents,

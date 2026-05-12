@@ -4,11 +4,7 @@
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import {
-  mergeActualTime,
-  normalizeScheduledDockSeams,
-  sortDockBoundaryEventRecords,
-} from "./boundarySeams";
+import { mergeActualTime, sortDockBoundaryEventRecords } from "./boundarySeams";
 import { getHistoryActualsByEventKey } from "./historyActuals";
 import {
   buildSeedEventsForSegment,
@@ -25,6 +21,10 @@ import type {
 /**
  * Builds schedule-derived boundary records from raw reload segments.
  *
+ * Seam normalization for identical scheduled dep and arv times is applied in
+ * buildReloadDockSliceFromHydratedEvents, not here, so callers that only seed
+ * should not assume EventScheduledTime is already adjusted.
+ *
  * @param segments - WSF scheduled segments (epoch-ms) from reload
  * @param vessels - Vessel identities for WSF segment resolution
  * @param terminals - Terminal identities for WSF segment resolution
@@ -35,23 +35,21 @@ const buildScheduledDockEventRecords = (
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): DockBoundaryEventRecord[] =>
-  normalizeScheduledDockSeams(
-    getDirectRawSeedSegments(segments, vessels, terminals)
-      .flatMap((segment) =>
-        buildSeedEventsForSegment({
-          SailingDay: segment.SailingDay,
-          VesselAbbrev: segment.VesselAbbrev,
-          ScheduledDeparture: segment.DepartingTime,
-          DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
-          ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
-          ScheduledArrival: normalizeScheduledArrivalTime(
-            segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
-            segment.DepartingTime
-          ),
-        })
-      )
-      .sort(sortDockBoundaryEventRecords)
-  );
+  getDirectRawSeedSegments(segments, vessels, terminals)
+    .flatMap((segment) =>
+      buildSeedEventsForSegment({
+        SailingDay: segment.SailingDay,
+        VesselAbbrev: segment.VesselAbbrev,
+        ScheduledDeparture: segment.DepartingTime,
+        DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
+        ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+        ScheduledArrival: normalizeScheduledArrivalTime(
+          segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
+          segment.DepartingTime
+        ),
+      })
+    )
+    .sort(sortDockBoundaryEventRecords);
 
 /**
  * Hydrates seeded boundary records with WSF history actuals.

@@ -114,10 +114,6 @@ const getHistoryActualsByEventKey = ({
   return historyRecords.reduce((actualsByEventKey, record) => {
     const actualDeparture = record.ActualDepart;
     const arrivalProxy = record.EstArrival;
-    const vessel = tryResolveVessel(
-      record.Vessel ? String(record.Vessel) : "",
-      vessels
-    );
     const strictRecord = normalizeHistoryRecordStrict(
       record,
       vessels,
@@ -131,6 +127,10 @@ const getHistoryActualsByEventKey = ({
 
     if (tripKey === undefined) {
       const scheduledDepart = record.ScheduledDepart;
+      const vessel = tryResolveVessel(
+        record.Vessel ? String(record.Vessel) : "",
+        vessels
+      );
       if (
         scheduledDepart !== undefined &&
         vessel !== null &&
