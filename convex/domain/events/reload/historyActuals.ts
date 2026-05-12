@@ -9,15 +9,16 @@ import {
   tryResolveVessel,
   type VesselIdentity,
 } from "adapters";
-import type {
-  WsfScheduledSegment,
-  WsfVesselHistory,
-} from "functions/events/reload/types";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { toAdapterHistoryRecord } from "./adapterConverters";
 import { groupBy } from "./collections";
 import { getDirectRawSeedSegments } from "./rawSeedSegments";
-import type { DockBoundaryEventRecord, NormalizedHistoryRecord } from "./types";
+import type {
+  DockBoundaryEventRecord,
+  NormalizedHistoryRecord,
+  WsfScheduledSegment,
+  WsfVesselHistory,
+} from "./types";
 
 /**
  * Builds a resolver from scheduled depart ms to segment key using seeded dep rows.

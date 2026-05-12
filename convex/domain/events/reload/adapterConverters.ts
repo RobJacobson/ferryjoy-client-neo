@@ -4,11 +4,8 @@
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type {
-  WsfScheduledSegment,
-  WsfVesselHistory,
-} from "functions/events/reload/types";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import type { WsfScheduledSegment, WsfVesselHistory } from "./types";
 
 /**
  * Maps one epoch-ms scheduled segment to an adapter segment with Date fields.

@@ -7,7 +7,7 @@ import {
   buildHydratedDockBoundaryEventsForReload,
   buildReloadDockSliceFromHydratedEvents,
 } from "domain/events/reload";
-import type { WsfScheduledSegment } from "functions/events/reload/types";
+import type { WsfScheduledSegment } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { buildSegmentKey } from "shared/keys";

@@ -8,7 +8,6 @@ import {
   type TerminalIdentity,
   type VesselIdentity,
 } from "adapters";
-import type { WsfScheduledSegment } from "functions/events/reload/types";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import {
   classifyDirectSegments,
@@ -16,7 +15,11 @@ import {
 } from "../../scheduledTrips";
 import { toAdapterScheduleSegment } from "./adapterConverters";
 import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "./constants";
-import type { DockBoundaryEventRecord, RawSeedSegment } from "./types";
+import type {
+  DockBoundaryEventRecord,
+  RawSeedSegment,
+  WsfScheduledSegment,
+} from "./types";
 
 const normalizeScheduledArrivalTime = (
   scheduledArrival: number | undefined,

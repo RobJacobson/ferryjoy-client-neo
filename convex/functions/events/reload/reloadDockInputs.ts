@@ -4,10 +4,13 @@
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
+import type {
+  WsfScheduledSegment,
+  WsfVesselHistory,
+} from "domain/events/reload/types";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { WsfScheduledSegment, WsfVesselHistory } from "./types";
 
 /**
  * Loads WSF vessel history rows for distinct vessels named on schedule segments.

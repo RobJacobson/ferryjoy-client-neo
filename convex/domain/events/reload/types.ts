@@ -1,12 +1,39 @@
 /**
  * Type shapes for dock-event reload assembly: hydrated boundary records, trip
- * indexes, and mutation slice results.
+ * indexes, mutation slice results, and WSF adapter rows projected to epoch-ms
+ * for hydrate. WsfScheduledSegment and WsfVesselHistory are not persisted table
+ * documents and are not Convex mutation args validators.
  */
 
 import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+
+type WsfVesselHistory = {
+  VesselId: number;
+  Vessel?: string;
+  Departing?: string;
+  Arriving?: string;
+  ScheduledDepart?: number;
+  ActualDepart?: number;
+  EstArrival?: number;
+};
+
+type WsfScheduledSegment = {
+  VesselName: string;
+  DepartingTerminalID: number;
+  ArrivingTerminalID: number;
+  DepartingTerminalName: string;
+  ArrivingTerminalName: string;
+  DepartingTime: number;
+  ArrivingTime?: number;
+  SailingNotes: string;
+  Annotations: string[];
+  RouteID: number;
+  RouteAbbrev: string;
+  SailingDay: string;
+};
 
 type DockBoundaryEventRecord = {
   SegmentKey: string;
@@ -107,4 +134,6 @@ export type {
   ReloadActualDockWrite,
   TripContextForActualRow,
   TripRowForActualContext,
+  WsfScheduledSegment,
+  WsfVesselHistory,
 };

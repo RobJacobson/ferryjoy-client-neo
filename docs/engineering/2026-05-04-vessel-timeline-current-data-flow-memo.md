@@ -32,7 +32,7 @@ For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/function
 
 1. Loads vessel and terminal identity context.
 2. Pulls WSF schedule data via **`fetchAndTransformScheduledTrips`** (adapters). Segments are **`RawWsfScheduleSegment`** rows (`convex/adapters/fetch/fetchWsfScheduledTripsTypes.ts`) with **`Date`** departure/arrival instants.
-3. **`fetchReloadWsfInputs`** (`convex/functions/events/reload/reloadDockInputs.ts`) loads per-vessel WSF history for the sailing day and maps each raw segment and history row into **`WsfScheduledSegment`** and **`WsfVesselHistory`** (epoch-ms time fields; types in `convex/functions/events/reload/types.ts`).
+3. **`fetchReloadWsfInputs`** (`convex/functions/events/reload/reloadDockInputs.ts`) loads per-vessel WSF history for the sailing day and maps each raw segment and history row into **`WsfScheduledSegment`** and **`WsfVesselHistory`** (epoch-ms time fields; types in `convex/domain/events/reload/types.ts`).
 4. **`buildHydratedDockBoundaryEventsForReload`** (`convex/domain/events/reload/scheduleSeedAndHydration.ts` and related reload domain modules) merges schedule seeds with history actuals into hydrated boundary-event records.
 5. **`ctx.runMutation`** to internal **`reseedDockEventsForSailingDay`** (`convex/functions/events/reload/mutations.ts`). That mutation loads trip indexes for the day, **`collect`**s all **`vesselLocations`** rows, runs **`buildReloadDockSliceFromHydratedEvents`**, then persists via **`upsertScheduledRowsForSailingDay`** (`eventsScheduled`) and **`replaceActualRowsForSailingDay`** (`eventsActual`). Reseed **`args`** validators are defined in the same file as the mutation.
 

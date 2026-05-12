@@ -4,10 +4,6 @@
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type {
-  WsfScheduledSegment,
-  WsfVesselHistory,
-} from "functions/events/reload/types";
 import {
   mergeActualTime,
   normalizeScheduledDockSeams,
@@ -20,7 +16,11 @@ import {
   getOfficialScheduledArrivalTime,
   normalizeScheduledArrivalTime,
 } from "./rawSeedSegments";
-import type { DockBoundaryEventRecord } from "./types";
+import type {
+  DockBoundaryEventRecord,
+  WsfScheduledSegment,
+  WsfVesselHistory,
+} from "./types";
 
 /**
  * Builds schedule-derived boundary records from raw reload segments.
