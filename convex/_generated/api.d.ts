@@ -137,7 +137,6 @@ import type * as functions_events_reload_actions from "../functions/events/reloa
 import type * as functions_events_reload_index from "../functions/events/reload/index.js";
 import type * as functions_events_reload_mutations from "../functions/events/reload/mutations.js";
 import type * as functions_events_reload_reloadDockEventsForSailingDay from "../functions/events/reload/reloadDockEventsForSailingDay.js";
-import type * as functions_events_reload_reloadDockEventsWindow from "../functions/events/reload/reloadDockEventsWindow.js";
 import type * as functions_events_reload_reloadDockInputs from "../functions/events/reload/reloadDockInputs.js";
 import type * as functions_index from "../functions/index.js";
 import type * as functions_keyValueStore_helpers from "../functions/keyValueStore/helpers.js";
@@ -360,7 +359,6 @@ declare const fullApi: ApiFromModules<{
   "functions/events/reload/index": typeof functions_events_reload_index;
   "functions/events/reload/mutations": typeof functions_events_reload_mutations;
   "functions/events/reload/reloadDockEventsForSailingDay": typeof functions_events_reload_reloadDockEventsForSailingDay;
-  "functions/events/reload/reloadDockEventsWindow": typeof functions_events_reload_reloadDockEventsWindow;
   "functions/events/reload/reloadDockInputs": typeof functions_events_reload_reloadDockInputs;
   "functions/index": typeof functions_index;
   "functions/keyValueStore/helpers": typeof functions_keyValueStore_helpers;

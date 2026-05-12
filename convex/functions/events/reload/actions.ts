@@ -9,11 +9,11 @@ import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
 import type { ReloadDockDayCountResult } from "domain/events/reload/reseedDockBoundarySchemas";
 import { getPacificTimeComponents, getSailingDay } from "shared/time";
-import { runReloadDockEventsForSailingDay } from "./reloadDockEventsForSailingDay";
 import {
+  runReloadDockEventsForSailingDay,
   runReloadDockEventsWindow,
   type WindowReloadDayResult,
-} from "./reloadDockEventsWindow";
+} from "./reloadDockEventsForSailingDay";
 
 /**
  * Reloads dock-event rows for the current sailing day.

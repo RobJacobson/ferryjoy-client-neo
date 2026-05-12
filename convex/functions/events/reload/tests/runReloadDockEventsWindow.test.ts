@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as reloadDay from "../reloadDockEventsForSailingDay";
-import { runReloadDockEventsWindow } from "../reloadDockEventsWindow";
+import { runReloadDockEventsWindow } from "../reloadDockEventsForSailingDay";
 
 const fixedClockMs = Date.parse("2026-05-10T16:00:00.000Z");
 
