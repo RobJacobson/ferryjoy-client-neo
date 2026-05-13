@@ -142,8 +142,4 @@ const hydrateScheduledEvents = ({
   });
 };
 
-export {
-  buildScheduledDockEventRecords,
-  hydrateDockEventRecordsWithHistory,
-  hydrateScheduledEvents,
-};
+export { hydrateScheduledEvents };
