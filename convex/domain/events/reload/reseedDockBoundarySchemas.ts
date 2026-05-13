@@ -36,8 +36,6 @@ const reseedDockEventsDayCountReturnSchema = v.object({
 
 type DockBoundaryEventRecord = Infer<typeof reseedDockBoundaryEventRecordArgs>;
 
-type ReseedDockBoundaryEventRecordArgs = DockBoundaryEventRecord;
-
 type ReseedDockEventsForSailingDayArgs = Infer<
   typeof reseedDockEventsForSailingDayArgsSchema
 >;
@@ -49,7 +47,6 @@ type ReloadDockDayCountResult = Infer<
 export type {
   DockBoundaryEventRecord,
   ReloadDockDayCountResult,
-  ReseedDockBoundaryEventRecordArgs,
   ReseedDockEventsForSailingDayArgs,
 };
 export {

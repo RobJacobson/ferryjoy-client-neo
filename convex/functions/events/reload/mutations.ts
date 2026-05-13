@@ -110,8 +110,8 @@ const reseedDockEventsForSailingDay = internalMutation({
 });
 
 export type {
+  DockBoundaryEventRecord,
   ReloadDockDayCountResult,
-  ReseedDockBoundaryEventRecordArgs,
   ReseedDockEventsForSailingDayArgs,
 } from "domain/events/reload/reseedDockBoundarySchemas";
 export { reseedDockEventsForSailingDay };
