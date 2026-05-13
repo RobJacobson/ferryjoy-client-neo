@@ -3,7 +3,7 @@
  *
  * Realtime trip updates emit sparse actual dock writes before persistence. This
  * module normalizes only that write shape into eventsActual rows; scheduled
- * reload slice assembly lives in domain/events/reload.
+ * reload sailing-day row assembly lives in domain/events/reload.
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";

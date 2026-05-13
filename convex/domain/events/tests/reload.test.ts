@@ -3,8 +3,11 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { buildReloadDockRowSlice } from "domain/events/reload";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
+import {
+  buildHydratedDockStatusEventsForReload,
+  buildReloadDockSailingDayRowsFromHydratedEvents,
+} from "domain/events/reload";
+import type { WsfScheduledSegment } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { buildSegmentKey } from "shared/keys";
@@ -33,7 +36,7 @@ const terminals: TerminalIdentity[] = [
   },
 ];
 
-describe("buildReloadDockRowSlice", () => {
+describe("reload dock sailing day rows from schedule and history", () => {
   it("hydrates history actuals and keeps physical-only evidence", () => {
     const departure = at(12, 20);
     const arrival = at(12, 55);
@@ -48,23 +51,28 @@ describe("buildReloadDockRowSlice", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = buildReloadDockRowSlice({
-      sailingDay: "2026-03-25",
-      scheduleSegments: [scheduleSegment({ departure, arrival })],
-      historyRecords: [
-        {
-          VesselId: 1,
-          Vessel: "Wenatchee",
-          Departing: "Seattle",
-          Arriving: "Bainbridge Island",
-          ScheduledDepart: departure,
-          ActualDepart: at(12, 24),
-          EstArrival: at(13, 0),
-        },
-      ],
-      updatedAt: 42,
+    const scheduleSegments = [scheduleSegment({ departure, arrival })];
+    const historyRecords = [
+      {
+        VesselId: 1,
+        Vessel: "Wenatchee",
+        Departing: "Seattle",
+        Arriving: "Bainbridge Island",
+        ScheduledDepart: departure,
+        ActualDepart: at(12, 24),
+        EstArrival: at(13, 0),
+      },
+    ];
+    const hydratedEvents = buildHydratedDockStatusEventsForReload({
+      scheduleSegments,
+      historyRecords,
       vessels,
       terminals,
+    });
+    const result = buildReloadDockSailingDayRowsFromHydratedEvents({
+      sailingDay: "2026-03-25",
+      events: hydratedEvents,
+      updatedAt: 42,
       tripBySegmentKey: new Map([[segmentKey, { TripKey: "trip-scheduled" }]]),
       activeTripsByVesselAbbrev: new Map(),
       vesselLocations: [],
@@ -105,7 +113,7 @@ const scheduleSegment = ({
 }: {
   departure: number;
   arrival: number;
-}): ConvexReloadDockScheduleSegment => ({
+}): WsfScheduledSegment => ({
   VesselName: "Wenatchee",
   DepartingTerminalID: 1,
   ArrivingTerminalID: 2,

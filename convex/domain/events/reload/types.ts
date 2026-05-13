@@ -1,34 +1,39 @@
 /**
- * Type shapes for dock-event reload assembly: hydrated boundary records, trip
- * indexes, and mutation slice results. Validators and inferred wire types live
- * under functions/events table schema modules.
+ * Type shapes for dock-event reload assembly: hydrated dock status event
+ * records, trip indexes, sailing-day row build results, and WSF adapter rows
+ * projected to epoch-ms for hydrate. WsfScheduledSegment and WsfVesselHistory are not
+ * persisted table documents and are not Convex mutation args validators.
  */
 
-import type { TerminalIdentity, VesselIdentity } from "adapters";
-import type {
-  ConvexActualDockEvent,
-  ConvexReloadDockHistoryRecord,
-} from "functions/events/eventsActual/schemas";
-import type {
-  ConvexReloadDockScheduleSegment,
-  ConvexScheduledDockEvent,
-} from "functions/events/eventsScheduled/schemas";
+import type { DockEventType } from "functions/events/common/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { DockStatusEventRecord } from "./dockStatusEventSchemas";
 
-type DockEventType = ConvexScheduledDockEvent["EventType"];
+type WsfVesselHistory = {
+  VesselId: number;
+  Vessel?: string;
+  Departing?: string;
+  Arriving?: string;
+  ScheduledDepart?: number;
+  ActualDepart?: number;
+  EstArrival?: number;
+};
 
-type DockBoundaryEventRecord = {
-  SegmentKey: string;
-  Key: string;
-  VesselAbbrev: string;
+type WsfScheduledSegment = {
+  VesselName: string;
+  DepartingTerminalID: number;
+  ArrivingTerminalID: number;
+  DepartingTerminalName: string;
+  ArrivingTerminalName: string;
+  DepartingTime: number;
+  ArrivingTime?: number;
+  SailingNotes: string;
+  Annotations: string[];
+  RouteID: number;
+  RouteAbbrev: string;
   SailingDay: string;
-  ScheduledDeparture: number;
-  TerminalAbbrev: string;
-  EventType: DockEventType;
-  EventScheduledTime?: number;
-  EventPredictedTime?: number;
-  EventOccurred?: true;
-  EventActualTime?: number;
 };
 
 type RawSeedSegment = {
@@ -64,25 +69,9 @@ type ActiveTripForPhysicalActualReconcile = {
   TripEnd?: number;
 };
 
-type BuildReloadDockRowSliceArgs = {
+type BuildReloadDockSailingDayRowsFromHydratedArgs = {
   sailingDay: string;
-  scheduleSegments: ConvexReloadDockScheduleSegment[];
-  historyRecords: ConvexReloadDockHistoryRecord[];
-  updatedAt: number;
-  vessels: ReadonlyArray<VesselIdentity>;
-  terminals: ReadonlyArray<TerminalIdentity>;
-  tripBySegmentKey: Map<string, TripContextForActualRow>;
-  activeTripsByVesselAbbrev: Map<
-    string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
-  >;
-  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
-  vesselLocations: ConvexVesselLocation[];
-};
-
-type BuildReloadDockSliceFromHydratedArgs = {
-  sailingDay: string;
-  events: DockBoundaryEventRecord[];
+  events: DockStatusEventRecord[];
   updatedAt: number;
   tripBySegmentKey: Map<string, TripContextForActualRow>;
   activeTripsByVesselAbbrev: Map<
@@ -93,7 +82,7 @@ type BuildReloadDockSliceFromHydratedArgs = {
   vesselLocations: ConvexVesselLocation[];
 };
 
-type BuildReloadDockSliceResult = {
+type BuildReloadDockSailingDayRowsResult = {
   scheduledRows: ConvexScheduledDockEvent[];
   scheduledCount: number;
   actualRows: ConvexActualDockEvent[];
@@ -120,12 +109,11 @@ type ReloadActualDockWrite = {
   EventActualTime?: number;
 };
 
+export type { DockStatusEventRecord } from "./dockStatusEventSchemas";
 export type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockRowSliceArgs,
-  BuildReloadDockSliceFromHydratedArgs,
-  BuildReloadDockSliceResult,
-  DockBoundaryEventRecord,
+  BuildReloadDockSailingDayRowsFromHydratedArgs,
+  BuildReloadDockSailingDayRowsResult,
   DockEventType,
   HistoryActualSource,
   NormalizedHistoryRecord,
@@ -133,4 +121,6 @@ export type {
   ReloadActualDockWrite,
   TripContextForActualRow,
   TripRowForActualContext,
+  WsfScheduledSegment,
+  WsfVesselHistory,
 };

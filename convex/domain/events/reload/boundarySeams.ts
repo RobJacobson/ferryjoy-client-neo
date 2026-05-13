@@ -1,6 +1,6 @@
 /**
  * Scheduled dock seam normalization, boundary ordering, and history-vs-existing
- * actual time merge for reload slices.
+ * actual time merge when assembling sailing-day reload rows.
  */
 
 import { buildBoundaryKey } from "shared/keys";
@@ -11,8 +11,8 @@ import {
   IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
 } from "./constants";
 import type {
-  DockBoundaryEventRecord,
   DockEventType,
+  DockStatusEventRecord,
   HistoryActualSource,
 } from "./types";
 
@@ -23,8 +23,8 @@ import type {
  * @returns Copy with dep times nudged where identical seams were detected
  */
 const normalizeScheduledDockSeams = (
-  events: DockBoundaryEventRecord[]
-): DockBoundaryEventRecord[] => {
+  events: DockStatusEventRecord[]
+): DockStatusEventRecord[] => {
   const adjustedScheduledTimesByKey = new Map<string, number>();
   const eventsByVesselDay = groupBy(
     events,
@@ -33,7 +33,7 @@ const normalizeScheduledDockSeams = (
 
   for (const scopedEvents of eventsByVesselDay.values()) {
     const sortedScopedEvents = [...scopedEvents].sort(
-      sortDockBoundaryEventRecords
+      sortDockStatusEventRecords
     );
 
     for (let index = 0; index < sortedScopedEvents.length; index++) {
@@ -98,9 +98,9 @@ const mergeActualTime = (
  * @param right - Second record
  * @returns Comparator value for Array.sort
  */
-const sortDockBoundaryEventRecords = (
-  left: DockBoundaryEventRecord,
-  right: DockBoundaryEventRecord
+const sortDockStatusEventRecords = (
+  left: DockStatusEventRecord,
+  right: DockStatusEventRecord
 ) =>
   left.ScheduledDeparture - right.ScheduledDeparture ||
   getEventTypeOrder(left.EventType) - getEventTypeOrder(right.EventType) ||
@@ -110,8 +110,8 @@ const getEventTypeOrder = (eventType: DockEventType) =>
   eventType === "dep-dock" ? 0 : 1;
 
 const isIdenticalScheduledDockSeam = (
-  current: DockBoundaryEventRecord,
-  next: DockBoundaryEventRecord | undefined
+  current: DockStatusEventRecord,
+  next: DockStatusEventRecord | undefined
 ) =>
   next !== undefined &&
   current.EventType === "arv-dock" &&
@@ -128,8 +128,8 @@ const isIdenticalScheduledDockSeam = (
  * @returns Terminal abbrev after departure crossing
  */
 const getNextTerminalAbbrev = (
-  event: DockBoundaryEventRecord,
-  eventByKey: Map<string, DockBoundaryEventRecord>
+  event: DockStatusEventRecord,
+  eventByKey: Map<string, DockStatusEventRecord>
 ) =>
   eventByKey.get(buildBoundaryKey(event.SegmentKey, "arv-dock"))
     ?.TerminalAbbrev ?? event.TerminalAbbrev;
@@ -140,7 +140,7 @@ const getNextTerminalAbbrev = (
  * @param events - Ordered or unordered boundary records for the sailing day
  * @returns Arrival row Key or null when no arrival exists
  */
-const getLastArrivalKey = (events: DockBoundaryEventRecord[]) =>
+const getLastArrivalKey = (events: DockStatusEventRecord[]) =>
   [...events].reverse().find((event) => event.EventType === "arv-dock")?.Key ??
   null;
 
@@ -149,5 +149,5 @@ export {
   getNextTerminalAbbrev,
   mergeActualTime,
   normalizeScheduledDockSeams,
-  sortDockBoundaryEventRecords,
+  sortDockStatusEventRecords,
 };

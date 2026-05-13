@@ -1,8 +1,8 @@
 /**
- * Sync action-helper tests for single-day dock-event reload orchestration.
+ * Tests for runReloadDockEventsForSailingDay.
  *
- * The helper is tested with mocked adapter fetches so assertions stay focused
- * on Convex-shaped payloads and unified reseed mutation delegation.
+ * Mocks adapter and identity seams; asserts reseed mutation payloads from the
+ * public orchestration entrypoint only.
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("runReloadDockEventsForSailingDay", () => {
-  it("calls unified reseed mutation with hydrated boundary events", async () => {
+  it("calls unified reseed mutation with hydrated dock status events", async () => {
     spyOn(console, "log").mockImplementation(() => {});
     spyOn(adapters, "fetchAndTransformScheduledTrips").mockResolvedValue({
       routes: [],
@@ -28,13 +28,12 @@ describe("runReloadDockEventsForSailingDay", () => {
     });
     spyOn(vesselActions, "loadVesselIdentities").mockResolvedValue([]);
     spyOn(terminalActions, "loadTerminalIdentities").mockResolvedValue([]);
-    spyOn(reloadSailingDay, "fetchHistoryRecordsForDate").mockResolvedValue([]);
 
     const mutationPayloads: unknown[] = [];
     const ctx = {
       runMutation: async (_ref: unknown, args: unknown) => {
         mutationPayloads.push(args);
-        return { ScheduledCount: 0, ActualCount: 0 };
+        return { scheduledCount: 0, actualCount: 0 };
       },
     } as unknown as ActionCtx;
 
@@ -43,7 +42,7 @@ describe("runReloadDockEventsForSailingDay", () => {
       "2026-07-04"
     );
 
-    expect(result).toEqual({ ScheduledCount: 0, ActualCount: 0 });
+    expect(result).toEqual({ scheduledCount: 0, actualCount: 0 });
     expect(mutationPayloads).toEqual([
       {
         SailingDay: "2026-07-04",

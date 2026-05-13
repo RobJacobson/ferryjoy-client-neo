@@ -6,19 +6,21 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { MutationCtx } from "_generated/server";
 import * as eventsActual from "functions/events/eventsActual/mutations";
 import * as eventsScheduled from "functions/events/eventsScheduled/mutations";
-import type { ReseedDockEventsForSailingDayArgs } from "functions/events/eventsScheduled/schemas";
-import { reseedDockEventsForSailingDay } from "../mutations";
+import {
+  type ReseedDockStatusEventsForSailingDayArgs,
+  reseedDockStatusEventsForSailingDay,
+} from "../mutations";
 
 type ReseedHandler = (
   ctx: MutationCtx,
-  args: ReseedDockEventsForSailingDayArgs
-) => Promise<{ ScheduledCount: number; ActualCount: number }>;
+  args: ReseedDockStatusEventsForSailingDayArgs
+) => Promise<{ scheduledCount: number; actualCount: number }>;
 
 afterEach(() => {
   mock.restore();
 });
 
-describe("reseedDockEventsForSailingDay", () => {
+describe("reseedDockStatusEventsForSailingDay", () => {
   it("delegates scheduled and actual persistence to the table helpers", async () => {
     const scheduledSpy = spyOn(
       eventsScheduled,
@@ -30,15 +32,14 @@ describe("reseedDockEventsForSailingDay", () => {
     ).mockResolvedValue(undefined);
     const ctx = makeEmptyDbMutationCtx();
 
-    const counts = await handler<ReseedHandler>(reseedDockEventsForSailingDay)(
-      ctx,
-      {
-        SailingDay: "2026-04-10",
-        Events: [],
-      }
-    );
+    const counts = await handler<ReseedHandler>(
+      reseedDockStatusEventsForSailingDay
+    )(ctx, {
+      SailingDay: "2026-04-10",
+      Events: [],
+    });
 
-    expect(counts).toEqual({ ScheduledCount: 0, ActualCount: 0 });
+    expect(counts).toEqual({ scheduledCount: 0, actualCount: 0 });
     expect(scheduledSpy).toHaveBeenCalledTimes(1);
     expect(scheduledSpy).toHaveBeenCalledWith(ctx, "2026-04-10", []);
     expect(actualSpy).toHaveBeenCalledTimes(1);
@@ -71,7 +72,7 @@ describe("reseedDockEventsForSailingDay", () => {
       vesselLocations: [],
     });
 
-    await handler<ReseedHandler>(reseedDockEventsForSailingDay)(ctx, {
+    await handler<ReseedHandler>(reseedDockStatusEventsForSailingDay)(ctx, {
       SailingDay: "2026-04-10",
       Events: [],
     });

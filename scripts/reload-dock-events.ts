@@ -32,11 +32,11 @@ const reloadDockEvents = async (targetDate?: string) => {
     const convex = new ConvexHttpClient(convexUrl);
     const result = targetDate
       ? await convex.action(
-          api.functions.events.sync.actions.reloadDockEventsForSailingDay,
+          api.functions.events.reload.actions.reloadDockEventsForSailingDay,
           { targetDate }
         )
       : await convex.action(
-          api.functions.events.sync.actions
+          api.functions.events.reload.actions
             .reloadDockEventsForCurrentSailingDay,
           {}
         );
@@ -53,7 +53,7 @@ const main = () => {
   const args = process.argv.slice(2);
 
   if (args.length > 1) {
-    console.error("Usage: bunx tsx scripts/sync-dock-events.ts [date]");
+    console.error("Usage: bunx tsx scripts/reload-dock-events.ts [date]");
     console.error("");
     console.error(
       "Arguments: date — optional sailing day YYYY-MM-DD (defaults to current sailing day)"

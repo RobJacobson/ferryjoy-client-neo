@@ -5,22 +5,8 @@
  * from one departure boundary and to choose the next departure in a row pool.
  */
 
-/** Stable dock event types used across scheduled, actual, and predicted rows. */
-type DockEventType = "dep-dock" | "arv-dock";
-
-/** Canonical persisted scheduled dock row. */
-type ConvexScheduledDockEvent = {
-  Key: string;
-  VesselAbbrev: string;
-  SailingDay: string;
-  UpdatedAt: number;
-  ScheduledDeparture: number;
-  TerminalAbbrev: string;
-  NextTerminalAbbrev: string;
-  EventType: DockEventType;
-  EventScheduledTime?: number;
-  IsLastArrivalOfSailingDay?: boolean;
-};
+import type { DockEventType } from "functions/events/common/schemas";
+import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 
 /** Portable inferred segment used by continuity and timeline reads. */
 type ConvexInferredScheduledSegment = {

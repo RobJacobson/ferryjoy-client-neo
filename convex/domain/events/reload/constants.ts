@@ -1,18 +1,14 @@
 /**
  * Thresholds and tolerances for dock-event reload assembly: scheduled seam
- * deduping, history merge replacement, and live-location reconciliation.
+ * deduping and history merge replacement.
  */
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
 const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
-const MOVING_SPEED_THRESHOLD = 0.2;
-const DOCKED_SPEED_THRESHOLD = 0.2;
 
 export {
   ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS,
   DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS,
-  DOCKED_SPEED_THRESHOLD,
   IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
-  MOVING_SPEED_THRESHOLD,
 };

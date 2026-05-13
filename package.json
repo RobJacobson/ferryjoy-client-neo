@@ -36,7 +36,7 @@
     "ml:delete-version": "bunx tsx scripts/ml/ml-version-delete.ts",
     "sync:scheduled-trips": "bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSync '{}'",
     "sync:scheduled-trips:date": "bunx convex run functions/scheduledTrips/actions:runManualScheduledTripsSyncForDate",
-    "sync:dock-events": "bunx tsx scripts/sync-dock-events.ts",
+    "reload:dock-events": "bunx tsx scripts/reload-dock-events.ts",
     "analyze:vessel-terminal-chronology": "bunx tsx scripts/reconstruct-vessel-terminal-chronology.ts",
     "check:vessel-availability:days": "bunx tsx scripts/check-vessel-availability-params.ts",
     "check:vessel-availability:csv": "bunx tsx scripts/check-vessel-availability-csv.ts",

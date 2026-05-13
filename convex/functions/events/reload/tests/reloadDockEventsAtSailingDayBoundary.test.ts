@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as time from "shared/time";
 import { reloadDockEventsAtSailingDayBoundary } from "../actions";
-import * as windowReload from "../reloadDockEventsWindow";
+import * as sailingDayReload from "../reloadDockEventsForSailingDay";
 
 type BoundaryHandler = (
   ctx: ActionCtx,
@@ -31,7 +31,7 @@ describe("reloadDockEventsAtSailingDayBoundary", () => {
       second: 0,
       dayOfWeek: 0,
     });
-    const windowSpy = spyOn(windowReload, "runReloadDockEventsWindow");
+    const windowSpy = spyOn(sailingDayReload, "runReloadDockEventsWindow");
 
     const result = await boundaryHandler({} as ActionCtx, { daysToSync: 2 });
 
@@ -52,7 +52,7 @@ describe("reloadDockEventsAtSailingDayBoundary", () => {
       second: 0,
       dayOfWeek: 1,
     });
-    spyOn(windowReload, "runReloadDockEventsWindow").mockResolvedValue({
+    spyOn(sailingDayReload, "runReloadDockEventsWindow").mockResolvedValue({
       totalScheduled: 4,
       totalActual: 6,
       daysProcessed: [],

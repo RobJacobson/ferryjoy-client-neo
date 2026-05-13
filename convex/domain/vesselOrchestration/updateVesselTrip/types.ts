@@ -2,8 +2,10 @@
  * Shared contracts for the pure updateVesselTrip pipeline.
  */
 
-import type { ConvexInferredScheduledSegment } from "domain/events/scheduled";
-import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
+import type {
+  ConvexInferredScheduledSegment,
+  ConvexScheduledDockEvent,
+} from "domain/events/scheduled";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 

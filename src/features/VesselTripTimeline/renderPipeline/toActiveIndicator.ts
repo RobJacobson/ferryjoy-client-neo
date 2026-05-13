@@ -13,7 +13,6 @@ import type {
 } from "../types";
 
 const ACTIVE_DOCK_MIN_OFFSET = 0.06;
-const MOVING_SPEED_THRESHOLD_KNOTS = 0.1;
 
 /**
  * Adds the active overlay indicator to the pipeline context.
@@ -54,9 +53,7 @@ const getActiveIndicator = (
     ),
     title: item.vesselLocation.VesselName,
     subtitle: getIndicatorSubtitle(activeRow.row, item),
-    animate:
-      activeRow.row.kind === "at-sea" &&
-      (item.vesselLocation.Speed ?? 0) > MOVING_SPEED_THRESHOLD_KNOTS,
+    animate: activeRow.row.kind === "at-sea",
     speedKnots: item.vesselLocation.Speed ?? 0,
   };
 };

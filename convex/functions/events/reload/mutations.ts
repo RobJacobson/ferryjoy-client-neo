@@ -1,36 +1,37 @@
 /**
  * Internal mutation for static dock-event reload persistence.
  *
- * One entrypoint matches the old vessel timeline reseed: hydrated boundary
+ * One entrypoint matches the old vessel timeline reseed: hydrated dock status
  * events cross the action boundary, then scheduled and actual tables are
  * replaced in one mutation with a single trip-index pass (no separate identity
  * queries).
  */
 
 import { internalMutation, type MutationCtx } from "_generated/server";
-import { v } from "convex/values";
 import {
-  buildReloadDockSliceFromHydratedEvents,
+  buildReloadDockSailingDayRowsFromHydratedEvents,
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "domain/events/reload";
+import {
+  type ReloadDockDayCountResult,
+  type ReseedDockStatusEventsForSailingDayArgs,
+  reseedDockEventsDayCountReturnSchema,
+  reseedDockStatusEventsForSailingDayArgsSchema,
+} from "domain/events/reload/dockStatusEventSchemas";
 import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
-import {
-  type ReseedDockEventsForSailingDayArgs,
-  reseedDockEventsForSailingDayArgsSchema,
-} from "functions/events/eventsScheduled/schemas";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Loads trip indexes for reload slice assembly (same logic as old
- * runReseedBoundaryEventsForSailingDay trip reads).
+ * Loads trip indexes for building dock rows for one sailing day during reseed
+ * (same logic as old runReseedBoundaryEventsForSailingDay trip reads).
  *
  * @param ctx - Convex mutation context for vessel-trip table reads
  * @param sailingDay - Target sailing day string
  * @returns Segment key map, active-trip map, and physical-only trips
  */
-const loadTripIndexesForReloadDockMutation = async (
+const loadTripIndexesForReseedDockStatusEvents = async (
   ctx: MutationCtx,
   sailingDay: string
 ) => {
@@ -61,22 +62,22 @@ const loadTripIndexesForReloadDockMutation = async (
  *
  * @param ctx - Convex mutation context
  * @param args.SailingDay - Target sailing day
- * @param args.Events - Hydrated boundary events from the reload action
- * @returns Scheduled and actual row counts for the replaced slice
+ * @param args.Events - Hydrated dock status events from the reload action
+ * @returns Scheduled and actual row counts for the replaced sailing day
  */
-const reseedDockEventsForSailingDayRows = async (
-  ctx: Parameters<typeof upsertScheduledRowsForSailingDay>[0],
-  args: ReseedDockEventsForSailingDayArgs
-): Promise<{ ScheduledCount: number; ActualCount: number }> => {
+const reseedDockStatusEventsForSailingDayRows = async (
+  ctx: MutationCtx,
+  args: ReseedDockStatusEventsForSailingDayArgs
+): Promise<ReloadDockDayCountResult> => {
   const updatedAt = Date.now();
   const sailingDay = args.SailingDay;
   const { tripBySegmentKey, activeTripsByVesselAbbrev, physicalOnlyTrips } =
-    await loadTripIndexesForReloadDockMutation(ctx, sailingDay);
+    await loadTripIndexesForReseedDockStatusEvents(ctx, sailingDay);
   const vesselLocations = (await ctx.db.query("vesselLocations").collect()).map(
     stripConvexMeta
   );
   const { scheduledRows, scheduledCount, actualRows, actualCount } =
-    buildReloadDockSliceFromHydratedEvents({
+    buildReloadDockSailingDayRowsFromHydratedEvents({
       sailingDay,
       events: args.Events,
       updatedAt,
@@ -96,19 +97,21 @@ const reseedDockEventsForSailingDayRows = async (
   });
 
   return {
-    ScheduledCount: scheduledCount,
-    ActualCount: actualCount,
+    scheduledCount,
+    actualCount,
   };
 };
 
-const reseedDockEventsForSailingDay = internalMutation({
-  args: reseedDockEventsForSailingDayArgsSchema,
-  returns: v.object({
-    ScheduledCount: v.number(),
-    ActualCount: v.number(),
-  }),
+const reseedDockStatusEventsForSailingDay = internalMutation({
+  args: reseedDockStatusEventsForSailingDayArgsSchema,
+  returns: reseedDockEventsDayCountReturnSchema,
   handler: async (ctx, args) =>
-    await reseedDockEventsForSailingDayRows(ctx, args),
+    await reseedDockStatusEventsForSailingDayRows(ctx, args),
 });
 
-export { reseedDockEventsForSailingDay, reseedDockEventsForSailingDayRows };
+export type {
+  DockStatusEventRecord,
+  ReloadDockDayCountResult,
+  ReseedDockStatusEventsForSailingDayArgs,
+} from "domain/events/reload/dockStatusEventSchemas";
+export { reseedDockStatusEventsForSailingDay };

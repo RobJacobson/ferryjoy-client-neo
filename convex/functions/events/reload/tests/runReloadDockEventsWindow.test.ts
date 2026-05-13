@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as reloadDay from "../reloadDockEventsForSailingDay";
-import { runReloadDockEventsWindow } from "../reloadDockEventsWindow";
+import { runReloadDockEventsWindow } from "../reloadDockEventsForSailingDay";
 
 const fixedClockMs = Date.parse("2026-05-10T16:00:00.000Z");
 
@@ -33,8 +33,8 @@ describe("runReloadDockEventsWindow", () => {
       "runReloadDockEventsForSailingDay"
     ).mockImplementation(async (_ctx, sailingDay) =>
       sailingDay === "2026-05-10"
-        ? { ScheduledCount: 2, ActualCount: 1 }
-        : { ScheduledCount: 3, ActualCount: 4 }
+        ? { scheduledCount: 2, actualCount: 1 }
+        : { scheduledCount: 3, actualCount: 4 }
     );
 
     const result = await runReloadDockEventsWindow({} as ActionCtx);

@@ -1,21 +1,20 @@
 /**
- * Converts numeric reload wire payloads into adapter Date shapes for WSF
- * resolution helpers.
+ * Converts WSF reload epoch-ms rows into adapter Date shapes for resolution
+ * helpers.
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type { ConvexReloadDockHistoryRecord } from "functions/events/eventsActual/schemas";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import type { WsfScheduledSegment, WsfVesselHistory } from "./types";
 
 /**
- * Maps one numeric schedule segment row to an adapter segment with Date fields.
+ * Maps one epoch-ms scheduled segment to an adapter segment with Date fields.
  *
- * @param segment - Reload schedule segment using epoch ms for trip times
+ * @param segment - WSF scheduled segment using epoch-ms for trip times
  * @returns Segment shape expected by resolveScheduleSegment
  */
 const toAdapterScheduleSegment = (
-  segment: ConvexReloadDockScheduleSegment
+  segment: WsfScheduledSegment
 ): RawWsfScheduleSegment =>
   ({
     ...segment,
@@ -27,26 +26,22 @@ const toAdapterScheduleSegment = (
   }) as RawWsfScheduleSegment;
 
 /**
- * Maps one numeric history row to the adapter VesselHistory Date shape.
+ * Maps one epoch-ms WSF history row to the adapter VesselHistory Date shape.
  *
- * @param record - Reload history record with optional epoch ms timestamps
+ * @param row - History row with optional epoch-ms timestamps
  * @returns VesselHistory with Date fields for resolveVesselHistory
  */
-const toAdapterHistoryRecord = (
-  record: ConvexReloadDockHistoryRecord
-): VesselHistory =>
+const toAdapterHistoryRecord = (row: WsfVesselHistory): VesselHistory =>
   ({
-    ...record,
+    ...row,
     ScheduledDepart:
-      record.ScheduledDepart !== undefined
-        ? new Date(record.ScheduledDepart)
+      row.ScheduledDepart !== undefined
+        ? new Date(row.ScheduledDepart)
         : undefined,
     ActualDepart:
-      record.ActualDepart !== undefined
-        ? new Date(record.ActualDepart)
-        : undefined,
+      row.ActualDepart !== undefined ? new Date(row.ActualDepart) : undefined,
     EstArrival:
-      record.EstArrival !== undefined ? new Date(record.EstArrival) : undefined,
+      row.EstArrival !== undefined ? new Date(row.EstArrival) : undefined,
   }) as VesselHistory;
 
 export { toAdapterHistoryRecord, toAdapterScheduleSegment };

@@ -8,7 +8,6 @@ import {
   type TerminalIdentity,
   type VesselIdentity,
 } from "adapters";
-import type { ConvexReloadDockScheduleSegment } from "functions/events/eventsScheduled/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import {
   classifyDirectSegments,
@@ -16,7 +15,11 @@ import {
 } from "../../scheduledTrips";
 import { toAdapterScheduleSegment } from "./adapterConverters";
 import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "./constants";
-import type { DockBoundaryEventRecord, RawSeedSegment } from "./types";
+import type {
+  DockStatusEventRecord,
+  RawSeedSegment,
+  WsfScheduledSegment,
+} from "./types";
 
 const normalizeScheduledArrivalTime = (
   scheduledArrival: number | undefined,
@@ -55,7 +58,7 @@ const buildSeedEventsForSegment = (segment: {
   DepartingTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
   ScheduledArrival?: number;
-}): DockBoundaryEventRecord[] => {
+}): DockStatusEventRecord[] => {
   const SegmentKey = buildSegmentKey(
     segment.VesselAbbrev,
     segment.DepartingTerminalAbbrev,
@@ -92,7 +95,7 @@ const buildSeedEventsForSegment = (segment: {
 };
 
 const toRawSeedSegment = (
-  segment: ConvexReloadDockScheduleSegment,
+  segment: WsfScheduledSegment,
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ): RawSeedSegment | null => {
@@ -139,7 +142,7 @@ const toRawSeedSegment = (
  * @returns Direct physical segments only
  */
 const getDirectRawSeedSegments = (
-  segments: ConvexReloadDockScheduleSegment[],
+  segments: WsfScheduledSegment[],
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
 ) =>

@@ -1,5 +1,5 @@
 /**
- * Small collection helpers used across reload slice assembly.
+ * Small collection helpers used across sailing-day reload row assembly.
  */
 
 /**

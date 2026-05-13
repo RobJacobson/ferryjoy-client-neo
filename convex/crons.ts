@@ -62,14 +62,14 @@ crons.cron(
 crons.cron(
   "daily dock event reload (dst)",
   "5 10 * * *", // 3:05 AM PDT
-  internal.functions.events.sync.index.reloadDockEventsAtSailingDayBoundary,
+  internal.functions.events.reload.index.reloadDockEventsAtSailingDayBoundary,
   { daysToSync: 2 }
 );
 
 crons.cron(
   "daily dock event reload (standard)",
   "5 11 * * *", // 3:05 AM PST
-  internal.functions.events.sync.index.reloadDockEventsAtSailingDayBoundary,
+  internal.functions.events.reload.index.reloadDockEventsAtSailingDayBoundary,
   { daysToSync: 2 }
 );
 
