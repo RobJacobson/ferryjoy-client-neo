@@ -3,6 +3,7 @@
  * one sailing day reload.
  */
 
+import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { buildActualDockEventFromWrite } from "../actual";
@@ -81,59 +82,95 @@ const buildActualDockEvents = (
       ];
     });
 
+/**
+ * Builds actual dock rows for all physical-only trips that have TripKeys.
+ *
+ * @param trips - Merged active and completed trips for the sailing day
+ * @param updatedAt - UpdatedAt stamp for persisted rows
+ * @returns Flat list of dep and arv actual rows across trips
+ */
 const buildPhysicalOnlyActualRowsFromTrips = (
   trips: ActiveTripForPhysicalActualReconcile[],
   updatedAt: number
 ): ConvexActualDockEvent[] =>
   trips
-    .filter(
-      (trip) => trip.TripKey !== undefined && trip.ScheduleKey === undefined
-    )
-    .flatMap((trip) => {
-      const rows: ConvexActualDockEvent[] = [];
+    .filter(isPhysicalOnlyTripWithTripKey)
+    .flatMap((trip) => buildPhysicalOnlyActualRowsForTrip(trip, updatedAt));
 
-      if (trip.TripKey !== undefined && trip.LeftDockActual !== undefined) {
-        rows.push(
-          buildActualDockEventFromWrite(
-            {
-              TripKey: trip.TripKey,
-              VesselAbbrev: trip.VesselAbbrev,
-              SailingDay: trip.SailingDay,
-              ScheduledDeparture: trip.ScheduledDeparture,
-              TerminalAbbrev: trip.DepartingTerminalAbbrev,
-              EventType: "dep-dock",
-              EventOccurred: true,
-              EventActualTime: trip.LeftDockActual,
-            },
-            updatedAt
-          )
-        );
-      }
+/**
+ * Builds zero to two actual rows for one physical-only trip when dep or arv
+ * evidence exists.
+ *
+ * @param trip - Physical-only trip with TripKey
+ * @param updatedAt - UpdatedAt stamp for Convex rows
+ * @returns Dep row, arv row, or both, in that order when present
+ */
+const buildPhysicalOnlyActualRowsForTrip = (
+  trip: ActiveTripForPhysicalActualReconcile & { TripKey: string },
+  updatedAt: number
+): ConvexActualDockEvent[] =>
+  [
+    trip.LeftDockActual === undefined
+      ? null
+      : buildPhysicalOnlyTripActualRow(
+          trip,
+          trip.DepartingTerminalAbbrev,
+          "dep-dock",
+          trip.LeftDockActual,
+          updatedAt
+        ),
+    trip.TripEnd === undefined || trip.ArrivingTerminalAbbrev === undefined
+      ? null
+      : buildPhysicalOnlyTripActualRow(
+          trip,
+          trip.ArrivingTerminalAbbrev,
+          "arv-dock",
+          trip.TripEnd,
+          updatedAt
+        ),
+  ].filter((row): row is ConvexActualDockEvent => row !== null);
 
-      if (
-        trip.TripKey !== undefined &&
-        trip.TripEnd !== undefined &&
-        trip.ArrivingTerminalAbbrev !== undefined
-      ) {
-        rows.push(
-          buildActualDockEventFromWrite(
-            {
-              TripKey: trip.TripKey,
-              VesselAbbrev: trip.VesselAbbrev,
-              SailingDay: trip.SailingDay,
-              ScheduledDeparture: trip.ScheduledDeparture,
-              TerminalAbbrev: trip.ArrivingTerminalAbbrev,
-              EventType: "arv-dock",
-              EventOccurred: true,
-              EventActualTime: trip.TripEnd,
-            },
-            updatedAt
-          )
-        );
-      }
+/**
+ * Builds one actual dock row for a physical-only trip boundary.
+ *
+ * @param trip - Physical-only trip with TripKey
+ * @param terminalAbbrev - Terminal for this dep or arv row
+ * @param eventType - dep-dock or arv-dock
+ * @param eventActualTime - Observed time in epoch ms
+ * @param updatedAt - UpdatedAt stamp for the Convex row
+ * @returns Normalized eventsActual row
+ */
+const buildPhysicalOnlyTripActualRow = (
+  trip: ActiveTripForPhysicalActualReconcile & { TripKey: string },
+  terminalAbbrev: string,
+  eventType: DockEventType,
+  eventActualTime: number,
+  updatedAt: number
+): ConvexActualDockEvent =>
+  buildActualDockEventFromWrite(
+    {
+      TripKey: trip.TripKey,
+      VesselAbbrev: trip.VesselAbbrev,
+      SailingDay: trip.SailingDay,
+      ScheduledDeparture: trip.ScheduledDeparture,
+      TerminalAbbrev: terminalAbbrev,
+      EventType: eventType,
+      EventOccurred: true,
+      EventActualTime: eventActualTime,
+    },
+    updatedAt
+  );
 
-      return rows;
-    });
+/**
+ * True when the trip is physical-only and carries a TripKey for actual rows.
+ *
+ * @param trip - Active or completed trip row from reload indexes
+ * @returns Type guard narrowing TripKey to string when true
+ */
+const isPhysicalOnlyTripWithTripKey = (
+  trip: ActiveTripForPhysicalActualReconcile
+): trip is ActiveTripForPhysicalActualReconcile & { TripKey: string } =>
+  trip.TripKey !== undefined && trip.ScheduleKey === undefined;
 
 /**
  * Builds scheduled and actual dock rows for one sailing day from hydrated events.
