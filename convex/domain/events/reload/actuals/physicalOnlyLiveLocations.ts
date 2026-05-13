@@ -15,6 +15,7 @@ import {
   type ConvexActualDockWritePersistable,
 } from "../../actual";
 import type { ReloadTripForActuals } from "../types";
+import { buildPhysicalOnlyTripPatch } from "./utils";
 
 type PhysicalOnlyTripWithTripKey = ReloadTripForActuals & {
   TripKey: string;
@@ -165,30 +166,5 @@ const isBoundaryRepresented = (
   eventType: DockEventType,
   representedTripBoundaryKeys: Set<string>
 ) => representedTripBoundaryKeys.has(`${tripKey}|${eventType}`);
-
-/**
- * Shapes one physical-only actual write from a trip and observed time.
- *
- * @param trip - Physical-only active trip with TripKey
- * @param terminalAbbrev - Terminal hosting the boundary
- * @param eventType - Dock boundary discriminator
- * @param eventActualTime - Observed time in epoch milliseconds
- * @returns Persistable actual dock write
- */
-const buildPhysicalOnlyTripPatch = (
-  trip: PhysicalOnlyTripWithTripKey,
-  terminalAbbrev: string,
-  eventType: DockEventType,
-  eventActualTime: number
-): ConvexActualDockWritePersistable => ({
-  TripKey: trip.TripKey,
-  VesselAbbrev: trip.VesselAbbrev,
-  SailingDay: trip.SailingDay,
-  ScheduledDeparture: trip.ScheduledDeparture,
-  TerminalAbbrev: terminalAbbrev,
-  EventType: eventType,
-  EventOccurred: true,
-  EventActualTime: eventActualTime,
-});
 
 export { buildPhysicalOnlyActualRows };

@@ -7,7 +7,7 @@ import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTrip
 import type {
   WsfScheduledSegment,
   WsfVesselHistory,
-} from "domain/events/reload/schemas/validateReloadInput";
+} from "domain/events/reload/schemas";
 import { dateToEpochMs, optionalDateToEpochMs } from "shared/convertDates";
 import { fetchVesselHistoriesByVesselAndDates } from "ws-dottie/wsf-vessels/core";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";

@@ -2,6 +2,8 @@ export type {
   DockStatusEventRecord,
   ReloadDockDayCountResult,
   ReseedDockStatusEventsFromExternalInputArgs,
+  WsfScheduledSegment,
+  WsfVesselHistory,
 } from "./validateReloadInput";
 export {
   dockStatusEventRecordArgs,

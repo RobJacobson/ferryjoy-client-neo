@@ -3,19 +3,21 @@
  * one sailing day reload.
  */
 
-import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { buildBoundaryKey } from "shared/keys";
 import { buildActualDockEventFromWrite } from "../actual";
-import { dedupeActualRowsByEventKey, reconcileLiveLocations } from "./actuals";
+import {
+  buildPhysicalOnlyTripActualRows,
+  dedupeActualRowsByEventKey,
+  reconcileLiveLocations,
+} from "./actuals";
 import { compareDockEventsByTimeline } from "./schedule";
 import { groupBy, IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "./shared";
 import type {
   ComputeReloadRowsFromScheduledEventsArgs,
   ComputeReloadRowsFromScheduledEventsResult,
   DockStatusEventRecord,
-  ReloadTripForActuals,
   TripContextForActualRow,
 } from "./types";
 
@@ -154,7 +156,7 @@ const computeReloadRowsFromScheduledEvents = ({
   // Collect actuals from history-merged events and physical-only trip evidence.
   const baseActualRows = [
     ...buildActualDockEvents(normalizedEvents, updatedAt, tripBySegmentKey),
-    ...buildPhysicalOnlyActualRowsFromTrips(physicalOnlyTrips, updatedAt),
+    ...buildPhysicalOnlyTripActualRows(physicalOnlyTrips, updatedAt),
   ];
 
   // Backfill from live locations for boundaries the prior sources missed.
@@ -253,95 +255,5 @@ const buildActualDockEvents = (
         ),
       ];
     });
-
-/**
- * Builds actual dock rows for all physical-only trips that have TripKeys.
- *
- * @param trips - Merged active and completed trips for the sailing day
- * @param updatedAt - UpdatedAt stamp for persisted rows
- * @returns Flat list of dep and arv actual rows across trips
- */
-const buildPhysicalOnlyActualRowsFromTrips = (
-  trips: ReloadTripForActuals[],
-  updatedAt: number
-): ConvexActualDockEvent[] =>
-  trips
-    .filter(isPhysicalOnlyTripWithTripKey)
-    .flatMap((trip) => buildPhysicalOnlyActualRowsForTrip(trip, updatedAt));
-
-/**
- * Builds zero to two actual rows for one physical-only trip when dep or arv
- * evidence exists.
- *
- * @param trip - Physical-only trip with TripKey
- * @param updatedAt - UpdatedAt stamp for Convex rows
- * @returns Dep row, arv row, or both, in that order when present
- */
-const buildPhysicalOnlyActualRowsForTrip = (
-  trip: ReloadTripForActuals & { TripKey: string },
-  updatedAt: number
-): ConvexActualDockEvent[] =>
-  [
-    trip.LeftDockActual === undefined
-      ? null
-      : buildPhysicalOnlyTripActualRow(
-          trip,
-          trip.DepartingTerminalAbbrev,
-          "dep-dock",
-          trip.LeftDockActual,
-          updatedAt
-        ),
-    trip.TripEnd === undefined || trip.ArrivingTerminalAbbrev === undefined
-      ? null
-      : buildPhysicalOnlyTripActualRow(
-          trip,
-          trip.ArrivingTerminalAbbrev,
-          "arv-dock",
-          trip.TripEnd,
-          updatedAt
-        ),
-  ].filter((row): row is ConvexActualDockEvent => row !== null);
-
-/**
- * Builds one actual dock row for a physical-only trip boundary.
- *
- * @param trip - Physical-only trip with TripKey
- * @param terminalAbbrev - Terminal for this dep or arv row
- * @param eventType - dep-dock or arv-dock
- * @param eventActualTime - Observed time in epoch ms
- * @param updatedAt - UpdatedAt stamp for the Convex row
- * @returns Normalized eventsActual row
- */
-const buildPhysicalOnlyTripActualRow = (
-  trip: ReloadTripForActuals & { TripKey: string },
-  terminalAbbrev: string,
-  eventType: DockEventType,
-  eventActualTime: number,
-  updatedAt: number
-): ConvexActualDockEvent =>
-  buildActualDockEventFromWrite(
-    {
-      TripKey: trip.TripKey,
-      VesselAbbrev: trip.VesselAbbrev,
-      SailingDay: trip.SailingDay,
-      ScheduledDeparture: trip.ScheduledDeparture,
-      TerminalAbbrev: terminalAbbrev,
-      EventType: eventType,
-      EventOccurred: true,
-      EventActualTime: eventActualTime,
-    },
-    updatedAt
-  );
-
-/**
- * True when the trip is physical-only and carries a TripKey for actual rows.
- *
- * @param trip - Active or completed trip row from reload indexes
- * @returns Type guard narrowing TripKey to string when true
- */
-const isPhysicalOnlyTripWithTripKey = (
-  trip: ReloadTripForActuals
-): trip is ReloadTripForActuals & { TripKey: string } =>
-  trip.TripKey !== undefined && trip.ScheduleKey === undefined;
 
 export { computeReloadRowsFromScheduledEvents };

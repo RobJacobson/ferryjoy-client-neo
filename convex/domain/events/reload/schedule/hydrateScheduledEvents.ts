@@ -5,14 +5,13 @@
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
 import { buildBoundaryKey } from "shared/keys";
+import { getOfficialCrossingTimeMinutes } from "../../../scheduledTrips";
 import { mapHistoryActualsToEventKeys } from "../actuals";
-import type {
-  WsfScheduledSegment,
-  WsfVesselHistory,
-} from "../schemas/validateReloadInput";
+import type { WsfScheduledSegment, WsfVesselHistory } from "../schemas";
 import {
   ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS,
   DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS,
+  IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
 } from "../shared";
 import type {
   DockStatusEventRecord,
@@ -20,11 +19,7 @@ import type {
   RawSeedSegment,
 } from "../types";
 import { compareDockEventsByTimeline } from "./compareDockEventsByTimeline";
-import {
-  getOfficialScheduledArrivalTime,
-  normalizeScheduledArrivalTime,
-  resolveSeedSegments,
-} from "./resolveSeedSegments";
+import { resolveSeedSegments } from "./resolveSeedSegments";
 
 /**
  * Hydrates schedule-derived boundary records with WSF history for reload.
@@ -120,6 +115,54 @@ const buildSeedEventsForSegment = (
       EventScheduledTime: scheduledArrival,
     },
   ];
+};
+
+/**
+ * Nudges scheduled arrival time backward when it equals the dep instant.
+ *
+ * WSF data occasionally records arrivals at the same instant as their paired
+ * departure for short crossings. Reload needs strictly ordered scheduled
+ * boundaries within a segment, so this helper subtracts the seam offset to
+ * restore dep-before-arv ordering without changing the published schedule.
+ *
+ * @param scheduledArrival - Scheduled arrival time in epoch milliseconds
+ * @param scheduledDeparture - Scheduled departure time in epoch milliseconds
+ * @returns Adjusted arrival time or the original value when distinct
+ */
+const normalizeScheduledArrivalTime = (
+  scheduledArrival: number | undefined,
+  scheduledDeparture: number
+) =>
+  scheduledArrival !== undefined && scheduledArrival === scheduledDeparture
+    ? scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
+    : scheduledArrival;
+
+/**
+ * Resolves the schedule-implied arrival time when the segment lacks one.
+ *
+ * Most schedule segments expose ArrivingTime directly, but some legs only
+ * carry a departure stamp plus a route-known crossing duration. Route 9 is
+ * an exception that always trusts the supplied arrival because its duration
+ * varies with tidal currents. Other routes fall back to the official crossing
+ * minutes lookup so boundary records still have a usable scheduled arrival.
+ *
+ * @param segment - Direct seed segment for one physical leg
+ * @returns Scheduled arrival in epoch ms, or undefined when unresolvable
+ */
+const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
+  if (segment.RouteID === 9 && segment.ArrivingTime) {
+    return segment.ArrivingTime;
+  }
+
+  const duration = getOfficialCrossingTimeMinutes({
+    routeAbbrev: segment.RouteAbbrev,
+    departingTerminalAbbrev: segment.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+  });
+
+  return duration !== undefined
+    ? segment.DepartingTime + duration * 60 * 1000
+    : undefined;
 };
 
 /**

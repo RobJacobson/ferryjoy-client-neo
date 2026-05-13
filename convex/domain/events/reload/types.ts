@@ -9,11 +9,11 @@ import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { DockStatusEventRecord } from "./schemas";
 import type {
+  DockStatusEventRecord,
   WsfScheduledSegment,
   WsfVesselHistory,
-} from "./schemas/validateReloadInput";
+} from "./schemas";
 
 type RawSeedSegment = {
   Key: string;
