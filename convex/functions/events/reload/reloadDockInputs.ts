@@ -54,7 +54,8 @@ const collectHistoryRowsForScheduleVessels = async (
  * @returns WsfScheduledSegment with epoch-ms trip times for Convex reload
  */
 const wsfScheduleSegmentToConvexScheduledSegment = (
-  segment: RawWsfScheduleSegment
+  segment: RawWsfScheduleSegment,
+  sailingDay: string
 ): WsfScheduledSegment => ({
   VesselName: segment.VesselName,
   DepartingTerminalID: segment.DepartingTerminalID,
@@ -67,7 +68,7 @@ const wsfScheduleSegmentToConvexScheduledSegment = (
   Annotations: segment.Annotations,
   RouteID: segment.RouteID,
   RouteAbbrev: segment.RouteAbbrev,
-  SailingDay: segment.SailingDay,
+  SailingDay: sailingDay,
 });
 
 /**
@@ -109,7 +110,9 @@ const fetchReloadWsfInputs = async (
   );
 
   return {
-    scheduledSegments: segments.map(wsfScheduleSegmentToConvexScheduledSegment),
+    scheduledSegments: segments.map((segment) =>
+      wsfScheduleSegmentToConvexScheduledSegment(segment, targetDate)
+    ),
     historyRecords: historyRows.map(wsfVesselHistoryToConvexVesselHistory),
   };
 };

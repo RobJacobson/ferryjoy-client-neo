@@ -4,9 +4,11 @@
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
+import { buildBoundaryKey } from "shared/keys";
 import { mapHistoryActualsToEventKeys } from "../actuals";
 import type {
   DockStatusEventRecord,
+  RawSeedSegment,
   WsfScheduledSegment,
   WsfVesselHistory,
 } from "../types";
@@ -15,44 +17,49 @@ import {
   sortDockStatusEventRecords,
 } from "./normalizeBoundarySeams";
 import {
-  buildSeedEventsForSegment,
   getOfficialScheduledArrivalTime,
   normalizeScheduledArrivalTime,
   resolveSeedSegments,
 } from "./resolveSeedSegments";
 
-/**
- * Builds schedule-derived boundary records from raw reload segments.
- *
- * Seam normalization for identical scheduled dep and arv times is applied in
- * computeReloadRowsFromScheduledEvents, not here, so callers that only seed
- * should not assume EventScheduledTime is already adjusted.
- *
- * @param segments - WSF scheduled segments (epoch-ms) from reload
- * @param vessels - Vessel identities for WSF segment resolution
- * @param terminals - Terminal identities for WSF segment resolution
- * @returns Direct physical sailing boundary records
- */
 const buildScheduledDockEventRecords = (
-  segments: WsfScheduledSegment[],
-  vessels: ReadonlyArray<VesselIdentity>,
-  terminals: ReadonlyArray<TerminalIdentity>
+  seedSegments: RawSeedSegment[]
 ): DockStatusEventRecord[] =>
-  resolveSeedSegments(segments, vessels, terminals)
-    .flatMap((segment) =>
-      buildSeedEventsForSegment({
-        SailingDay: segment.SailingDay,
-        VesselAbbrev: segment.VesselAbbrev,
-        ScheduledDeparture: segment.DepartingTime,
-        DepartingTerminalAbbrev: segment.DepartingTerminalAbbrev,
-        ArrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
-        ScheduledArrival: normalizeScheduledArrivalTime(
-          segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
-          segment.DepartingTime
-        ),
-      })
-    )
+  seedSegments
+    .flatMap((segment) => buildSeedEventsForSegment(segment))
     .sort(sortDockStatusEventRecords);
+
+const buildSeedEventsForSegment = (
+  segment: RawSeedSegment
+): [DockStatusEventRecord, DockStatusEventRecord] => {
+  const scheduledArrival = normalizeScheduledArrivalTime(
+    segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
+    segment.DepartingTime
+  );
+
+  return [
+    {
+      SegmentKey: segment.Key,
+      Key: buildBoundaryKey(segment.Key, "dep-dock"),
+      VesselAbbrev: segment.VesselAbbrev,
+      SailingDay: segment.SailingDay,
+      ScheduledDeparture: segment.DepartingTime,
+      TerminalAbbrev: segment.DepartingTerminalAbbrev,
+      EventType: "dep-dock",
+      EventScheduledTime: segment.DepartingTime,
+    },
+    {
+      SegmentKey: segment.Key,
+      Key: buildBoundaryKey(segment.Key, "arv-dock"),
+      VesselAbbrev: segment.VesselAbbrev,
+      SailingDay: segment.SailingDay,
+      ScheduledDeparture: segment.DepartingTime,
+      TerminalAbbrev: segment.ArrivingTerminalAbbrev,
+      EventType: "arv-dock",
+      EventScheduledTime: scheduledArrival,
+    },
+  ];
+};
 
 /**
  * Hydrates seeded boundary records with WSF history actuals.
@@ -62,24 +69,20 @@ const buildScheduledDockEventRecords = (
  */
 const hydrateDockEventRecordsWithHistory = ({
   seededEvents,
-  scheduleSegments,
+  seedSegments,
   historyRecords,
   vessels,
   terminals,
 }: {
   seededEvents: DockStatusEventRecord[];
-  scheduleSegments: WsfScheduledSegment[];
+  seedSegments: RawSeedSegment[];
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }): DockStatusEventRecord[] => {
   const historyActualsByEventKey = mapHistoryActualsToEventKeys({
     seededEvents,
-    directSeedSegments: resolveSeedSegments(
-      scheduleSegments,
-      vessels,
-      terminals
-    ),
+    directSeedSegments: seedSegments,
     historyRecords,
     vessels,
     terminals,
@@ -124,14 +127,16 @@ const hydrateScheduledEvents = ({
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }): DockStatusEventRecord[] => {
-  const seededEvents = buildScheduledDockEventRecords(
+  const seedSegments = resolveSeedSegments(
     scheduleSegments,
     vessels,
     terminals
   );
+  const seededEvents = buildScheduledDockEventRecords(seedSegments);
+
   return hydrateDockEventRecordsWithHistory({
     seededEvents,
-    scheduleSegments,
+    seedSegments,
     historyRecords,
     vessels,
     terminals,

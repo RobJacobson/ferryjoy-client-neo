@@ -8,17 +8,13 @@ import {
   type TerminalIdentity,
   type VesselIdentity,
 } from "adapters";
-import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
+import { buildSegmentKey } from "shared/keys";
 import {
   classifyDirectSegments,
   getOfficialCrossingTimeMinutes,
 } from "../../../scheduledTrips";
 import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "../shared";
-import type {
-  DockStatusEventRecord,
-  RawSeedSegment,
-  WsfScheduledSegment,
-} from "../types";
+import type { RawSeedSegment, WsfScheduledSegment } from "../types";
 import { toAdapterScheduleSegment } from "./convertAdapterRows";
 
 const normalizeScheduledArrivalTime = (
@@ -43,55 +39,6 @@ const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
   return duration !== undefined
     ? segment.DepartingTime + duration * 60 * 1000
     : undefined;
-};
-
-/**
- * Builds dep and arv boundary records for one resolved direct segment.
- *
- * @param segment - Sailing day, terminals, and scheduled times for one leg
- * @returns Zero or two boundary rows when segment key resolves
- */
-const buildSeedEventsForSegment = (segment: {
-  SailingDay: string;
-  VesselAbbrev: string;
-  ScheduledDeparture: number;
-  DepartingTerminalAbbrev: string;
-  ArrivingTerminalAbbrev: string;
-  ScheduledArrival?: number;
-}): DockStatusEventRecord[] => {
-  const SegmentKey = buildSegmentKey(
-    segment.VesselAbbrev,
-    segment.DepartingTerminalAbbrev,
-    segment.ArrivingTerminalAbbrev,
-    new Date(segment.ScheduledDeparture)
-  );
-
-  if (!SegmentKey) {
-    return [];
-  }
-
-  return [
-    {
-      SegmentKey,
-      Key: buildBoundaryKey(SegmentKey, "dep-dock"),
-      VesselAbbrev: segment.VesselAbbrev,
-      SailingDay: segment.SailingDay,
-      ScheduledDeparture: segment.ScheduledDeparture,
-      TerminalAbbrev: segment.DepartingTerminalAbbrev,
-      EventType: "dep-dock",
-      EventScheduledTime: segment.ScheduledDeparture,
-    },
-    {
-      SegmentKey,
-      Key: buildBoundaryKey(SegmentKey, "arv-dock"),
-      VesselAbbrev: segment.VesselAbbrev,
-      SailingDay: segment.SailingDay,
-      ScheduledDeparture: segment.ScheduledDeparture,
-      TerminalAbbrev: segment.ArrivingTerminalAbbrev,
-      EventType: "arv-dock",
-      EventScheduledTime: segment.ScheduledArrival,
-    },
-  ];
 };
 
 const toRawSeedSegment = (
@@ -153,7 +100,6 @@ const resolveSeedSegments = (
   ).filter((segment) => segment.TripType === "direct");
 
 export {
-  buildSeedEventsForSegment,
   getOfficialScheduledArrivalTime,
   normalizeScheduledArrivalTime,
   resolveSeedSegments,
