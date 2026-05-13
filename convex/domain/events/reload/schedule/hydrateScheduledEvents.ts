@@ -7,11 +7,10 @@ import type { TerminalIdentity, VesselIdentity } from "adapters";
 import { buildBoundaryKey } from "shared/keys";
 import { mapHistoryActualsToEventKeys } from "../actuals";
 import type {
-  DockStatusEventRecord,
-  RawSeedSegment,
   WsfScheduledSegment,
   WsfVesselHistory,
-} from "../types";
+} from "../schemas/validateReloadInput";
+import type { DockStatusEventRecord, RawSeedSegment } from "../types";
 import {
   mergeActualTime,
   sortDockStatusEventRecords,

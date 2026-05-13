@@ -13,8 +13,9 @@ import {
   classifyDirectSegments,
   getOfficialCrossingTimeMinutes,
 } from "../../../scheduledTrips";
+import type { WsfScheduledSegment } from "../schemas/validateReloadInput";
 import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "../shared";
-import type { RawSeedSegment, WsfScheduledSegment } from "../types";
+import type { RawSeedSegment } from "../types";
 import { toAdapterScheduleSegment } from "./convertAdapterRows";
 
 const normalizeScheduledArrivalTime = (

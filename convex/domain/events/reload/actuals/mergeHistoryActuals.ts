@@ -11,12 +11,12 @@ import {
 } from "adapters";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import type { WsfVesselHistory } from "../schemas/validateReloadInput";
 import { groupBy } from "../shared";
 import type {
   DockStatusEventRecord,
   NormalizedHistoryRecord,
   RawSeedSegment,
-  WsfVesselHistory,
 } from "../types";
 
 const toAdapterHistoryRecord = (row: WsfVesselHistory): VesselHistory =>

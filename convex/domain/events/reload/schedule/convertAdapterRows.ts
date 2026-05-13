@@ -4,7 +4,7 @@
  */
 
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
-import type { WsfScheduledSegment } from "../types";
+import type { WsfScheduledSegment } from "../schemas/validateReloadInput";
 
 /**
  * Maps one epoch-ms scheduled segment to an adapter segment with Date fields.

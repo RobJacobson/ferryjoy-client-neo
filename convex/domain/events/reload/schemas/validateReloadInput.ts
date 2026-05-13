@@ -65,6 +65,10 @@ const reseedDockEventsDayCountReturnSchema = v.object({
 
 type DockStatusEventRecord = Infer<typeof dockStatusEventRecordArgs>;
 
+type WsfScheduledSegment = Infer<typeof wsfScheduledSegmentArgs>;
+
+type WsfVesselHistory = Infer<typeof wsfVesselHistoryArgs>;
+
 type ReseedDockStatusEventsFromExternalInputArgs = Infer<
   typeof reseedDockStatusEventsFromExternalInputArgsSchema
 >;
@@ -77,6 +81,8 @@ export type {
   DockStatusEventRecord,
   ReloadDockDayCountResult,
   ReseedDockStatusEventsFromExternalInputArgs,
+  WsfScheduledSegment,
+  WsfVesselHistory,
 };
 
 export {

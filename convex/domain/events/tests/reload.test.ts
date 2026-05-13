@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { computeDockEventsReload } from "domain/events/reload";
-import type { WsfScheduledSegment } from "domain/events/reload/types";
+import type { WsfScheduledSegment } from "domain/events/reload/schemas/validateReloadInput";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { buildSegmentKey } from "shared/keys";
