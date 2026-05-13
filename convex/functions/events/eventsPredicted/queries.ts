@@ -29,6 +29,12 @@ type PredictedQueryArgs = {
 /**
  * Public query listing predicted dock events for a vessel/day scope.
  *
+ * The app subscribes to predicted dock rows alongside scheduled and actual
+ * rows so the timeline can render ETAs and ML projections next to the
+ * underlying boundaries. Rows are read by the vessel-and-sailing-day index,
+ * stripped of Convex metadata, and sorted into a stable timeline order so
+ * subscription diffs stay anchored on document identity instead of reorder.
+ *
  * @param ctx - Convex query context
  * @param args - Vessel and sailing-day filters
  * @returns Predicted dock rows sorted by scheduled departure then key

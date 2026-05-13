@@ -93,6 +93,12 @@ const wsfVesselHistoryToConvexVesselHistory = (
  * Fetches vessel history for schedule-named vessels and maps raw segments plus
  * history into epoch-ms shapes for hydrate.
  *
+ * Reload mutations cannot accept Date objects across the action-to-mutation
+ * boundary, so this helper does the WSF history fetch and converts every
+ * segment and history row into the epoch-ms wire shape the mutation expects.
+ * Concentrating both responsibilities here keeps the action a thin caller
+ * that just forwards already-normalized inputs to the reseed mutation.
+ *
  * @param segments - Raw schedule segments for the sailing day
  * @param targetDate - Sailing day YYYY-MM-DD string
  * @returns Scheduled segments and history rows using epoch-ms for times

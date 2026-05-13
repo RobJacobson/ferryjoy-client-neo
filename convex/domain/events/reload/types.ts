@@ -9,11 +9,11 @@ import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { DockStatusEventRecord } from "./schemas";
 import type {
   WsfScheduledSegment,
   WsfVesselHistory,
 } from "./schemas/validateReloadInput";
-import type { DockStatusEventRecord } from "./schemas";
 
 type RawSeedSegment = {
   Key: string;
@@ -36,7 +36,7 @@ type TripRowForActualContext = {
   ScheduleKey?: string;
 };
 
-type ActiveTripForPhysicalActualReconcile = {
+type ReloadTripForActuals = {
   TripKey?: string;
   ScheduleKey?: string;
   VesselAbbrev: string;
@@ -55,9 +55,9 @@ type ComputeReloadRowsFromScheduledEventsArgs = {
   tripBySegmentKey: Map<string, TripContextForActualRow>;
   activeTripsByVesselAbbrev: Map<
     string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+    ReloadTripForActuals & { TripKey: string }
   >;
-  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
+  physicalOnlyTrips: ReloadTripForActuals[];
   vesselLocations: ConvexVesselLocation[];
 };
 
@@ -72,8 +72,8 @@ type ComputeDockEventsReloadArgs = {
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-  activeTrips: ActiveTripForPhysicalActualReconcile[];
-  completedTrips: ActiveTripForPhysicalActualReconcile[];
+  activeTrips: ReloadTripForActuals[];
+  completedTrips: ReloadTripForActuals[];
   vesselLocations: ConvexVesselLocation[];
   updatedAt: number;
 };
@@ -107,7 +107,6 @@ type ReloadActualDockWrite = {
 
 export type { DockStatusEventRecord } from "./schemas";
 export type {
-  ActiveTripForPhysicalActualReconcile,
   ComputeDockEventsReloadArgs,
   ComputeReloadRowsFromScheduledEventsArgs,
   ComputeReloadRowsFromScheduledEventsResult,
@@ -117,6 +116,7 @@ export type {
   NormalizedHistoryRecord,
   RawSeedSegment,
   ReloadActualDockWrite,
+  ReloadTripForActuals,
   TripContextForActualRow,
   TripRowForActualContext,
 };

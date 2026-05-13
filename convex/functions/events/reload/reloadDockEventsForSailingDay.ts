@@ -1,6 +1,9 @@
 /**
- * Dock-event reload action helpers: one sailing day and a consecutive-day
- * window from the current sailing day for crons and recovery workflows.
+ * Single-sailing-day dock-event reload runner.
+ *
+ * Shared entry point for every public and internal reload action: gathers WSF
+ * inputs and identity tables, then forwards a normalized payload to the
+ * internal reseed mutation that owns trip reads and table persistence.
  */
 
 import { internal } from "_generated/api";
@@ -10,25 +13,18 @@ import type { ReloadDockDayCountResult } from "domain/events/reload/schemas";
 import { loadTerminalIdentities } from "functions/terminals/actions";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { stripConvexMeta } from "shared/stripConvexMeta";
-import { getSailingDay } from "shared/time";
 import { fetchReloadWsfInputs } from "./reloadDockInputs";
-
-type WindowReloadDayResult = {
-  sailingDay: string;
-  scheduledCount: number;
-  actualCount: number;
-};
-
-type WindowReloadResult = {
-  totalScheduled: number;
-  totalActual: number;
-  daysProcessed: WindowReloadDayResult[];
-};
 
 const LOG_PREFIX = "[RELOAD DOCK EVENTS]";
 
 /**
  * Reloads scheduled and actual dock events for one sailing day.
+ *
+ * Pulls vessel and terminal identities, fetches WSF scheduled trips and
+ * vessel history, then hands the consolidated inputs to the internal reseed
+ * mutation so the action stays a thin fetch-and-forward layer. The runner is
+ * shared by every public and internal action wrapper so all entry points use
+ * the same fetch, transform, and persist pipeline.
  *
  * @param ctx - Convex action context used for fetches and internal mutations
  * @param targetDate - Sailing day YYYY-MM-DD string
@@ -40,19 +36,25 @@ const runReloadDockEventsForSailingDay = async (
 ): Promise<ReloadDockDayCountResult> => {
   console.log(`${LOG_PREFIX} Starting reload for ${targetDate}`);
 
+  // Load identity tables once so adapter resolvers share consistent mappings.
   const vessels = await loadVesselIdentities(ctx);
   const terminals = await loadTerminalIdentities(ctx);
+
+  // Fetch WSF scheduled trips for the target day and flatten across routes.
   const { routeData } = await fetchAndTransformScheduledTrips(
     targetDate,
     vessels,
     terminals
   );
   const adapterScheduleSegments = routeData.flatMap((data) => data.segments);
+
+  // Fetch vessel history and convert all times to epoch ms for the mutation.
   const { scheduledSegments, historyRecords } = await fetchReloadWsfInputs(
     adapterScheduleSegments,
     targetDate
   );
 
+  // Forward to the internal mutation that owns trip reads and persistence.
   return await ctx.runMutation(
     internal.functions.events.reload.mutations
       .reseedDockStatusEventsForSailingDay,
@@ -66,56 +68,4 @@ const runReloadDockEventsForSailingDay = async (
   );
 };
 
-/**
- * Adds whole calendar days to a YYYY-MM-DD sailing-day string.
- *
- * @param dateString - Base sailing day
- * @param days - Whole-day offset
- * @returns Sailing day string for the offset date
- */
-const addDaysToSailingDay = (dateString: string, days: number): string => {
-  const [year, month, day] = dateString.split("-").map(Number);
-  const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 12));
-  date.setUTCDate(date.getUTCDate() + days);
-  return getSailingDay(date);
-};
-
-/**
- * Reloads a consecutive window of sailing days starting today.
- *
- * @param ctx - Convex action context passed to each single-day reload
- * @param daysToSyncOverride - Optional number of sailing days to reload
- * @returns Aggregated scheduled and actual counts with per-day entries
- */
-const runReloadDockEventsWindow = async (
-  ctx: ActionCtx,
-  daysToSyncOverride?: number
-): Promise<WindowReloadResult> => {
-  const startDate = getSailingDay(new Date());
-  const daysToSync = daysToSyncOverride ?? 2;
-  const daysProcessed: WindowReloadDayResult[] = [];
-  let totalScheduled = 0;
-  let totalActual = 0;
-
-  for (let index = 0; index < daysToSync; index++) {
-    const sailingDay = addDaysToSailingDay(startDate, index);
-    const result = await runReloadDockEventsForSailingDay(ctx, sailingDay);
-
-    totalScheduled += result.scheduledCount;
-    totalActual += result.actualCount;
-    daysProcessed.push({
-      sailingDay,
-      scheduledCount: result.scheduledCount,
-      actualCount: result.actualCount,
-    });
-  }
-
-  return {
-    totalScheduled,
-    totalActual,
-    daysProcessed,
-  };
-};
-
-export type { WindowReloadDayResult, WindowReloadResult };
-export { runReloadDockEventsForSailingDay, runReloadDockEventsWindow };
+export { runReloadDockEventsForSailingDay };

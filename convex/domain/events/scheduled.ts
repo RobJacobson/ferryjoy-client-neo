@@ -27,9 +27,16 @@ const EVENT_TYPE_SORT_ORDER: Record<DockEventType, 0 | 1> = {
 /**
  * Infers one scheduled segment from a departure event and same-day rows.
  *
+ * Vessel-trip readers and timeline UIs want a portable segment description
+ * derived from a single departure boundary plus the surrounding sailing-day
+ * rows. This helper extracts the segment identity from the departure key,
+ * pairs it with the next departure for continuity, and exposes the result in
+ * a wire-friendly shape that the timeline layer can render without further
+ * scheduled-table reads.
+ *
  * @param departureEvent - Departure boundary anchoring the inferred segment
  * @param sameDayEvents - Scheduled rows for the same vessel and sailing day
- * @returns Segment context with optional next departure linkage
+ * @returns Segment context with optional next-departure linkage
  */
 const inferScheduledSegmentFromDepartureEvent = (
   departureEvent: ConvexScheduledDockEvent,
@@ -56,6 +63,12 @@ const inferScheduledSegmentFromDepartureEvent = (
 
 /**
  * Finds the next departure row after a threshold.
+ *
+ * Trip continuity walks the scheduled rows to answer questions like next
+ * departure at this terminal or next departure for this vessel after the
+ * current row. The optional terminal filter keeps both shapes in one helper
+ * so callers do not duplicate the sort and tie-break logic that determines
+ * which row counts as the next departure.
  *
  * @param events - Candidate scheduled events
  * @param args.terminalAbbrev - Optional departing terminal filter

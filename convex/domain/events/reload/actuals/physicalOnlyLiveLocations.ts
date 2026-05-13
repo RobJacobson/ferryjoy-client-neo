@@ -1,3 +1,12 @@
+/**
+ * Builds actual dock rows for physical-only active trips from live locations.
+ *
+ * Some active trips lack a schedule alignment, so the reload pipeline cannot
+ * find their boundaries among hydrated schedule events. This module patches
+ * dep and arv actuals straight from the latest vessel location ping when the
+ * boundary is not already covered by another source.
+ */
+
 import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
@@ -5,13 +14,27 @@ import {
   buildActualDockEventFromWrite,
   type ConvexActualDockWritePersistable,
 } from "../../actual";
-import type { ActiveTripForPhysicalActualReconcile } from "../types";
-import { buildTripBoundaryKey } from "./liveLocationBoundaryKeys";
+import type { ReloadTripForActuals } from "../types";
 
-type PhysicalOnlyTripWithTripKey = ActiveTripForPhysicalActualReconcile & {
+type PhysicalOnlyTripWithTripKey = ReloadTripForActuals & {
   TripKey: string;
 };
 
+/**
+ * Builds physical-only actual dock rows from in-service vessel locations.
+ *
+ * Iterates each location, looks up the active physical-only trip for that
+ * vessel, and emits dep or arv patches whose boundary is not yet represented
+ * by the caller's existing row set. Persistable writes are normalized through
+ * buildActualDockEventFromWrite so downstream upsert and dedupe see the same
+ * eventsActual row shape as the rest of the reload payload.
+ *
+ * @param args.locations - Vessel locations pre-filtered to the sailing day
+ * @param args.activeTripsByVesselAbbrev - Physical-only active trip index
+ * @param args.representedTripBoundaryKeys - Boundaries already covered elsewhere
+ * @param args.updatedAt - UpdatedAt stamp for the produced Convex rows
+ * @returns Actual dock rows for physical-only boundaries from live evidence
+ */
 const buildPhysicalOnlyActualRows = ({
   locations,
   activeTripsByVesselAbbrev,
@@ -33,6 +56,14 @@ const buildPhysicalOnlyActualRows = ({
     )
     .map((write) => buildActualDockEventFromWrite(write, updatedAt));
 
+/**
+ * Builds zero to two persistable patches for one vessel location.
+ *
+ * @param location - Latest vessel location ping
+ * @param activeTripsByVesselAbbrev - Physical-only active trip index
+ * @param representedTripBoundaryKeys - Boundaries already covered elsewhere
+ * @returns Persistable dep and arv writes when the location supports them
+ */
 const buildPhysicalOnlyPatchesFromLocation = (
   location: ConvexVesselLocation,
   activeTripsByVesselAbbrev: Map<string, PhysicalOnlyTripWithTripKey>,
@@ -64,6 +95,14 @@ const buildPhysicalOnlyPatchesFromLocation = (
   );
 };
 
+/**
+ * Builds a dep-dock patch when the location shows the vessel left the dock.
+ *
+ * @param location - Latest vessel location ping
+ * @param trip - Physical-only active trip with TripKey
+ * @param representedTripBoundaryKeys - Boundaries already covered elsewhere
+ * @returns Departure write or undefined when no patch is warranted
+ */
 const maybeBuildPhysicalOnlyDeparturePatch = (
   location: ConvexVesselLocation,
   trip: PhysicalOnlyTripWithTripKey,
@@ -84,6 +123,14 @@ const maybeBuildPhysicalOnlyDeparturePatch = (
   );
 };
 
+/**
+ * Builds an arv-dock patch when the location shows the vessel reached the dock.
+ *
+ * @param location - Latest vessel location ping
+ * @param trip - Physical-only active trip with TripKey
+ * @param representedTripBoundaryKeys - Boundaries already covered elsewhere
+ * @returns Arrival write or undefined when no patch is warranted
+ */
 const maybeBuildPhysicalOnlyArrivalPatch = (
   location: ConvexVesselLocation,
   trip: PhysicalOnlyTripWithTripKey,
@@ -105,12 +152,29 @@ const maybeBuildPhysicalOnlyArrivalPatch = (
   );
 };
 
+/**
+ * Checks whether a trip boundary is already covered by some other actual row.
+ *
+ * @param tripKey - Physical trip identifier
+ * @param eventType - Dock boundary discriminator
+ * @param representedTripBoundaryKeys - Boundary set built from prior actuals
+ * @returns True when the boundary is already represented
+ */
 const isBoundaryRepresented = (
   tripKey: string,
   eventType: DockEventType,
   representedTripBoundaryKeys: Set<string>
-) => representedTripBoundaryKeys.has(buildTripBoundaryKey(tripKey, eventType));
+) => representedTripBoundaryKeys.has(`${tripKey}|${eventType}`);
 
+/**
+ * Shapes one physical-only actual write from a trip and observed time.
+ *
+ * @param trip - Physical-only active trip with TripKey
+ * @param terminalAbbrev - Terminal hosting the boundary
+ * @param eventType - Dock boundary discriminator
+ * @param eventActualTime - Observed time in epoch milliseconds
+ * @returns Persistable actual dock write
+ */
 const buildPhysicalOnlyTripPatch = (
   trip: PhysicalOnlyTripWithTripKey,
   terminalAbbrev: string,

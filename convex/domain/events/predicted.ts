@@ -54,6 +54,13 @@ const preferAtSeaThenAtDockMl = (
 /**
  * Builds the map key for one predicted dock row identity.
  *
+ * Predicted rows are uniquely identified by their boundary key, prediction
+ * type, and prediction source so multiple prediction families can coexist on
+ * the same boundary. The predicted-table mutation, the predicted-table
+ * queries, and the orchestrator all rely on this identity for upsert and
+ * grouping, so it lives in shared domain code instead of being redefined per
+ * caller.
+ *
  * @param row - Row-like value with boundary key, prediction type, and source
  * @returns Composite predicted dock row identity
  */

@@ -2,15 +2,15 @@
  * Reconciles live vessel locations into sparse actual dock writes during reload.
  */
 
+import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { getSailingDay } from "shared/time";
 import type {
-  ActiveTripForPhysicalActualReconcile,
   DockStatusEventRecord,
+  ReloadTripForActuals,
   TripContextForActualRow,
 } from "../types";
-import { buildTripBoundaryKeySet } from "./liveLocationBoundaryKeys";
 import { buildPhysicalOnlyActualRows } from "./physicalOnlyLiveLocations";
 import { buildScheduleAlignedActualRows } from "./scheduleAlignedLiveLocations";
 
@@ -48,7 +48,7 @@ const reconcileLiveLocations = ({
   tripBySegmentKey: Map<string, TripContextForActualRow>;
   activeTripsByVesselAbbrev: Map<
     string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+    ReloadTripForActuals & { TripKey: string }
   >;
 }): ConvexActualDockEvent[] => {
   // Share one pre-filtered slice so both builders read the same input.
@@ -82,10 +82,30 @@ const reconcileLiveLocations = ({
   return [...scheduleAligned, ...physicalOnly];
 };
 
+/**
+ * Builds a predicate that keeps locations whose sailing day matches the target.
+ *
+ * @param sailingDay - Target sailing day
+ * @returns Predicate over vessel locations using sailing-day calendaring
+ */
 const locationMatchesSailingDay =
   (sailingDay: string) => (location: ConvexVesselLocation) =>
     getSailingDay(
       new Date(location.ScheduledDeparture ?? location.TimeStamp)
     ) === sailingDay;
+
+/**
+ * Builds the dedupe set for live-location fallback rows.
+ *
+ * TripKey alone is not enough because one trip can have both departure and
+ * arrival actual rows. Pairing TripKey with EventType lets the physical-only
+ * fallback skip only the boundary that is already represented.
+ *
+ * @param rows - Actual rows carrying TripKey and EventType fields
+ * @returns Set of composite TripKey/EventType boundary keys
+ */
+const buildTripBoundaryKeySet = (
+  rows: ReadonlyArray<{ TripKey: string; EventType: DockEventType }>
+): Set<string> => new Set(rows.map((row) => `${row.TripKey}|${row.EventType}`));
 
 export { reconcileLiveLocations };

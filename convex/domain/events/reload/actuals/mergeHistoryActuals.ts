@@ -19,6 +19,12 @@ import type {
   RawSeedSegment,
 } from "../types";
 
+/**
+ * Maps a Convex reload history row to the adapter Date-shape used for resolve.
+ *
+ * @param row - Reload history row with epoch-ms timestamps
+ * @returns Adapter-shaped history record with Date-valued timestamps
+ */
 const toAdapterHistoryRecord = (row: WsfVesselHistory): VesselHistory =>
   ({
     ...row,
@@ -52,6 +58,18 @@ const createSeededScheduleSegmentResolver = (
       ?.find((row) => row.ScheduledDeparture === scheduledDepart)?.SegmentKey;
 };
 
+/**
+ * Resolves a history row into a TripKey-aligned normalized record.
+ *
+ * Adapter resolution rejects rows that cannot be tied to a known vessel or
+ * terminal, and rows without scheduled departure or any observed time, so the
+ * caller can skip them without further checks.
+ *
+ * @param record - WSF vessel history row
+ * @param vessels - Vessel identities for adapter resolution
+ * @param terminals - Terminal identities for adapter resolution
+ * @returns Normalized record with TripKey, or null when resolution fails
+ */
 const normalizeHistoryRecordStrict = (
   record: WsfVesselHistory,
   vessels: ReadonlyArray<VesselIdentity>,
@@ -95,12 +113,19 @@ const normalizeHistoryRecordStrict = (
 /**
  * Indexes history-derived actual depart and arrival-proxy times by event Key.
  *
+ * Reload merges WSF vessel history into seeded boundary records to obtain
+ * actual times when the live ping stream missed an arrival or departure.
+ * Strict adapter resolution is tried first; rows that fail strict resolution
+ * fall back to vessel abbrev plus scheduled departure to recover history
+ * that names a vessel ambiguously. The returned map keys are boundary keys
+ * so the hydrator can stamp the actual times onto the right dep or arv row.
+ *
  * @param args.seededEvents - Schedule-derived boundary rows before history merge
- * @param args.scheduleSegments - Same-day WSF scheduled segments (epoch-ms times)
- * @param args.historyRecords - WSF vessel history rows (epoch-ms times) for the day
+ * @param args.directSeedSegments - Same-day raw seed segments by TripKey
+ * @param args.historyRecords - WSF vessel history rows for the sailing day
  * @param args.vessels - Vessel identities for adapter resolution
  * @param args.terminals - Terminal identities for adapter resolution
- * @returns Map from boundary Key to epoch actual ms from history
+ * @returns Map from boundary Key to actual time in epoch milliseconds
  */
 const mapHistoryActualsToEventKeys = ({
   seededEvents,
@@ -124,6 +149,8 @@ const mapHistoryActualsToEventKeys = ({
   return historyRecords.reduce((actualsByEventKey, record) => {
     const actualDeparture = record.ActualDepart;
     const arrivalProxy = record.EstArrival;
+
+    // Prefer strict adapter resolution when the row names vessel and terminals.
     const strictRecord = normalizeHistoryRecordStrict(
       record,
       vessels,
@@ -135,6 +162,7 @@ const mapHistoryActualsToEventKeys = ({
       tripKey = strictRecord.tripKey;
     }
 
+    // Fall back to vessel plus scheduled depart for rows strict mode rejected.
     if (tripKey === undefined) {
       const scheduledDepart = record.ScheduledDepart;
       const vessel = tryResolveVessel(
@@ -160,6 +188,7 @@ const mapHistoryActualsToEventKeys = ({
       }
     }
 
+    // Skip records the seeded schedule cannot anchor to a direct segment.
     if (tripKey === undefined) {
       return actualsByEventKey;
     }

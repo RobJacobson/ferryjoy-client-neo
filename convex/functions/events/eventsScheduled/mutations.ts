@@ -35,12 +35,14 @@ const upsertScheduledRowsForSailingDay = async (
   const existingByKey = new Map(existingRows.map((row) => [row.Key, row]));
   const nextKeys = new Set(nextRows.map((row) => row.Key));
 
+  // Delete absent rows in parallel; ordering does not affect downstream rows.
   await Promise.all(
     existingRows
       .filter((row) => !nextKeys.has(row.Key))
       .map((row) => ctx.db.delete(row._id))
   );
 
+  // Upsert sequentially so equality checks read consistent state per row.
   for (const nextRow of nextRows) {
     const existingRow = existingByKey.get(nextRow.Key);
 

@@ -3,7 +3,7 @@
  */
 
 import type {
-  ActiveTripForPhysicalActualReconcile,
+  ReloadTripForActuals,
   TripContextForActualRow,
   TripRowForActualContext,
 } from "../types";
@@ -12,9 +12,9 @@ type ReloadTripIndexes = {
   tripBySegmentKey: Map<string, TripContextForActualRow>;
   activeTripsByVesselAbbrev: Map<
     string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+    ReloadTripForActuals & { TripKey: string }
   >;
-  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
+  physicalOnlyTrips: ReloadTripForActuals[];
 };
 
 /**
@@ -46,12 +46,9 @@ const indexTripsBySegmentKey = (
  * @returns Map from vessel abbreviation to the trip carrying TripKey
  */
 const indexActiveTripsByVesselAbbrev = (
-  trips: ActiveTripForPhysicalActualReconcile[]
-): Map<string, ActiveTripForPhysicalActualReconcile & { TripKey: string }> => {
-  const map = new Map<
-    string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
-  >();
+  trips: ReloadTripForActuals[]
+): Map<string, ReloadTripForActuals & { TripKey: string }> => {
+  const map = new Map<string, ReloadTripForActuals & { TripKey: string }>();
 
   for (const trip of trips) {
     if (trip.TripKey !== undefined) {
@@ -62,12 +59,26 @@ const indexActiveTripsByVesselAbbrev = (
   return map;
 };
 
+/**
+ * Builds the trip indexes the reload pipeline reads while assembling rows.
+ *
+ * The reload computation needs three projections of the same trip set: a
+ * segment-to-trip lookup for stamping TripKeys on actual rows, an active-trip
+ * lookup by vessel for the live-location fallback, and a list of
+ * physical-only trips that bypass scheduled boundaries entirely. Computing
+ * all three together avoids walking the trip arrays multiple times in the
+ * hot path.
+ *
+ * @param args.activeTrips - Active vessel trips for the reload sailing day
+ * @param args.completedTrips - Completed vessel trips for the reload sailing day
+ * @returns Segment, vessel, and physical-only trip indexes for one reload
+ */
 const indexTripsForReload = ({
   activeTrips,
   completedTrips,
 }: {
-  activeTrips: ActiveTripForPhysicalActualReconcile[];
-  completedTrips: ActiveTripForPhysicalActualReconcile[];
+  activeTrips: ReloadTripForActuals[];
+  completedTrips: ReloadTripForActuals[];
 }): ReloadTripIndexes => {
   const allTrips = [...activeTrips, ...completedTrips];
 

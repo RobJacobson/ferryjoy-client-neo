@@ -1,6 +1,6 @@
 export { computeDockEventsReload } from "./computeDockEventsReload";
 export type {
-  ActiveTripForPhysicalActualReconcile,
   DockEventsReload,
   DockStatusEventRecord,
+  ReloadTripForActuals,
 } from "./types";

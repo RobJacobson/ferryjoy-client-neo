@@ -53,6 +53,7 @@ const upsertPredictedDockBatches = async (
   const updatedAt = Date.now();
   const scopesByKey = new Map<string, MergedPredictedDockScope>();
 
+  // Merge same-scope batches so each vessel/day reads existing rows only once.
   for (const batch of batches) {
     const scopeKey = buildVesselSailingDayScopeKey(
       batch.VesselAbbrev,
@@ -102,6 +103,7 @@ const upsertPredictedDockBatches = async (
       scope.RowsByComposite.values()
     );
 
+    // Delete absent existing rows except those depart-next preservation guards.
     for (const existing of existingRows) {
       if (!scope.TargetKeys.has(existing.Key)) {
         continue;
@@ -120,6 +122,7 @@ const upsertPredictedDockBatches = async (
       existingByComposite.delete(compositeKey);
     }
 
+    // Insert or replace each incoming row within the scope's targeted keys.
     for (const row of scope.RowsByComposite.values()) {
       if (!scope.TargetKeys.has(row.Key)) {
         continue;

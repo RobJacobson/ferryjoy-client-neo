@@ -9,8 +9,14 @@ import type { WsfScheduledSegment } from "../schemas/validateReloadInput";
 /**
  * Maps one epoch-ms scheduled segment to an adapter segment with Date fields.
  *
+ * Reload inputs cross the action-to-mutation boundary in Convex value space,
+ * which means trip times arrive as epoch milliseconds. Adapter resolvers
+ * expect Date objects, so this helper wraps the numeric timestamps into Date
+ * instances without changing any other fields, keeping the adapter contract
+ * unchanged while the reload pipeline remains epoch-ms internally.
+ *
  * @param segment - WSF scheduled segment using epoch-ms for trip times
- * @returns Segment shape expected by resolveScheduleSegment
+ * @returns Adapter-shaped segment for resolveScheduleSegment
  */
 const toAdapterScheduleSegment = (
   segment: WsfScheduledSegment
