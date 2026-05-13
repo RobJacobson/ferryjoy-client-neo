@@ -2,7 +2,7 @@
  * Convex validators and inferred types for internal dock-event reseed mutation
  * args and return payload. These are not database table schemas; args describe
  * hydrated dock status event rows passed from the reload action into
- * reseedDockEventsForSailingDay, and the day-count return shape matches the
+ * reseedDockStatusEventsForSailingDay, and the day-count return shape matches the
  * mutation returns validator.
  */
 

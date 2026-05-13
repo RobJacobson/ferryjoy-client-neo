@@ -59,7 +59,8 @@ const runReloadDockEventsForSailingDay = async (
   });
 
   return await ctx.runMutation(
-    internal.functions.events.reload.mutations.reseedDockEventsForSailingDay,
+    internal.functions.events.reload.mutations
+      .reseedDockStatusEventsForSailingDay,
     {
       SailingDay: targetDate,
       Events: events,

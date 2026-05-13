@@ -8,7 +8,7 @@ import * as eventsActual from "functions/events/eventsActual/mutations";
 import * as eventsScheduled from "functions/events/eventsScheduled/mutations";
 import {
   type ReseedDockStatusEventsForSailingDayArgs,
-  reseedDockEventsForSailingDay,
+  reseedDockStatusEventsForSailingDay,
 } from "../mutations";
 
 type ReseedHandler = (
@@ -20,7 +20,7 @@ afterEach(() => {
   mock.restore();
 });
 
-describe("reseedDockEventsForSailingDay", () => {
+describe("reseedDockStatusEventsForSailingDay", () => {
   it("delegates scheduled and actual persistence to the table helpers", async () => {
     const scheduledSpy = spyOn(
       eventsScheduled,
@@ -32,13 +32,12 @@ describe("reseedDockEventsForSailingDay", () => {
     ).mockResolvedValue(undefined);
     const ctx = makeEmptyDbMutationCtx();
 
-    const counts = await handler<ReseedHandler>(reseedDockEventsForSailingDay)(
-      ctx,
-      {
-        SailingDay: "2026-04-10",
-        Events: [],
-      }
-    );
+    const counts = await handler<ReseedHandler>(
+      reseedDockStatusEventsForSailingDay
+    )(ctx, {
+      SailingDay: "2026-04-10",
+      Events: [],
+    });
 
     expect(counts).toEqual({ scheduledCount: 0, actualCount: 0 });
     expect(scheduledSpy).toHaveBeenCalledTimes(1);
@@ -73,7 +72,7 @@ describe("reseedDockEventsForSailingDay", () => {
       vesselLocations: [],
     });
 
-    await handler<ReseedHandler>(reseedDockEventsForSailingDay)(ctx, {
+    await handler<ReseedHandler>(reseedDockStatusEventsForSailingDay)(ctx, {
       SailingDay: "2026-04-10",
       Events: [],
     });
