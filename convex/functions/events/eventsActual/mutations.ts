@@ -8,6 +8,7 @@
 
 import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
+import { dedupeActualRowsByEventKey } from "domain/events/reload/dedupeActualRows";
 import type { ConvexActualDockEvent } from "./schemas";
 
 type ReplaceActualRowsForSailingDayOptions = {
@@ -88,24 +89,6 @@ const replaceActualRowsForSailingDay = async (
   }
 
   await upsertActualDockRows(ctx, nextRows);
-};
-
-/**
- * Deduplicates actual dock rows by EventKey while keeping the last payload.
- *
- * @param rows - Incoming actual rows that may repeat physical keys
- * @returns One actual row per EventKey after last-row-wins collapse
- */
-const dedupeActualRowsByEventKey = (
-  rows: ConvexActualDockEvent[]
-): ConvexActualDockEvent[] => {
-  const rowsByEventKey = new Map<string, ConvexActualDockEvent>();
-
-  for (const row of rows) {
-    rowsByEventKey.set(row.EventKey, row);
-  }
-
-  return Array.from(rowsByEventKey.values());
 };
 
 /**
