@@ -11,7 +11,6 @@ import {
   type ConvexActualDockWritePersistable,
 } from "../actual";
 import { groupBy } from "./collections";
-import { DOCKED_SPEED_THRESHOLD, MOVING_SPEED_THRESHOLD } from "./constants";
 import type {
   ActiveTripForPhysicalActualReconcile,
   DockStatusEventRecord,
@@ -24,12 +23,6 @@ const locationMatchesSailingDay =
     getSailingDay(
       new Date(location.ScheduledDeparture ?? location.TimeStamp)
     ) === sailingDay;
-
-const strongDeparture = (location: ConvexVesselLocation) =>
-  location.AtDock === false && location.Speed >= MOVING_SPEED_THRESHOLD;
-
-const strongArrival = (location: ConvexVesselLocation) =>
-  location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
 
 const arrivalEligibilityTime = (event: DockStatusEventRecord) =>
   Math.min(
@@ -114,8 +107,8 @@ const buildActualWriteFromLocation = (
     event.EventOccurred === true ||
     (event.EventType === "dep-dock" &&
       location.LeftDock === undefined &&
-      !strongDeparture(location)) ||
-    (event.EventType === "arv-dock" && !strongArrival(location))
+      location.AtDock !== false) ||
+    (event.EventType === "arv-dock" && location.AtDock !== true)
   ) {
     return undefined;
   }
@@ -174,7 +167,7 @@ const buildPhysicalOnlyPatchesFromLocation = (
 
   if (
     !representedTripBoundaryKeys.has(`${trip.TripKey}|dep-dock`) &&
-    strongDeparture(location)
+    location.AtDock === false
   ) {
     patches.push({
       TripKey: trip.TripKey,
@@ -190,7 +183,7 @@ const buildPhysicalOnlyPatchesFromLocation = (
 
   if (
     !representedTripBoundaryKeys.has(`${trip.TripKey}|arv-dock`) &&
-    strongArrival(location) &&
+    location.AtDock === true &&
     trip.ArrivingTerminalAbbrev !== undefined
   ) {
     patches.push({
