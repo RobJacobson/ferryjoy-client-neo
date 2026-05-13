@@ -29,7 +29,7 @@ import type * as domain_events_actual from "../domain/events/actual.js";
 import type * as domain_events_predicted from "../domain/events/predicted.js";
 import type * as domain_events_reload_adapterConverters from "../domain/events/reload/adapterConverters.js";
 import type * as domain_events_reload_boundarySeams from "../domain/events/reload/boundarySeams.js";
-import type * as domain_events_reload_buildReloadDockSliceFromHydratedEvents from "../domain/events/reload/buildReloadDockSliceFromHydratedEvents.js";
+import type * as domain_events_reload_buildReloadDockSailingDayRowsFromHydratedEvents from "../domain/events/reload/buildReloadDockSailingDayRowsFromHydratedEvents.js";
 import type * as domain_events_reload_collections from "../domain/events/reload/collections.js";
 import type * as domain_events_reload_constants from "../domain/events/reload/constants.js";
 import type * as domain_events_reload_dedupeActualRows from "../domain/events/reload/dedupeActualRows.js";
@@ -251,7 +251,7 @@ declare const fullApi: ApiFromModules<{
   "domain/events/predicted": typeof domain_events_predicted;
   "domain/events/reload/adapterConverters": typeof domain_events_reload_adapterConverters;
   "domain/events/reload/boundarySeams": typeof domain_events_reload_boundarySeams;
-  "domain/events/reload/buildReloadDockSliceFromHydratedEvents": typeof domain_events_reload_buildReloadDockSliceFromHydratedEvents;
+  "domain/events/reload/buildReloadDockSailingDayRowsFromHydratedEvents": typeof domain_events_reload_buildReloadDockSailingDayRowsFromHydratedEvents;
   "domain/events/reload/collections": typeof domain_events_reload_collections;
   "domain/events/reload/constants": typeof domain_events_reload_constants;
   "domain/events/reload/dedupeActualRows": typeof domain_events_reload_dedupeActualRows;

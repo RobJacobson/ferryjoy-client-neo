@@ -1,5 +1,6 @@
 /**
- * Builds scheduled and actual Convex rows from hydrated reload boundary events.
+ * Builds scheduled and actual Convex rows from hydrated dock status events for
+ * one sailing day reload.
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
@@ -15,8 +16,8 @@ import { dedupeActualRowsByEventKey } from "./dedupeActualRows";
 import { buildLiveLocationActualRows } from "./liveLocationReconciliation";
 import type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockSliceFromHydratedArgs,
-  BuildReloadDockSliceResult,
+  BuildReloadDockSailingDayRowsFromHydratedArgs,
+  BuildReloadDockSailingDayRowsResult,
   DockStatusEventRecord,
   TripContextForActualRow,
 } from "./types";
@@ -135,12 +136,12 @@ const buildPhysicalOnlyActualRowsFromTrips = (
     });
 
 /**
- * Builds scheduled and actual dock rows from hydrated boundary events.
+ * Builds scheduled and actual dock rows for one sailing day from hydrated events.
  *
  * @param args - Hydrated events, sailing day, trip indexes, and locations
  * @returns Scheduled and actual rows plus operator-facing counts
  */
-const buildReloadDockSliceFromHydratedEvents = ({
+const buildReloadDockSailingDayRowsFromHydratedEvents = ({
   sailingDay,
   events,
   updatedAt,
@@ -148,7 +149,7 @@ const buildReloadDockSliceFromHydratedEvents = ({
   activeTripsByVesselAbbrev,
   physicalOnlyTrips,
   vesselLocations,
-}: BuildReloadDockSliceFromHydratedArgs): BuildReloadDockSliceResult => {
+}: BuildReloadDockSailingDayRowsFromHydratedArgs): BuildReloadDockSailingDayRowsResult => {
   const normalizedEvents = normalizeScheduledDockSeams(events).sort(
     sortDockStatusEventRecords
   );
@@ -179,4 +180,4 @@ const buildReloadDockSliceFromHydratedEvents = ({
   };
 };
 
-export { buildReloadDockSliceFromHydratedEvents };
+export { buildReloadDockSailingDayRowsFromHydratedEvents };

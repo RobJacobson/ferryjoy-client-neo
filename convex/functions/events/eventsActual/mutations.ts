@@ -54,13 +54,13 @@ const upsertActualDockRows = async (
 /**
  * Replaces actual dock rows for one sailing day.
  *
- * Static reload owns the schedule-aligned day slice, so rows absent from the
+ * Static reload owns the schedule-aligned sailing day, so rows absent from the
  * incoming normalized payload are deleted unless their TripKey is known to be a
  * current physical-only trip for the day.
  *
  * @param ctx - Convex mutation context exposing database writes
  * @param SailingDay - Service day whose actual rows should be replaced
- * @param rows - Normalized actual dock rows for the replacement slice
+ * @param rows - Normalized actual dock rows for that sailing day
  * @param options.preserveAbsentTripKeys - Physical-only TripKeys whose absent
  * rows should survive the scheduled reload replacement pass
  * @returns Promise resolving with no payload after reconciliation completes

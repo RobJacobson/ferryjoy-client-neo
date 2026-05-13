@@ -1,6 +1,6 @@
 /**
  * Scheduled dock seam normalization, boundary ordering, and history-vs-existing
- * actual time merge for reload slices.
+ * actual time merge when assembling sailing-day reload rows.
  */
 
 import { buildBoundaryKey } from "shared/keys";

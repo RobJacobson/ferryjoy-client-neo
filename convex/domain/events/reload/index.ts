@@ -1,4 +1,4 @@
-export { buildReloadDockSliceFromHydratedEvents } from "./buildReloadDockSliceFromHydratedEvents";
+export { buildReloadDockSailingDayRowsFromHydratedEvents } from "./buildReloadDockSailingDayRowsFromHydratedEvents";
 export {
   buildHydratedDockStatusEventsForReload,
   buildScheduledDockEventRecords,
@@ -10,7 +10,7 @@ export {
 } from "./tripIndexMaps";
 export type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockSliceResult,
+  BuildReloadDockSailingDayRowsResult,
   DockStatusEventRecord,
   TripContextForActualRow,
 } from "./types";

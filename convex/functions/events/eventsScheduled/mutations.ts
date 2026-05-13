@@ -1,7 +1,7 @@
 /**
  * Internal mutation helpers for eventsScheduled persistence.
  *
- * Scheduled rows are replaced as a complete sailing-day slice after schedule
+ * Scheduled rows are replaced as a complete sailing-day set after schedule
  * reloads. The reconciliation stays table-local because it is simple storage
  * behavior rather than ferry-domain logic.
  */
@@ -11,10 +11,10 @@ import type { MutationCtx } from "_generated/server";
 import type { ConvexScheduledDockEvent } from "./schemas";
 
 /**
- * Replaces scheduled dock rows for one sailing day with the supplied slice.
+ * Replaces scheduled dock rows for one sailing day with the supplied rows.
  *
  * Loads stored rows by sailing day, deletes rows missing from the incoming
- * slice, inserts new rows, and replaces only rows with visible field changes.
+ * set, inserts new rows, and replaces only rows with visible field changes.
  * Unchanged rows are skipped so document identity and subscriptions stay stable.
  *
  * @param ctx - Convex mutation context exposing database writes

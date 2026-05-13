@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildHydratedDockStatusEventsForReload,
-  buildReloadDockSliceFromHydratedEvents,
+  buildReloadDockSailingDayRowsFromHydratedEvents,
 } from "domain/events/reload";
 import type { WsfScheduledSegment } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
@@ -36,7 +36,7 @@ const terminals: TerminalIdentity[] = [
   },
 ];
 
-describe("reload dock slice from schedule and history", () => {
+describe("reload dock sailing day rows from schedule and history", () => {
   it("hydrates history actuals and keeps physical-only evidence", () => {
     const departure = at(12, 20);
     const arrival = at(12, 55);
@@ -69,7 +69,7 @@ describe("reload dock slice from schedule and history", () => {
       vessels,
       terminals,
     });
-    const result = buildReloadDockSliceFromHydratedEvents({
+    const result = buildReloadDockSailingDayRowsFromHydratedEvents({
       sailingDay: "2026-03-25",
       events: hydratedEvents,
       updatedAt: 42,

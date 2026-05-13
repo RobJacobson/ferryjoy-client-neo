@@ -218,7 +218,7 @@ const buildPhysicalOnlyPatchesFromLocation = (
  * @param args.vesselLocations - Latest pings for matching
  * @param args.tripBySegmentKey - TripKey lookup by segment key
  * @param args.activeTripsByVesselAbbrev - Physical-only active trips
- * @returns Extra actual rows to merge into the reload slice
+ * @returns Extra actual rows to merge into the sailing day reload payload
  */
 const buildLiveLocationActualRows = ({
   sailingDay,

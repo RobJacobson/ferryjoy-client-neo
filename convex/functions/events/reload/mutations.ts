@@ -9,7 +9,7 @@
 
 import { internalMutation, type MutationCtx } from "_generated/server";
 import {
-  buildReloadDockSliceFromHydratedEvents,
+  buildReloadDockSailingDayRowsFromHydratedEvents,
   indexActiveTripsByVesselAbbrev,
   indexTripsBySegmentKey,
 } from "domain/events/reload";
@@ -24,8 +24,8 @@ import { upsertScheduledRowsForSailingDay } from "functions/events/eventsSchedul
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Loads trip indexes for dock status event reseed slice assembly (same logic as
- * old runReseedBoundaryEventsForSailingDay trip reads).
+ * Loads trip indexes for building dock rows for one sailing day during reseed
+ * (same logic as old runReseedBoundaryEventsForSailingDay trip reads).
  *
  * @param ctx - Convex mutation context for vessel-trip table reads
  * @param sailingDay - Target sailing day string
@@ -63,7 +63,7 @@ const loadTripIndexesForReseedDockStatusEvents = async (
  * @param ctx - Convex mutation context
  * @param args.SailingDay - Target sailing day
  * @param args.Events - Hydrated dock status events from the reload action
- * @returns Scheduled and actual row counts for the replaced slice
+ * @returns Scheduled and actual row counts for the replaced sailing day
  */
 const reseedDockStatusEventsForSailingDayRows = async (
   ctx: MutationCtx,
@@ -77,7 +77,7 @@ const reseedDockStatusEventsForSailingDayRows = async (
     stripConvexMeta
   );
   const { scheduledRows, scheduledCount, actualRows, actualCount } =
-    buildReloadDockSliceFromHydratedEvents({
+    buildReloadDockSailingDayRowsFromHydratedEvents({
       sailingDay,
       events: args.Events,
       updatedAt,

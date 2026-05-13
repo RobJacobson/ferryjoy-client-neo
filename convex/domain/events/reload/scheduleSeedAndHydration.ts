@@ -22,7 +22,7 @@ import type {
  * Builds schedule-derived boundary records from raw reload segments.
  *
  * Seam normalization for identical scheduled dep and arv times is applied in
- * buildReloadDockSliceFromHydratedEvents, not here, so callers that only seed
+ * buildReloadDockSailingDayRowsFromHydratedEvents, not here, so callers that only seed
  * should not assume EventScheduledTime is already adjusted.
  *
  * @param segments - WSF scheduled segments (epoch-ms) from reload

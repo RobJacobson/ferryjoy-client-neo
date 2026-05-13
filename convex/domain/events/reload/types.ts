@@ -1,7 +1,7 @@
 /**
  * Type shapes for dock-event reload assembly: hydrated dock status event
- * records, trip indexes, mutation slice results, and WSF adapter rows projected
- * to epoch-ms for hydrate. WsfScheduledSegment and WsfVesselHistory are not
+ * records, trip indexes, sailing-day row build results, and WSF adapter rows
+ * projected to epoch-ms for hydrate. WsfScheduledSegment and WsfVesselHistory are not
  * persisted table documents and are not Convex mutation args validators.
  */
 
@@ -69,7 +69,7 @@ type ActiveTripForPhysicalActualReconcile = {
   TripEnd?: number;
 };
 
-type BuildReloadDockSliceFromHydratedArgs = {
+type BuildReloadDockSailingDayRowsFromHydratedArgs = {
   sailingDay: string;
   events: DockStatusEventRecord[];
   updatedAt: number;
@@ -82,7 +82,7 @@ type BuildReloadDockSliceFromHydratedArgs = {
   vesselLocations: ConvexVesselLocation[];
 };
 
-type BuildReloadDockSliceResult = {
+type BuildReloadDockSailingDayRowsResult = {
   scheduledRows: ConvexScheduledDockEvent[];
   scheduledCount: number;
   actualRows: ConvexActualDockEvent[];
@@ -112,8 +112,8 @@ type ReloadActualDockWrite = {
 export type { DockStatusEventRecord } from "./dockStatusEventSchemas";
 export type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockSliceFromHydratedArgs,
-  BuildReloadDockSliceResult,
+  BuildReloadDockSailingDayRowsFromHydratedArgs,
+  BuildReloadDockSailingDayRowsResult,
   DockEventType,
   HistoryActualSource,
   NormalizedHistoryRecord,
