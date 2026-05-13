@@ -10,15 +10,27 @@ import {
   type VesselIdentity,
 } from "adapters";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
-import { toAdapterHistoryRecord } from "./adapterConverters";
-import { groupBy } from "./collections";
-import { getDirectRawSeedSegments } from "./rawSeedSegments";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import { groupBy } from "../shared";
 import type {
   DockStatusEventRecord,
   NormalizedHistoryRecord,
-  WsfScheduledSegment,
+  RawSeedSegment,
   WsfVesselHistory,
-} from "./types";
+} from "../types";
+
+const toAdapterHistoryRecord = (row: WsfVesselHistory): VesselHistory =>
+  ({
+    ...row,
+    ScheduledDepart:
+      row.ScheduledDepart !== undefined
+        ? new Date(row.ScheduledDepart)
+        : undefined,
+    ActualDepart:
+      row.ActualDepart !== undefined ? new Date(row.ActualDepart) : undefined,
+    EstArrival:
+      row.EstArrival !== undefined ? new Date(row.EstArrival) : undefined,
+  }) as VesselHistory;
 
 /**
  * Builds a resolver from scheduled depart ms to segment key using seeded dep rows.
@@ -90,23 +102,21 @@ const normalizeHistoryRecordStrict = (
  * @param args.terminals - Terminal identities for adapter resolution
  * @returns Map from boundary Key to epoch actual ms from history
  */
-const getHistoryActualsByEventKey = ({
+const mapHistoryActualsToEventKeys = ({
   seededEvents,
-  scheduleSegments,
+  directSeedSegments,
   historyRecords,
   vessels,
   terminals,
 }: {
   seededEvents: DockStatusEventRecord[];
-  scheduleSegments: WsfScheduledSegment[];
+  directSeedSegments: RawSeedSegment[];
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }) => {
   const directSegmentsByTripKey = new Map(
-    getDirectRawSeedSegments(scheduleSegments, vessels, terminals).map(
-      (segment) => [segment.Key, segment]
-    )
+    directSeedSegments.map((segment) => [segment.Key, segment])
   );
   const resolveSegmentFromSeededSchedule =
     createSeededScheduleSegmentResolver(seededEvents);
@@ -172,4 +182,4 @@ const getHistoryActualsByEventKey = ({
   }, new Map<string, number>());
 };
 
-export { getHistoryActualsByEventKey };
+export { mapHistoryActualsToEventKeys };

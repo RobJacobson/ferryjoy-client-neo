@@ -6,8 +6,7 @@
 import { internal } from "_generated/api";
 import type { ActionCtx } from "_generated/server";
 import { fetchAndTransformScheduledTrips } from "adapters";
-import { buildHydratedDockStatusEventsForReload } from "domain/events/reload";
-import type { ReloadDockDayCountResult } from "domain/events/reload/dockStatusEventSchemas";
+import type { ReloadDockDayCountResult } from "domain/events/reload/schemas";
 import { loadTerminalIdentities } from "functions/terminals/actions";
 import { loadVesselIdentities } from "functions/vessels/actions";
 import { stripConvexMeta } from "shared/stripConvexMeta";
@@ -49,21 +48,20 @@ const runReloadDockEventsForSailingDay = async (
     terminals
   );
   const adapterScheduleSegments = routeData.flatMap((data) => data.segments);
-  const { scheduledSegments: scheduleSegments, historyRecords } =
-    await fetchReloadWsfInputs(adapterScheduleSegments, targetDate);
-  const events = buildHydratedDockStatusEventsForReload({
-    scheduleSegments,
-    historyRecords,
-    vessels: vessels.map(stripConvexMeta),
-    terminals: terminals.map(stripConvexMeta),
-  });
+  const { scheduledSegments, historyRecords } = await fetchReloadWsfInputs(
+    adapterScheduleSegments,
+    targetDate
+  );
 
   return await ctx.runMutation(
     internal.functions.events.reload.mutations
       .reseedDockStatusEventsForSailingDay,
     {
       SailingDay: targetDate,
-      Events: events,
+      ScheduleSegments: scheduledSegments,
+      HistoryRecords: historyRecords,
+      Vessels: vessels.map(stripConvexMeta),
+      Terminals: terminals.map(stripConvexMeta),
     }
   );
 };

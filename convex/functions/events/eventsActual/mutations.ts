@@ -8,7 +8,7 @@
 
 import type { Doc } from "_generated/dataModel";
 import type { MutationCtx } from "_generated/server";
-import { dedupeActualRowsByEventKey } from "domain/events/reload/dedupeActualRows";
+import { dedupeActualRowsByEventKey } from "domain/events/reload/actuals";
 import type { ConvexActualDockEvent } from "./schemas";
 
 type ReplaceActualRowsForSailingDayOptions = {

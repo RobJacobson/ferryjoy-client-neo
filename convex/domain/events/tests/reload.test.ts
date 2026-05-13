@@ -3,10 +3,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-  buildHydratedDockStatusEventsForReload,
-  buildReloadDockSailingDayRowsFromHydratedEvents,
-} from "domain/events/reload";
+import { computeDockEventsReload } from "domain/events/reload";
 import type { WsfScheduledSegment } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -63,20 +60,25 @@ describe("reload dock sailing day rows from schedule and history", () => {
         EstArrival: at(13, 0),
       },
     ];
-    const hydratedEvents = buildHydratedDockStatusEventsForReload({
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
       scheduleSegments,
       historyRecords,
       vessels,
       terminals,
-    });
-    const result = buildReloadDockSailingDayRowsFromHydratedEvents({
-      sailingDay: "2026-03-25",
-      events: hydratedEvents,
       updatedAt: 42,
-      tripBySegmentKey: new Map([[segmentKey, { TripKey: "trip-scheduled" }]]),
-      activeTripsByVesselAbbrev: new Map(),
       vesselLocations: [],
-      physicalOnlyTrips: [
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
         {
           TripKey: "trip-physical",
           ScheduleKey: undefined,
@@ -91,7 +93,10 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ],
     });
 
-    expect(result.actualCount).toBe(4);
+    expect(result.actualRows).toHaveLength(4);
+    expect(result.physicalOnlyTripKeysToPreserve).toEqual(
+      new Set(["trip-physical"])
+    );
     expect(
       result.actualRows.map((row) => [
         row.EventKey,

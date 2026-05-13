@@ -7,13 +7,13 @@ import type { MutationCtx } from "_generated/server";
 import * as eventsActual from "functions/events/eventsActual/mutations";
 import * as eventsScheduled from "functions/events/eventsScheduled/mutations";
 import {
-  type ReseedDockStatusEventsForSailingDayArgs,
+  type ReseedDockStatusEventsFromExternalInputArgs,
   reseedDockStatusEventsForSailingDay,
 } from "../mutations";
 
 type ReseedHandler = (
   ctx: MutationCtx,
-  args: ReseedDockStatusEventsForSailingDayArgs
+  args: ReseedDockStatusEventsFromExternalInputArgs
 ) => Promise<{ scheduledCount: number; actualCount: number }>;
 
 afterEach(() => {
@@ -34,10 +34,7 @@ describe("reseedDockStatusEventsForSailingDay", () => {
 
     const counts = await handler<ReseedHandler>(
       reseedDockStatusEventsForSailingDay
-    )(ctx, {
-      SailingDay: "2026-04-10",
-      Events: [],
-    });
+    )(ctx, makeExternalReloadArgs("2026-04-10"));
 
     expect(counts).toEqual({ scheduledCount: 0, actualCount: 0 });
     expect(scheduledSpy).toHaveBeenCalledTimes(1);
@@ -72,10 +69,10 @@ describe("reseedDockStatusEventsForSailingDay", () => {
       vesselLocations: [],
     });
 
-    await handler<ReseedHandler>(reseedDockStatusEventsForSailingDay)(ctx, {
-      SailingDay: "2026-04-10",
-      Events: [],
-    });
+    await handler<ReseedHandler>(reseedDockStatusEventsForSailingDay)(
+      ctx,
+      makeExternalReloadArgs("2026-04-10")
+    );
 
     expect(scheduledSpy).toHaveBeenCalledTimes(1);
     expect(actualSpy).toHaveBeenCalledTimes(1);
@@ -134,3 +131,13 @@ const makeEmptyDbMutationCtx = (): MutationCtx =>
     completedTrips: [],
     vesselLocations: [],
   });
+
+const makeExternalReloadArgs = (
+  SailingDay: string
+): ReseedDockStatusEventsFromExternalInputArgs => ({
+  SailingDay,
+  ScheduleSegments: [],
+  HistoryRecords: [],
+  Vessels: [],
+  Terminals: [],
+});

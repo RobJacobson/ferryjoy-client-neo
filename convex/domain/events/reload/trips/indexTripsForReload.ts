@@ -6,7 +6,16 @@ import type {
   ActiveTripForPhysicalActualReconcile,
   TripContextForActualRow,
   TripRowForActualContext,
-} from "./types";
+} from "../types";
+
+type ReloadTripIndexes = {
+  tripBySegmentKey: Map<string, TripContextForActualRow>;
+  activeTripsByVesselAbbrev: Map<
+    string,
+    ActiveTripForPhysicalActualReconcile & { TripKey: string }
+  >;
+  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
+};
 
 /**
  * Indexes physical TripKey by schedule-backed or physical segment key.
@@ -53,4 +62,23 @@ const indexActiveTripsByVesselAbbrev = (
   return map;
 };
 
-export { indexActiveTripsByVesselAbbrev, indexTripsBySegmentKey };
+const indexTripsForReload = ({
+  activeTrips,
+  completedTrips,
+}: {
+  activeTrips: ActiveTripForPhysicalActualReconcile[];
+  completedTrips: ActiveTripForPhysicalActualReconcile[];
+}): ReloadTripIndexes => {
+  const allTrips = [...activeTrips, ...completedTrips];
+
+  return {
+    tripBySegmentKey: indexTripsBySegmentKey(allTrips),
+    activeTripsByVesselAbbrev: indexActiveTripsByVesselAbbrev(activeTrips),
+    physicalOnlyTrips: allTrips.filter(
+      (trip) => trip.ScheduleKey === undefined
+    ),
+  };
+};
+
+export type { ReloadTripIndexes };
+export { indexTripsForReload };

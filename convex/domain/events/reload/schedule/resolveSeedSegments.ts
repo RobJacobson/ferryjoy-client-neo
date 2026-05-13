@@ -12,14 +12,14 @@ import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import {
   classifyDirectSegments,
   getOfficialCrossingTimeMinutes,
-} from "../../scheduledTrips";
-import { toAdapterScheduleSegment } from "./adapterConverters";
-import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "./constants";
+} from "../../../scheduledTrips";
+import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "../shared";
 import type {
   DockStatusEventRecord,
   RawSeedSegment,
   WsfScheduledSegment,
-} from "./types";
+} from "../types";
+import { toAdapterScheduleSegment } from "./convertAdapterRows";
 
 const normalizeScheduledArrivalTime = (
   scheduledArrival: number | undefined,
@@ -141,7 +141,7 @@ const toRawSeedSegment = (
  * @param terminals - Terminal identities for adapter resolution
  * @returns Direct physical segments only
  */
-const getDirectRawSeedSegments = (
+const resolveSeedSegments = (
   segments: WsfScheduledSegment[],
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
@@ -154,7 +154,7 @@ const getDirectRawSeedSegments = (
 
 export {
   buildSeedEventsForSegment,
-  getDirectRawSeedSegments,
   getOfficialScheduledArrivalTime,
   normalizeScheduledArrivalTime,
+  resolveSeedSegments,
 };

@@ -5,11 +5,12 @@
  * persisted table documents and are not Convex mutation args validators.
  */
 
+import type { TerminalIdentity, VesselIdentity } from "adapters";
 import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { DockStatusEventRecord } from "./dockStatusEventSchemas";
+import type { DockStatusEventRecord } from "./schemas";
 
 type WsfVesselHistory = {
   VesselId: number;
@@ -69,7 +70,7 @@ type ActiveTripForPhysicalActualReconcile = {
   TripEnd?: number;
 };
 
-type BuildReloadDockSailingDayRowsFromHydratedArgs = {
+type ComputeReloadRowsFromScheduledEventsArgs = {
   sailingDay: string;
   events: DockStatusEventRecord[];
   updatedAt: number;
@@ -82,11 +83,28 @@ type BuildReloadDockSailingDayRowsFromHydratedArgs = {
   vesselLocations: ConvexVesselLocation[];
 };
 
-type BuildReloadDockSailingDayRowsResult = {
+type ComputeReloadRowsFromScheduledEventsResult = {
   scheduledRows: ConvexScheduledDockEvent[];
-  scheduledCount: number;
   actualRows: ConvexActualDockEvent[];
-  actualCount: number;
+};
+
+type ComputeDockEventsReloadArgs = {
+  sailingDay: string;
+  scheduleSegments: WsfScheduledSegment[];
+  historyRecords: WsfVesselHistory[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
+  activeTrips: ActiveTripForPhysicalActualReconcile[];
+  completedTrips: ActiveTripForPhysicalActualReconcile[];
+  vesselLocations: ConvexVesselLocation[];
+  updatedAt: number;
+};
+
+type DockEventsReload = {
+  sailingDay: string;
+  scheduledRows: ConvexScheduledDockEvent[];
+  actualRows: ConvexActualDockEvent[];
+  physicalOnlyTripKeysToPreserve: Set<string>;
 };
 
 type HistoryActualSource = "departure-actual" | "arrival-proxy";
@@ -109,11 +127,13 @@ type ReloadActualDockWrite = {
   EventActualTime?: number;
 };
 
-export type { DockStatusEventRecord } from "./dockStatusEventSchemas";
+export type { DockStatusEventRecord } from "./schemas";
 export type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockSailingDayRowsFromHydratedArgs,
-  BuildReloadDockSailingDayRowsResult,
+  ComputeDockEventsReloadArgs,
+  ComputeReloadRowsFromScheduledEventsArgs,
+  ComputeReloadRowsFromScheduledEventsResult,
+  DockEventsReload,
   DockEventType,
   HistoryActualSource,
   NormalizedHistoryRecord,

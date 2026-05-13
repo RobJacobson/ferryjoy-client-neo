@@ -10,14 +10,14 @@ import { getSailingDay } from "shared/time";
 import {
   buildActualDockEventFromWrite,
   type ConvexActualDockWritePersistable,
-} from "../actual";
-import { groupBy } from "./collections";
+} from "../../actual";
+import { groupBy } from "../shared";
 import type {
   ActiveTripForPhysicalActualReconcile,
   DockStatusEventRecord,
   ReloadActualDockWrite,
   TripContextForActualRow,
-} from "./types";
+} from "../types";
 
 /**
  * Builds persisted actual rows from locations when history missed schedule rows.
@@ -36,7 +36,7 @@ import type {
  * @param args.activeTripsByVesselAbbrev - Physical-only active trips
  * @returns Extra actual rows to merge into the sailing day reload payload
  */
-const buildLiveLocationActualRows = ({
+const reconcileLiveLocations = ({
   sailingDay,
   events,
   actualRows,
@@ -422,4 +422,4 @@ const buildPhysicalOnlyTripPatch = (
   EventActualTime: eventActualTime,
 });
 
-export { buildLiveLocationActualRows };
+export { reconcileLiveLocations };

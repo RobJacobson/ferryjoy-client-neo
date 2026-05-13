@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("runReloadDockEventsForSailingDay", () => {
-  it("calls unified reseed mutation with hydrated dock status events", async () => {
+  it("calls unified reseed mutation with external reload input", async () => {
     spyOn(console, "log").mockImplementation(() => {});
     spyOn(adapters, "fetchAndTransformScheduledTrips").mockResolvedValue({
       routes: [],
@@ -46,7 +46,10 @@ describe("runReloadDockEventsForSailingDay", () => {
     expect(mutationPayloads).toEqual([
       {
         SailingDay: "2026-07-04",
-        Events: [],
+        ScheduleSegments: [],
+        HistoryRecords: [],
+        Vessels: [],
+        Terminals: [],
       },
     ]);
   });

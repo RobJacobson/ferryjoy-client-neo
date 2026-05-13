@@ -7,18 +7,17 @@ import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import { buildActualDockEventFromWrite } from "../actual";
+import { dedupeActualRowsByEventKey, reconcileLiveLocations } from "./actuals";
 import {
   getLastArrivalKey,
   getNextTerminalAbbrev,
   normalizeScheduledDockSeams,
   sortDockStatusEventRecords,
-} from "./boundarySeams";
-import { dedupeActualRowsByEventKey } from "./dedupeActualRows";
-import { buildLiveLocationActualRows } from "./liveLocationReconciliation";
+} from "./schedule";
 import type {
   ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockSailingDayRowsFromHydratedArgs,
-  BuildReloadDockSailingDayRowsResult,
+  ComputeReloadRowsFromScheduledEventsArgs,
+  ComputeReloadRowsFromScheduledEventsResult,
   DockStatusEventRecord,
   TripContextForActualRow,
 } from "./types";
@@ -178,7 +177,7 @@ const isPhysicalOnlyTripWithTripKey = (
  * @param args - Hydrated events, sailing day, trip indexes, and locations
  * @returns Scheduled and actual rows plus operator-facing counts
  */
-const buildReloadDockSailingDayRowsFromHydratedEvents = ({
+const computeReloadRowsFromScheduledEvents = ({
   sailingDay,
   events,
   updatedAt,
@@ -186,7 +185,7 @@ const buildReloadDockSailingDayRowsFromHydratedEvents = ({
   activeTripsByVesselAbbrev,
   physicalOnlyTrips,
   vesselLocations,
-}: BuildReloadDockSailingDayRowsFromHydratedArgs): BuildReloadDockSailingDayRowsResult => {
+}: ComputeReloadRowsFromScheduledEventsArgs): ComputeReloadRowsFromScheduledEventsResult => {
   const normalizedEvents = normalizeScheduledDockSeams(events).sort(
     sortDockStatusEventRecords
   );
@@ -195,7 +194,7 @@ const buildReloadDockSailingDayRowsFromHydratedEvents = ({
     ...buildActualDockEvents(normalizedEvents, updatedAt, tripBySegmentKey),
     ...buildPhysicalOnlyActualRowsFromTrips(physicalOnlyTrips, updatedAt),
   ];
-  const liveLocationRows = buildLiveLocationActualRows({
+  const liveLocationRows = reconcileLiveLocations({
     sailingDay,
     events: normalizedEvents,
     actualRows: baseActualRows,
@@ -211,10 +210,8 @@ const buildReloadDockSailingDayRowsFromHydratedEvents = ({
 
   return {
     scheduledRows,
-    scheduledCount: normalizedEvents.length,
     actualRows,
-    actualCount: actualRows.length,
   };
 };
 
-export { buildReloadDockSailingDayRowsFromHydratedEvents };
+export { computeReloadRowsFromScheduledEvents };

@@ -4,17 +4,17 @@
  */
 
 import { buildBoundaryKey } from "shared/keys";
-import { groupBy } from "./collections";
 import {
   ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS,
   DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS,
+  groupBy,
   IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
-} from "./constants";
+} from "../shared";
 import type {
   DockEventType,
   DockStatusEventRecord,
   HistoryActualSource,
-} from "./types";
+} from "../types";
 
 /**
  * Adjusts back-to-back scheduled dock seams that share the same scheduled minute.
