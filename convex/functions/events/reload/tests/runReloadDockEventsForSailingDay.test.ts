@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("runReloadDockEventsForSailingDay", () => {
-  it("calls unified reseed mutation with hydrated boundary events", async () => {
+  it("calls unified reseed mutation with hydrated dock status events", async () => {
     spyOn(console, "log").mockImplementation(() => {});
     spyOn(adapters, "fetchAndTransformScheduledTrips").mockResolvedValue({
       routes: [],

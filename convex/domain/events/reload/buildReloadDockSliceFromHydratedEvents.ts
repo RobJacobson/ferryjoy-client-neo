@@ -9,7 +9,7 @@ import {
   getLastArrivalKey,
   getNextTerminalAbbrev,
   normalizeScheduledDockSeams,
-  sortDockBoundaryEventRecords,
+  sortDockStatusEventRecords,
 } from "./boundarySeams";
 import { dedupeActualRowsByEventKey } from "./dedupeActualRows";
 import { buildLiveLocationActualRows } from "./liveLocationReconciliation";
@@ -17,12 +17,12 @@ import type {
   ActiveTripForPhysicalActualReconcile,
   BuildReloadDockSliceFromHydratedArgs,
   BuildReloadDockSliceResult,
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   TripContextForActualRow,
 } from "./types";
 
 const buildScheduledDockEvents = (
-  events: DockBoundaryEventRecord[],
+  events: DockStatusEventRecord[],
   updatedAt: number
 ): ConvexScheduledDockEvent[] => {
   const eventByKey = new Map(events.map((event) => [event.Key, event]));
@@ -47,7 +47,7 @@ const buildScheduledDockEvents = (
 };
 
 const buildActualDockEvents = (
-  events: DockBoundaryEventRecord[],
+  events: DockStatusEventRecord[],
   updatedAt: number,
   tripBySegmentKey: Map<string, TripContextForActualRow>
 ): ConvexActualDockEvent[] =>
@@ -150,7 +150,7 @@ const buildReloadDockSliceFromHydratedEvents = ({
   vesselLocations,
 }: BuildReloadDockSliceFromHydratedArgs): BuildReloadDockSliceResult => {
   const normalizedEvents = normalizeScheduledDockSeams(events).sort(
-    sortDockBoundaryEventRecords
+    sortDockStatusEventRecords
   );
   const scheduledRows = buildScheduledDockEvents(normalizedEvents, updatedAt);
   const baseActualRows = [

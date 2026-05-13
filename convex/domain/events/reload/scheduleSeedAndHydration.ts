@@ -4,7 +4,7 @@
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
-import { mergeActualTime, sortDockBoundaryEventRecords } from "./boundarySeams";
+import { mergeActualTime, sortDockStatusEventRecords } from "./boundarySeams";
 import { getHistoryActualsByEventKey } from "./historyActuals";
 import {
   buildSeedEventsForSegment,
@@ -13,7 +13,7 @@ import {
   normalizeScheduledArrivalTime,
 } from "./rawSeedSegments";
 import type {
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   WsfScheduledSegment,
   WsfVesselHistory,
 } from "./types";
@@ -34,7 +34,7 @@ const buildScheduledDockEventRecords = (
   segments: WsfScheduledSegment[],
   vessels: ReadonlyArray<VesselIdentity>,
   terminals: ReadonlyArray<TerminalIdentity>
-): DockBoundaryEventRecord[] =>
+): DockStatusEventRecord[] =>
   getDirectRawSeedSegments(segments, vessels, terminals)
     .flatMap((segment) =>
       buildSeedEventsForSegment({
@@ -49,7 +49,7 @@ const buildScheduledDockEventRecords = (
         ),
       })
     )
-    .sort(sortDockBoundaryEventRecords);
+    .sort(sortDockStatusEventRecords);
 
 /**
  * Hydrates seeded boundary records with WSF history actuals.
@@ -64,12 +64,12 @@ const hydrateDockEventRecordsWithHistory = ({
   vessels,
   terminals,
 }: {
-  seededEvents: DockBoundaryEventRecord[];
+  seededEvents: DockStatusEventRecord[];
   scheduleSegments: WsfScheduledSegment[];
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-}): DockBoundaryEventRecord[] => {
+}): DockStatusEventRecord[] => {
   const historyActualsByEventKey = getHistoryActualsByEventKey({
     seededEvents,
     scheduleSegments,
@@ -106,7 +106,7 @@ const hydrateDockEventRecordsWithHistory = ({
  * @param args.terminals - Terminal identities for adapter resolution
  * @returns Hydrated boundary event records for one sailing day
  */
-const buildHydratedDockBoundaryEventsForReload = ({
+const buildHydratedDockStatusEventsForReload = ({
   scheduleSegments,
   historyRecords,
   vessels,
@@ -116,7 +116,7 @@ const buildHydratedDockBoundaryEventsForReload = ({
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-}): DockBoundaryEventRecord[] => {
+}): DockStatusEventRecord[] => {
   const seededEvents = buildScheduledDockEventRecords(
     scheduleSegments,
     vessels,
@@ -132,7 +132,7 @@ const buildHydratedDockBoundaryEventsForReload = ({
 };
 
 export {
-  buildHydratedDockBoundaryEventsForReload,
+  buildHydratedDockStatusEventsForReload,
   buildScheduledDockEventRecords,
   hydrateDockEventRecordsWithHistory,
 };

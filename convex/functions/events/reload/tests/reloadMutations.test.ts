@@ -7,13 +7,13 @@ import type { MutationCtx } from "_generated/server";
 import * as eventsActual from "functions/events/eventsActual/mutations";
 import * as eventsScheduled from "functions/events/eventsScheduled/mutations";
 import {
-  type ReseedDockEventsForSailingDayArgs,
+  type ReseedDockStatusEventsForSailingDayArgs,
   reseedDockEventsForSailingDay,
 } from "../mutations";
 
 type ReseedHandler = (
   ctx: MutationCtx,
-  args: ReseedDockEventsForSailingDayArgs
+  args: ReseedDockStatusEventsForSailingDayArgs
 ) => Promise<{ scheduledCount: number; actualCount: number }>;
 
 afterEach(() => {

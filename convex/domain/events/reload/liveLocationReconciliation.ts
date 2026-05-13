@@ -14,7 +14,7 @@ import { groupBy } from "./collections";
 import { DOCKED_SPEED_THRESHOLD, MOVING_SPEED_THRESHOLD } from "./constants";
 import type {
   ActiveTripForPhysicalActualReconcile,
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   ReloadActualDockWrite,
   TripContextForActualRow,
 } from "./types";
@@ -31,7 +31,7 @@ const strongDeparture = (location: ConvexVesselLocation) =>
 const strongArrival = (location: ConvexVesselLocation) =>
   location.AtDock === true && location.Speed < DOCKED_SPEED_THRESHOLD;
 
-const arrivalEligibilityTime = (event: DockBoundaryEventRecord) =>
+const arrivalEligibilityTime = (event: DockStatusEventRecord) =>
   Math.min(
     event.ScheduledDeparture,
     event.EventPredictedTime ?? Number.POSITIVE_INFINITY,
@@ -39,9 +39,9 @@ const arrivalEligibilityTime = (event: DockBoundaryEventRecord) =>
   );
 
 const getLocationAnchoredEvent = (
-  events: DockBoundaryEventRecord[],
+  events: DockStatusEventRecord[],
   location: ConvexVesselLocation,
-  eventType: DockBoundaryEventRecord["EventType"]
+  eventType: DockStatusEventRecord["EventType"]
 ) => {
   if (location.ScheduledDeparture === undefined) {
     return undefined;
@@ -77,9 +77,9 @@ const getLocationAnchoredEvent = (
 };
 
 const findArrivalEventForLocation = (
-  events: DockBoundaryEventRecord[],
+  events: DockStatusEventRecord[],
   location: ConvexVesselLocation,
-  departureEvent: DockBoundaryEventRecord | undefined
+  departureEvent: DockStatusEventRecord | undefined
 ) => {
   const scheduledDepartureUpperBound =
     departureEvent?.ScheduledDeparture ?? location.ScheduledDeparture;
@@ -106,7 +106,7 @@ const findArrivalEventForLocation = (
 
 const buildActualWriteFromLocation = (
   location: ConvexVesselLocation,
-  event: DockBoundaryEventRecord | undefined,
+  event: DockStatusEventRecord | undefined,
   EventActualTime: number | undefined
 ): ReloadActualDockWrite | undefined => {
   if (
@@ -133,7 +133,7 @@ const buildActualWriteFromLocation = (
 };
 
 const buildActualDockWritesFromLocation = (
-  events: DockBoundaryEventRecord[],
+  events: DockStatusEventRecord[],
   location: ConvexVesselLocation
 ): ReloadActualDockWrite[] => {
   if (events.length === 0 || location.InService !== true) {
@@ -230,7 +230,7 @@ const buildLiveLocationActualRows = ({
   activeTripsByVesselAbbrev,
 }: {
   sailingDay: string;
-  events: DockBoundaryEventRecord[];
+  events: DockStatusEventRecord[];
   actualRows: ConvexActualDockEvent[];
   updatedAt: number;
   vesselLocations: ConvexVesselLocation[];

@@ -1,6 +1,6 @@
 export { buildReloadDockSliceFromHydratedEvents } from "./buildReloadDockSliceFromHydratedEvents";
 export {
-  buildHydratedDockBoundaryEventsForReload,
+  buildHydratedDockStatusEventsForReload,
   buildScheduledDockEventRecords,
   hydrateDockEventRecordsWithHistory,
 } from "./scheduleSeedAndHydration";
@@ -11,6 +11,6 @@ export {
 export type {
   ActiveTripForPhysicalActualReconcile,
   BuildReloadDockSliceResult,
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   TripContextForActualRow,
 } from "./types";

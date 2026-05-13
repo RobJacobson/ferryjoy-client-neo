@@ -16,7 +16,7 @@ import {
 import { toAdapterScheduleSegment } from "./adapterConverters";
 import { IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS } from "./constants";
 import type {
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   RawSeedSegment,
   WsfScheduledSegment,
 } from "./types";
@@ -58,7 +58,7 @@ const buildSeedEventsForSegment = (segment: {
   DepartingTerminalAbbrev: string;
   ArrivingTerminalAbbrev: string;
   ScheduledArrival?: number;
-}): DockBoundaryEventRecord[] => {
+}): DockStatusEventRecord[] => {
   const SegmentKey = buildSegmentKey(
     segment.VesselAbbrev,
     segment.DepartingTerminalAbbrev,

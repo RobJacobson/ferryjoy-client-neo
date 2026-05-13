@@ -1,7 +1,7 @@
 /**
  * Convex validators and inferred types for internal dock-event reseed mutation
  * args and return payload. These are not database table schemas; args describe
- * hydrated boundary rows passed from the reload action into
+ * hydrated dock status event rows passed from the reload action into
  * reseedDockEventsForSailingDay, and the day-count return shape matches the
  * mutation returns validator.
  */
@@ -10,7 +10,7 @@ import type { Infer } from "convex/values";
 import { v } from "convex/values";
 import { dockEventTypeSchema } from "functions/events/common/schemas";
 
-const reseedDockBoundaryEventRecordArgs = v.object({
+const dockStatusEventRecordArgs = v.object({
   SegmentKey: v.string(),
   Key: v.string(),
   VesselAbbrev: v.string(),
@@ -24,9 +24,9 @@ const reseedDockBoundaryEventRecordArgs = v.object({
   EventActualTime: v.optional(v.number()),
 });
 
-const reseedDockEventsForSailingDayArgsSchema = v.object({
+const reseedDockStatusEventsForSailingDayArgsSchema = v.object({
   SailingDay: v.string(),
-  Events: v.array(reseedDockBoundaryEventRecordArgs),
+  Events: v.array(dockStatusEventRecordArgs),
 });
 
 const reseedDockEventsDayCountReturnSchema = v.object({
@@ -34,10 +34,10 @@ const reseedDockEventsDayCountReturnSchema = v.object({
   actualCount: v.number(),
 });
 
-type DockBoundaryEventRecord = Infer<typeof reseedDockBoundaryEventRecordArgs>;
+type DockStatusEventRecord = Infer<typeof dockStatusEventRecordArgs>;
 
-type ReseedDockEventsForSailingDayArgs = Infer<
-  typeof reseedDockEventsForSailingDayArgsSchema
+type ReseedDockStatusEventsForSailingDayArgs = Infer<
+  typeof reseedDockStatusEventsForSailingDayArgsSchema
 >;
 
 type ReloadDockDayCountResult = Infer<
@@ -45,12 +45,12 @@ type ReloadDockDayCountResult = Infer<
 >;
 
 export type {
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   ReloadDockDayCountResult,
-  ReseedDockEventsForSailingDayArgs,
+  ReseedDockStatusEventsForSailingDayArgs,
 };
 export {
-  reseedDockBoundaryEventRecordArgs,
+  dockStatusEventRecordArgs,
   reseedDockEventsDayCountReturnSchema,
-  reseedDockEventsForSailingDayArgsSchema,
+  reseedDockStatusEventsForSailingDayArgsSchema,
 };

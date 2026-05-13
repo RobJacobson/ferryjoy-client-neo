@@ -14,7 +14,7 @@ import { toAdapterHistoryRecord } from "./adapterConverters";
 import { groupBy } from "./collections";
 import { getDirectRawSeedSegments } from "./rawSeedSegments";
 import type {
-  DockBoundaryEventRecord,
+  DockStatusEventRecord,
   NormalizedHistoryRecord,
   WsfScheduledSegment,
   WsfVesselHistory,
@@ -27,7 +27,7 @@ import type {
  * @returns Function mapping vessel abbrev + scheduled depart to SegmentKey
  */
 const createSeededScheduleSegmentResolver = (
-  seededEvents: ReadonlyArray<DockBoundaryEventRecord>
+  seededEvents: ReadonlyArray<DockStatusEventRecord>
 ) => {
   const byVessel = groupBy(
     seededEvents.filter((event) => event.EventType === "dep-dock"),
@@ -97,7 +97,7 @@ const getHistoryActualsByEventKey = ({
   vessels,
   terminals,
 }: {
-  seededEvents: DockBoundaryEventRecord[];
+  seededEvents: DockStatusEventRecord[];
   scheduleSegments: WsfScheduledSegment[];
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;

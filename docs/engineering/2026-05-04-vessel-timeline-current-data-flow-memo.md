@@ -1,6 +1,6 @@
 # Engineering memo: VesselTimeline current data flow
 
-**Status:** Current architecture (aligned with dock-boundary event modules under `convex/domain/events` and `convex/functions/events/reload`)  
+**Status:** Current architecture (aligned with dock status event modules under `convex/domain/events` and `convex/functions/events/reload`)  
 **Audience:** Engineers and coding agents working on `VesselTimeline`  
 **Scope:** How event rows are persisted on the backend, how the client fetches them, and how the UI assembles and renders timeline times for one vessel and sailing day
 
@@ -14,7 +14,7 @@
 - actual dock events from `eventsActual`
 - predicted dock events from `eventsPredicted`
 
-The backend stores **dock-boundary** rows (scheduled / actual / predicted). Naming in domain code uses **dock events** and **`DockBoundaryEventRecord`**-style types; **`VesselTimeline`** remains the **client** feature name for the composed UI.
+The backend stores **dock status** rows (scheduled / actual / predicted). Naming in domain code uses **dock events** and **DockStatusEventRecord** for reload hydration; **VesselTimeline** remains the **client** feature name for the composed UI.
 
 The backend query layer returns normal table rows. The client owns the interpretation needed by the visual timeline: merging overlays, choosing display times, pairing dock visits, deriving spans, computing axis geometry, and placing the active indicator.
 
@@ -33,8 +33,8 @@ For a full-day refresh, **`runReloadDockEventsForSailingDay`** (`convex/function
 1. Loads vessel and terminal identity context.
 2. Pulls WSF schedule data via **`fetchAndTransformScheduledTrips`** (adapters). Segments are **`RawWsfScheduleSegment`** rows (`convex/adapters/fetch/fetchWsfScheduledTripsTypes.ts`) with **`Date`** departure/arrival instants.
 3. **`fetchReloadWsfInputs`** (`convex/functions/events/reload/reloadDockInputs.ts`) loads per-vessel WSF history for the sailing day and maps each raw segment and history row into **`WsfScheduledSegment`** and **`WsfVesselHistory`** (epoch-ms time fields; types in `convex/domain/events/reload/types.ts`).
-4. **`buildHydratedDockBoundaryEventsForReload`** (`convex/domain/events/reload/scheduleSeedAndHydration.ts` and related reload domain modules) merges schedule seeds with history actuals into hydrated boundary-event records.
-5. **`ctx.runMutation`** to internal **`reseedDockEventsForSailingDay`** (`convex/functions/events/reload/mutations.ts`). That mutation loads trip indexes for the day, **`collect`**s all **`vesselLocations`** rows, runs **`buildReloadDockSliceFromHydratedEvents`**, then persists via **`upsertScheduledRowsForSailingDay`** (`eventsScheduled`) and **`replaceActualRowsForSailingDay`** (`eventsActual`). Reseed **`args`** validators are defined in the same file as the mutation.
+4. **`buildHydratedDockStatusEventsForReload`** (`convex/domain/events/reload/scheduleSeedAndHydration.ts` and related reload domain modules) merges schedule seeds with history actuals into hydrated dock status event records.
+5. **`ctx.runMutation`** to internal **`reseedDockEventsForSailingDay`** (`convex/functions/events/reload/mutations.ts`). That mutation loads trip indexes for the day, **`collect`**s all **`vesselLocations`** rows, runs **`buildReloadDockSliceFromHydratedEvents`**, then persists via **`upsertScheduledRowsForSailingDay`** (`eventsScheduled`) and **`replaceActualRowsForSailingDay`** (`eventsActual`). Reseed **args** validators live in **`convex/domain/events/reload/dockStatusEventSchemas.ts`**.
 
 **Crons** (`convex/crons.ts`): at the Pacific ~3:00 AM sailing-day boundary, **`reloadDockEventsAtSailingDayBoundary`** runs (with an in-action guard so only the true 3 AM Pacific hour executes), typically with a small multi-day window via **`runReloadDockEventsWindow`**. Public actions for manual/operator use live on **`convex/functions/events/reload/actions.ts`** (e.g. `reloadDockEventsForSailingDay`, `reloadDockEventsForCurrentSailingDay`).
 

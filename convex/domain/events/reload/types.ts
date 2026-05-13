@@ -1,15 +1,15 @@
 /**
- * Type shapes for dock-event reload assembly: hydrated boundary records, trip
- * indexes, mutation slice results, and WSF adapter rows projected to epoch-ms
- * for hydrate. WsfScheduledSegment and WsfVesselHistory are not persisted table
- * documents and are not Convex mutation args validators.
+ * Type shapes for dock-event reload assembly: hydrated dock status event
+ * records, trip indexes, mutation slice results, and WSF adapter rows projected
+ * to epoch-ms for hydrate. WsfScheduledSegment and WsfVesselHistory are not
+ * persisted table documents and are not Convex mutation args validators.
  */
 
 import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { DockBoundaryEventRecord } from "./reseedDockBoundarySchemas";
+import type { DockStatusEventRecord } from "./dockStatusEventSchemas";
 
 type WsfVesselHistory = {
   VesselId: number;
@@ -71,7 +71,7 @@ type ActiveTripForPhysicalActualReconcile = {
 
 type BuildReloadDockSliceFromHydratedArgs = {
   sailingDay: string;
-  events: DockBoundaryEventRecord[];
+  events: DockStatusEventRecord[];
   updatedAt: number;
   tripBySegmentKey: Map<string, TripContextForActualRow>;
   activeTripsByVesselAbbrev: Map<
@@ -109,7 +109,7 @@ type ReloadActualDockWrite = {
   EventActualTime?: number;
 };
 
-export type { DockBoundaryEventRecord } from "./reseedDockBoundarySchemas";
+export type { DockStatusEventRecord } from "./dockStatusEventSchemas";
 export type {
   ActiveTripForPhysicalActualReconcile,
   BuildReloadDockSliceFromHydratedArgs,

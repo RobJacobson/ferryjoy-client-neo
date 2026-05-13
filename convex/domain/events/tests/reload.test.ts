@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "bun:test";
 import {
-  buildHydratedDockBoundaryEventsForReload,
+  buildHydratedDockStatusEventsForReload,
   buildReloadDockSliceFromHydratedEvents,
 } from "domain/events/reload";
 import type { WsfScheduledSegment } from "domain/events/reload/types";
@@ -63,7 +63,7 @@ describe("reload dock slice from schedule and history", () => {
         EstArrival: at(13, 0),
       },
     ];
-    const hydratedEvents = buildHydratedDockBoundaryEventsForReload({
+    const hydratedEvents = buildHydratedDockStatusEventsForReload({
       scheduleSegments,
       historyRecords,
       vessels,

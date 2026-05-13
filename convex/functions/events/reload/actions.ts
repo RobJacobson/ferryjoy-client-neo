@@ -7,7 +7,7 @@
 
 import { action, internalAction } from "_generated/server";
 import { v } from "convex/values";
-import type { ReloadDockDayCountResult } from "domain/events/reload/reseedDockBoundarySchemas";
+import type { ReloadDockDayCountResult } from "domain/events/reload/dockStatusEventSchemas";
 import { getPacificTimeComponents, getSailingDay } from "shared/time";
 import {
   runReloadDockEventsForSailingDay,
