@@ -76,10 +76,10 @@ const reseedDockStatusEventsForSailingDayRows = async (
     historyRecords: args.HistoryRecords,
     vessels: args.Vessels,
     terminals: args.Terminals,
-    updatedAt,
     activeTrips,
     completedTrips,
     vesselLocations,
+    updatedAt,
   });
 
   // Replace scheduled rows for the day; the table owns its own diff strategy.

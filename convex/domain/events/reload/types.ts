@@ -1,6 +1,9 @@
 /**
- * Type shapes for dock-event reload assembly: hydrated dock status event
- * records, WSF reload wire rows, trip context, and computed reload payloads.
+ * Type shapes for dock-event reload assembly.
+ *
+ * Hydrated dock status event records, WSF reload wire rows, trip context shared
+ * between the orchestrator and the actuals subtree, and the computed reload
+ * payload returned to the persistence mutation.
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
@@ -48,6 +51,15 @@ type ReloadTripForActuals = {
   TripEnd?: number;
 };
 
+type ReloadTripWithTripKey = ReloadTripForActuals & { TripKey: string };
+
+type ReloadTripContext = {
+  tripKeyBySegmentKey: Map<string, string>;
+  physicalOnlyTrips: ReloadTripWithTripKey[];
+  activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>;
+  physicalOnlyTripKeysToPreserve: Set<string>;
+};
+
 type ComputeDockEventsReloadArgs = {
   sailingDay: string;
   scheduleSegments: WsfScheduledSegment[];
@@ -72,5 +84,7 @@ export type {
   DockEventsReload,
   DockStatusEventRecord,
   RawSeedSegment,
+  ReloadTripContext,
   ReloadTripForActuals,
+  ReloadTripWithTripKey,
 };

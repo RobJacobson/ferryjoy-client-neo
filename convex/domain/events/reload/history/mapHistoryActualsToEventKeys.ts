@@ -1,6 +1,9 @@
 /**
- * Maps WSF vessel history rows onto seeded reload boundary keys for dep/arv
- * actual time hydration.
+ * Maps WSF vessel history onto reload boundary event keys for actual-time hydration.
+ *
+ * Consumed by the dock-events reload pipeline so scheduled boundaries can pick up
+ * observed departures and arrival proxies when only history captured them. Pure;
+ * callers merge the returned map into seeded boundary rows.
  */
 
 import {
@@ -11,8 +14,8 @@ import {
 } from "adapters";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import type { WsfVesselHistory } from "./schemas";
-import type { RawSeedSegment } from "./types";
+import type { WsfVesselHistory } from "../schemas";
+import type { RawSeedSegment } from "../types";
 
 type HistoryActualEntry = {
   eventKey: string;
@@ -25,7 +28,7 @@ type HistorySeedLookup = {
 };
 
 /**
- * Indexes history-derived actual depart and arrival-proxy times by event Key.
+ * Indexes history-derived actual depart and arrival-proxy times by boundary event key.
  *
  * Reload merges WSF vessel history into seeded boundary records to obtain
  * actual times when the live ping stream missed an arrival or departure.
@@ -33,23 +36,18 @@ type HistorySeedLookup = {
  * fall back to vessel abbrev plus scheduled departure to recover history
  * that names a vessel ambiguously.
  *
- * @param args.directSeedSegments - Same-day raw seed segments by TripKey
- * @param args.historyRecords - WSF vessel history rows for the sailing day
- * @param args.vessels - Vessel identities for adapter resolution
- * @param args.terminals - Terminal identities for adapter resolution
- * @returns Map from boundary Key to actual time in epoch milliseconds
+ * @param directSeedSegments - Same-day raw seed segments for the reload batch
+ * @param historyRecords - WSF vessel history rows for the sailing day
+ * @param vessels - Vessel identities for adapter resolution
+ * @param terminals - Terminal identities for adapter resolution
+ * @returns Map from boundary event key to actual time in epoch milliseconds
  */
-const mapHistoryActualsToEventKeys = ({
-  directSeedSegments,
-  historyRecords,
-  vessels,
-  terminals,
-}: {
-  directSeedSegments: RawSeedSegment[];
-  historyRecords: WsfVesselHistory[];
-  vessels: ReadonlyArray<VesselIdentity>;
-  terminals: ReadonlyArray<TerminalIdentity>;
-}) => {
+const mapHistoryActualsToEventKeys = (
+  directSeedSegments: RawSeedSegment[],
+  historyRecords: WsfVesselHistory[],
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+) => {
   const seedLookup = buildHistorySeedLookup(directSeedSegments);
 
   const historyActualEntries = historyRecords.flatMap((record) =>
@@ -70,6 +68,15 @@ const mapHistoryActualsToEventKeys = ({
   return actualTimesByEventKey;
 };
 
+/**
+ * Derives zero or more boundary actual entries from one history row.
+ *
+ * @param record - WSF vessel history row with timestamps and identity hints
+ * @param seedLookup - Direct seed segment keys and vessel-time fallback index
+ * @param vessels - Vessel identities for adapter resolution
+ * @param terminals - Terminal identities for adapter resolution
+ * @returns Boundary entries for depart and arrival-proxy times when resolvable
+ */
 const buildHistoryActualEntries = ({
   record,
   seedLookup,
@@ -99,6 +106,12 @@ const buildHistoryActualEntries = ({
   return historyActualEntriesForRecord;
 };
 
+/**
+ * Indexes direct seed segments for strict and fallback history matching.
+ *
+ * @param directSeedSegments - Same-day raw seed segments from the reload batch
+ * @returns Segment key set plus vessel-and-scheduled-departure to segment map
+ */
 const buildHistorySeedLookup = (
   directSeedSegments: RawSeedSegment[]
 ): HistorySeedLookup => ({
@@ -111,10 +124,24 @@ const buildHistorySeedLookup = (
   ),
 });
 
+/**
+ * Returns whether a history row carries enough timestamps to hydrate actuals.
+ *
+ * @param record - WSF vessel history row
+ * @returns True when scheduled departure exists and at least one actual time exists
+ */
 const canHydrateHistoryActuals = (record: WsfVesselHistory) =>
   record.ScheduledDepart !== undefined &&
   (record.ActualDepart !== undefined || record.EstArrival !== undefined);
 
+/**
+ * Builds one boundary actual entry when a timestamp exists for that boundary kind.
+ *
+ * @param tripKey - Resolved direct seed segment key for the leg
+ * @param eventType - Departure dock or arrival dock discriminator
+ * @param actualTime - Epoch milliseconds for the observed boundary when present
+ * @returns Entry pairing boundary key and time, or undefined when time is absent
+ */
 const toHistoryActualEntry = (
   tripKey: string,
   eventType: "dep-dock" | "arv-dock",
@@ -133,6 +160,15 @@ const toHistoryActualEntry = (
   return historyActualEntry;
 };
 
+/**
+ * Resolves the direct seed segment key for a history row using strict then fallback rules.
+ *
+ * @param record - WSF vessel history row
+ * @param seedLookup - Direct segment keys and vessel-time index from seeds
+ * @param vessels - Vessel identities for adapter resolution
+ * @param terminals - Terminal identities for adapter resolution
+ * @returns Segment key when matched against allowed seeds, otherwise undefined
+ */
 const resolveHistoryTripKey = (
   record: WsfVesselHistory,
   seedLookup: HistorySeedLookup,
@@ -153,7 +189,11 @@ const resolveHistoryTripKey = (
   );
 
 /**
- * Resolves a history row by vessel and terminal identities.
+ * Resolves a history row to a seed segment key using vessel and terminal identities.
+ *
+ * Uses the adapter resolver so ambiguous vessel strings still map when terminals
+ * disambiguate the leg. The built segment key must appear in directSegmentKeys
+ * or the row is rejected so history cannot attach to out-of-scope schedules.
  *
  * @param record - WSF vessel history row
  * @param directSegmentKeys - Direct seed segment keys allowed for this reload
@@ -188,12 +228,16 @@ const resolveStrictHistoryTripKey = (
 };
 
 /**
- * Resolves a history row by vessel name plus scheduled departure.
+ * Resolves a history row by vessel abbrev plus scheduled departure instant.
+ *
+ * Picks up rows where strict terminal resolution failed but the vessel abbrev
+ * and scheduled departure still match a seeded leg. Confirms membership in
+ * directSegmentKeys so only in-batch segments hydrate.
  *
  * @param record - WSF vessel history row
  * @param directSegmentKeys - Direct seed segment keys allowed for this reload
- * @param directSegmentKeysByVesselTime - Direct seed rows keyed by vessel and ms
- * @param vessels - Vessel identities for adapter resolution
+ * @param directSegmentKeysByVesselTime - Segment keys keyed by vessel abbrev and departure ms
+ * @param vessels - Vessel identities for vessel abbrev resolution
  * @returns Direct segment key or undefined when fallback resolution fails
  */
 const resolveFallbackHistoryTripKey = (
@@ -219,7 +263,10 @@ const resolveFallbackHistoryTripKey = (
 };
 
 /**
- * Maps a Convex reload history row to the identity fields used for resolve.
+ * Narrows a reload history row to the identity fields the vessel-history resolver reads.
+ *
+ * Drops timestamp fields so adapter resolution focuses on vessel and terminal ids
+ * and names only. The cast matches the adapter schema shape expected upstream.
  *
  * @param row - Reload history row with epoch-ms timestamps
  * @returns Adapter-shaped history record for vessel and terminal resolution
@@ -242,6 +289,12 @@ const toAdapterHistoryIdentityRecord = (row: WsfVesselHistory): VesselHistory =>
 const toVesselDepartKey = (vesselAbbrev: string, scheduledDepart: number) =>
   `${vesselAbbrev}:${scheduledDepart}`;
 
+/**
+ * Drops undefined slots after pairing optional actual entries per history row.
+ *
+ * @param entries - Candidate entries where some boundary kinds lack timestamps
+ * @returns Only defined entries, preserving caller order
+ */
 const definedEntries = <TEntry>(entries: Array<TEntry | undefined>): TEntry[] =>
   entries.filter((entry): entry is TEntry => entry !== undefined);
 

@@ -58,10 +58,10 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(
@@ -110,8 +110,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -124,6 +122,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           ScheduledDeparture: departure,
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(result.scheduledRows.map((row) => row.EventType)).toEqual([
@@ -174,8 +174,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -188,6 +186,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           ScheduledDeparture: departure,
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(
@@ -232,8 +232,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -246,6 +244,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           ScheduledDeparture: departure,
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(
@@ -289,8 +289,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords,
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -314,6 +312,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           TripEnd: at(14, 40),
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(result.actualRows).toHaveLength(4);
@@ -342,13 +342,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: false,
-          TimeStamp: timestamp,
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-physical",
@@ -360,6 +353,13 @@ describe("reload dock sailing day rows from schedule and history", () => {
         },
       ],
       completedTrips: [],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          TimeStamp: timestamp,
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -379,13 +379,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: true,
-          TimeStamp: timestamp,
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-physical",
@@ -397,6 +390,13 @@ describe("reload dock sailing day rows from schedule and history", () => {
         },
       ],
       completedTrips: [],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          TimeStamp: timestamp,
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -417,13 +417,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: false,
-          TimeStamp: locationActual,
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-physical",
@@ -436,6 +429,13 @@ describe("reload dock sailing day rows from schedule and history", () => {
         },
       ],
       completedTrips: [],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          TimeStamp: locationActual,
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -479,13 +479,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: false,
-          TimeStamp: locationActual,
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-physical",
@@ -508,6 +501,13 @@ describe("reload dock sailing day rows from schedule and history", () => {
           ScheduledDeparture: departure,
         },
       ],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          TimeStamp: locationActual,
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -530,8 +530,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -544,6 +542,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           LeftDockActual: leftDockActual,
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(
@@ -563,8 +563,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -577,6 +575,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           TripEnd: tripEnd,
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(
@@ -595,8 +595,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [],
       activeTrips: [],
       completedTrips: [
         {
@@ -608,6 +606,8 @@ describe("reload dock sailing day rows from schedule and history", () => {
           TripEnd: at(21, 35),
         },
       ],
+      vesselLocations: [],
+      updatedAt: 42,
     });
 
     expect(result.actualRows).toEqual([]);
@@ -633,14 +633,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: false,
-          ScheduledDeparture: departure,
-          TimeStamp: at(22, 5),
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-scheduled",
@@ -653,6 +645,14 @@ describe("reload dock sailing day rows from schedule and history", () => {
         },
       ],
       completedTrips: [],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          ScheduledDeparture: departure,
+          TimeStamp: at(22, 5),
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -705,20 +705,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: true,
-          DepartingTerminalID: 2,
-          DepartingTerminalName: "Bainbridge Island",
-          DepartingTerminalAbbrev: "BBI",
-          ArrivingTerminalID: 1,
-          ArrivingTerminalName: "Seattle",
-          ArrivingTerminalAbbrev: "P52",
-          ScheduledDeparture: secondDeparture,
-          TimeStamp: at(15, 50),
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-next",
@@ -741,6 +727,20 @@ describe("reload dock sailing day rows from schedule and history", () => {
           ScheduledDeparture: firstDeparture,
         },
       ],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          DepartingTerminalID: 2,
+          DepartingTerminalName: "Bainbridge Island",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalID: 1,
+          ArrivingTerminalName: "Seattle",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+          TimeStamp: at(15, 50),
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -809,20 +809,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       historyRecords: [],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: true,
-          DepartingTerminalID: 2,
-          DepartingTerminalName: "Bainbridge Island",
-          DepartingTerminalAbbrev: "BBI",
-          ArrivingTerminalID: 1,
-          ArrivingTerminalName: "Seattle",
-          ArrivingTerminalAbbrev: "P52",
-          ScheduledDeparture: nextDeparture,
-          TimeStamp: at(15, 50),
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-next",
@@ -854,6 +840,20 @@ describe("reload dock sailing day rows from schedule and history", () => {
           ScheduledDeparture: secondDeparture,
         },
       ],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          DepartingTerminalID: 2,
+          DepartingTerminalName: "Bainbridge Island",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalID: 1,
+          ArrivingTerminalName: "Seattle",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: nextDeparture,
+          TimeStamp: at(15, 50),
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
@@ -895,14 +895,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ],
       vessels,
       terminals,
-      updatedAt: 42,
-      vesselLocations: [
-        vesselLocation({
-          AtDock: false,
-          ScheduledDeparture: departure,
-          TimeStamp: at(23, 8),
-        }),
-      ],
       activeTrips: [
         {
           TripKey: "trip-scheduled",
@@ -915,6 +907,14 @@ describe("reload dock sailing day rows from schedule and history", () => {
         },
       ],
       completedTrips: [],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          ScheduledDeparture: departure,
+          TimeStamp: at(23, 8),
+        }),
+      ],
+      updatedAt: 42,
     });
 
     expect(
