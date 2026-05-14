@@ -18,6 +18,12 @@ import {
 /**
  * Loads scheduled dock rows for one vessel and sailing day.
  *
+ * Domain readers (notably vessel-trip continuity) import this helper directly
+ * to share the same indexed read and timeline ordering as the public query.
+ * The function returns validator-shaped rows so callers can pass them through
+ * Convex value space without further normalization, and the deterministic
+ * sort keeps every consumer aligned on a single timeline ordering contract.
+ *
  * @param ctx - Convex read context exposing database access
  * @param args - Vessel and sailing-day filters
  * @returns Validator-shaped scheduled rows in deterministic timeline order
@@ -38,6 +44,12 @@ const readScheduledDockEventsForVesselSailingDay = async (
 
 /**
  * Public query listing scheduled dock events for a vessel/day scope.
+ *
+ * Mirrors the reader helper as a Convex query so the app can subscribe to
+ * scheduled rows for one vessel and sailing day. Wrapping the reader keeps
+ * the public surface and the internal vessel-trip continuity reader on the
+ * same indexed read and sort, so timeline behavior cannot diverge between
+ * client subscriptions and server-side joins.
  *
  * @param ctx - Convex query context
  * @param args - Vessel and sailing-day filters

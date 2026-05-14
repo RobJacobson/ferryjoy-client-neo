@@ -14,6 +14,12 @@ import { type ConvexActualDockEvent, eventsActualSchema } from "./schemas";
 /**
  * Public query listing actual dock events for a vessel/day scope.
  *
+ * The app subscribes to actual dock rows through this query to render the
+ * observed boundaries on each vessel timeline. Rows are read by the
+ * vessel-and-sailing-day index, stripped of Convex metadata, and returned in
+ * a stable order so client diffing stays cheap and document identity drives
+ * subscription reactivity rather than ordering churn.
+ *
  * @param ctx - Convex query context
  * @param args - Vessel and sailing-day filters
  * @returns Actual dock rows sorted by scheduled departure then event key

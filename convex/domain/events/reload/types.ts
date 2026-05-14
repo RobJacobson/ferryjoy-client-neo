@@ -1,40 +1,17 @@
 /**
- * Type shapes for dock-event reload assembly: hydrated dock status event
- * records, trip indexes, sailing-day row build results, and WSF adapter rows
- * projected to epoch-ms for hydrate. WsfScheduledSegment and WsfVesselHistory are not
- * persisted table documents and are not Convex mutation args validators.
+ * Type shapes for dock-event reload assembly.
+ *
+ * Hydrated dock status event records, WSF reload wire rows, trip context shared
+ * between the orchestrator and the actuals subtree, and the computed reload
+ * payload returned to the persistence mutation.
  */
 
+import type { TerminalIdentity, VesselIdentity } from "adapters";
 import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { DockStatusEventRecord } from "./dockStatusEventSchemas";
-
-type WsfVesselHistory = {
-  VesselId: number;
-  Vessel?: string;
-  Departing?: string;
-  Arriving?: string;
-  ScheduledDepart?: number;
-  ActualDepart?: number;
-  EstArrival?: number;
-};
-
-type WsfScheduledSegment = {
-  VesselName: string;
-  DepartingTerminalID: number;
-  ArrivingTerminalID: number;
-  DepartingTerminalName: string;
-  ArrivingTerminalName: string;
-  DepartingTime: number;
-  ArrivingTime?: number;
-  SailingNotes: string;
-  Annotations: string[];
-  RouteID: number;
-  RouteAbbrev: string;
-  SailingDay: string;
-};
+import type { WsfScheduledSegment, WsfVesselHistory } from "./schemas";
 
 type RawSeedSegment = {
   Key: string;
@@ -48,16 +25,21 @@ type RawSeedSegment = {
   RouteAbbrev: string;
 };
 
-type TripContextForActualRow = {
-  TripKey: string;
+type DockStatusEventRecord = {
+  SegmentKey: string;
+  Key: string;
+  VesselAbbrev: string;
+  SailingDay: string;
+  ScheduledDeparture: number;
+  TerminalAbbrev: string;
+  EventType: DockEventType;
+  EventScheduledTime?: number;
+  EventPredictedTime?: number;
+  EventOccurred?: true;
+  EventActualTime?: number;
 };
 
-type TripRowForActualContext = {
-  TripKey?: string;
-  ScheduleKey?: string;
-};
-
-type ActiveTripForPhysicalActualReconcile = {
+type ReloadTripForActuals = {
   TripKey?: string;
   ScheduleKey?: string;
   VesselAbbrev: string;
@@ -69,58 +51,40 @@ type ActiveTripForPhysicalActualReconcile = {
   TripEnd?: number;
 };
 
-type BuildReloadDockSailingDayRowsFromHydratedArgs = {
+type ReloadTripWithTripKey = ReloadTripForActuals & { TripKey: string };
+
+type ReloadTripContext = {
+  tripKeyBySegmentKey: Map<string, string>;
+  physicalOnlyTrips: ReloadTripWithTripKey[];
+  activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>;
+  physicalOnlyTripKeysToPreserve: Set<string>;
+};
+
+type ComputeDockEventsReloadArgs = {
   sailingDay: string;
-  events: DockStatusEventRecord[];
-  updatedAt: number;
-  tripBySegmentKey: Map<string, TripContextForActualRow>;
-  activeTripsByVesselAbbrev: Map<
-    string,
-    ActiveTripForPhysicalActualReconcile & { TripKey: string }
-  >;
-  physicalOnlyTrips: ActiveTripForPhysicalActualReconcile[];
+  scheduleSegments: WsfScheduledSegment[];
+  historyRecords: WsfVesselHistory[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
+  activeTrips: ReloadTripForActuals[];
+  completedTrips: ReloadTripForActuals[];
   vesselLocations: ConvexVesselLocation[];
+  updatedAt: number;
 };
 
-type BuildReloadDockSailingDayRowsResult = {
+type DockEventsReload = {
+  sailingDay: string;
   scheduledRows: ConvexScheduledDockEvent[];
-  scheduledCount: number;
   actualRows: ConvexActualDockEvent[];
-  actualCount: number;
+  physicalOnlyTripKeysToPreserve: Set<string>;
 };
 
-type HistoryActualSource = "departure-actual" | "arrival-proxy";
-
-type NormalizedHistoryRecord = {
-  tripKey: string;
-  actualDeparture?: number;
-  arrivalProxy?: number;
-};
-
-type ReloadActualDockWrite = {
-  SegmentKey: string;
-  TripKey?: string;
-  VesselAbbrev: string;
-  SailingDay: string;
-  ScheduledDeparture: number;
-  TerminalAbbrev: string;
-  EventType: DockEventType;
-  EventOccurred: true;
-  EventActualTime?: number;
-};
-
-export type { DockStatusEventRecord } from "./dockStatusEventSchemas";
 export type {
-  ActiveTripForPhysicalActualReconcile,
-  BuildReloadDockSailingDayRowsFromHydratedArgs,
-  BuildReloadDockSailingDayRowsResult,
-  DockEventType,
-  HistoryActualSource,
-  NormalizedHistoryRecord,
+  ComputeDockEventsReloadArgs,
+  DockEventsReload,
+  DockStatusEventRecord,
   RawSeedSegment,
-  ReloadActualDockWrite,
-  TripContextForActualRow,
-  TripRowForActualContext,
-  WsfScheduledSegment,
-  WsfVesselHistory,
+  ReloadTripContext,
+  ReloadTripForActuals,
+  ReloadTripWithTripKey,
 };

@@ -1,40 +1,30 @@
 /**
  * Internal mutation for static dock-event reload persistence.
  *
- * One entrypoint matches the old vessel timeline reseed: hydrated dock status
- * events cross the action boundary, then scheduled and actual tables are
- * replaced in one mutation with a single trip-index pass (no separate identity
- * queries).
+ * External WSF inputs cross from the action into this mutation; Convex table
+ * reads, domain planning, and table writes stay together for one sailing day.
  */
 
 import { internalMutation, type MutationCtx } from "_generated/server";
-import {
-  buildReloadDockSailingDayRowsFromHydratedEvents,
-  indexActiveTripsByVesselAbbrev,
-  indexTripsBySegmentKey,
-} from "domain/events/reload";
+import { computeDockEventsReload } from "domain/events/reload";
 import {
   type ReloadDockDayCountResult,
-  type ReseedDockStatusEventsForSailingDayArgs,
+  type ReseedDockStatusEventsFromExternalInputArgs,
   reseedDockEventsDayCountReturnSchema,
-  reseedDockStatusEventsForSailingDayArgsSchema,
-} from "domain/events/reload/dockStatusEventSchemas";
+  reseedDockStatusEventsFromExternalInputArgsSchema,
+} from "domain/events/reload/schemas";
 import { replaceActualRowsForSailingDay } from "functions/events/eventsActual/mutations";
 import { upsertScheduledRowsForSailingDay } from "functions/events/eventsScheduled/mutations";
 import { stripConvexMeta } from "shared/stripConvexMeta";
 
 /**
- * Loads trip indexes for building dock rows for one sailing day during reseed
- * (same logic as old runReseedBoundaryEventsForSailingDay trip reads).
+ * Loads Convex-side reload inputs for one sailing day.
  *
- * @param ctx - Convex mutation context for vessel-trip table reads
- * @param sailingDay - Target sailing day string
- * @returns Segment key map, active-trip map, and physical-only trips
+ * @param ctx - Convex mutation context exposing database reads
+ * @param sailingDay - Target sailing day
+ * @returns Active trips, completed trips, and stripped vessel locations
  */
-const loadTripIndexesForReseedDockStatusEvents = async (
-  ctx: MutationCtx,
-  sailingDay: string
-) => {
+const loadReloadDbInput = async (ctx: MutationCtx, sailingDay: string) => {
   const activeTrips = await ctx.db
     .query("activeVesselTrips")
     .withIndex("by_sailing_day", (q) => q.eq("SailingDay", sailingDay))
@@ -46,13 +36,11 @@ const loadTripIndexesForReseedDockStatusEvents = async (
     )
     .collect();
 
-  const mergedTrips = [...activeTrips, ...completedTrips];
-
   return {
-    tripBySegmentKey: indexTripsBySegmentKey(mergedTrips),
-    activeTripsByVesselAbbrev: indexActiveTripsByVesselAbbrev(activeTrips),
-    physicalOnlyTrips: mergedTrips.filter(
-      (trip) => trip.ScheduleKey === undefined
+    activeTrips,
+    completedTrips,
+    vesselLocations: (await ctx.db.query("vesselLocations").collect()).map(
+      stripConvexMeta
     ),
   };
 };
@@ -60,58 +48,85 @@ const loadTripIndexesForReseedDockStatusEvents = async (
 /**
  * Replaces scheduled and actual dock-event rows for one sailing day.
  *
+ * Combines Convex-side trip and location reads with the action-supplied WSF
+ * inputs so the entire reload plan is computed once, then persists the
+ * scheduled and actual sets through table-owned mutations. Physical-only
+ * TripKeys are forwarded to the actual replacement so live trips that lack
+ * schedule alignment are not deleted alongside the scheduled-day cleanup.
+ *
  * @param ctx - Convex mutation context
- * @param args.SailingDay - Target sailing day
- * @param args.Events - Hydrated dock status events from the reload action
+ * @param args - External reload input from the action
  * @returns Scheduled and actual row counts for the replaced sailing day
  */
 const reseedDockStatusEventsForSailingDayRows = async (
   ctx: MutationCtx,
-  args: ReseedDockStatusEventsForSailingDayArgs
+  args: ReseedDockStatusEventsFromExternalInputArgs
 ): Promise<ReloadDockDayCountResult> => {
   const updatedAt = Date.now();
   const sailingDay = args.SailingDay;
-  const { tripBySegmentKey, activeTripsByVesselAbbrev, physicalOnlyTrips } =
-    await loadTripIndexesForReseedDockStatusEvents(ctx, sailingDay);
-  const vesselLocations = (await ctx.db.query("vesselLocations").collect()).map(
-    stripConvexMeta
-  );
-  const { scheduledRows, scheduledCount, actualRows, actualCount } =
-    buildReloadDockSailingDayRowsFromHydratedEvents({
-      sailingDay,
-      events: args.Events,
-      updatedAt,
-      tripBySegmentKey,
-      activeTripsByVesselAbbrev,
-      physicalOnlyTrips,
-      vesselLocations,
-    });
 
-  await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
-  await replaceActualRowsForSailingDay(ctx, sailingDay, actualRows, {
-    preserveAbsentTripKeys: new Set(
-      physicalOnlyTrips
-        .map((trip) => trip.TripKey)
-        .filter((tripKey): tripKey is string => tripKey !== undefined)
-    ),
+  // Read Convex-side trip and location context the domain reload needs.
+  const { activeTrips, completedTrips, vesselLocations } =
+    await loadReloadDbInput(ctx, sailingDay);
+
+  // Compute the full reload payload once so the table writes stay deterministic.
+  const reload = computeDockEventsReload({
+    sailingDay,
+    scheduleSegments: args.ScheduleSegments,
+    historyRecords: args.HistoryRecords,
+    vessels: args.Vessels,
+    terminals: args.Terminals,
+    activeTrips,
+    completedTrips,
+    vesselLocations,
+    updatedAt,
   });
 
+  // Replace scheduled rows for the day; the table owns its own diff strategy.
+  await upsertScheduledRowsForSailingDay(
+    ctx,
+    reload.sailingDay,
+    reload.scheduledRows
+  );
+
+  // Replace actuals while preserving rows for physical-only trips.
+  await replaceActualRowsForSailingDay(
+    ctx,
+    reload.sailingDay,
+    reload.actualRows,
+    {
+      preserveAbsentTripKeys: reload.physicalOnlyTripKeysToPreserve,
+    }
+  );
+
   return {
-    scheduledCount,
-    actualCount,
+    scheduledCount: reload.scheduledRows.length,
+    actualCount: reload.actualRows.length,
   };
 };
 
+/**
+ * Internal mutation that reseeds one sailing day of dock-event rows.
+ *
+ * Crosses the action-to-mutation boundary for static dock reloads. The
+ * action gathers WSF inputs and identity tables; this mutation reads
+ * Convex-side trip and location context, runs the domain reload, and
+ * persists scheduled and actual rows in one transaction so the sailing day
+ * is replaced atomically from the client's point of view.
+ *
+ * @param ctx - Convex internal mutation context
+ * @param args - External reload inputs forwarded from the action
+ * @returns Scheduled and actual row counts for the replaced sailing day
+ */
 const reseedDockStatusEventsForSailingDay = internalMutation({
-  args: reseedDockStatusEventsForSailingDayArgsSchema,
+  args: reseedDockStatusEventsFromExternalInputArgsSchema,
   returns: reseedDockEventsDayCountReturnSchema,
   handler: async (ctx, args) =>
     await reseedDockStatusEventsForSailingDayRows(ctx, args),
 });
 
 export type {
-  DockStatusEventRecord,
   ReloadDockDayCountResult,
-  ReseedDockStatusEventsForSailingDayArgs,
-} from "domain/events/reload/dockStatusEventSchemas";
+  ReseedDockStatusEventsFromExternalInputArgs,
+} from "domain/events/reload/schemas";
 export { reseedDockStatusEventsForSailingDay };
