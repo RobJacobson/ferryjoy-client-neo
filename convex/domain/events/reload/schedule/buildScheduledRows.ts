@@ -8,7 +8,7 @@
  */
 
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
-import type { DockStatusEventRecord } from "./types";
+import type { DockStatusEventRecord } from "../types";
 
 /**
  * Projects hydrated boundary records into Convex scheduled dock rows.

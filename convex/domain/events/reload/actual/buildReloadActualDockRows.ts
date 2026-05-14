@@ -12,7 +12,7 @@ import type { ConvexActualDockEvent } from "functions/events/eventsActual/schema
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { dedupeActualRowsByEventKey } from "../../dedupeActualRows";
 import type { DockStatusEventRecord, ReloadTripContext } from "../types";
-import { buildActualDockEventContext } from "./context";
+import { buildActualDockEventContext } from "./buildActualContext";
 import { buildHistoryActualRows } from "./fromHydratedBoundaries";
 import {
   buildPhysicalOnlyLocationFallbackRows,

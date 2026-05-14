@@ -14,12 +14,12 @@ import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
 import { buildActualDockEventFromWrite } from "../../actual";
-import { collectRows, definedRows } from "../collectionHelpers";
+import { collectRows, definedRows } from "../shared";
 import type { DockStatusEventRecord, ReloadTripWithTripKey } from "../types";
 import {
   type ActualDockEventContext,
   buildPhysicalOnlyActualWrite,
-} from "./context";
+} from "./buildActualContext";
 
 type ActualRowsAccumulator = {
   rows: ConvexActualDockEvent[];

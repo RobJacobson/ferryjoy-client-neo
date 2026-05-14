@@ -6,7 +6,11 @@
  */
 
 import { internalMutation, type MutationCtx } from "_generated/server";
-import { computeDockEventsReload } from "domain/events/reload";
+import {
+  buildActualRows,
+  buildReloadScheduleContext,
+  buildScheduledRows,
+} from "domain/events/reload";
 import {
   type ReloadDockDayCountResult,
   type ReseedDockStatusEventsFromExternalInputArgs,
@@ -51,10 +55,10 @@ const loadReloadDbInput = async (ctx: MutationCtx, sailingDay: string) => {
  * Replaces scheduled and actual dock-event rows for one sailing day.
  *
  * Combines Convex-side trip and location reads with the action-supplied WSF
- * inputs so the entire reload plan is computed once, then persists the
- * scheduled and actual sets through table-owned mutations. Physical-only
- * TripKeys are forwarded to the actual replacement so live trips that lack
- * schedule alignment are not deleted alongside the scheduled-day cleanup.
+ * inputs, then persists the scheduled and actual sets through table-owned
+ * mutations. Physical-only TripKeys are forwarded to actual replacement so
+ * live trips that lack schedule alignment are not deleted alongside the
+ * scheduled-day cleanup.
  *
  * @param ctx - Convex mutation context
  * @param args - External reload input from the action
@@ -71,39 +75,48 @@ const reseedDockStatusEventsForSailingDayRows = async (
   const { activeTrips, completedTrips, vesselLocations } =
     await loadReloadDbInput(ctx, sailingDay);
 
-  // Compute the full reload payload once so the table writes stay deterministic.
-  const reload = computeDockEventsReload({
-    sailingDay,
+  const scheduleContext = buildReloadScheduleContext({
     scheduleSegments: args.ScheduleSegments,
     historyRecords: args.HistoryRecords,
     vessels: args.Vessels,
     terminals: args.Terminals,
+  });
+  const scheduledRows = buildScheduledRows(
+    scheduleContext.boundaryEvents,
+    updatedAt
+  );
+  const actualRows = buildActualRows({
+    sailingDay,
+    boundaryEvents: scheduleContext.boundaryEvents,
     activeTrips,
     completedTrips,
     vesselLocations,
     updatedAt,
   });
+  const preserveAbsentTripKeys = new Set(
+    [...activeTrips, ...completedTrips].flatMap((trip) =>
+      trip.TripKey !== undefined && trip.ScheduleKey === undefined
+        ? [trip.TripKey]
+        : []
+    )
+  );
 
   // Replace scheduled rows for the day; the table owns its own diff strategy.
-  await upsertScheduledRowsForSailingDay(
-    ctx,
-    reload.sailingDay,
-    reload.scheduledRows
-  );
+  await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
 
   // Replace actuals while preserving rows for physical-only trips.
   await replaceActualRowsForSailingDay(
     ctx,
-    reload.sailingDay,
-    reload.actualRows,
+    sailingDay,
+    actualRows,
     {
-      preserveAbsentTripKeys: reload.physicalOnlyTripKeysToPreserve,
+      preserveAbsentTripKeys,
     }
   );
 
   return {
-    scheduledCount: reload.scheduledRows.length,
-    actualCount: reload.actualRows.length,
+    scheduledCount: scheduledRows.length,
+    actualCount: actualRows.length,
   };
 };
 

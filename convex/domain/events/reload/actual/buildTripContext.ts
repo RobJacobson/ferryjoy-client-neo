@@ -1,32 +1,30 @@
 /**
  * Reduces active and completed reload trips into shared lookups.
  *
- * The orchestrator builds this context once before scheduled and actual stages
- * run so trip-key joins, physical-only filtering, and the preserve set are
- * derived from a single pass over the input. Downstream stages take the
- * structured context instead of repeatedly walking the raw trip arrays.
+ * Actual-row construction builds this context once so trip-key joins,
+ * physical-only filtering, and active physical-only lookups are derived from a
+ * single pass over the input.
  */
 
-import { definedRows } from "./collectionHelpers";
+import { definedRows } from "../shared";
 import type {
   ReloadTripContext,
   ReloadTripForActuals,
   ReloadTripWithTripKey,
-} from "./types";
+} from "../types";
 
 /**
- * Builds the trip context shared across scheduled and actual pipeline stages.
+ * Builds the trip context used by actual-row source projections.
  *
  * Filters trips that carry a TripKey, indexes them by schedule segment key for
- * boundary joins, isolates physical-only trips (those without ScheduleKey) for
- * fallback row emission, and records their TripKeys so the actual replacement
- * mutation does not delete rows that have no scheduled counterpart.
+ * boundary joins, and isolates physical-only trips (those without ScheduleKey)
+ * for fallback row emission.
  *
  * @param activeTrips - Active Convex trip rows contributing actual evidence
  * @param completedTrips - Completed Convex trip rows contributing actual evidence
  * @returns Trip context with lookups, physical-only collections, and preserve set
  */
-const buildReloadTripContext = (
+const buildActualTripContext = (
   activeTrips: ReloadTripForActuals[],
   completedTrips: ReloadTripForActuals[]
 ): ReloadTripContext => {
@@ -40,15 +38,11 @@ const buildReloadTripContext = (
   const tripKeyBySegmentKey = buildTripKeyBySegmentKey(tripsWithKeys);
   const activePhysicalOnlyTripsByVessel =
     buildActivePhysicalOnlyTripsByVessel(activeTripsWithKeys);
-  const physicalOnlyTripKeysToPreserve = new Set(
-    physicalOnlyTrips.map(toTripKey)
-  );
 
   return {
     tripKeyBySegmentKey,
     physicalOnlyTrips,
     activePhysicalOnlyTripsByVessel,
-    physicalOnlyTripKeysToPreserve,
   };
 };
 
@@ -111,12 +105,4 @@ const buildActivePhysicalOnlyTripsByVessel = (
   return activePhysicalOnlyTripsByVessel;
 };
 
-/**
- * Reads TripKey from a reload trip row typed with required TripKey.
- *
- * @param trip - Reload trip row with TripKey populated
- * @returns Same TripKey string for set building and filtering
- */
-const toTripKey = (trip: ReloadTripWithTripKey) => trip.TripKey;
-
-export { buildReloadTripContext };
+export { buildActualTripContext };

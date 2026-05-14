@@ -8,7 +8,7 @@
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildActualDockEventFromWrite } from "../../actual";
-import { definedRows } from "../collectionHelpers";
+import { definedRows } from "../shared";
 import type { DockStatusEventRecord } from "../types";
 
 /**

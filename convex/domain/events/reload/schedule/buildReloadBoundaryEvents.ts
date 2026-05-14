@@ -10,11 +10,11 @@
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
 import { buildBoundaryKey } from "shared/keys";
-import { getOfficialCrossingTimeMinutes } from "../../scheduledTrips";
-import { collectRows } from "./collectionHelpers";
-import { mapHistoryActualsToEventKeys } from "./history";
-import type { WsfVesselHistory } from "./schemas";
-import type { DockStatusEventRecord, RawSeedSegment } from "./types";
+import { getOfficialCrossingTimeMinutes } from "../../../scheduledTrips";
+import { collectRows } from "../shared";
+import { mapHistoryActualsToEventKeys } from "./mapHistoryActualsToEventKeys";
+import type { WsfVesselHistory } from "../schemas";
+import type { DockStatusEventRecord, RawSeedSegment } from "../types";
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
 

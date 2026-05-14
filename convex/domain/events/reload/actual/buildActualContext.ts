@@ -1,14 +1,14 @@
 /**
- * Shared indexing and write helpers for the actuals subtree.
+ * Shared indexing and write helpers for the actual subtree.
  *
- * The actuals stages use the same trip-key joins, vessel-keyed boundary groupings,
+ * The actual stages use the same trip-key joins, vessel-keyed boundary groupings,
  * and physical-only write shape; this module concentrates those lookups so each
  * source-specific module stays focused on its own selection rules.
  */
 
 import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockWritePersistable } from "../../actual";
-import { addMapListValue } from "../collectionHelpers";
+import { addMapListValue } from "../shared";
 import type {
   DockStatusEventRecord,
   ReloadTripContext,
@@ -25,13 +25,13 @@ type ActualDockEventContext = {
 /**
  * Combines the orchestrator-built trip context with vessel-keyed boundary groupings.
  *
- * Each actuals stage consumes lookups by vessel or segment, so this helper folds
+ * Each actual stage consumes lookups by vessel or segment, so this helper folds
  * the boundary group into the existing trip context once instead of forcing each
  * stage to re-walk the boundary array.
  *
  * @param tripContext - Trip-key indexes and physical-only collections from the orchestrator
  * @param boundaryEvents - Hydrated boundary records sorted in timeline order
- * @returns Composite lookups used by every actuals source module
+ * @returns Composite lookups used by every actual source module
  */
 const buildActualDockEventContext = (
   tripContext: ReloadTripContext,

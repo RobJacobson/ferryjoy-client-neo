@@ -14,9 +14,9 @@ import {
 } from "adapters";
 import type { RawWsfScheduleSegment } from "adapters/fetch/fetchWsfScheduledTripsTypes";
 import { buildSegmentKey } from "shared/keys";
-import { classifyDirectSegments } from "../../scheduledTrips";
-import type { WsfScheduledSegment } from "./schemas";
-import type { RawSeedSegment } from "./types";
+import { classifyDirectSegments } from "../../../scheduledTrips";
+import type { WsfScheduledSegment } from "../schemas";
+import type { RawSeedSegment } from "../types";
 
 /**
  * Filters WSF schedule segments to direct sailing rows with resolved identities.

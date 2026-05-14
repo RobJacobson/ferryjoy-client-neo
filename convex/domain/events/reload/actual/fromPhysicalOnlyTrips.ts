@@ -4,22 +4,22 @@
  * Physical-only trips have no scheduled boundary to anchor onto, so reload
  * derives departure and arrival rows from the trip's own LeftDockActual and
  * TripEnd fields. The rows emitted here represent the strongest evidence the
- * actuals pipeline can produce for these trips and run before any live-ping
+ * actual pipeline can produce for these trips and run before any live-ping
  * fallbacks.
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildActualDockEventFromWrite } from "../../actual";
-import { collectRows, definedRows } from "../collectionHelpers";
+import { collectRows, definedRows } from "../shared";
 import type { ReloadTripWithTripKey } from "../types";
-import { buildPhysicalOnlyActualWrite } from "./context";
+import { buildPhysicalOnlyActualWrite } from "./buildActualContext";
 
 /**
  * Builds actual rows from physical-only trip fields.
  *
  * Iterates physical-only trips and emits up to two rows each (departure and
  * arrival) by reading the trip's own observed timestamps. Missing fields cause
- * the corresponding row to be skipped so the actuals set never carries
+ * the corresponding row to be skipped so the actual set never carries
  * inferred timestamps.
  *
  * @param updatedAt - UpdatedAt stamp for the produced rows

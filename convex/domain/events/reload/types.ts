@@ -1,17 +1,11 @@
 /**
  * Type shapes for dock-event reload assembly.
  *
- * Hydrated dock status event records, WSF reload wire rows, trip context shared
- * between the orchestrator and the actuals subtree, and the computed reload
- * payload returned to the persistence mutation.
+ * Hydrated dock status event records, direct WSF reload seed rows, and trip
+ * context used by the actual subtree.
  */
 
-import type { TerminalIdentity, VesselIdentity } from "adapters";
 import type { DockEventType } from "functions/events/common/schemas";
-import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { WsfScheduledSegment, WsfVesselHistory } from "./schemas";
 
 type RawSeedSegment = {
   Key: string;
@@ -57,31 +51,9 @@ type ReloadTripContext = {
   tripKeyBySegmentKey: Map<string, string>;
   physicalOnlyTrips: ReloadTripWithTripKey[];
   activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>;
-  physicalOnlyTripKeysToPreserve: Set<string>;
-};
-
-type ComputeDockEventsReloadArgs = {
-  sailingDay: string;
-  scheduleSegments: WsfScheduledSegment[];
-  historyRecords: WsfVesselHistory[];
-  vessels: ReadonlyArray<VesselIdentity>;
-  terminals: ReadonlyArray<TerminalIdentity>;
-  activeTrips: ReloadTripForActuals[];
-  completedTrips: ReloadTripForActuals[];
-  vesselLocations: ConvexVesselLocation[];
-  updatedAt: number;
-};
-
-type DockEventsReload = {
-  sailingDay: string;
-  scheduledRows: ConvexScheduledDockEvent[];
-  actualRows: ConvexActualDockEvent[];
-  physicalOnlyTripKeysToPreserve: Set<string>;
 };
 
 export type {
-  ComputeDockEventsReloadArgs,
-  DockEventsReload,
   DockStatusEventRecord,
   RawSeedSegment,
   ReloadTripContext,
