@@ -254,9 +254,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
         row.EventType,
         row.EventActualTime,
       ])
-    ).toEqual([
-      ["trip-scheduled--dep-dock", "dep-dock", actualDeparture],
-    ]);
+    ).toEqual([["trip-scheduled--dep-dock", "dep-dock", actualDeparture]]);
   });
 
   it("hydrates history actuals and keeps physical-only evidence", () => {
