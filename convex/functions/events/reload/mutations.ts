@@ -36,12 +36,14 @@ const loadReloadDbInput = async (ctx: MutationCtx, sailingDay: string) => {
     )
     .collect();
 
+  const vesselLocations = (await ctx.db.query("vesselLocations").collect()).map(
+    stripConvexMeta
+  );
+
   return {
     activeTrips,
     completedTrips,
-    vesselLocations: (await ctx.db.query("vesselLocations").collect()).map(
-      stripConvexMeta
-    ),
+    vesselLocations,
   };
 };
 
