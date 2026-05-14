@@ -6,6 +6,7 @@ import { describe, expect, it } from "bun:test";
 import { computeDockEventsReload } from "domain/events/reload";
 import type { WsfScheduledSegment } from "domain/events/reload/schemas";
 import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import { buildSegmentKey } from "shared/keys";
 
@@ -34,6 +35,230 @@ const terminals: TerminalIdentity[] = [
 ];
 
 describe("reload dock sailing day rows from schedule and history", () => {
+  it("nudges only the arrival side of identical scheduled dock seams", () => {
+    const firstDeparture = at(9, 0);
+    const sharedSeamTime = at(9, 35);
+    const secondArrival = at(10, 10);
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: firstDeparture,
+          arrival: sharedSeamTime,
+        }),
+        scheduleSegment({
+          departure: sharedSeamTime,
+          arrival: secondArrival,
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [],
+    });
+
+    expect(
+      result.scheduledRows.map((row) => [
+        row.EventType,
+        row.TerminalAbbrev,
+        row.EventScheduledTime,
+      ])
+    ).toEqual([
+      ["dep-dock", "P52", firstDeparture],
+      ["arv-dock", "BBI", sharedSeamTime - 5 * 60 * 1000],
+      ["dep-dock", "BBI", sharedSeamTime],
+      ["arv-dock", "P52", secondArrival],
+    ]);
+  });
+
+  it("maps matching history timestamps directly onto scheduled actual rows", () => {
+    const departure = at(9, 10);
+    const arrival = at(9, 45);
+    const actualDeparture = at(9, 14);
+    const estimatedArrival = at(9, 51);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      historyRecords: [
+        {
+          VesselId: 1,
+          Vessel: "Wenatchee",
+          Departing: "Seattle",
+          Arriving: "Bainbridge Island",
+          ScheduledDepart: departure,
+          ActualDepart: actualDeparture,
+          EstArrival: estimatedArrival,
+        },
+      ],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
+      ],
+    });
+
+    expect(result.scheduledRows.map((row) => row.EventType)).toEqual([
+      "dep-dock",
+      "arv-dock",
+    ]);
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([
+      ["trip-scheduled--dep-dock", "dep-dock", actualDeparture],
+      ["trip-scheduled--arv-dock", "arv-dock", estimatedArrival],
+    ]);
+  });
+
+  it("falls back to vessel and scheduled departure when history terminals fail", () => {
+    const departure = at(10, 5);
+    const arrival = at(10, 40);
+    const actualDeparture = at(10, 8);
+    const estimatedArrival = at(10, 43);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      historyRecords: [
+        {
+          VesselId: 1,
+          Vessel: "Wenatchee",
+          Departing: "Unknown Terminal",
+          Arriving: "Also Unknown",
+          ScheduledDepart: departure,
+          ActualDepart: actualDeparture,
+          EstArrival: estimatedArrival,
+        },
+      ],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([
+      ["trip-scheduled--dep-dock", "dep-dock", actualDeparture],
+      ["trip-scheduled--arv-dock", "arv-dock", estimatedArrival],
+    ]);
+  });
+
+  it("strictly matches history while leaving epoch actual fields as payload", () => {
+    const departure = at(11, 15);
+    const arrival = at(11, 50);
+    const actualDeparture = at(11, 19);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      historyRecords: [
+        {
+          VesselId: 1,
+          Vessel: "Wenatchee",
+          Departing: "Seattle",
+          Arriving: "Bainbridge Island",
+          ScheduledDepart: departure,
+          ActualDepart: actualDeparture,
+        },
+      ],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([
+      ["trip-scheduled--dep-dock", "dep-dock", actualDeparture],
+    ]);
+  });
+
   it("hydrates history actuals and keeps physical-only evidence", () => {
     const departure = at(12, 20);
     const arrival = at(12, 55);
@@ -110,20 +335,620 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ["trip-physical--arv-dock", "arv-dock", at(14, 40)],
     ]);
   });
+
+  it("emits only a departure row for a physical-only active trip away from dock", () => {
+    const timestamp = at(16, 10);
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          TimeStamp: timestamp,
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(16, 0),
+        },
+      ],
+      completedTrips: [],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-physical--dep-dock", "dep-dock", timestamp]]);
+  });
+
+  it("emits only an arrival row for a physical-only active trip at dock", () => {
+    const timestamp = at(17, 0);
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          TimeStamp: timestamp,
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(16, 20),
+        },
+      ],
+      completedTrips: [],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-physical--arv-dock", "arv-dock", timestamp]]);
+  });
+
+  it("does not duplicate physical-only location rows already emitted from trip fields", () => {
+    const tripActual = at(18, 5);
+    const locationActual = at(18, 8);
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          TimeStamp: locationActual,
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(18, 0),
+          LeftDockActual: tripActual,
+        },
+      ],
+      completedTrips: [],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-physical--dep-dock", "dep-dock", tripActual]]);
+  });
+
+  it("keeps base actual rows before physical-only location fallback in mixed batches", () => {
+    const departure = at(13, 20);
+    const arrival = at(13, 55);
+    const historyActual = at(13, 24);
+    const tripActual = at(18, 5);
+    const locationActual = at(18, 8);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      historyRecords: [
+        {
+          VesselId: 1,
+          Vessel: "Wenatchee",
+          Departing: "Seattle",
+          Arriving: "Bainbridge Island",
+          ScheduledDepart: departure,
+          ActualDepart: historyActual,
+        },
+      ],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          TimeStamp: locationActual,
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(18, 0),
+          LeftDockActual: tripActual,
+        },
+      ],
+      completedTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([
+      ["trip-scheduled--dep-dock", "dep-dock", historyActual],
+      ["trip-physical--dep-dock", "dep-dock", tripActual],
+    ]);
+  });
+
+  it("emits only a departure row for physical-only trip left-dock evidence", () => {
+    const leftDockActual = at(19, 4);
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(19, 0),
+          LeftDockActual: leftDockActual,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-physical--dep-dock", "dep-dock", leftDockActual]]);
+  });
+
+  it("emits only an arrival row for physical-only trip-end evidence", () => {
+    const tripEnd = at(20, 35);
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: at(20, 0),
+          TripEnd: tripEnd,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-physical--arv-dock", "arv-dock", tripEnd]]);
+  });
+
+  it("suppresses physical-only trip-end rows without an arrival terminal", () => {
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [],
+      activeTrips: [],
+      completedTrips: [
+        {
+          TripKey: "trip-physical",
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ScheduledDeparture: at(21, 0),
+          TripEnd: at(21, 35),
+        },
+      ],
+    });
+
+    expect(result.actualRows).toEqual([]);
+  });
+
+  it("emits a scheduled departure row from an away-from-dock location", () => {
+    const departure = at(22, 0);
+    const arrival = at(22, 35);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          ScheduledDeparture: departure,
+          TimeStamp: at(22, 5),
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
+      ],
+      completedTrips: [],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-scheduled--dep-dock", "dep-dock", undefined]]);
+  });
+
+  it("emits an eligible prior scheduled arrival row from an at-dock location", () => {
+    const firstDeparture = at(15, 0);
+    const firstArrival = at(15, 35);
+    const secondDeparture = at(16, 0);
+    const secondArrival = at(16, 35);
+    const firstSegmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(firstDeparture)
+    );
+    const secondSegmentKey = buildSegmentKey(
+      "WEN",
+      "BBI",
+      "P52",
+      new Date(secondDeparture)
+    );
+
+    if (firstSegmentKey === undefined || secondSegmentKey === undefined) {
+      throw new Error("Expected fixture segment keys.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: firstDeparture,
+          arrival: firstArrival,
+        }),
+        scheduleSegment({
+          departure: secondDeparture,
+          arrival: secondArrival,
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          DepartingTerminalID: 2,
+          DepartingTerminalName: "Bainbridge Island",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalID: 1,
+          ArrivingTerminalName: "Seattle",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+          TimeStamp: at(15, 50),
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-next",
+          ScheduleKey: secondSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+        },
+      ],
+      completedTrips: [
+        {
+          TripKey: "trip-previous",
+          ScheduleKey: firstSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: firstDeparture,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-previous--arv-dock", "arv-dock", undefined]]);
+  });
+
+  it("chooses the most recent eligible prior scheduled arrival row", () => {
+    const firstDeparture = at(14, 0);
+    const firstArrival = at(14, 35);
+    const secondDeparture = at(15, 0);
+    const secondArrival = at(15, 35);
+    const nextDeparture = at(16, 0);
+    const nextArrival = at(16, 35);
+    const firstSegmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(firstDeparture)
+    );
+    const secondSegmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(secondDeparture)
+    );
+    const nextSegmentKey = buildSegmentKey(
+      "WEN",
+      "BBI",
+      "P52",
+      new Date(nextDeparture)
+    );
+
+    if (
+      firstSegmentKey === undefined ||
+      secondSegmentKey === undefined ||
+      nextSegmentKey === undefined
+    ) {
+      throw new Error("Expected fixture segment keys.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: firstDeparture,
+          arrival: firstArrival,
+        }),
+        scheduleSegment({
+          departure: secondDeparture,
+          arrival: secondArrival,
+        }),
+        scheduleSegment({
+          departure: nextDeparture,
+          arrival: nextArrival,
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          DepartingTerminalID: 2,
+          DepartingTerminalName: "Bainbridge Island",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalID: 1,
+          ArrivingTerminalName: "Seattle",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: nextDeparture,
+          TimeStamp: at(15, 50),
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-next",
+          ScheduleKey: nextSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: nextDeparture,
+        },
+      ],
+      completedTrips: [
+        {
+          TripKey: "trip-older",
+          ScheduleKey: firstSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: firstDeparture,
+        },
+        {
+          TripKey: "trip-newer",
+          ScheduleKey: secondSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: secondDeparture,
+        },
+      ],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-newer--arv-dock", "arv-dock", undefined]]);
+  });
+
+  it("does not duplicate scheduled location rows already actualized by history", () => {
+    const departure = at(23, 0);
+    const arrival = at(23, 35);
+    const actualDeparture = at(23, 4);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = computeDockEventsReload({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      historyRecords: [
+        {
+          VesselId: 1,
+          Vessel: "Wenatchee",
+          Departing: "Seattle",
+          Arriving: "Bainbridge Island",
+          ScheduledDepart: departure,
+          ActualDepart: actualDeparture,
+        },
+      ],
+      vessels,
+      terminals,
+      updatedAt: 42,
+      vesselLocations: [
+        vesselLocation({
+          AtDock: false,
+          ScheduledDeparture: departure,
+          TimeStamp: at(23, 8),
+        }),
+      ],
+      activeTrips: [
+        {
+          TripKey: "trip-scheduled",
+          ScheduleKey: segmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: departure,
+        },
+      ],
+      completedTrips: [],
+    });
+
+    expect(
+      result.actualRows.map((row) => [
+        row.EventKey,
+        row.EventType,
+        row.EventActualTime,
+      ])
+    ).toEqual([["trip-scheduled--dep-dock", "dep-dock", actualDeparture]]);
+  });
 });
 
 const scheduleSegment = ({
   departure,
   arrival,
+  departingTerminalID = 1,
+  departingTerminalName = "Seattle",
+  arrivingTerminalID = 2,
+  arrivingTerminalName = "Bainbridge Island",
 }: {
   departure: number;
   arrival: number;
+  departingTerminalID?: number;
+  departingTerminalName?: string;
+  arrivingTerminalID?: number;
+  arrivingTerminalName?: string;
 }): WsfScheduledSegment => ({
   VesselName: "Wenatchee",
-  DepartingTerminalID: 1,
-  ArrivingTerminalID: 2,
-  DepartingTerminalName: "Seattle",
-  ArrivingTerminalName: "Bainbridge Island",
+  DepartingTerminalID: departingTerminalID,
+  ArrivingTerminalID: arrivingTerminalID,
+  DepartingTerminalName: departingTerminalName,
+  ArrivingTerminalName: arrivingTerminalName,
   DepartingTime: departure,
   ArrivingTime: arrival,
   SailingNotes: "",
@@ -131,4 +956,27 @@ const scheduleSegment = ({
   RouteID: 3,
   RouteAbbrev: "sea-bi",
   SailingDay: "2026-03-25",
+});
+
+const vesselLocation = (
+  overrides: Partial<ConvexVesselLocation>
+): ConvexVesselLocation => ({
+  VesselID: 1,
+  VesselName: "Wenatchee",
+  VesselAbbrev: "WEN",
+  DepartingTerminalID: 1,
+  DepartingTerminalName: "Seattle",
+  DepartingTerminalAbbrev: "P52",
+  ArrivingTerminalID: 2,
+  ArrivingTerminalName: "Bainbridge Island",
+  ArrivingTerminalAbbrev: "BBI",
+  Latitude: 47.6,
+  Longitude: -122.3,
+  Speed: 0,
+  Heading: 0,
+  InService: true,
+  AtDock: false,
+  TimeStamp: at(16, 0),
+  AtDockObserved: true,
+  ...overrides,
 });

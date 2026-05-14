@@ -31,20 +31,9 @@ import type {
   ReloadTripForActuals,
 } from "./types";
 
-type HistoryActualSource = "departure-actual" | "arrival-proxy";
-
 type ReloadTripWithTripKey = ReloadTripForActuals & { TripKey: string };
 
 const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
-const DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS = 3 * 60 * 1000;
-const ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS = 2 * 60 * 1000;
-
-type TripIndexes = {
-  tripKeyBySegmentKey: Map<string, string>;
-  activeTripsByVesselAbbrev: Map<string, ReloadTripWithTripKey>;
-  physicalOnlyTrips: ReloadTripWithTripKey[];
-  physicalOnlyTripKeysToPreserve: Set<string>;
-};
 
 /**
  * Builds the dock-events reload payload for one sailing day.
@@ -69,12 +58,27 @@ const computeDockEventsReload = ({
   vesselLocations,
   updatedAt,
 }: ComputeDockEventsReloadArgs): DockEventsReload => {
-  const tripIndexes = indexTripsForReload(activeTrips, completedTrips);
+  const activeTripsWithKeys = definedRows(activeTrips.map(toTripWithTripKey));
+
+  const completedTripsWithKeys = definedRows(
+    completedTrips.map(toTripWithTripKey)
+  );
+
+  const tripsWithKeys = [...activeTripsWithKeys, ...completedTripsWithKeys];
+
+  const physicalOnlyTrips = tripsWithKeys.filter(isPhysicalOnlyTrip);
+
+  const tripKeyBySegmentKey = buildTripKeyBySegmentKey(tripsWithKeys);
+
+  const activePhysicalOnlyTripsByVessel =
+    buildActivePhysicalOnlyTripsByVessel(activeTripsWithKeys);
+
   const seedSegments = resolveSeedSegments(
     scheduleSegments,
     vessels,
     terminals
   );
+
   const events = normalizeScheduledDockSeams(
     hydrateScheduledEvents({
       seedSegments,
@@ -84,66 +88,57 @@ const computeDockEventsReload = ({
     })
   ).sort(compareDockEventsByTimeline);
 
+  const scheduledRows = buildScheduledDockEvents(events, updatedAt);
+
+  const actualRows = buildActualDockEvents({
+    sailingDay,
+    events,
+    updatedAt,
+    vesselLocations,
+    tripKeyBySegmentKey,
+    physicalOnlyTrips,
+    activePhysicalOnlyTripsByVessel,
+  });
+
+  const physicalOnlyTripKeysToPreserve = new Set(
+    physicalOnlyTrips.map((trip) => trip.TripKey)
+  );
+
   return {
     sailingDay,
-    scheduledRows: buildScheduledDockEvents(events, updatedAt),
-    actualRows: buildActualDockEvents({
-      sailingDay,
-      events,
-      updatedAt,
-      vesselLocations,
-      tripIndexes,
-    }),
-    physicalOnlyTripKeysToPreserve: tripIndexes.physicalOnlyTripKeysToPreserve,
+    scheduledRows,
+    actualRows,
+    physicalOnlyTripKeysToPreserve,
   };
 };
 
 /**
- * Builds the trip lookups needed by actual-row assembly.
+ * Narrows a reload trip to rows that can be joined to actual dock evidence.
  *
- * @param activeTrips - Active vessel trips for the reload sailing day
- * @param completedTrips - Completed vessel trips for the reload sailing day
- * @returns Segment, active-vessel, and physical-only trip projections
+ * @param trip - Reload trip row that may lack a TripKey
+ * @returns Trip with required TripKey, or undefined when not joinable
  */
-const indexTripsForReload = (
-  activeTrips: ReloadTripForActuals[],
-  completedTrips: ReloadTripForActuals[]
-): TripIndexes => {
-  const tripKeyBySegmentKey = new Map<string, string>();
-  const activeTripsByVesselAbbrev = new Map<string, ReloadTripWithTripKey>();
-  const physicalOnlyTrips: ReloadTripWithTripKey[] = [];
-  const allTrips = [...activeTrips, ...completedTrips];
+const toTripWithTripKey = (
+  trip: ReloadTripForActuals
+): ReloadTripWithTripKey | undefined =>
+  trip.TripKey === undefined ? undefined : { ...trip, TripKey: trip.TripKey };
 
-  for (const trip of allTrips) {
-    if (trip.TripKey === undefined) {
-      continue;
-    }
+const isPhysicalOnlyTrip = (trip: ReloadTripWithTripKey) =>
+  trip.ScheduleKey === undefined;
 
-    tripKeyBySegmentKey.set(trip.ScheduleKey ?? trip.TripKey, trip.TripKey);
+const buildTripKeyBySegmentKey = (
+  trips: ReloadTripWithTripKey[]
+): Map<string, string> =>
+  new Map(
+    trips.map((trip) => [trip.ScheduleKey ?? trip.TripKey, trip.TripKey])
+  );
 
-    if (trip.ScheduleKey === undefined) {
-      physicalOnlyTrips.push({ ...trip, TripKey: trip.TripKey });
-    }
-  }
-
-  for (const trip of activeTrips) {
-    if (trip.TripKey !== undefined) {
-      activeTripsByVesselAbbrev.set(trip.VesselAbbrev, {
-        ...trip,
-        TripKey: trip.TripKey,
-      });
-    }
-  }
-
-  return {
-    tripKeyBySegmentKey,
-    activeTripsByVesselAbbrev,
-    physicalOnlyTrips,
-    physicalOnlyTripKeysToPreserve: new Set(
-      physicalOnlyTrips.map((trip) => trip.TripKey)
-    ),
-  };
-};
+const buildActivePhysicalOnlyTripsByVessel = (
+  trips: ReloadTripWithTripKey[]
+): Map<string, ReloadTripWithTripKey> =>
+  new Map(
+    trips.filter(isPhysicalOnlyTrip).map((trip) => [trip.VesselAbbrev, trip])
+  );
 
 /**
  * Filters WSF schedule segments to direct sailing rows with resolved identities.
@@ -248,9 +243,8 @@ const hydrateScheduledEvents = ({
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }): DockStatusEventRecord[] => {
-  const seededEvents = seedSegments.flatMap(buildSeedEventsForSegment);
+  const seededEvents = collectRows(seedSegments, buildSeedEventsForSegment);
   const historyActualsByEventKey = mapHistoryActualsToEventKeys({
-    seededEvents,
     directSeedSegments: seedSegments,
     historyRecords,
     vessels,
@@ -259,20 +253,15 @@ const hydrateScheduledEvents = ({
 
   return seededEvents.map((event) => {
     const historyActualTime = historyActualsByEventKey.get(event.Key);
-    const mergedActualTime = mergeActualTime(
-      event.EventActualTime,
-      historyActualTime,
-      event.EventType === "dep-dock" ? "departure-actual" : "arrival-proxy"
-    );
 
-    return {
-      ...event,
-      EventOccurred:
-        mergedActualTime === undefined ? event.EventOccurred : true,
-      EventActualTime: mergedActualTime,
-      EventPredictedTime:
-        mergedActualTime === undefined ? event.EventPredictedTime : undefined,
-    };
+    return historyActualTime === undefined
+      ? event
+      : {
+          ...event,
+          EventOccurred: true,
+          EventActualTime: historyActualTime,
+          EventPredictedTime: undefined,
+        };
   });
 };
 
@@ -352,47 +341,14 @@ const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
 };
 
 /**
- * Chooses the actual timestamp to keep when history and an existing row differ.
- *
- * @param existingActualTime - Time already on the boundary record
- * @param historyActualTime - Time from WSF history hydration
- * @param source - Whether the history column was departure-actual or arrival-proxy
- * @returns Merged actual ms or undefined when both inputs are undefined
- */
-const mergeActualTime = (
-  existingActualTime?: number,
-  historyActualTime?: number,
-  source?: HistoryActualSource
-) => {
-  if (existingActualTime === undefined) {
-    return historyActualTime;
-  }
-
-  if (historyActualTime === undefined) {
-    return existingActualTime;
-  }
-
-  const replacementThreshold =
-    source === "arrival-proxy"
-      ? ARRIVAL_PROXY_REPLACEMENT_THRESHOLD_MS
-      : DEPARTURE_ACTUAL_REPLACEMENT_THRESHOLD_MS;
-
-  return Math.abs(existingActualTime - historyActualTime) >=
-    replacementThreshold
-    ? historyActualTime
-    : existingActualTime;
-};
-
-/**
  * Adjusts back-to-back scheduled dock seams that share the same scheduled minute.
  *
  * @param events - Boundary records for one reload batch
- * @returns Copy with dep times nudged where identical seams were detected
+ * @returns Copy with arrival times nudged where identical seams were detected
  */
 const normalizeScheduledDockSeams = (
   events: DockStatusEventRecord[]
 ): DockStatusEventRecord[] => {
-  const adjustedScheduledTimesByKey = new Map<string, number>();
   const eventsByVesselDay = new Map<string, DockStatusEventRecord[]>();
 
   for (const event of events) {
@@ -400,39 +356,47 @@ const normalizeScheduledDockSeams = (
     eventsByVesselDay.set(key, [...(eventsByVesselDay.get(key) ?? []), event]);
   }
 
-  for (const scopedEvents of eventsByVesselDay.values()) {
-    const sortedScopedEvents = [...scopedEvents].sort(
-      compareDockEventsByTimeline
-    );
+  return [...eventsByVesselDay.values()].reduce<DockStatusEventRecord[]>(
+    (normalizedEvents, scopedEvents) => [
+      ...normalizedEvents,
+      ...[...scopedEvents]
+        .sort(compareDockEventsByTimeline)
+        .map((event, index, sortedScopedEvents) =>
+          normalizeScheduledDockSeamEvent(
+            event,
+            sortedScopedEvents[index + 1]
+          )
+        ),
+    ],
+    []
+  );
+};
 
-    for (let index = 0; index < sortedScopedEvents.length; index++) {
-      const event = sortedScopedEvents[index];
-      const next = sortedScopedEvents[index + 1];
-
-      if (
-        event.EventScheduledTime !== undefined &&
-        next !== undefined &&
-        event.EventType === "arv-dock" &&
-        next.EventType === "dep-dock" &&
-        event.TerminalAbbrev === next.TerminalAbbrev &&
-        event.EventScheduledTime === next.EventScheduledTime
-      ) {
-        adjustedScheduledTimesByKey.set(
-          event.Key,
-          event.EventScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
-        );
-      }
-    }
+const normalizeScheduledDockSeamEvent = (
+  event: DockStatusEventRecord,
+  next: DockStatusEventRecord | undefined
+): DockStatusEventRecord => {
+  if (!shouldNudgeScheduledArrivalSeam(event, next)) {
+    return event;
   }
 
-  return events.map((event) => {
-    const adjustedScheduledTime = adjustedScheduledTimesByKey.get(event.Key);
-
-    return adjustedScheduledTime === undefined
-      ? event
-      : { ...event, EventScheduledTime: adjustedScheduledTime };
-  });
+  return {
+    ...event,
+    EventScheduledTime:
+      event.EventScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
+  };
 };
+
+const shouldNudgeScheduledArrivalSeam = (
+  event: DockStatusEventRecord,
+  next: DockStatusEventRecord | undefined
+): event is DockStatusEventRecord & { EventScheduledTime: number } =>
+  event.EventScheduledTime !== undefined &&
+  next !== undefined &&
+  event.EventType === "arv-dock" &&
+  next.EventType === "dep-dock" &&
+  event.TerminalAbbrev === next.TerminalAbbrev &&
+  event.EventScheduledTime === next.EventScheduledTime;
 
 /**
  * Compares two boundary records for timeline ordering when sorting an array.
@@ -461,7 +425,11 @@ const buildScheduledDockEvents = (
   events: DockStatusEventRecord[],
   updatedAt: number
 ): ConvexScheduledDockEvent[] => {
-  const eventByKey = new Map(events.map((event) => [event.Key, event]));
+  const arrivalTerminalBySegmentKey = new Map(
+    events
+      .filter((event) => event.EventType === "arv-dock")
+      .map((event) => [event.SegmentKey, event.TerminalAbbrev])
+  );
   const lastArrivalKey =
     [...events].reverse().find((event) => event.EventType === "arv-dock")
       ?.Key ?? null;
@@ -476,8 +444,8 @@ const buildScheduledDockEvents = (
     NextTerminalAbbrev:
       event.EventType === "arv-dock"
         ? event.TerminalAbbrev
-        : (eventByKey.get(buildBoundaryKey(event.SegmentKey, "arv-dock"))
-            ?.TerminalAbbrev ?? event.TerminalAbbrev),
+        : (arrivalTerminalBySegmentKey.get(event.SegmentKey) ??
+          event.TerminalAbbrev),
     EventType: event.EventType,
     EventScheduledTime: event.EventScheduledTime,
     IsLastArrivalOfSailingDay:
@@ -488,7 +456,7 @@ const buildScheduledDockEvents = (
 /**
  * Builds actual dock rows from history, physical-only trips, and live pings.
  *
- * @param args - Hydrated events, trip indexes, latest locations, and timestamps
+ * @param args - Hydrated events, trip projections, latest locations, and timestamps
  * @returns Unique actual dock rows for the sailing-day reload
  */
 const buildActualDockEvents = ({
@@ -496,22 +464,26 @@ const buildActualDockEvents = ({
   events,
   updatedAt,
   vesselLocations,
-  tripIndexes,
+  tripKeyBySegmentKey,
+  physicalOnlyTrips,
+  activePhysicalOnlyTripsByVessel,
 }: {
   sailingDay: string;
   events: DockStatusEventRecord[];
   updatedAt: number;
   vesselLocations: ConvexVesselLocation[];
-  tripIndexes: TripIndexes;
+  tripKeyBySegmentKey: Map<string, string>;
+  physicalOnlyTrips: ReloadTripWithTripKey[];
+  activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>;
 }): ConvexActualDockEvent[] => {
-  const rows: ConvexActualDockEvent[] = [
-    ...buildHistoryActualRows(events, updatedAt, tripIndexes),
-    ...buildPhysicalOnlyTripActualRows(updatedAt, tripIndexes),
+  const baseRows: ConvexActualDockEvent[] = [
+    ...buildHistoryActualRows(events, updatedAt, tripKeyBySegmentKey),
+    ...buildPhysicalOnlyTripActualRows(updatedAt, physicalOnlyTrips),
   ];
   const sailingDayLocations = vesselLocations.filter((location) =>
     locationMatchesSailingDay(location, sailingDay)
   );
-  const representedTripBoundaryKeys = buildTripBoundaryKeySet(rows);
+  const representedTripBoundaryKeys = buildTripBoundaryKeySet(baseRows);
   const eventsByVessel = new Map<string, DockStatusEventRecord[]>();
   for (const event of events) {
     eventsByVessel.set(event.VesselAbbrev, [
@@ -520,30 +492,34 @@ const buildActualDockEvents = ({
     ]);
   }
 
-  for (const location of sailingDayLocations) {
-    rows.push(
-      ...buildScheduleAlignedLocationRows({
+  const scheduleAlignedLocationRows = collectRows(
+    sailingDayLocations,
+    (location) =>
+      buildScheduleAlignedLocationRows({
         location,
         events: eventsByVessel.get(location.VesselAbbrev) ?? [],
         updatedAt,
-        tripIndexes,
+        tripKeyBySegmentKey,
         representedTripBoundaryKeys,
       })
-    );
-  }
+  );
 
-  for (const location of sailingDayLocations) {
-    rows.push(
-      ...buildPhysicalOnlyLocationRows({
+  const physicalOnlyLocationRows = collectRows(
+    sailingDayLocations,
+    (location) =>
+      buildPhysicalOnlyLocationRows({
         location,
         updatedAt,
-        tripIndexes,
+        activePhysicalOnlyTripsByVessel,
         representedTripBoundaryKeys,
       })
-    );
-  }
+  );
 
-  return dedupeActualRowsByEventKey(rows);
+  return dedupeActualRowsByEventKey([
+    ...baseRows,
+    ...scheduleAlignedLocationRows,
+    ...physicalOnlyLocationRows,
+  ]);
 };
 
 /**
@@ -551,26 +527,26 @@ const buildActualDockEvents = ({
  *
  * @param events - Hydrated boundary records
  * @param updatedAt - UpdatedAt stamp for the produced rows
- * @param tripIndexes - Reload trip indexes for TripKey lookup
+ * @param tripKeyBySegmentKey - TripKey lookup by schedule segment key
  * @returns Validator-shaped actual dock rows for boundaries with actuals
  */
 const buildHistoryActualRows = (
   events: DockStatusEventRecord[],
   updatedAt: number,
-  tripIndexes: TripIndexes
+  tripKeyBySegmentKey: Map<string, string>
 ): ConvexActualDockEvent[] =>
-  events.flatMap((event) => {
-    const tripKey = tripIndexes.tripKeyBySegmentKey.get(event.SegmentKey);
+  definedRows(
+    events.map((event) => {
+      const tripKey = tripKeyBySegmentKey.get(event.SegmentKey);
 
-    if (
-      tripKey === undefined ||
-      (event.EventOccurred !== true && event.EventActualTime === undefined)
-    ) {
-      return [];
-    }
+      if (
+        tripKey === undefined ||
+        (event.EventOccurred !== true && event.EventActualTime === undefined)
+      ) {
+        return undefined;
+      }
 
-    return [
-      buildActualDockEventFromWrite(
+      return buildActualDockEventFromWrite(
         {
           TripKey: tripKey,
           VesselAbbrev: event.VesselAbbrev,
@@ -582,67 +558,77 @@ const buildHistoryActualRows = (
           EventActualTime: event.EventActualTime,
         },
         updatedAt
-      ),
-    ];
-  });
+      );
+    })
+  );
 
 /**
  * Builds actual rows from physical-only trip fields.
  *
  * @param updatedAt - UpdatedAt stamp for the produced rows
- * @param tripIndexes - Reload trip indexes containing physical-only trips
+ * @param physicalOnlyTrips - Physical-only trips with TripKey evidence
  * @returns Actual rows from durable trip departure and arrival fields
  */
 const buildPhysicalOnlyTripActualRows = (
   updatedAt: number,
-  tripIndexes: TripIndexes
+  physicalOnlyTrips: ReloadTripWithTripKey[]
 ): ConvexActualDockEvent[] =>
-  tripIndexes.physicalOnlyTrips.flatMap((trip) => [
-    ...(trip.LeftDockActual === undefined
-      ? []
-      : [
-          buildActualDockEventFromWrite(
-            buildPhysicalOnlyActualWrite(
-              trip,
-              trip.DepartingTerminalAbbrev,
-              "dep-dock",
-              trip.LeftDockActual
-            ),
-            updatedAt
-          ),
-        ]),
-    ...(trip.TripEnd === undefined || trip.ArrivingTerminalAbbrev === undefined
-      ? []
-      : [
-          buildActualDockEventFromWrite(
-            buildPhysicalOnlyActualWrite(
-              trip,
-              trip.ArrivingTerminalAbbrev,
-              "arv-dock",
-              trip.TripEnd
-            ),
-            updatedAt
-          ),
-        ]),
-  ]);
+  collectRows(physicalOnlyTrips, (trip) =>
+    definedRows([
+      buildPhysicalOnlyTripDepartureRow(trip, updatedAt),
+      buildPhysicalOnlyTripArrivalRow(trip, updatedAt),
+    ])
+  );
+
+const buildPhysicalOnlyTripDepartureRow = (
+  trip: ReloadTripWithTripKey,
+  updatedAt: number
+): ConvexActualDockEvent | undefined =>
+  trip.LeftDockActual === undefined
+    ? undefined
+    : buildActualDockEventFromWrite(
+        buildPhysicalOnlyActualWrite(
+          trip,
+          trip.DepartingTerminalAbbrev,
+          "dep-dock",
+          trip.LeftDockActual
+        ),
+        updatedAt
+      );
+
+const buildPhysicalOnlyTripArrivalRow = (
+  trip: ReloadTripWithTripKey,
+  updatedAt: number
+): ConvexActualDockEvent | undefined =>
+  trip.TripEnd === undefined || trip.ArrivingTerminalAbbrev === undefined
+    ? undefined
+    : buildActualDockEventFromWrite(
+        buildPhysicalOnlyActualWrite(
+          trip,
+          trip.ArrivingTerminalAbbrev,
+          "arv-dock",
+          trip.TripEnd
+        ),
+        updatedAt
+      );
 
 /**
  * Builds schedule-aligned actual rows from one live location ping.
  *
- * @param args - Location, same-vessel events, trip indexes, and dedupe set
+ * @param args - Location, same-vessel events, trip-key lookup, and dedupe set
  * @returns Departure or arrival rows supported by the ping
  */
 const buildScheduleAlignedLocationRows = ({
   location,
   events,
   updatedAt,
-  tripIndexes,
+  tripKeyBySegmentKey,
   representedTripBoundaryKeys,
 }: {
   location: ConvexVesselLocation;
   events: DockStatusEventRecord[];
   updatedAt: number;
-  tripIndexes: TripIndexes;
+  tripKeyBySegmentKey: Map<string, string>;
   representedTripBoundaryKeys: Set<string>;
 }): ConvexActualDockEvent[] => {
   if (events.length === 0 || location.InService !== true) {
@@ -650,20 +636,20 @@ const buildScheduleAlignedLocationRows = ({
   }
 
   const departureEvent = getLocationAnchoredEvent(events, location, "dep-dock");
-  const candidates = [
-    { event: departureEvent, eventActualTime: location.LeftDock },
-    {
-      event: findArrivalEventForLocation(events, location, departureEvent),
-      eventActualTime: undefined,
-    },
-  ];
-  const rows: ConvexActualDockEvent[] = [];
+  const arrivalEvent = findArrivalEventForLocation(
+    events,
+    location,
+    departureEvent
+  );
 
-  for (const { event, eventActualTime } of candidates) {
+  const toScheduleAlignedLocationRow = (
+    event: DockStatusEventRecord | undefined,
+    eventActualTime: number | undefined
+  ) => {
     const tripKey =
       event === undefined
         ? undefined
-        : tripIndexes.tripKeyBySegmentKey.get(event.SegmentKey);
+        : tripKeyBySegmentKey.get(event.SegmentKey);
 
     if (
       event === undefined ||
@@ -674,10 +660,10 @@ const buildScheduleAlignedLocationRows = ({
         location.AtDock !== false) ||
       (event.EventType === "arv-dock" && location.AtDock !== true)
     ) {
-      continue;
+      return undefined;
     }
 
-    const row = buildActualDockEventFromWrite(
+    return buildActualDockEventFromWrite(
       {
         TripKey: tripKey,
         VesselAbbrev: event.VesselAbbrev,
@@ -690,8 +676,14 @@ const buildScheduleAlignedLocationRows = ({
       },
       updatedAt
     );
+  };
+
+  const rows = definedRows([
+    toScheduleAlignedLocationRow(departureEvent, location.LeftDock),
+    toScheduleAlignedLocationRow(arrivalEvent, undefined),
+  ]);
+  for (const row of rows) {
     representedTripBoundaryKeys.add(toTripBoundaryKey(row));
-    rows.push(row);
   }
 
   return rows;
@@ -700,66 +692,53 @@ const buildScheduleAlignedLocationRows = ({
 /**
  * Builds physical-only actual rows from one live location ping.
  *
- * @param args - Location, active-trip index, updatedAt, and dedupe set
+ * @param args - Location, active physical-only trip lookup, updatedAt, and dedupe set
  * @returns Physical-only departure or arrival rows supported by the ping
  */
 const buildPhysicalOnlyLocationRows = ({
   location,
   updatedAt,
-  tripIndexes,
+  activePhysicalOnlyTripsByVessel,
   representedTripBoundaryKeys,
 }: {
   location: ConvexVesselLocation;
   updatedAt: number;
-  tripIndexes: TripIndexes;
+  activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>;
   representedTripBoundaryKeys: Set<string>;
 }): ConvexActualDockEvent[] => {
-  const trip = tripIndexes.activeTripsByVesselAbbrev.get(location.VesselAbbrev);
-  const rows: ConvexActualDockEvent[] = [];
+  const trip = activePhysicalOnlyTripsByVessel.get(location.VesselAbbrev);
 
-  if (
-    location.InService !== true ||
-    trip === undefined ||
-    trip.ScheduleKey !== undefined
-  ) {
+  if (location.InService !== true || trip === undefined) {
     return [];
   }
 
-  if (location.AtDock === false) {
-    pushPhysicalOnlyLocationRow({
-      rows,
-      trip,
-      terminalAbbrev: trip.DepartingTerminalAbbrev,
-      eventType: "dep-dock",
-      eventActualTime: location.LeftDock ?? location.TimeStamp,
-      updatedAt,
-      representedTripBoundaryKeys,
-    });
-  }
+  const departureRow =
+    location.AtDock === false
+      ? buildPhysicalOnlyLocationRow({
+          trip,
+          terminalAbbrev: trip.DepartingTerminalAbbrev,
+          eventType: "dep-dock",
+          eventActualTime: location.LeftDock ?? location.TimeStamp,
+          updatedAt,
+          representedTripBoundaryKeys,
+        })
+      : undefined;
+  const arrivalRow =
+    location.AtDock === true && trip.ArrivingTerminalAbbrev !== undefined
+      ? buildPhysicalOnlyLocationRow({
+          trip,
+          terminalAbbrev: trip.ArrivingTerminalAbbrev,
+          eventType: "arv-dock",
+          eventActualTime: location.TimeStamp,
+          updatedAt,
+          representedTripBoundaryKeys,
+        })
+      : undefined;
 
-  if (location.AtDock === true && trip.ArrivingTerminalAbbrev !== undefined) {
-    pushPhysicalOnlyLocationRow({
-      rows,
-      trip,
-      terminalAbbrev: trip.ArrivingTerminalAbbrev,
-      eventType: "arv-dock",
-      eventActualTime: location.TimeStamp,
-      updatedAt,
-      representedTripBoundaryKeys,
-    });
-  }
-
-  return rows;
+  return definedRows([departureRow, arrivalRow]);
 };
 
-/**
- * Pushes one physical-only row unless that trip boundary is represented.
- *
- * @param args - Row buffer, trip, boundary fields, updatedAt, and dedupe set
- * @returns Void; mutates the provided row buffer and represented set
- */
-const pushPhysicalOnlyLocationRow = ({
-  rows,
+const buildPhysicalOnlyLocationRow = ({
   trip,
   terminalAbbrev,
   eventType,
@@ -767,32 +746,30 @@ const pushPhysicalOnlyLocationRow = ({
   updatedAt,
   representedTripBoundaryKeys,
 }: {
-  rows: ConvexActualDockEvent[];
   trip: ReloadTripWithTripKey;
   terminalAbbrev: string;
   eventType: DockEventType;
   eventActualTime: number;
   updatedAt: number;
   representedTripBoundaryKeys: Set<string>;
-}): void => {
+}): ConvexActualDockEvent | undefined => {
   const boundaryKey = `${trip.TripKey}|${eventType}`;
 
   if (representedTripBoundaryKeys.has(boundaryKey)) {
-    return;
+    return undefined;
   }
 
-  rows.push(
-    buildActualDockEventFromWrite(
-      buildPhysicalOnlyActualWrite(
-        trip,
-        terminalAbbrev,
-        eventType,
-        eventActualTime
-      ),
-      updatedAt
-    )
-  );
   representedTripBoundaryKeys.add(boundaryKey);
+
+  return buildActualDockEventFromWrite(
+    buildPhysicalOnlyActualWrite(
+      trip,
+      terminalAbbrev,
+      eventType,
+      eventActualTime
+    ),
+    updatedAt
+  );
 };
 
 /**
@@ -860,7 +837,7 @@ const findArrivalEventForLocation = (
     return undefined;
   }
 
-  return [...events]
+  return events
     .filter(
       (event) =>
         event.EventType === "arv-dock" &&
@@ -873,9 +850,14 @@ const findArrivalEventForLocation = (
           event.EventScheduledTime ?? Number.POSITIVE_INFINITY
         ) <= location.TimeStamp
     )
-    .sort(
-      (left, right) => right.ScheduledDeparture - left.ScheduledDeparture
-    )[0];
+    .reduce<DockStatusEventRecord | undefined>(
+      (latest, event) =>
+        latest === undefined ||
+        event.ScheduledDeparture > latest.ScheduledDeparture
+          ? event
+          : latest,
+      undefined
+    );
 };
 
 /**
@@ -900,6 +882,15 @@ const locationMatchesSailingDay = (
 const buildTripBoundaryKeySet = (
   rows: ReadonlyArray<{ TripKey: string; EventType: DockEventType }>
 ): Set<string> => new Set(rows.map(toTripBoundaryKey));
+
+const definedRows = <TRow>(rows: Array<TRow | undefined>): TRow[] =>
+  rows.filter((row): row is TRow => row !== undefined);
+
+const collectRows = <TItem, TRow>(
+  items: TItem[],
+  toRows: (item: TItem) => TRow[]
+): TRow[] =>
+  items.reduce<TRow[]>((rows, item) => [...rows, ...toRows(item)], []);
 
 /**
  * Builds a composite TripKey/EventType boundary key.

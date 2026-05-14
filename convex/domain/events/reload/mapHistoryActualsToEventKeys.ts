@@ -12,7 +12,12 @@ import {
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { WsfVesselHistory } from "./schemas";
-import type { DockStatusEventRecord, RawSeedSegment } from "./types";
+import type { RawSeedSegment } from "./types";
+
+type HistoryActualEntry = {
+  eventKey: string;
+  actualTime: number;
+};
 
 /**
  * Indexes history-derived actual depart and arrival-proxy times by event Key.
@@ -23,7 +28,6 @@ import type { DockStatusEventRecord, RawSeedSegment } from "./types";
  * fall back to vessel abbrev plus scheduled departure to recover history
  * that names a vessel ambiguously.
  *
- * @param args.seededEvents - Schedule-derived boundary rows before history merge
  * @param args.directSeedSegments - Same-day raw seed segments by TripKey
  * @param args.historyRecords - WSF vessel history rows for the sailing day
  * @param args.vessels - Vessel identities for adapter resolution
@@ -31,13 +35,11 @@ import type { DockStatusEventRecord, RawSeedSegment } from "./types";
  * @returns Map from boundary Key to actual time in epoch milliseconds
  */
 const mapHistoryActualsToEventKeys = ({
-  seededEvents,
   directSeedSegments,
   historyRecords,
   vessels,
   terminals,
 }: {
-  seededEvents: DockStatusEventRecord[];
   directSeedSegments: RawSeedSegment[];
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
@@ -46,59 +48,79 @@ const mapHistoryActualsToEventKeys = ({
   const directSegmentKeys = new Set(
     directSeedSegments.map((segment) => segment.Key)
   );
-  const seededDeparturesByVesselTime = new Map(
-    seededEvents
-      .filter((event) => event.EventType === "dep-dock")
-      .map((event) => [
-        toVesselDepartKey(event.VesselAbbrev, event.ScheduledDeparture),
-        event.SegmentKey,
-      ])
+  const directSegmentKeysByVesselTime = new Map(
+    directSeedSegments.map((segment) => [
+      toVesselDepartKey(segment.VesselAbbrev, segment.DepartingTime),
+      segment.Key,
+    ])
   );
-  const actualsByEventKey = new Map<string, number>();
 
-  for (const record of historyRecords) {
-    if (
-      record.ScheduledDepart === undefined ||
-      (record.ActualDepart === undefined && record.EstArrival === undefined)
-    ) {
-      continue;
-    }
-
-    const tripKey =
-      resolveStrictHistoryTripKey(
+  return new Map<string, number>(
+    collectEntries(historyRecords, (record) =>
+      buildHistoryActualEntries({
         record,
         directSegmentKeys,
+        directSegmentKeysByVesselTime,
         vessels,
-        terminals
-      ) ??
-      resolveFallbackHistoryTripKey(
-        record,
-        directSegmentKeys,
-        seededDeparturesByVesselTime,
-        vessels
-      );
+        terminals,
+      })
+    ).map((entry): [string, number] => [entry.eventKey, entry.actualTime])
+  );
+};
 
-    if (tripKey === undefined) {
-      continue;
-    }
-
-    if (record.ActualDepart !== undefined) {
-      actualsByEventKey.set(
-        buildBoundaryKey(tripKey, "dep-dock"),
-        record.ActualDepart
-      );
-    }
-
-    if (record.EstArrival !== undefined) {
-      actualsByEventKey.set(
-        buildBoundaryKey(tripKey, "arv-dock"),
-        record.EstArrival
-      );
-    }
+const buildHistoryActualEntries = ({
+  record,
+  directSegmentKeys,
+  directSegmentKeysByVesselTime,
+  vessels,
+  terminals,
+}: {
+  record: WsfVesselHistory;
+  directSegmentKeys: Set<string>;
+  directSegmentKeysByVesselTime: Map<string, string>;
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
+}): HistoryActualEntry[] => {
+  if (
+    record.ScheduledDepart === undefined ||
+    (record.ActualDepart === undefined && record.EstArrival === undefined)
+  ) {
+    return [];
   }
 
-  return actualsByEventKey;
+  const tripKey =
+    resolveStrictHistoryTripKey(
+      record,
+      directSegmentKeys,
+      vessels,
+      terminals
+    ) ??
+    resolveFallbackHistoryTripKey(
+      record,
+      directSegmentKeys,
+      directSegmentKeysByVesselTime,
+      vessels
+    );
+
+  return tripKey === undefined
+    ? []
+    : definedEntries([
+        toHistoryActualEntry(tripKey, "dep-dock", record.ActualDepart),
+        toHistoryActualEntry(tripKey, "arv-dock", record.EstArrival),
+      ]);
 };
+
+const toHistoryActualEntry = (
+  tripKey: string,
+  eventType: "dep-dock" | "arv-dock",
+  actualTime: number | undefined
+): HistoryActualEntry | undefined =>
+  actualTime === undefined
+    ? undefined
+    : {
+        eventKey: buildBoundaryKey(tripKey, eventType),
+        actualTime,
+      };
 
 /**
  * Resolves a history row by vessel and terminal identities.
@@ -116,7 +138,7 @@ const resolveStrictHistoryTripKey = (
   terminals: ReadonlyArray<TerminalIdentity>
 ) => {
   const resolvedHistory = resolveVesselHistory(
-    toAdapterHistoryRecord(record),
+    toAdapterHistoryIdentityRecord(record),
     vessels,
     terminals
   );
@@ -140,14 +162,14 @@ const resolveStrictHistoryTripKey = (
  *
  * @param record - WSF vessel history row
  * @param directSegmentKeys - Direct seed segment keys allowed for this reload
- * @param seededDeparturesByVesselTime - Seeded dep rows keyed by vessel and ms
+ * @param directSegmentKeysByVesselTime - Direct seed rows keyed by vessel and ms
  * @param vessels - Vessel identities for adapter resolution
  * @returns Direct segment key or undefined when fallback resolution fails
  */
 const resolveFallbackHistoryTripKey = (
   record: WsfVesselHistory,
   directSegmentKeys: Set<string>,
-  seededDeparturesByVesselTime: Map<string, string>,
+  directSegmentKeysByVesselTime: Map<string, string>,
   vessels: ReadonlyArray<VesselIdentity>
 ) => {
   const vessel = tryResolveVessel(
@@ -157,7 +179,7 @@ const resolveFallbackHistoryTripKey = (
   const tripKey =
     vessel === null || record.ScheduledDepart === undefined
       ? undefined
-      : seededDeparturesByVesselTime.get(
+      : directSegmentKeysByVesselTime.get(
           toVesselDepartKey(vessel.VesselAbbrev, record.ScheduledDepart)
         );
 
@@ -167,22 +189,19 @@ const resolveFallbackHistoryTripKey = (
 };
 
 /**
- * Maps a Convex reload history row to the adapter Date-shape used for resolve.
+ * Maps a Convex reload history row to the identity fields used for resolve.
  *
  * @param row - Reload history row with epoch-ms timestamps
- * @returns Adapter-shaped history record with Date-valued timestamps
+ * @returns Adapter-shaped history record for vessel and terminal resolution
  */
-const toAdapterHistoryRecord = (row: WsfVesselHistory): VesselHistory =>
+const toAdapterHistoryIdentityRecord = (
+  row: WsfVesselHistory
+): VesselHistory =>
   ({
-    ...row,
-    ScheduledDepart:
-      row.ScheduledDepart === undefined
-        ? undefined
-        : new Date(row.ScheduledDepart),
-    ActualDepart:
-      row.ActualDepart === undefined ? undefined : new Date(row.ActualDepart),
-    EstArrival:
-      row.EstArrival === undefined ? undefined : new Date(row.EstArrival),
+    VesselId: row.VesselId,
+    Vessel: row.Vessel,
+    Departing: row.Departing,
+    Arriving: row.Arriving,
   }) as VesselHistory;
 
 /**
@@ -194,5 +213,18 @@ const toAdapterHistoryRecord = (row: WsfVesselHistory): VesselHistory =>
  */
 const toVesselDepartKey = (vesselAbbrev: string, scheduledDepart: number) =>
   `${vesselAbbrev}:${scheduledDepart}`;
+
+const definedEntries = <TEntry>(
+  entries: Array<TEntry | undefined>
+): TEntry[] => entries.filter((entry): entry is TEntry => entry !== undefined);
+
+const collectEntries = <TItem, TEntry>(
+  items: TItem[],
+  toEntries: (item: TItem) => TEntry[]
+): TEntry[] =>
+  items.reduce<TEntry[]>(
+    (entries, item) => [...entries, ...toEntries(item)],
+    []
+  );
 
 export { mapHistoryActualsToEventKeys };
