@@ -1,7 +1,6 @@
 /**
  * Type shapes for dock-event reload assembly: hydrated dock status event
- * records, trip indexes, sailing-day row build results, and reload wire rows
- * projected to epoch-ms for hydrate.
+ * records, WSF reload wire rows, trip context, and computed reload payloads.
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
@@ -9,11 +8,7 @@ import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexScheduledDockEvent } from "functions/events/eventsScheduled/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type {
-  DockStatusEventRecord,
-  WsfScheduledSegment,
-  WsfVesselHistory,
-} from "./schemas";
+import type { WsfScheduledSegment, WsfVesselHistory } from "./schemas";
 
 type RawSeedSegment = {
   Key: string;
@@ -27,13 +22,18 @@ type RawSeedSegment = {
   RouteAbbrev: string;
 };
 
-type TripContextForActualRow = {
-  TripKey: string;
-};
-
-type TripRowForActualContext = {
-  TripKey?: string;
-  ScheduleKey?: string;
+type DockStatusEventRecord = {
+  SegmentKey: string;
+  Key: string;
+  VesselAbbrev: string;
+  SailingDay: string;
+  ScheduledDeparture: number;
+  TerminalAbbrev: string;
+  EventType: DockEventType;
+  EventScheduledTime?: number;
+  EventPredictedTime?: number;
+  EventOccurred?: true;
+  EventActualTime?: number;
 };
 
 type ReloadTripForActuals = {
@@ -46,24 +46,6 @@ type ReloadTripForActuals = {
   ScheduledDeparture?: number;
   LeftDockActual?: number;
   TripEnd?: number;
-};
-
-type ComputeReloadRowsFromScheduledEventsArgs = {
-  sailingDay: string;
-  events: DockStatusEventRecord[];
-  updatedAt: number;
-  tripBySegmentKey: Map<string, TripContextForActualRow>;
-  activeTripsByVesselAbbrev: Map<
-    string,
-    ReloadTripForActuals & { TripKey: string }
-  >;
-  physicalOnlyTrips: ReloadTripForActuals[];
-  vesselLocations: ConvexVesselLocation[];
-};
-
-type ComputeReloadRowsFromScheduledEventsResult = {
-  scheduledRows: ConvexScheduledDockEvent[];
-  actualRows: ConvexActualDockEvent[];
 };
 
 type ComputeDockEventsReloadArgs = {
@@ -85,38 +67,10 @@ type DockEventsReload = {
   physicalOnlyTripKeysToPreserve: Set<string>;
 };
 
-type HistoryActualSource = "departure-actual" | "arrival-proxy";
-
-type NormalizedHistoryRecord = {
-  tripKey: string;
-  actualDeparture?: number;
-  arrivalProxy?: number;
-};
-
-type ReloadActualDockWrite = {
-  SegmentKey: string;
-  TripKey?: string;
-  VesselAbbrev: string;
-  SailingDay: string;
-  ScheduledDeparture: number;
-  TerminalAbbrev: string;
-  EventType: DockEventType;
-  EventOccurred: true;
-  EventActualTime?: number;
-};
-
-export type { DockStatusEventRecord } from "./schemas";
 export type {
   ComputeDockEventsReloadArgs,
-  ComputeReloadRowsFromScheduledEventsArgs,
-  ComputeReloadRowsFromScheduledEventsResult,
   DockEventsReload,
-  DockEventType,
-  HistoryActualSource,
-  NormalizedHistoryRecord,
+  DockStatusEventRecord,
   RawSeedSegment,
-  ReloadActualDockWrite,
   ReloadTripForActuals,
-  TripContextForActualRow,
-  TripRowForActualContext,
 };

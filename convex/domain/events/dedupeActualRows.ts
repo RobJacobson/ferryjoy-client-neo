@@ -1,10 +1,10 @@
 /**
  * Dedupes actual dock rows by EventKey for reload and upsert pipelines.
  *
- * Several reload sources can emit a row for the same physical boundary, and
- * the eventsActual upserts assume each EventKey appears at most once per call.
- * Concentrating dedupe here keeps the contract uniform between the reload
- * pipeline and the per-update sparse mutation path.
+ * Several actual-event sources can emit a row for the same physical boundary,
+ * and eventsActual upserts assume each EventKey appears at most once per call.
+ * Keeping this helper outside reload makes that shared persistence contract
+ * explicit.
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";

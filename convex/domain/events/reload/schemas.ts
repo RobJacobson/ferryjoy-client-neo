@@ -7,23 +7,8 @@
 
 import type { Infer } from "convex/values";
 import { v } from "convex/values";
-import { dockEventTypeSchema } from "functions/events/common/schemas";
 import { terminalIdentitySchema } from "functions/terminals/schemas";
 import { vesselIdentitySchema } from "functions/vessels/schemas";
-
-const dockStatusEventRecordArgs = v.object({
-  SegmentKey: v.string(),
-  Key: v.string(),
-  VesselAbbrev: v.string(),
-  SailingDay: v.string(),
-  ScheduledDeparture: v.number(),
-  TerminalAbbrev: v.string(),
-  EventType: dockEventTypeSchema,
-  EventScheduledTime: v.optional(v.number()),
-  EventPredictedTime: v.optional(v.number()),
-  EventOccurred: v.optional(v.literal(true)),
-  EventActualTime: v.optional(v.number()),
-});
 
 const wsfScheduledSegmentArgs = v.object({
   VesselName: v.string(),
@@ -63,8 +48,6 @@ const reseedDockEventsDayCountReturnSchema = v.object({
   actualCount: v.number(),
 });
 
-type DockStatusEventRecord = Infer<typeof dockStatusEventRecordArgs>;
-
 type WsfScheduledSegment = Infer<typeof wsfScheduledSegmentArgs>;
 
 type WsfVesselHistory = Infer<typeof wsfVesselHistoryArgs>;
@@ -78,7 +61,6 @@ type ReloadDockDayCountResult = Infer<
 >;
 
 export type {
-  DockStatusEventRecord,
   ReloadDockDayCountResult,
   ReseedDockStatusEventsFromExternalInputArgs,
   WsfScheduledSegment,
@@ -86,9 +68,6 @@ export type {
 };
 
 export {
-  dockStatusEventRecordArgs,
   reseedDockEventsDayCountReturnSchema,
   reseedDockStatusEventsFromExternalInputArgsSchema,
-  wsfScheduledSegmentArgs,
-  wsfVesselHistoryArgs,
 };

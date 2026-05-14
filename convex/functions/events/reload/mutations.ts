@@ -126,7 +126,6 @@ const reseedDockStatusEventsForSailingDay = internalMutation({
 });
 
 export type {
-  DockStatusEventRecord,
   ReloadDockDayCountResult,
   ReseedDockStatusEventsFromExternalInputArgs,
 } from "domain/events/reload/schemas";
