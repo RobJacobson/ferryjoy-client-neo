@@ -26,6 +26,7 @@ type DockStatusEventRecord = {
   SailingDay: string;
   ScheduledDeparture: number;
   TerminalAbbrev: string;
+  NextTerminalAbbrev: string;
   EventType: DockEventType;
   EventScheduledTime?: number;
   EventPredictedTime?: number;

@@ -1,36 +1,34 @@
 /**
- * Builds hydrated, normalized, timeline-sorted boundary events for one sailing day.
+ * Builds vessel-scoped reload boundary events from direct schedule segments.
  *
- * Projects each seed segment into a departure and arrival boundary record, overlays
- * actual times derived from WSF vessel history, nudges identical scheduled dock
- * seams so consecutive arrivals and departures sort distinctly, and returns the
- * boundary set in timeline order for scheduled-row projection and actual-row
- * synthesis to consume without re-sorting.
+ * Reload still persists a full sailing day at once, but schedule assembly is
+ * easier to reason about per vessel and sailing day. Each direct segment emits
+ * one departure and one arrival boundary, history actuals overlay by key, and
+ * same-terminal turnaround policy is applied while the next segment is local.
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
 import { buildBoundaryKey } from "shared/keys";
 import { getOfficialCrossingTimeMinutes } from "../../../scheduledTrips";
 import type { WsfVesselHistory } from "../schemas";
-import { collectRows } from "../shared";
 import type { DockStatusEventRecord, RawSeedSegment } from "../types";
 import { mapHistoryActualsToEventKeys } from "./mapHistoryActualsToEventKeys";
 
-const IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS = 5 * 60 * 1000;
+const MINIMUM_SAME_TERMINAL_TURNAROUND_MS = 5 * 60 * 1000;
 
 /**
- * Builds the boundary event tape that scheduled and actual stages share.
+ * Builds schedule-derived boundary events for one reload batch.
  *
- * Combines seed projection, history overlay, seam normalization, and timeline
- * sort in one pass so downstream stages can assume boundary records arrive in
- * a single canonical order. The function is pure; callers may project the
- * result into multiple row shapes without re-running the pipeline.
+ * The outer reload mutation replaces a whole sailing day, but this helper
+ * groups direct seed segments by vessel and sailing day before building rows.
+ * That keeps same-vessel continuity decisions, including minimum dock
+ * turnaround handling, local to the schedule where they are meaningful.
  *
  * @param seedSegments - Direct seed segments for the reload batch
  * @param historyRecords - WSF vessel history rows for the sailing day
  * @param vessels - Vessel identities for adapter resolution of history rows
  * @param terminals - Terminal identities for adapter resolution of history rows
- * @returns Boundary records sorted by timeline with history actuals overlaid
+ * @returns Boundary records grouped by vessel day with history actuals overlaid
  */
 const buildReloadBoundaryEvents = ({
   seedSegments,
@@ -43,25 +41,178 @@ const buildReloadBoundaryEvents = ({
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
 }): DockStatusEventRecord[] => {
-  const seededEvents = collectRows(seedSegments, buildSeedEventsForSegment);
   const historyActualsByEventKey = mapHistoryActualsToEventKeys(
     seedSegments,
     historyRecords,
     vessels,
     terminals
   );
-  const hydratedBoundaryEvents = seededEvents.map((event) =>
-    overlayHistoryActual(event, historyActualsByEventKey.get(event.Key))
-  );
-  const normalizedBoundaryEvents = normalizeScheduledDockSeams(
-    hydratedBoundaryEvents
-  );
 
-  return [...normalizedBoundaryEvents].sort(compareDockEventsByTimeline);
+  return [...groupSeedSegmentsByVesselDay(seedSegments).values()].flatMap(
+    (vesselDaySegments) =>
+      buildBoundaryEventsForVesselDay(
+        vesselDaySegments,
+        historyActualsByEventKey
+      )
+  );
 };
 
 /**
- * Overlays a history-derived actual time onto a seeded boundary record when present.
+ * Groups seed segments by vessel and sailing day.
+ *
+ * @param seedSegments - Direct seed segments for the reload batch
+ * @returns Map from vessel-day scope to direct segments in input order
+ */
+const groupSeedSegmentsByVesselDay = (
+  seedSegments: RawSeedSegment[]
+): Map<string, RawSeedSegment[]> => {
+  const seedSegmentsByVesselDay = new Map<string, RawSeedSegment[]>();
+
+  for (const segment of seedSegments) {
+    const key = toVesselDayKey(segment);
+    seedSegmentsByVesselDay.set(key, [
+      ...(seedSegmentsByVesselDay.get(key) ?? []),
+      segment,
+    ]);
+  }
+
+  return seedSegmentsByVesselDay;
+};
+
+/**
+ * Builds boundary records for one vessel and sailing day.
+ *
+ * @param seedSegments - Direct seed segments sharing a vessel and sailing day
+ * @param historyActualsByEventKey - History actual times indexed by boundary key
+ * @returns Departure and arrival records in scheduled departure order
+ */
+const buildBoundaryEventsForVesselDay = (
+  seedSegments: RawSeedSegment[],
+  historyActualsByEventKey: Map<string, number>
+): DockStatusEventRecord[] => {
+  const sortedSegments = [...seedSegments].sort(compareSeedSegmentsByDeparture);
+
+  return sortedSegments.flatMap((segment, index) =>
+    buildSeedEventsForSegment(segment, sortedSegments[index + 1]).map((event) =>
+      overlayHistoryActual(event, historyActualsByEventKey.get(event.Key))
+    )
+  );
+};
+
+/**
+ * Builds departure and arrival boundary records for one direct segment.
+ *
+ * @param segment - Direct seed segment
+ * @param nextSegment - Next direct segment for the same vessel and sailing day
+ * @returns Departure followed by arrival boundary records
+ */
+const buildSeedEventsForSegment = (
+  segment: RawSeedSegment,
+  nextSegment: RawSeedSegment | undefined
+): [DockStatusEventRecord, DockStatusEventRecord] => {
+  const scheduledArrival = resolveArrivalScheduledTimeWithTurnaround(
+    segment,
+    nextSegment
+  );
+
+  return [
+    {
+      SegmentKey: segment.Key,
+      Key: buildBoundaryKey(segment.Key, "dep-dock"),
+      VesselAbbrev: segment.VesselAbbrev,
+      SailingDay: segment.SailingDay,
+      ScheduledDeparture: segment.DepartingTime,
+      TerminalAbbrev: segment.DepartingTerminalAbbrev,
+      NextTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+      EventType: "dep-dock",
+      EventScheduledTime: segment.DepartingTime,
+    },
+    {
+      SegmentKey: segment.Key,
+      Key: buildBoundaryKey(segment.Key, "arv-dock"),
+      VesselAbbrev: segment.VesselAbbrev,
+      SailingDay: segment.SailingDay,
+      ScheduledDeparture: segment.DepartingTime,
+      TerminalAbbrev: segment.ArrivingTerminalAbbrev,
+      NextTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+      EventType: "arv-dock",
+      EventScheduledTime: scheduledArrival,
+    },
+  ];
+};
+
+/**
+ * Resolves a segment arrival time with minimum same-terminal turn handling.
+ *
+ * WSF sometimes reports an arrival at a terminal and the same vessel departure
+ * from that terminal at the exact same instant, especially on San Juan routes.
+ * Reload models a minimum five-minute dock turn by shifting the arrival
+ * boundary earlier so downstream timelines do not need one-off route fixes.
+ *
+ * @param segment - Direct seed segment whose arrival time is being resolved
+ * @param nextSegment - Next direct segment for the same vessel and sailing day
+ * @returns Scheduled arrival time, adjusted for same-terminal turnarounds
+ */
+const resolveArrivalScheduledTimeWithTurnaround = (
+  segment: RawSeedSegment,
+  nextSegment: RawSeedSegment | undefined
+): number | undefined => {
+  const scheduledArrival =
+    segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment);
+
+  return applyMinimumSameTerminalTurnaround(
+    scheduledArrival,
+    segment,
+    nextSegment
+  );
+};
+
+/**
+ * Applies the minimum same-terminal turnaround policy when needed.
+ *
+ * @param scheduledArrival - Candidate arrival time in epoch milliseconds
+ * @param segment - Direct seed segment that owns the arrival
+ * @param nextSegment - Next direct segment for the same vessel and sailing day
+ * @returns Original or adjusted arrival time
+ */
+const applyMinimumSameTerminalTurnaround = (
+  scheduledArrival: number | undefined,
+  segment: RawSeedSegment,
+  nextSegment: RawSeedSegment | undefined
+): number | undefined =>
+  scheduledArrival !== undefined &&
+  nextSegment !== undefined &&
+  segment.ArrivingTerminalAbbrev === nextSegment.DepartingTerminalAbbrev &&
+  scheduledArrival === nextSegment.DepartingTime
+    ? scheduledArrival - MINIMUM_SAME_TERMINAL_TURNAROUND_MS
+    : scheduledArrival;
+
+/**
+ * Resolves the schedule-implied arrival time when the segment lacks one.
+ *
+ * @param segment - Direct seed segment for one physical leg
+ * @returns Scheduled arrival in epoch milliseconds, or undefined when unresolvable
+ */
+const getOfficialScheduledArrivalTime = (
+  segment: RawSeedSegment
+): number | undefined => {
+  if (segment.RouteID === 9 && segment.ArrivingTime !== undefined) {
+    return segment.ArrivingTime;
+  }
+
+  const duration = getOfficialCrossingTimeMinutes({
+    routeAbbrev: segment.RouteAbbrev,
+    departingTerminalAbbrev: segment.DepartingTerminalAbbrev,
+    arrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
+  });
+
+  return duration === undefined
+    ? undefined
+    : segment.DepartingTime + duration * 60 * 1000;
+};
+
+/**
+ * Overlays a history-derived actual time onto a seeded boundary record.
  *
  * @param event - Boundary record built from the seed segment
  * @param historyActualTime - Observed instant from history, when matched to this key
@@ -84,163 +235,25 @@ const overlayHistoryActual = (
 };
 
 /**
- * Builds dep and arv boundary records for one seed segment.
+ * Compares direct seed segments by scheduled departure time.
+ *
+ * @param left - First direct seed segment
+ * @param right - Second direct seed segment
+ * @returns Numeric sort result by departing time
+ */
+const compareSeedSegmentsByDeparture = (
+  left: RawSeedSegment,
+  right: RawSeedSegment
+): number => left.DepartingTime - right.DepartingTime;
+
+/**
+ * Builds the grouping key for a seed segment vessel and sailing day.
  *
  * @param segment - Direct seed segment
- * @returns Departure followed by arrival boundary record
+ * @returns Composite vessel-day key
  */
-const buildSeedEventsForSegment = (
-  segment: RawSeedSegment
-): [DockStatusEventRecord, DockStatusEventRecord] => {
-  const scheduledArrival = normalizeScheduledArrivalTime(
-    segment.ArrivingTime ?? getOfficialScheduledArrivalTime(segment),
-    segment.DepartingTime
-  );
-
-  return [
-    {
-      SegmentKey: segment.Key,
-      Key: buildBoundaryKey(segment.Key, "dep-dock"),
-      VesselAbbrev: segment.VesselAbbrev,
-      SailingDay: segment.SailingDay,
-      ScheduledDeparture: segment.DepartingTime,
-      TerminalAbbrev: segment.DepartingTerminalAbbrev,
-      EventType: "dep-dock",
-      EventScheduledTime: segment.DepartingTime,
-    },
-    {
-      SegmentKey: segment.Key,
-      Key: buildBoundaryKey(segment.Key, "arv-dock"),
-      VesselAbbrev: segment.VesselAbbrev,
-      SailingDay: segment.SailingDay,
-      ScheduledDeparture: segment.DepartingTime,
-      TerminalAbbrev: segment.ArrivingTerminalAbbrev,
-      EventType: "arv-dock",
-      EventScheduledTime: scheduledArrival,
-    },
-  ];
-};
-
-/**
- * Nudges scheduled arrival time backward when it equals the dep instant.
- *
- * @param scheduledArrival - Scheduled arrival time in epoch milliseconds
- * @param scheduledDeparture - Scheduled departure time in epoch milliseconds
- * @returns Adjusted arrival time or the original value when distinct
- */
-const normalizeScheduledArrivalTime = (
-  scheduledArrival: number | undefined,
-  scheduledDeparture: number
-) =>
-  scheduledArrival !== undefined && scheduledArrival === scheduledDeparture
-    ? scheduledArrival - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS
-    : scheduledArrival;
-
-/**
- * Resolves the schedule-implied arrival time when the segment lacks one.
- *
- * @param segment - Direct seed segment for one physical leg
- * @returns Scheduled arrival in epoch ms, or undefined when unresolvable
- */
-const getOfficialScheduledArrivalTime = (segment: RawSeedSegment) => {
-  if (segment.RouteID === 9 && segment.ArrivingTime !== undefined) {
-    return segment.ArrivingTime;
-  }
-
-  const duration = getOfficialCrossingTimeMinutes({
-    routeAbbrev: segment.RouteAbbrev,
-    departingTerminalAbbrev: segment.DepartingTerminalAbbrev,
-    arrivingTerminalAbbrev: segment.ArrivingTerminalAbbrev,
-  });
-
-  return duration === undefined
-    ? undefined
-    : segment.DepartingTime + duration * 60 * 1000;
-};
-
-/**
- * Adjusts back-to-back scheduled dock seams that share the same scheduled minute.
- *
- * @param events - Boundary records for one reload batch
- * @returns Copy with arrival times nudged where identical seams were detected
- */
-const normalizeScheduledDockSeams = (
-  events: DockStatusEventRecord[]
-): DockStatusEventRecord[] => {
-  const eventsByVesselDay = new Map<string, DockStatusEventRecord[]>();
-
-  for (const event of events) {
-    const key = `${event.VesselAbbrev}:${event.SailingDay}`;
-    eventsByVesselDay.set(key, [...(eventsByVesselDay.get(key) ?? []), event]);
-  }
-
-  return [...eventsByVesselDay.values()].reduce<DockStatusEventRecord[]>(
-    (normalizedEvents, scopedEvents) => [
-      ...normalizedEvents,
-      ...[...scopedEvents]
-        .sort(compareDockEventsByTimeline)
-        .map((event, index, sortedScopedEvents) =>
-          normalizeScheduledDockSeamEvent(event, sortedScopedEvents[index + 1])
-        ),
-    ],
-    []
-  );
-};
-
-/**
- * Nudges one arrival boundary when it shares a scheduled instant with the next departure at the same dock.
- *
- * @param event - Candidate arrival boundary in timeline order for its vessel day
- * @param next - Following boundary when present in sorted vessel-day scope
- * @returns Same event or a copy with arrival scheduled time shifted earlier by five minutes
- */
-const normalizeScheduledDockSeamEvent = (
-  event: DockStatusEventRecord,
-  next: DockStatusEventRecord | undefined
-): DockStatusEventRecord => {
-  if (!shouldNudgeScheduledArrivalSeam(event, next)) {
-    return event;
-  }
-
-  return {
-    ...event,
-    EventScheduledTime:
-      event.EventScheduledTime - IDENTICAL_SCHEDULED_DOCK_TIME_OFFSET_MS,
-  };
-};
-
-/**
- * Returns whether an arrival and the next departure form an identical-time seam worth nudging.
- *
- * @param event - Candidate boundary record
- * @param next - Immediate successor in sorted vessel-day order when present
- * @returns True when event is arrival, next is departure at same terminal sharing scheduled time
- */
-const shouldNudgeScheduledArrivalSeam = (
-  event: DockStatusEventRecord,
-  next: DockStatusEventRecord | undefined
-): event is DockStatusEventRecord & { EventScheduledTime: number } =>
-  event.EventScheduledTime !== undefined &&
-  next !== undefined &&
-  event.EventType === "arv-dock" &&
-  next.EventType === "dep-dock" &&
-  event.TerminalAbbrev === next.TerminalAbbrev &&
-  event.EventScheduledTime === next.EventScheduledTime;
-
-/**
- * Compares two boundary records for timeline ordering when sorting an array.
- *
- * @param left - First record
- * @param right - Second record
- * @returns Comparator value suitable for Array.sort
- */
-const compareDockEventsByTimeline = (
-  left: DockStatusEventRecord,
-  right: DockStatusEventRecord
-) =>
-  left.ScheduledDeparture - right.ScheduledDeparture ||
-  (left.EventType === "dep-dock" ? 0 : 1) -
-    (right.EventType === "dep-dock" ? 0 : 1) ||
-  left.TerminalAbbrev.localeCompare(right.TerminalAbbrev);
+const toVesselDayKey = (
+  segment: Pick<RawSeedSegment, "VesselAbbrev" | "SailingDay">
+) => `${segment.VesselAbbrev}:${segment.SailingDay}`;
 
 export { buildReloadBoundaryEvents };

@@ -380,27 +380,89 @@ const findArrivalEventForLocation = (
     return undefined;
   }
 
-  // Narrow to unoccurred arrivals before the bound and no later than the ping.
-  const eligibleArrivalsForAtDockInference = events.filter(
-    (event) =>
-      event.EventType === "arv-dock" &&
-      event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-      event.ScheduledDeparture < scheduledDepartureUpperBound &&
-      event.EventOccurred !== true &&
-      Math.min(
-        event.ScheduledDeparture,
-        event.EventPredictedTime ?? Number.POSITIVE_INFINITY,
-        event.EventScheduledTime ?? Number.POSITIVE_INFINITY
-      ) <= location.TimeStamp
+  return events.reduce<DockStatusEventRecord | undefined>((latest, event) => {
+    if (
+      !isPriorArrivalAtCurrentDock(
+        event,
+        location,
+        scheduledDepartureUpperBound
+      ) ||
+      !hasNoObservedActual(event) ||
+      !arrivalCouldHaveOccurredByPingTime(event, location)
+    ) {
+      return latest;
+    }
+
+    return pickLaterScheduledDeparture(latest, event);
+  }, undefined);
+};
+
+/**
+ * Returns whether an event is a prior arrival at the ping's current dock.
+ *
+ * @param event - Candidate boundary event
+ * @param location - Vessel location ping used for terminal matching
+ * @param scheduledDepartureUpperBound - Exclusive upper bound for prior arrivals
+ * @returns True when the boundary is a prior arrival at the location dock
+ */
+const isPriorArrivalAtCurrentDock = (
+  event: DockStatusEventRecord,
+  location: ConvexVesselLocation,
+  scheduledDepartureUpperBound: number
+): boolean =>
+  event.EventType === "arv-dock" &&
+  event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+  event.ScheduledDeparture < scheduledDepartureUpperBound;
+
+/**
+ * Returns whether a boundary still lacks stronger observed evidence.
+ *
+ * @param event - Candidate boundary event
+ * @returns True when history hydration has not already marked the boundary observed
+ */
+const hasNoObservedActual = (event: DockStatusEventRecord): boolean =>
+  event.EventOccurred !== true;
+
+/**
+ * Returns whether the ping is late enough to infer the arrival boundary.
+ *
+ * @param event - Candidate arrival boundary
+ * @param location - Vessel location ping used for timestamp comparison
+ * @returns True when the earliest arrival evidence time is no later than the ping
+ */
+const arrivalCouldHaveOccurredByPingTime = (
+  event: DockStatusEventRecord,
+  location: ConvexVesselLocation
+): boolean => getEarliestArrivalEvidenceTime(event) <= location.TimeStamp;
+
+/**
+ * Resolves the earliest timestamp that can make an arrival eligible.
+ *
+ * @param event - Candidate arrival boundary
+ * @returns Earliest scheduled, predicted, or explicit boundary time used by the existing fallback policy
+ */
+const getEarliestArrivalEvidenceTime = (event: DockStatusEventRecord): number =>
+  Math.min(
+    event.ScheduledDeparture,
+    event.EventPredictedTime ?? Number.POSITIVE_INFINITY,
+    event.EventScheduledTime ?? Number.POSITIVE_INFINITY
   );
 
-  // Order eligibles by scheduled departure; the last entry is the latest prior arrival.
-  const eligibleSortedByScheduledDeparture = [
-    ...eligibleArrivalsForAtDockInference,
-  ].sort((left, right) => left.ScheduledDeparture - right.ScheduledDeparture);
-
-  return eligibleSortedByScheduledDeparture.at(-1);
-};
+/**
+ * Picks the candidate with the later scheduled departure.
+ *
+ * @param latest - Current best eligible arrival
+ * @param candidate - Newly eligible arrival candidate
+ * @returns Later candidate by scheduled departure
+ */
+const pickLaterScheduledDeparture = (
+  latest: DockStatusEventRecord | undefined,
+  candidate: DockStatusEventRecord
+): DockStatusEventRecord =>
+  latest === undefined ||
+  candidate.ScheduledDeparture > latest.ScheduledDeparture
+    ? candidate
+    : latest;
 
 /**
  * Builds the dedupe set for live-location fallback rows.

@@ -17,7 +17,10 @@ import type {
   WsfScheduledSegment,
   WsfVesselHistory,
 } from "domain/events/reload/schemas";
-import type { ReloadTripForActuals } from "domain/events/reload/types";
+import type {
+  DockStatusEventRecord,
+  ReloadTripForActuals,
+} from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -31,6 +34,11 @@ const vessels: VesselIdentity[] = [
     VesselID: 1,
     VesselName: "Wenatchee",
     VesselAbbrev: "WEN",
+  },
+  {
+    VesselID: 2,
+    VesselName: "Tacoma",
+    VesselAbbrev: "TAC",
   },
 ];
 
@@ -76,7 +84,36 @@ describe("reload dock sailing day rows from schedule and history", () => {
     );
   });
 
-  it("nudges only the arrival side of identical scheduled dock seams", () => {
+  it("copies next terminal from boundary records without arrival lookup", () => {
+    const boundaryEvent: DockStatusEventRecord = {
+      SegmentKey: "segment-without-arrival",
+      Key: "segment-without-arrival--dep-dock",
+      VesselAbbrev: "WEN",
+      SailingDay: "2026-03-25",
+      ScheduledDeparture: at(8, 0),
+      TerminalAbbrev: "P52",
+      NextTerminalAbbrev: "BBI",
+      EventType: "dep-dock",
+      EventScheduledTime: at(8, 0),
+    };
+
+    expect(buildScheduledRows([boundaryEvent], 42)).toEqual([
+      {
+        Key: "segment-without-arrival--dep-dock",
+        VesselAbbrev: "WEN",
+        SailingDay: "2026-03-25",
+        UpdatedAt: 42,
+        ScheduledDeparture: at(8, 0),
+        TerminalAbbrev: "P52",
+        NextTerminalAbbrev: "BBI",
+        EventType: "dep-dock",
+        EventScheduledTime: at(8, 0),
+        IsLastArrivalOfSailingDay: false,
+      },
+    ]);
+  });
+
+  it("applies minimum same-terminal turnaround to the arrival side", () => {
     const firstDeparture = at(9, 0);
     const sharedSeamTime = at(9, 35);
     const secondArrival = at(10, 10);
@@ -116,6 +153,52 @@ describe("reload dock sailing day rows from schedule and history", () => {
       ["arv-dock", "BBI", sharedSeamTime - 5 * 60 * 1000],
       ["dep-dock", "BBI", sharedSeamTime],
       ["arv-dock", "P52", secondArrival],
+    ]);
+  });
+
+  it("marks the final arrival for each vessel sailing day", () => {
+    const result = buildReloadResult({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: at(8, 0),
+          arrival: at(8, 35),
+        }),
+        scheduleSegment({
+          departure: at(9, 0),
+          arrival: at(9, 35),
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+        scheduleSegment({
+          vesselName: "Tacoma",
+          departure: at(8, 15),
+          arrival: at(8, 50),
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      activeTrips: [],
+      completedTrips: [],
+      vesselLocations: [],
+      updatedAt: 42,
+    });
+
+    expect(
+      result.scheduledRows
+        .filter((row) => row.EventType === "arv-dock")
+        .map((row) => [
+          row.VesselAbbrev,
+          row.ScheduledDeparture,
+          row.IsLastArrivalOfSailingDay,
+        ])
+    ).toEqual([
+      ["WEN", at(8, 0), false],
+      ["WEN", at(9, 0), true],
+      ["TAC", at(8, 15), true],
     ]);
   });
 
@@ -1010,6 +1093,7 @@ const buildReloadResult = ({
 };
 
 const scheduleSegment = ({
+  vesselName = "Wenatchee",
   departure,
   arrival,
   departingTerminalID = 1,
@@ -1017,6 +1101,7 @@ const scheduleSegment = ({
   arrivingTerminalID = 2,
   arrivingTerminalName = "Bainbridge Island",
 }: {
+  vesselName?: string;
   departure: number;
   arrival: number;
   departingTerminalID?: number;
@@ -1024,7 +1109,7 @@ const scheduleSegment = ({
   arrivingTerminalID?: number;
   arrivingTerminalName?: string;
 }): WsfScheduledSegment => ({
-  VesselName: "Wenatchee",
+  VesselName: vesselName,
   DepartingTerminalID: departingTerminalID,
   ArrivingTerminalID: arrivingTerminalID,
   DepartingTerminalName: departingTerminalName,
