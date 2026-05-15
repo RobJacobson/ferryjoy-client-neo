@@ -1,26 +1,18 @@
 /**
  * Tests for scheduled and actual dock-event reload assembly.
  *
- * Exercises pure boundary context resolution, seam handling, scheduled-row
- * projection, and actual-row synthesis from history, trip fields, and current
- * tracking data. Helpers build small WSF-shaped fixtures so cases stay focused
- * on reload behavior instead of adapter details.
+ * Exercises the public reload transform across schedule rows, durable actual
+ * evidence, physical-only trips, and current tracking data. Helpers build small
+ * WSF-shaped fixtures so cases stay focused on behavior instead of adapters.
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-  buildActualRows,
-  buildReloadBoundaryContext,
-  buildScheduledRows,
-} from "domain/events/reload";
+import { buildReloadRows } from "domain/events/reload";
 import type {
   WsfScheduledSegment,
   WsfVesselHistory,
 } from "domain/events/reload/schemas";
-import type {
-  ReloadScheduledBoundary,
-  ReloadTripForActuals,
-} from "domain/events/reload/types";
+import type { ReloadTripInput } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -56,16 +48,21 @@ const terminals: TerminalIdentity[] = [
 ];
 
 describe("reload dock sailing day rows from schedule and history", () => {
-  it("projects scheduled rows from the shared boundary context", () => {
+  it("projects scheduled rows from direct schedule segments", () => {
     const departure = at(8, 20);
     const arrival = at(8, 55);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
     const scheduledSegments = [scheduleSegment({ departure, arrival })];
 
-    const boundaryContext = buildReloadBoundaryContext({
-      scheduleSegments: scheduledSegments,
-      vessels,
-      terminals,
-    });
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
     const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: scheduledSegments,
@@ -78,38 +75,33 @@ describe("reload dock sailing day rows from schedule and history", () => {
       updatedAt: 42,
     });
 
-    expect(buildScheduledRows(boundaryContext.boundaryEvents, 42)).toEqual(
-      result.scheduledRows
-    );
-  });
-
-  it("copies next terminal from boundary records without arrival lookup", () => {
-    const boundaryEvent: ReloadScheduledBoundary = {
-      SegmentKey: "segment-without-arrival",
-      Key: "segment-without-arrival--dep-dock",
-      VesselAbbrev: "WEN",
-      SailingDay: "2026-03-25",
-      ScheduledDeparture: at(8, 0),
-      TerminalAbbrev: "P52",
-      NextTerminalAbbrev: "BBI",
-      EventType: "dep-dock",
-      EventScheduledTime: at(8, 0),
-    };
-
-    expect(buildScheduledRows([boundaryEvent], 42)).toEqual([
+    expect(result.scheduledRows).toEqual([
       {
-        Key: "segment-without-arrival--dep-dock",
+        Key: `${segmentKey}--dep-dock`,
         VesselAbbrev: "WEN",
         SailingDay: "2026-03-25",
         UpdatedAt: 42,
-        ScheduledDeparture: at(8, 0),
+        ScheduledDeparture: departure,
         TerminalAbbrev: "P52",
         NextTerminalAbbrev: "BBI",
         EventType: "dep-dock",
-        EventScheduledTime: at(8, 0),
+        EventScheduledTime: departure,
         IsLastArrivalOfSailingDay: false,
       },
+      {
+        Key: `${segmentKey}--arv-dock`,
+        VesselAbbrev: "WEN",
+        SailingDay: "2026-03-25",
+        UpdatedAt: 42,
+        ScheduledDeparture: departure,
+        TerminalAbbrev: "BBI",
+        NextTerminalAbbrev: "BBI",
+        EventType: "arv-dock",
+        EventScheduledTime: arrival,
+        IsLastArrivalOfSailingDay: true,
+      },
     ]);
+    expect(result.actualRows).toEqual([]);
   });
 
   it("applies minimum same-terminal turnaround to the arrival side", () => {
@@ -228,11 +220,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
         EstArrival: estimatedArrival,
       },
     ];
-    const boundaryContext = buildReloadBoundaryContext({
-      scheduleSegments: [scheduleSegment({ departure, arrival })],
-      vessels,
-      terminals,
-    });
     const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
@@ -258,15 +245,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
     expect(result.scheduledRows.map((row) => row.EventType)).toEqual([
       "dep-dock",
       "arv-dock",
-    ]);
-    expect(
-      boundaryContext.boundaryEvents.map((event) => [
-        "EventActualTime" in event,
-        "EventOccurred" in event,
-      ])
-    ).toEqual([
-      [false, false],
-      [false, false],
     ]);
     expect(
       result.actualRows.map((row) => [
@@ -887,6 +865,88 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-previous--arv-dock", "arv-dock", undefined]]);
   });
 
+  it("does not infer a scheduled arrival before its arrival boundary time", () => {
+    const firstDeparture = at(15, 0);
+    const firstArrival = at(15, 35);
+    const secondDeparture = at(16, 0);
+    const secondArrival = at(16, 35);
+    const firstSegmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(firstDeparture)
+    );
+    const secondSegmentKey = buildSegmentKey(
+      "WEN",
+      "BBI",
+      "P52",
+      new Date(secondDeparture)
+    );
+
+    if (firstSegmentKey === undefined || secondSegmentKey === undefined) {
+      throw new Error("Expected fixture segment keys.");
+    }
+
+    const result = buildReloadResult({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: firstDeparture,
+          arrival: firstArrival,
+        }),
+        scheduleSegment({
+          departure: secondDeparture,
+          arrival: secondArrival,
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      activeTrips: [
+        {
+          TripKey: "trip-next",
+          ScheduleKey: secondSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+        },
+      ],
+      completedTrips: [
+        {
+          TripKey: "trip-previous",
+          ScheduleKey: firstSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: firstDeparture,
+        },
+      ],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          DepartingTerminalID: 2,
+          DepartingTerminalName: "Bainbridge Island",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalID: 1,
+          ArrivingTerminalName: "Seattle",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+          TimeStamp: at(15, 20),
+        }),
+      ],
+      updatedAt: 42,
+    });
+
+    expect(result.actualRows).toEqual([]);
+  });
+
   it("chooses the most recent eligible prior scheduled arrival row", () => {
     const firstDeparture = at(14, 0);
     const firstArrival = at(14, 35);
@@ -1078,36 +1138,22 @@ const buildReloadResult = ({
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-  activeTrips: ReloadTripForActuals[];
-  completedTrips: ReloadTripForActuals[];
+  activeTrips: ReloadTripInput[];
+  completedTrips: ReloadTripInput[];
   vesselLocations: ConvexVesselLocation[];
   updatedAt: number;
-}) => {
-  const boundaryContext = buildReloadBoundaryContext({
+}) =>
+  buildReloadRows({
+    sailingDay,
     scheduleSegments,
+    historyRecords,
+    activeTrips,
+    completedTrips,
+    vesselLocations,
     vessels,
     terminals,
+    updatedAt,
   });
-
-  return {
-    scheduledRows: buildScheduledRows(
-      boundaryContext.boundaryEvents,
-      updatedAt
-    ),
-    actualRows: buildActualRows({
-      sailingDay,
-      seedSegments: boundaryContext.seedSegments,
-      boundaryEvents: boundaryContext.boundaryEvents,
-      historyRecords,
-      activeTrips,
-      completedTrips,
-      vesselLocations,
-      vessels,
-      terminals,
-      updatedAt,
-    }),
-  };
-};
 
 const scheduleSegment = ({
   vesselName = "Wenatchee",
