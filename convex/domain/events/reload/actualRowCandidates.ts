@@ -1,32 +1,32 @@
 /**
- * Shared actual-evidence helpers for reload sources.
+ * Shared actual-row candidate helpers for reload sources.
  *
- * History, trip-field, and tracking evidence all materialize through the same
- * source-neutral shape before precedence is applied in actual-row assembly.
+ * History, trip-field, and tracking sources all materialize through the same
+ * row-candidate shape before precedence is applied in actual-row assembly.
  */
 
 import type {
-  ActualEvidence,
+  ActualRowCandidate,
   ReloadTripWithTripKey,
   ScheduledBoundary,
 } from "./types";
 
 /**
- * Builds evidence from a scheduled boundary and TripKey.
+ * Builds an actual row candidate from a scheduled boundary and TripKey.
  *
- * @param boundary - Scheduled boundary matched by evidence
+ * @param boundary - Scheduled boundary matched by the source
  * @param tripKey - Physical TripKey joined to the boundary segment
  * @param actualTime - Observed boundary time when known
- * @param source - Evidence source label for precedence and debugging
- * @returns Actual evidence or undefined when required values are absent
+ * @param requireActualTime - Whether this source needs a timestamp to emit a row
+ * @returns Actual row candidate or undefined when required values are absent
  */
-const toBoundaryEvidence = (
+const toBoundaryActualRowCandidate = (
   boundary: ScheduledBoundary,
   tripKey: string | undefined,
   actualTime: number | undefined,
-  source: ActualEvidence["source"]
-): ActualEvidence | undefined =>
-  tripKey === undefined || (source === "history" && actualTime === undefined)
+  requireActualTime = false
+): ActualRowCandidate | undefined =>
+  tripKey === undefined || (requireActualTime && actualTime === undefined)
     ? undefined
     : {
         tripKey,
@@ -36,26 +36,23 @@ const toBoundaryEvidence = (
         terminalAbbrev: boundary.TerminalAbbrev,
         eventType: boundary.EventType,
         actualTime,
-        source,
       };
 
 /**
- * Builds evidence from a physical-only trip and observed boundary.
+ * Builds an actual row candidate from a physical-only trip and observed boundary.
  *
  * @param trip - Physical-only trip carrying TripKey
  * @param terminalAbbrev - Boundary terminal abbrev
  * @param eventType - Dock boundary type
  * @param actualTime - Observed boundary time
- * @param source - Evidence source label for precedence and debugging
- * @returns Actual evidence anchored by scheduled departure or actual time
+ * @returns Actual row candidate anchored by scheduled departure or actual time
  */
-const toTripEvidence = (
+const toTripActualRowCandidate = (
   trip: ReloadTripWithTripKey,
   terminalAbbrev: string,
-  eventType: ActualEvidence["eventType"],
-  actualTime: number,
-  source: ActualEvidence["source"]
-): ActualEvidence => ({
+  eventType: ActualRowCandidate["eventType"],
+  actualTime: number
+): ActualRowCandidate => ({
   tripKey: trip.TripKey,
   vesselAbbrev: trip.VesselAbbrev,
   sailingDay: trip.SailingDay,
@@ -63,7 +60,6 @@ const toTripEvidence = (
   terminalAbbrev,
   eventType,
   actualTime,
-  source,
 });
 
 /**
@@ -75,4 +71,4 @@ const toTripEvidence = (
 const isDefined = <TValue>(value: TValue | undefined): value is TValue =>
   value !== undefined;
 
-export { isDefined, toBoundaryEvidence, toTripEvidence };
+export { isDefined, toBoundaryActualRowCandidate, toTripActualRowCandidate };

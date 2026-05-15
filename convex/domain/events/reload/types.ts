@@ -1,7 +1,7 @@
 /**
  * Type shapes for dock-event reload assembly.
  *
- * Reload transforms WSF schedule legs, observed evidence, active trips, and
+ * Reload transforms WSF schedule legs, actual row candidates, active trips, and
  * current vessel tracking into the scheduled and actual dock-event rows that
  * the persistence mutation replaces for one sailing day.
  */
@@ -38,7 +38,7 @@ type ScheduledBoundary = {
   EventScheduledTime?: number;
 };
 
-type ActualEvidence = {
+type ActualRowCandidate = {
   tripKey: string;
   vesselAbbrev: string;
   sailingDay?: string;
@@ -46,7 +46,6 @@ type ActualEvidence = {
   terminalAbbrev: string;
   eventType: DockEventType;
   actualTime?: number;
-  source: "history" | "trip" | "tracking";
 };
 
 type ReloadTripInput = {
@@ -82,7 +81,7 @@ type BuildReloadRowsResult = {
 };
 
 export type {
-  ActualEvidence,
+  ActualRowCandidate,
   BuildReloadRowsArgs,
   BuildReloadRowsResult,
   ReloadTripInput,

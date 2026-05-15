@@ -1,7 +1,7 @@
 /**
- * Build actual evidence from WSF vessel history rows.
+ * Build actual row candidates from WSF vessel history rows.
  *
- * History is durable evidence. Strict vessel and terminal matching runs first,
+ * History is durable. Strict vessel and terminal matching runs first,
  * with vessel plus scheduled departure as a recovery path for ambiguous
  * terminal names.
  */
@@ -14,9 +14,9 @@ import {
 } from "adapters";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { isDefined, toBoundaryEvidence } from "./actualEvidence";
+import { isDefined, toBoundaryActualRowCandidate } from "./actualRowCandidates";
 import type { WsfVesselHistory } from "./schemas";
-import type { ActualEvidence, ScheduledBoundary, SeedLeg } from "./types";
+import type { ActualRowCandidate, ScheduledBoundary, SeedLeg } from "./types";
 
 type HistorySeedLookup = {
   segmentKeys: Set<string>;
@@ -24,12 +24,12 @@ type HistorySeedLookup = {
 };
 
 /**
- * Builds actual evidence from WSF history records.
+ * Builds actual row candidates from WSF history records.
  *
  * @param options - Seed legs, scheduled boundaries, history rows, TripKey lookup, and identity tables
- * @returns Durable history evidence joined to TripKeys
+ * @returns Durable history candidates joined to TripKeys
  */
-const buildHistoryEvidence = ({
+const buildHistoryActualRowCandidates = ({
   seedLegs,
   boundaries,
   historyRecords,
@@ -43,25 +43,25 @@ const buildHistoryEvidence = ({
   tripKeyBySegmentKey: Map<string, string>;
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-}): ActualEvidence[] => {
+}): ActualRowCandidate[] => {
   const actualTimeByBoundaryKey = mapHistoryActualsToBoundaryKeys(
     seedLegs,
     historyRecords,
     vessels,
     terminals
   );
-  const historyEvidence = boundaries
+  const historyCandidates = boundaries
     .map((boundary) =>
-      toBoundaryEvidence(
+      toBoundaryActualRowCandidate(
         boundary,
         tripKeyBySegmentKey.get(boundary.SegmentKey),
         actualTimeByBoundaryKey.get(boundary.Key),
-        "history"
+        true
       )
     )
     .filter(isDefined);
 
-  return historyEvidence;
+  return historyCandidates;
 };
 
 /**
@@ -127,7 +127,7 @@ const historyRecordToBoundaryEntries = (
  */
 const toHistoryBoundaryEntry = (
   segmentKey: string,
-  eventType: ActualEvidence["eventType"],
+  eventType: ActualRowCandidate["eventType"],
   actualTime: number | undefined
 ): [string, number] | undefined =>
   actualTime === undefined
@@ -252,7 +252,7 @@ const toAdapterHistoryIdentityRecord = (row: WsfVesselHistory): VesselHistory =>
   }) as VesselHistory;
 
 /**
- * Returns whether a history row has enough data to produce actual evidence.
+ * Returns whether a history row has enough data to produce an actual row candidate.
  *
  * @param record - WSF history row
  * @returns True when scheduled departure and at least one actual timestamp exist
@@ -273,4 +273,4 @@ const toVesselDepartureKey = (
   scheduledDeparture: number
 ) => `${vesselAbbrev}:${scheduledDeparture}`;
 
-export { buildHistoryEvidence };
+export { buildHistoryActualRowCandidates };

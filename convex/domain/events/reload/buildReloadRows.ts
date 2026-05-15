@@ -3,7 +3,7 @@
  *
  * The reload transform keeps the data flow direct: schedule inputs become seed
  * legs, seed legs become scheduled boundaries, and durable plus tracking
- * evidence becomes actual rows with clear source precedence.
+ * row candidates become actual rows with clear source precedence.
  */
 
 import {
@@ -19,7 +19,7 @@ import type { BuildReloadRowsArgs, BuildReloadRowsResult } from "./types";
  * Builds scheduled rows, actual rows, and physical-only preserve keys.
  *
  * The function is the public domain entry point for the reload mutation. It
- * applies source precedence by reducing evidence in order: WSF history first,
+ * applies source precedence by reducing row candidates in order: WSF history first,
  * durable trip fields second, current tracking last. Existing physical-only
  * TripKeys are returned with the rows so replacement persistence can preserve
  * absent physical-only actuals.

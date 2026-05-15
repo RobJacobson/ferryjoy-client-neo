@@ -1,8 +1,8 @@
 /**
- * Build actual evidence from current vessel tracking rows.
+ * Build actual row candidates from current vessel tracking rows.
  *
- * Tracking is a current-state evidence source that fills scheduled and
- * physical-only trip boundaries after durable history and trip fields have had
+ * Tracking is a current-state source that fills scheduled and physical-only
+ * trip boundaries after durable history and trip fields have had
  * first chance to represent those boundaries.
  */
 
@@ -11,30 +11,30 @@ import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import { getSailingDay } from "shared/time";
 import {
   isDefined,
-  toBoundaryEvidence,
-  toTripEvidence,
-} from "./actualEvidence";
+  toBoundaryActualRowCandidate,
+  toTripActualRowCandidate,
+} from "./actualRowCandidates";
 import type {
-  ActualEvidence,
+  ActualRowCandidate,
   ReloadTripWithTripKey,
   ScheduledBoundary,
 } from "./types";
 
 /**
- * Builds actual evidence from tracking rows aligned to scheduled boundaries.
+ * Builds actual row candidates from tracking rows aligned to scheduled boundaries.
  *
  * @param locations - Current tracking rows scoped to the reload sailing day
  * @param boundariesByVessel - Scheduled boundaries grouped by vessel abbrev
  * @param tripKeyBySegmentKey - TripKey lookup by schedule segment key
- * @returns Tracking evidence for scheduled TripKeys
+ * @returns Tracking candidates for scheduled TripKeys
  */
-const buildScheduleAlignedTrackingEvidence = (
+const buildScheduleAlignedTrackingActualRowCandidates = (
   locations: ConvexVesselLocation[],
   boundariesByVessel: Map<string, ScheduledBoundary[]>,
   tripKeyBySegmentKey: Map<string, string>
-): ActualEvidence[] =>
+): ActualRowCandidate[] =>
   locations.flatMap((location) =>
-    buildTrackingEvidenceForScheduledBoundaries(
+    buildTrackingActualRowCandidatesForScheduledBoundaries(
       location,
       boundariesByVessel.get(location.VesselAbbrev) ?? [],
       tripKeyBySegmentKey
@@ -42,59 +42,57 @@ const buildScheduleAlignedTrackingEvidence = (
   );
 
 /**
- * Builds actual evidence from tracking rows for active physical-only trips.
+ * Builds actual row candidates from tracking rows for active physical-only trips.
  *
  * @param locations - Current tracking rows scoped to the reload sailing day
  * @param activePhysicalOnlyTripsByVessel - Active physical-only trips keyed by vessel
- * @returns Tracking evidence for physical-only TripKeys
+ * @returns Tracking candidates for physical-only TripKeys
  */
-const buildPhysicalOnlyTrackingEvidence = (
+const buildPhysicalOnlyTrackingActualRowCandidates = (
   locations: ConvexVesselLocation[],
   activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>
-): ActualEvidence[] =>
+): ActualRowCandidate[] =>
   locations.flatMap((location) => {
     const trip = activePhysicalOnlyTripsByVessel.get(location.VesselAbbrev);
-    const trackingEvidence =
+    const trackingCandidates =
       location.InService !== true || trip === undefined
         ? []
         : [
             location.AtDock === false
-              ? toTripEvidence(
+              ? toTripActualRowCandidate(
                   trip,
                   trip.DepartingTerminalAbbrev,
                   "dep-dock",
-                  location.LeftDock ?? location.TimeStamp,
-                  "tracking"
+                  location.LeftDock ?? location.TimeStamp
                 )
               : undefined,
             location.AtDock === true &&
             trip.ArrivingTerminalAbbrev !== undefined
-              ? toTripEvidence(
+              ? toTripActualRowCandidate(
                   trip,
                   trip.ArrivingTerminalAbbrev,
                   "arv-dock",
-                  location.TimeStamp,
-                  "tracking"
+                  location.TimeStamp
                 )
               : undefined,
           ].filter(isDefined);
 
-    return trackingEvidence;
+    return trackingCandidates;
   });
 
 /**
- * Builds schedule-aligned tracking evidence for one location row.
+ * Builds schedule-aligned tracking candidates for one location row.
  *
  * @param location - Current tracking row
  * @param boundaries - Same-vessel scheduled boundaries
  * @param tripKeyBySegmentKey - TripKey lookup by schedule segment key
- * @returns Zero or more scheduled tracking evidence rows
+ * @returns Zero or more scheduled tracking candidates
  */
-const buildTrackingEvidenceForScheduledBoundaries = (
+const buildTrackingActualRowCandidatesForScheduledBoundaries = (
   location: ConvexVesselLocation,
   boundaries: ScheduledBoundary[],
   tripKeyBySegmentKey: Map<string, string>
-): ActualEvidence[] => {
+): ActualRowCandidate[] => {
   const departureBoundary = getTrackingAnchoredBoundary(
     boundaries,
     location,
@@ -105,17 +103,17 @@ const buildTrackingEvidenceForScheduledBoundaries = (
     location,
     departureBoundary
   );
-  const trackingEvidence =
+  const trackingCandidates =
     boundaries.length === 0 || location.InService !== true
       ? []
       : [
-          toTrackingBoundaryEvidence(
+          toTrackingBoundaryActualRowCandidate(
             departureBoundary,
             location,
             tripKeyBySegmentKey,
             location.LeftDock
           ),
-          toTrackingBoundaryEvidence(
+          toTrackingBoundaryActualRowCandidate(
             arrivalBoundary,
             location,
             tripKeyBySegmentKey,
@@ -123,36 +121,36 @@ const buildTrackingEvidenceForScheduledBoundaries = (
           ),
         ].filter(isDefined);
 
-  return trackingEvidence;
+  return trackingCandidates;
 };
 
 /**
- * Builds one scheduled tracking evidence row when tracking state supports it.
+ * Builds one scheduled tracking candidate when tracking state supports it.
  *
  * @param boundary - Matched scheduled boundary
  * @param location - Current tracking row
  * @param tripKeyBySegmentKey - TripKey lookup by schedule segment key
  * @param actualTime - Observed boundary time when known
- * @returns Actual evidence or undefined when guards fail
+ * @returns Actual row candidate or undefined when guards fail
  */
-const toTrackingBoundaryEvidence = (
+const toTrackingBoundaryActualRowCandidate = (
   boundary: ScheduledBoundary | undefined,
   location: ConvexVesselLocation,
   tripKeyBySegmentKey: Map<string, string>,
   actualTime: number | undefined
-): ActualEvidence | undefined => {
+): ActualRowCandidate | undefined => {
   const tripKey =
     boundary === undefined
       ? undefined
       : tripKeyBySegmentKey.get(boundary.SegmentKey);
-  const trackingEvidence =
+  const trackingCandidate =
     boundary === undefined ||
     tripKey === undefined ||
     !trackingStateSupportsBoundary(location, boundary)
       ? undefined
-      : toBoundaryEvidence(boundary, tripKey, actualTime, "tracking");
+      : toBoundaryActualRowCandidate(boundary, tripKey, actualTime);
 
-  return trackingEvidence;
+  return trackingCandidate;
 };
 
 /**
@@ -166,7 +164,7 @@ const toTrackingBoundaryEvidence = (
 const getTrackingAnchoredBoundary = (
   boundaries: ScheduledBoundary[],
   location: ConvexVesselLocation,
-  eventType: ActualEvidence["eventType"]
+  eventType: ActualRowCandidate["eventType"]
 ): ScheduledBoundary | undefined => {
   const keyedBoundary = getTrackingKeyedBoundary(
     boundaries,
@@ -194,7 +192,7 @@ const getTrackingAnchoredBoundary = (
 const getTrackingKeyedBoundary = (
   boundaries: ScheduledBoundary[],
   location: ConvexVesselLocation,
-  eventType: ActualEvidence["eventType"]
+  eventType: ActualRowCandidate["eventType"]
 ): ScheduledBoundary | undefined => {
   const segmentKey =
     location.ScheduledDeparture === undefined ||
@@ -227,7 +225,7 @@ const getTrackingKeyedBoundary = (
 const getTrackingScheduleBoundary = (
   boundaries: ScheduledBoundary[],
   location: ConvexVesselLocation,
-  eventType: ActualEvidence["eventType"]
+  eventType: ActualRowCandidate["eventType"]
 ): ScheduledBoundary | undefined =>
   location.ScheduledDeparture === undefined
     ? undefined
@@ -275,7 +273,7 @@ const findArrivalBoundaryForTracking = (
  *
  * @param location - Current tracking row
  * @param boundary - Matched scheduled boundary
- * @returns True when the tracking row can produce evidence for the boundary
+ * @returns True when the tracking row can produce a candidate for the boundary
  */
 const trackingStateSupportsBoundary = (
   location: ConvexVesselLocation,
@@ -343,7 +341,7 @@ const trackingLocationMatchesSailingDay = (
   sailingDay;
 
 export {
-  buildPhysicalOnlyTrackingEvidence,
-  buildScheduleAlignedTrackingEvidence,
+  buildPhysicalOnlyTrackingActualRowCandidates,
+  buildScheduleAlignedTrackingActualRowCandidates,
   trackingLocationMatchesSailingDay,
 };

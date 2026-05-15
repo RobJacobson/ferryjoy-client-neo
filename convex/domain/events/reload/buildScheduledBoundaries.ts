@@ -17,8 +17,8 @@ const MINIMUM_SAME_TERMINAL_TURNAROUND_MS = 5 * 60 * 1000;
  * Builds scheduled dock boundaries from direct seed legs.
  *
  * Boundaries stay schedule-only: they carry segment identity, terminals, event
- * type, and scheduled boundary times, while observed evidence is resolved later
- * by actual-row assembly.
+ * type, and scheduled boundary times, while actual row candidates are resolved
+ * later by actual-row assembly.
  *
  * @param seedLegs - Direct physical legs resolved from the WSF schedule
  * @returns Departure and arrival boundaries ordered within each vessel day

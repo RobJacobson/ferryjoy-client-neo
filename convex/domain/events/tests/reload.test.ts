@@ -2,7 +2,7 @@
  * Tests for scheduled and actual dock-event reload assembly.
  *
  * Exercises the public reload transform across schedule rows, durable actual
- * evidence, physical-only trips, and current tracking data. Helpers build small
+ * candidates, physical-only trips, and current tracking data. Helpers build small
  * WSF-shaped fixtures so cases stay focused on behavior instead of adapters.
  */
 
@@ -373,7 +373,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-scheduled--dep-dock", "dep-dock", actualDeparture]]);
   });
 
-  it("hydrates history actuals and keeps physical-only evidence", () => {
+  it("hydrates history actuals and keeps physical-only candidates", () => {
     const departure = at(12, 20);
     const arrival = at(12, 55);
     const segmentKey = buildSegmentKey(
@@ -635,7 +635,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ]);
   });
 
-  it("emits only a departure row for physical-only trip left-dock evidence", () => {
+  it("emits only a departure row for physical-only trip left-dock actual", () => {
     const leftDockActual = at(19, 4);
     const result = buildReloadResult({
       sailingDay: "2026-03-25",
@@ -668,7 +668,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-physical--dep-dock", "dep-dock", leftDockActual]]);
   });
 
-  it("emits only an arrival row for physical-only trip-end evidence", () => {
+  it("emits only an arrival row for physical-only trip-end actual", () => {
     const tripEnd = at(20, 35);
     const result = buildReloadResult({
       sailingDay: "2026-03-25",
@@ -726,7 +726,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     expect(result.actualRows).toEqual([]);
   });
 
-  it("emits a scheduled departure row from away-from-dock tracking evidence", () => {
+  it("emits a scheduled departure row from away-from-dock tracking", () => {
     const departure = at(22, 0);
     const arrival = at(22, 35);
     const segmentKey = buildSegmentKey(
@@ -777,7 +777,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-scheduled--dep-dock", "dep-dock", undefined]]);
   });
 
-  it("emits an eligible prior scheduled arrival row from at-dock tracking evidence", () => {
+  it("emits an eligible prior scheduled arrival row from at-dock tracking", () => {
     const firstDeparture = at(15, 0);
     const firstArrival = at(15, 35);
     const secondDeparture = at(16, 0);
