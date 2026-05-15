@@ -1,27 +1,30 @@
 /**
- * Build actual dock-event rows from reload row-candidate sources.
+ * Builds reload actual dock-event rows with explicit source precedence.
  *
- * Actual-row assembly owns TripKey indexes, source precedence, and
- * conversion into the persisted eventsActual row shape. Callers pass raw reload
- * inputs and do not need to understand candidate ordering.
+ * The reload path writes directly into one row accumulator keyed by physical
+ * trip boundary. Each source phase only fills missing rows, so precedence is
+ * visible in the main function instead of hidden in candidate transforms.
  */
 
-import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
-import type { TerminalIdentity } from "functions/terminals/schemas";
-import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { VesselIdentity } from "functions/vessels/schemas";
-import { groupBy } from "shared/groupBy";
-import { buildActualDockEventFromWrite } from "../actual";
-import { isDefined, toTripActualRowCandidate } from "./actualRowCandidates";
-import { buildHistoryActualRowCandidates } from "./buildHistoryActualRowCandidates";
 import {
-  buildPhysicalOnlyTrackingActualRowCandidates,
-  buildScheduleAlignedTrackingActualRowCandidates,
-  trackingLocationMatchesSailingDay,
-} from "./buildTrackingActualRowCandidates";
+  resolveVesselHistory,
+  type TerminalIdentity,
+  tryResolveVessel,
+  type VesselIdentity,
+} from "adapters";
+import type { DockEventType } from "functions/events/common/schemas";
+import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import { groupBy } from "shared/groupBy";
+import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
+import { getSailingDay } from "shared/time";
+import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
+import {
+  buildActualDockEventFromWrite,
+  type ConvexActualDockWritePersistable,
+} from "../actual";
 import type { WsfVesselHistory } from "./schemas";
 import type {
-  ActualRowCandidate,
   ReloadTripInput,
   ReloadTripWithTripKey,
   ScheduledBoundary,
@@ -41,14 +44,30 @@ type BuildActualRowsArgs = {
   updatedAt: number;
 };
 
-type ActualRowCandidateAccumulator = ReadonlyMap<string, ActualRowCandidate>;
+type ActualRowsByBoundary = Map<string, ConvexActualDockEvent>;
+
+type ActualRowDraft = {
+  TripKey: string;
+  VesselAbbrev: string;
+  SailingDay?: string;
+  ScheduledDeparture?: number;
+  TerminalAbbrev: string;
+  EventType: DockEventType;
+  EventActualTime?: number;
+};
+
+type HistorySeedLookup = {
+  segmentKeys: Set<string>;
+  segmentKeyByVesselDeparture: Map<string, string>;
+};
 
 /**
  * Builds actual dock rows from raw reload inputs.
  *
- * Source precedence is explicit in the accumulator pipeline: WSF history wins
- * first, durable trip fields second, scheduled tracking third, and physical-only
- * tracking last.
+ * The function applies source precedence as ordered writes into one result
+ * map: WSF history first, durable physical trip fields second, scheduled
+ * tracking third, and physical-only tracking last. Later phases can fill gaps
+ * but cannot replace an already-selected physical boundary row.
  *
  * @param args - Reload schedule, history, trip, tracking, identity, and timestamp inputs
  * @returns Deduped actual dock-event rows ready for persistence
@@ -65,57 +84,177 @@ const buildActualRows = ({
   terminals,
   updatedAt,
 }: BuildActualRowsArgs): ConvexActualDockEvent[] => {
-  const tripsWithKeys = [...activeTrips, ...completedTrips]
-    .map(toTripWithKey)
-    .filter(isDefined);
-  const activeTripsWithKeys = activeTrips.map(toTripWithKey).filter(isDefined);
-  const indexes = buildActualIndexes(
-    boundaries,
-    tripsWithKeys,
+  const tripsWithKeys = [...activeTrips, ...completedTrips].filter(
+    (trip): trip is ReloadTripWithTripKey => trip.TripKey !== undefined
+  );
+  const activeTripsWithKeys = activeTrips.filter(
+    (trip): trip is ReloadTripWithTripKey => trip.TripKey !== undefined
+  );
+  const tripKeyBySegmentKey = new Map(
+    tripsWithKeys.map((trip) => [
+      trip.ScheduleKey ?? trip.TripKey,
+      trip.TripKey,
+    ])
+  );
+  const physicalOnlyTrips = tripsWithKeys.filter(
+    (trip) => trip.ScheduleKey === undefined
+  );
+  const activePhysicalOnlyTripsByVessel = new Map(
     activeTripsWithKeys
+      .filter((trip) => trip.ScheduleKey === undefined)
+      .map((trip) => [trip.VesselAbbrev, trip])
+  );
+  const boundariesByVessel = groupBy(
+    boundaries,
+    (boundary) => boundary.VesselAbbrev
   );
   const locations = vesselLocations.filter((location) =>
     trackingLocationMatchesSailingDay(location, sailingDay)
   );
-
-  const historyCandidates = buildHistoryActualRowCandidates({
+  const actualRows = new Map<string, ConvexActualDockEvent>();
+  const historyActuals = mapHistoryActualsToBoundaryKeys(
     seedLegs,
-    boundaries,
     historyRecords,
-    tripKeyBySegmentKey: indexes.tripKeyBySegmentKey,
     vessels,
-    terminals,
-  });
-  const tripFieldCandidates = buildTripFieldActualRowCandidates(
-    indexes.physicalOnlyTrips
+    terminals
   );
-  const trackingCandidates = buildScheduleAlignedTrackingActualRowCandidates(
-    locations,
-    indexes.boundariesByVessel,
-    indexes.tripKeyBySegmentKey
-  );
-  const physicalOnlyTrackingCandidates =
-    buildPhysicalOnlyTrackingActualRowCandidates(
-      locations,
-      indexes.activePhysicalOnlyTripsByVessel
-    );
-  const orderedCandidates = [
-    ...historyCandidates,
-    ...tripFieldCandidates,
-    ...trackingCandidates,
-    ...physicalOnlyTrackingCandidates,
-  ];
-  const candidatesByTripBoundary = orderedCandidates.reduce(
-    addActualRowCandidateIfAbsent,
-    new Map<string, ActualRowCandidate>()
-  );
-  const actualRows = materializeActualRows(candidatesByTripBoundary, updatedAt);
 
-  return actualRows;
+  for (const boundary of boundaries) {
+    const actualTime = historyActuals.get(boundary.Key);
+    const tripKey = tripKeyBySegmentKey.get(boundary.SegmentKey);
+    if (actualTime === undefined || tripKey === undefined) {
+      continue;
+    }
+
+    addRowIfAbsent(
+      actualRows,
+      {
+        TripKey: tripKey,
+        VesselAbbrev: boundary.VesselAbbrev,
+        SailingDay: boundary.SailingDay,
+        ScheduledDeparture: boundary.ScheduledDeparture,
+        TerminalAbbrev: boundary.TerminalAbbrev,
+        EventType: boundary.EventType,
+        EventActualTime: actualTime,
+      },
+      updatedAt
+    );
+  }
+
+  for (const trip of physicalOnlyTrips) {
+    addPhysicalTripRow(
+      actualRows,
+      trip,
+      "dep-dock",
+      trip.DepartingTerminalAbbrev,
+      trip.LeftDockActual,
+      updatedAt
+    );
+    addPhysicalTripRow(
+      actualRows,
+      trip,
+      "arv-dock",
+      trip.ArrivingTerminalAbbrev,
+      trip.TripEnd,
+      updatedAt
+    );
+  }
+
+  for (const location of locations) {
+    const vesselBoundaries =
+      boundariesByVessel.get(location.VesselAbbrev) ?? [];
+    if (vesselBoundaries.length === 0 || location.InService !== true) {
+      continue;
+    }
+
+    const departureBoundary =
+      getTrackingKeyedBoundary(vesselBoundaries, location, "dep-dock") ??
+      getTrackingScheduleBoundary(vesselBoundaries, location, "dep-dock");
+    const trackingBoundaries: Array<
+      [ScheduledBoundary | undefined, number | undefined]
+    > = [
+      [departureBoundary, location.LeftDock],
+      [
+        findArrivalBoundaryForTracking(
+          vesselBoundaries,
+          location,
+          departureBoundary
+        ),
+        undefined,
+      ],
+    ];
+
+    for (const [boundary, actualTime] of trackingBoundaries) {
+      const supportsBoundary =
+        boundary?.EventType === "dep-dock"
+          ? location.LeftDock !== undefined || location.AtDock === false
+          : location.AtDock === true;
+      const tripKey =
+        boundary === undefined
+          ? undefined
+          : tripKeyBySegmentKey.get(boundary.SegmentKey);
+
+      if (
+        boundary === undefined ||
+        !supportsBoundary ||
+        tripKey === undefined
+      ) {
+        continue;
+      }
+
+      addRowIfAbsent(
+        actualRows,
+        {
+          TripKey: tripKey,
+          VesselAbbrev: boundary.VesselAbbrev,
+          SailingDay: boundary.SailingDay,
+          ScheduledDeparture: boundary.ScheduledDeparture,
+          TerminalAbbrev: boundary.TerminalAbbrev,
+          EventType: boundary.EventType,
+          EventActualTime: actualTime,
+        },
+        updatedAt
+      );
+    }
+  }
+
+  for (const location of locations) {
+    const trip = activePhysicalOnlyTripsByVessel.get(location.VesselAbbrev);
+    if (location.InService !== true || trip === undefined) {
+      continue;
+    }
+
+    if (location.AtDock === false) {
+      addPhysicalTripRow(
+        actualRows,
+        trip,
+        "dep-dock",
+        trip.DepartingTerminalAbbrev,
+        location.LeftDock ?? location.TimeStamp,
+        updatedAt
+      );
+    }
+
+    if (location.AtDock === true) {
+      addPhysicalTripRow(
+        actualRows,
+        trip,
+        "arv-dock",
+        trip.ArrivingTerminalAbbrev,
+        location.TimeStamp,
+        updatedAt
+      );
+    }
+  }
+
+  return [...actualRows.values()];
 };
 
 /**
  * Builds the preserve set for physical-only actual replacement.
+ *
+ * Physical-only trips are not fully represented by the scheduled reload slice,
+ * so replacement persistence needs to retain absent rows for their TripKeys.
  *
  * @param activeTrips - Active trip rows that may include physical-only TripKeys
  * @param completedTrips - Completed trip rows that may include physical-only TripKeys
@@ -124,148 +263,308 @@ const buildActualRows = ({
 const buildPreserveAbsentTripKeys = (
   activeTrips: ReloadTripInput[],
   completedTrips: ReloadTripInput[]
-): Set<string> => {
-  const tripsWithKeys = [...activeTrips, ...completedTrips]
-    .map(toTripWithKey)
-    .filter(isDefined);
-  const preserveAbsentTripKeys = new Set(
-    tripsWithKeys.filter(isPhysicalOnlyTrip).map((trip) => trip.TripKey)
+): Set<string> =>
+  new Set(
+    [...activeTrips, ...completedTrips]
+      .filter(
+        (trip): trip is ReloadTripWithTripKey => trip.TripKey !== undefined
+      )
+      .filter((trip) => trip.ScheduleKey === undefined)
+      .map((trip) => trip.TripKey)
   );
 
-  return preserveAbsentTripKeys;
+/**
+ * Adds a physical-only trip boundary row when all required fields are present.
+ * @param actualRows - Winning rows keyed by TripKey and event type
+ * @param trip - Physical-only trip carrying row identity
+ * @param eventType - Dock boundary type to write
+ * @param terminalAbbrev - Terminal abbreviation for the boundary
+ * @param actualTime - Observed boundary time
+ * @param updatedAt - UpdatedAt timestamp for produced rows
+ * @returns No payload; mutates the provided accumulator
+ */
+const addPhysicalTripRow = (
+  actualRows: ActualRowsByBoundary,
+  trip: ReloadTripWithTripKey,
+  eventType: DockEventType,
+  terminalAbbrev: string | undefined,
+  actualTime: number | undefined,
+  updatedAt: number
+): void => {
+  if (terminalAbbrev === undefined || actualTime === undefined) {
+    return;
+  }
+
+  addRowIfAbsent(
+    actualRows,
+    {
+      TripKey: trip.TripKey,
+      VesselAbbrev: trip.VesselAbbrev,
+      SailingDay: trip.SailingDay,
+      ScheduledDeparture: trip.ScheduledDeparture,
+      TerminalAbbrev: terminalAbbrev,
+      EventType: eventType,
+      EventActualTime: actualTime,
+    },
+    updatedAt
+  );
 };
 
 /**
- * Builds actual rows from accumulated row candidates.
- *
- * @param candidatesByTripBoundary - Winning candidate per TripKey and event type
+ * Adds one normalized actual row when no higher-priority row exists.
+ * @param actualRows - Winning rows keyed by TripKey and event type
+ * @param draft - Sparse actual row fields with at least one time anchor
  * @param updatedAt - UpdatedAt timestamp for produced rows
- * @returns Actual dock-event rows ready for persistence
+ * @returns No payload; mutates the provided accumulator
  */
-const materializeActualRows = (
-  candidatesByTripBoundary: ActualRowCandidateAccumulator,
+const addRowIfAbsent = (
+  actualRows: ActualRowsByBoundary,
+  draft: ActualRowDraft,
   updatedAt: number
-): ConvexActualDockEvent[] =>
-  [...candidatesByTripBoundary.values()].map((candidate) =>
+): void => {
+  const key = `${draft.TripKey}|${draft.EventType}`;
+  if (actualRows.has(key)) {
+    return;
+  }
+
+  if (
+    draft.EventActualTime === undefined &&
+    draft.ScheduledDeparture === undefined
+  ) {
+    return;
+  }
+
+  actualRows.set(
+    key,
     buildActualDockEventFromWrite(
       {
-        TripKey: candidate.tripKey,
-        VesselAbbrev: candidate.vesselAbbrev,
-        SailingDay: candidate.sailingDay,
-        ScheduledDeparture: candidate.scheduledDeparture,
-        TerminalAbbrev: candidate.terminalAbbrev,
-        EventType: candidate.eventType,
+        TripKey: draft.TripKey,
+        VesselAbbrev: draft.VesselAbbrev,
+        SailingDay: draft.SailingDay,
+        ScheduledDeparture: draft.ScheduledDeparture,
+        TerminalAbbrev: draft.TerminalAbbrev,
+        EventType: draft.EventType,
         EventOccurred: true,
-        EventActualTime: candidate.actualTime,
-      },
+        EventActualTime: draft.EventActualTime,
+      } as ConvexActualDockWritePersistable,
       updatedAt
     )
   );
+};
 
 /**
- * Builds indexes shared by actual row candidate projections.
- *
- * @param boundaries - Scheduled boundaries for the sailing day
- * @param tripsWithKeys - Active and completed trips that carry TripKey
- * @param activeTripsWithKeys - Active trips that carry TripKey
- * @returns Lookup maps and physical-only trip collections
+ * Indexes WSF history actual times by scheduled boundary key.
+ * @param seedLegs - Direct seed legs in scope for this reload
+ * @param historyRecords - WSF vessel history rows
+ * @param vessels - Vessel identities used by adapter resolution
+ * @param terminals - Terminal identities used by adapter resolution
+ * @returns Actual times keyed by scheduled boundary key
  */
-const buildActualIndexes = (
-  boundaries: ScheduledBoundary[],
-  tripsWithKeys: ReloadTripWithTripKey[],
-  activeTripsWithKeys: ReloadTripWithTripKey[]
-) => ({
-  tripKeyBySegmentKey: new Map(
-    tripsWithKeys.map((trip) => [
-      trip.ScheduleKey ?? trip.TripKey,
-      trip.TripKey,
-    ])
-  ),
-  physicalOnlyTrips: tripsWithKeys.filter(isPhysicalOnlyTrip),
-  activePhysicalOnlyTripsByVessel: new Map(
-    activeTripsWithKeys
-      .filter(isPhysicalOnlyTrip)
-      .map((trip) => [trip.VesselAbbrev, trip])
-  ),
-  boundariesByVessel: groupBy(boundaries, (boundary) => boundary.VesselAbbrev),
-});
-
-/**
- * Builds actual row candidates from durable physical-only trip fields.
- *
- * @param trips - Physical-only trips carrying TripKey
- * @returns Departure and arrival candidates from trip fields
- */
-const buildTripFieldActualRowCandidates = (
-  trips: ReloadTripWithTripKey[]
-): ActualRowCandidate[] =>
-  trips.flatMap((trip) =>
-    [
-      trip.LeftDockActual === undefined
-        ? undefined
-        : toTripActualRowCandidate(
-            trip,
-            trip.DepartingTerminalAbbrev,
-            "dep-dock",
-            trip.LeftDockActual
-          ),
-      trip.TripEnd === undefined || trip.ArrivingTerminalAbbrev === undefined
-        ? undefined
-        : toTripActualRowCandidate(
-            trip,
-            trip.ArrivingTerminalAbbrev,
-            "arv-dock",
-            trip.TripEnd
-          ),
-    ].filter(isDefined)
+const mapHistoryActualsToBoundaryKeys = (
+  seedLegs: SeedLeg[],
+  historyRecords: WsfVesselHistory[],
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+): Map<string, number> => {
+  const seedLookup = {
+    segmentKeys: new Set(seedLegs.map((leg) => leg.Key)),
+    segmentKeyByVesselDeparture: new Map(
+      seedLegs.map((leg) => [
+        `${leg.VesselAbbrev}:${leg.DepartingTime}`,
+        leg.Key,
+      ])
+    ),
+  };
+  const entries = historyRecords.flatMap((record) =>
+    historyRecordToBoundaryEntries(record, seedLookup, vessels, terminals)
   );
 
-/**
- * Narrows a trip to rows that carry TripKey.
- *
- * @param trip - Active or completed trip input
- * @returns Trip with required TripKey or undefined when missing
- */
-const toTripWithKey = (
-  trip: ReloadTripInput
-): ReloadTripWithTripKey | undefined =>
-  trip.TripKey === undefined ? undefined : { ...trip, TripKey: trip.TripKey };
+  return new Map(entries);
+};
 
 /**
- * Adds one candidate by TripKey and boundary only when absent.
- *
- * @param candidatesByTripBoundary - Prior candidate accumulator
- * @param candidate - Candidate from the next source in precedence order
- * @returns Candidate accumulator with first-write-wins precedence
+ * Converts one history row to boundary-key actual time entries.
+ * @param record - WSF vessel history row
+ * @param seedLookup - Seed-leg indexes for strict and recovery matching
+ * @param vessels - Vessel identities used by adapter resolution
+ * @param terminals - Terminal identities used by adapter resolution
+ * @returns Boundary-key entries for present actual timestamps
  */
-const addActualRowCandidateIfAbsent = (
-  candidatesByTripBoundary: ActualRowCandidateAccumulator,
-  candidate: ActualRowCandidate
-): ActualRowCandidateAccumulator =>
-  candidatesByTripBoundary.has(toTripBoundaryKey(candidate))
-    ? candidatesByTripBoundary
-    : new Map(candidatesByTripBoundary).set(
-        toTripBoundaryKey(candidate),
-        candidate
+const historyRecordToBoundaryEntries = (
+  record: WsfVesselHistory,
+  seedLookup: HistorySeedLookup,
+  vessels: ReadonlyArray<VesselIdentity>,
+  terminals: ReadonlyArray<TerminalIdentity>
+): Array<[string, number]> => {
+  if (
+    record.ScheduledDepart === undefined ||
+    (record.ActualDepart === undefined && record.EstArrival === undefined)
+  ) {
+    return [];
+  }
+
+  const resolvedHistory = resolveVesselHistory(
+    {
+      VesselId: record.VesselId,
+      Vessel: record.Vessel,
+      Departing: record.Departing,
+      Arriving: record.Arriving,
+    } as VesselHistory,
+    vessels,
+    terminals
+  );
+  const strictSegmentKey =
+    resolvedHistory === null
+      ? undefined
+      : buildSegmentKey(
+          resolvedHistory.vessel.VesselAbbrev,
+          resolvedHistory.departingTerminal.TerminalAbbrev,
+          resolvedHistory.arrivingTerminal.TerminalAbbrev,
+          new Date(record.ScheduledDepart)
+        );
+  const vessel = tryResolveVessel(String(record.Vessel ?? ""), vessels);
+  const recoverySegmentKey =
+    vessel === null
+      ? undefined
+      : seedLookup.segmentKeyByVesselDeparture.get(
+          `${vessel.VesselAbbrev}:${record.ScheduledDepart}`
+        );
+  const segmentKey =
+    strictSegmentKey !== undefined &&
+    seedLookup.segmentKeys.has(strictSegmentKey)
+      ? strictSegmentKey
+      : recoverySegmentKey;
+
+  if (segmentKey === undefined) {
+    return [];
+  }
+
+  const entries: Array<[string, number]> = [];
+  if (record.ActualDepart !== undefined) {
+    entries.push([
+      buildBoundaryKey(segmentKey, "dep-dock"),
+      record.ActualDepart,
+    ]);
+  }
+  if (record.EstArrival !== undefined) {
+    entries.push([buildBoundaryKey(segmentKey, "arv-dock"), record.EstArrival]);
+  }
+
+  return entries;
+};
+
+/**
+ * Finds a scheduled boundary by rebuilding the tracking segment key.
+ * @param boundaries - Same-vessel scheduled boundaries
+ * @param location - Current tracking row
+ * @param eventType - Dock boundary type to match
+ * @returns Matched scheduled boundary when the tracking row has full segment identity
+ */
+const getTrackingKeyedBoundary = (
+  boundaries: ScheduledBoundary[],
+  location: ConvexVesselLocation,
+  eventType: DockEventType
+): ScheduledBoundary | undefined => {
+  const segmentKey =
+    location.ScheduledDeparture === undefined ||
+    location.ArrivingTerminalAbbrev === undefined
+      ? undefined
+      : buildSegmentKey(
+          location.VesselAbbrev,
+          location.DepartingTerminalAbbrev,
+          location.ArrivingTerminalAbbrev,
+          new Date(location.ScheduledDeparture)
+        );
+
+  return segmentKey === undefined
+    ? undefined
+    : boundaries.find(
+        (boundary) => boundary.Key === buildBoundaryKey(segmentKey, eventType)
+      );
+};
+
+/**
+ * Finds a scheduled boundary by scheduled departure and dock terminal.
+ * @param boundaries - Same-vessel scheduled boundaries
+ * @param location - Current tracking row
+ * @param eventType - Dock boundary type to match
+ * @returns Matched scheduled boundary when schedule fields are sufficient
+ */
+const getTrackingScheduleBoundary = (
+  boundaries: ScheduledBoundary[],
+  location: ConvexVesselLocation,
+  eventType: DockEventType
+): ScheduledBoundary | undefined =>
+  location.ScheduledDeparture === undefined
+    ? undefined
+    : boundaries.find(
+        (boundary) =>
+          boundary.EventType === eventType &&
+          boundary.ScheduledDeparture === location.ScheduledDeparture &&
+          (eventType === "arv-dock" ||
+            boundary.TerminalAbbrev === location.DepartingTerminalAbbrev)
       );
 
 /**
- * Returns whether a trip lacks schedule linkage.
- *
- * @param trip - Trip carrying TripKey
- * @returns True when the trip is physical-only
+ * Finds the most recent prior scheduled arrival supported by tracking.
+ * @param boundaries - Same-vessel scheduled boundaries
+ * @param location - Current tracking row
+ * @param departureBoundary - Matched departure boundary used as the upper bound
+ * @returns Prior arrival boundary when tracking is late enough to support it
  */
-const isPhysicalOnlyTrip = (trip: ReloadTripWithTripKey): boolean =>
-  trip.ScheduleKey === undefined;
+const findArrivalBoundaryForTracking = (
+  boundaries: ScheduledBoundary[],
+  location: ConvexVesselLocation,
+  departureBoundary: ScheduledBoundary | undefined
+): ScheduledBoundary | undefined => {
+  const upperBound =
+    departureBoundary?.ScheduledDeparture ?? location.ScheduledDeparture;
+
+  return upperBound === undefined
+    ? undefined
+    : boundaries
+        .filter((boundary) =>
+          isEligibleTrackingArrival(boundary, location, upperBound)
+        )
+        .reduce(
+          (latest: ScheduledBoundary | undefined, boundary) =>
+            latest === undefined ||
+            boundary.ScheduledDeparture > latest.ScheduledDeparture
+              ? boundary
+              : latest,
+          undefined
+        );
+};
 
 /**
- * Builds the composite TripKey and boundary type key.
- *
- * @param candidate - Actual row candidate with TripKey and event type
- * @returns Composite TripKey/event-type key
+ * Returns whether a boundary is an eligible prior arrival for tracking.
+ * @param boundary - Candidate scheduled boundary
+ * @param location - Current tracking row
+ * @param scheduledDepartureUpperBound - Exclusive upper bound for prior arrivals
+ * @returns True when the boundary is a prior arrival at the current dock and can have occurred
  */
-const toTripBoundaryKey = (
-  candidate: Pick<ActualRowCandidate, "tripKey" | "eventType">
-) => `${candidate.tripKey}|${candidate.eventType}`;
+const isEligibleTrackingArrival = (
+  boundary: ScheduledBoundary,
+  location: ConvexVesselLocation,
+  scheduledDepartureUpperBound: number
+): boolean =>
+  boundary.EventType === "arv-dock" &&
+  boundary.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+  boundary.ScheduledDeparture < scheduledDepartureUpperBound &&
+  (boundary.EventScheduledTime ?? boundary.ScheduledDeparture) <=
+    location.TimeStamp;
+
+/**
+ * Returns whether a tracking row belongs to the requested sailing day.
+ * @param location - Current tracking row
+ * @param sailingDay - Reload sailing day
+ * @returns True when scheduled departure or ping time lands on the sailing day
+ */
+const trackingLocationMatchesSailingDay = (
+  location: ConvexVesselLocation,
+  sailingDay: string
+): boolean =>
+  getSailingDay(new Date(location.ScheduledDeparture ?? location.TimeStamp)) ===
+  sailingDay;
 
 export { buildActualRows, buildPreserveAbsentTripKeys };
