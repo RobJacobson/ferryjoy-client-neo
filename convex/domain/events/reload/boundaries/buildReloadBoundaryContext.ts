@@ -1,9 +1,10 @@
 /**
- * Builds the schedule-derived context shared by reload row projections.
+ * Builds the shared reload boundary context for scheduled and actual projections.
  *
- * WSF schedule rows are resolved into direct physical seed segments, then
- * hydrated with WSF history into the canonical boundary tape used by both
- * scheduled and actual projections.
+ * WSF schedule rows are resolved into direct physical seed segments, then grouped
+ * into vessel-day boundary events with history actuals overlaid. Scheduled and
+ * actual reload stages consume this boundary context so they agree on segment
+ * identity, turnaround policy, and history hydration.
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
@@ -12,7 +13,7 @@ import type { DockStatusEventRecord, RawSeedSegment } from "../types";
 import { buildReloadBoundaryEvents } from "./buildReloadBoundaryEvents";
 import { resolveDirectSeedSegments } from "./resolveDirectSeedSegments";
 
-type ReloadScheduleContext = {
+type ReloadBoundaryContext = {
   seedSegments: RawSeedSegment[];
   boundaryEvents: DockStatusEventRecord[];
 };
@@ -20,18 +21,19 @@ type ReloadScheduleContext = {
 /**
  * Builds resolved seed segments and hydrated boundary events for one reload.
  *
- * Runs schedule resolution first so every downstream stage shares the same
- * direct physical seed set and the same timeline-sorted boundary tape. The
- * boundary list already carries history overlays where WSF history matched a
- * seeded leg, which keeps scheduled-table projection and actual synthesis
- * aligned without duplicating hydration rules in each branch.
+ * Runs direct-segment resolution first, then boundary construction, so every
+ * downstream stage shares the same physical seed set and the same
+ * timeline-sorted boundary tape. The boundary list already carries history
+ * overlays where WSF history matched a seeded leg, which keeps scheduled-table
+ * projection and actual synthesis aligned without duplicating hydration or
+ * turnaround rules in each branch.
  *
  * @param args - Schedule, history, and identity inputs from the reload action,
  * including scheduleSegments and historyRecords for the sailing day plus
  * vessels and terminals for adapter resolution
  * @returns Direct seed segments and canonical boundary events
  */
-const buildReloadScheduleContext = ({
+const buildReloadBoundaryContext = ({
   scheduleSegments,
   historyRecords,
   vessels,
@@ -41,7 +43,7 @@ const buildReloadScheduleContext = ({
   historyRecords: WsfVesselHistory[];
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-}): ReloadScheduleContext => {
+}): ReloadBoundaryContext => {
   const seedSegments = resolveDirectSeedSegments(
     scheduleSegments,
     vessels,
@@ -60,5 +62,5 @@ const buildReloadScheduleContext = ({
   };
 };
 
-export type { ReloadScheduleContext };
-export { buildReloadScheduleContext };
+export type { ReloadBoundaryContext };
+export { buildReloadBoundaryContext };

@@ -1,7 +1,7 @@
 /**
  * Tests for scheduled and actual dock-event reload assembly.
  *
- * Exercises schedule context resolution, boundary hydration and seam handling,
+ * Exercises boundary context resolution, boundary hydration and seam handling,
  * scheduled-row projection, and actual-row synthesis from history, trip fields,
  * and live locations. Helpers build small WSF-shaped fixtures so cases stay
  * focused on reload behavior instead of adapter details.
@@ -10,7 +10,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildActualRows,
-  buildReloadScheduleContext,
+  buildReloadBoundaryContext,
   buildScheduledRows,
 } from "domain/events/reload";
 import type {
@@ -56,12 +56,12 @@ const terminals: TerminalIdentity[] = [
 ];
 
 describe("reload dock sailing day rows from schedule and history", () => {
-  it("projects scheduled rows from the shared schedule context", () => {
+  it("projects scheduled rows from the shared boundary context", () => {
     const departure = at(8, 20);
     const arrival = at(8, 55);
     const scheduledSegments = [scheduleSegment({ departure, arrival })];
 
-    const scheduleContext = buildReloadScheduleContext({
+    const boundaryContext = buildReloadBoundaryContext({
       scheduleSegments: scheduledSegments,
       historyRecords: [],
       vessels,
@@ -79,7 +79,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       updatedAt: 42,
     });
 
-    expect(buildScheduledRows(scheduleContext.boundaryEvents, 42)).toEqual(
+    expect(buildScheduledRows(boundaryContext.boundaryEvents, 42)).toEqual(
       result.scheduledRows
     );
   });
@@ -1069,7 +1069,7 @@ const buildReloadResult = ({
   vesselLocations: ConvexVesselLocation[];
   updatedAt: number;
 }) => {
-  const scheduleContext = buildReloadScheduleContext({
+  const boundaryContext = buildReloadBoundaryContext({
     scheduleSegments,
     historyRecords,
     vessels,
@@ -1078,12 +1078,12 @@ const buildReloadResult = ({
 
   return {
     scheduledRows: buildScheduledRows(
-      scheduleContext.boundaryEvents,
+      boundaryContext.boundaryEvents,
       updatedAt
     ),
     actualRows: buildActualRows({
       sailingDay,
-      boundaryEvents: scheduleContext.boundaryEvents,
+      boundaryEvents: boundaryContext.boundaryEvents,
       activeTrips,
       completedTrips,
       vesselLocations,

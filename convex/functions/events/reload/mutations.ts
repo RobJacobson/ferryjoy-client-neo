@@ -8,7 +8,7 @@
 import { internalMutation, type MutationCtx } from "_generated/server";
 import {
   buildActualRows,
-  buildReloadScheduleContext,
+  buildReloadBoundaryContext,
   buildScheduledRows,
 } from "domain/events/reload";
 import {
@@ -56,9 +56,10 @@ const loadReloadDbInput = async (ctx: MutationCtx, sailingDay: string) => {
  *
  * Combines Convex-side trip and location reads with the action-supplied WSF
  * inputs, then persists the scheduled and actual sets through table-owned
- * mutations. Physical-only TripKeys are forwarded to actual replacement so
- * live trips that lack schedule alignment are not deleted alongside the
- * scheduled-day cleanup.
+ * mutations. One shared boundary context is built first so scheduled rows and
+ * actual rows read the same boundary tape. Physical-only TripKeys are forwarded
+ * to actual replacement so live trips that lack schedule alignment are not
+ * deleted alongside the scheduled-day cleanup.
  *
  * @param ctx - Convex mutation context
  * @param args - External reload input from the action
@@ -75,19 +76,19 @@ const reseedDockStatusEventsForSailingDayRows = async (
   const { activeTrips, completedTrips, vesselLocations } =
     await loadReloadDbInput(ctx, sailingDay);
 
-  const scheduleContext = buildReloadScheduleContext({
+  const boundaryContext = buildReloadBoundaryContext({
     scheduleSegments: args.ScheduleSegments,
     historyRecords: args.HistoryRecords,
     vessels: args.Vessels,
     terminals: args.Terminals,
   });
   const scheduledRows = buildScheduledRows(
-    scheduleContext.boundaryEvents,
+    boundaryContext.boundaryEvents,
     updatedAt
   );
   const actualRows = buildActualRows({
     sailingDay,
-    boundaryEvents: scheduleContext.boundaryEvents,
+    boundaryEvents: boundaryContext.boundaryEvents,
     activeTrips,
     completedTrips,
     vesselLocations,

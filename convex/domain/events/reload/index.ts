@@ -1,2 +1,4 @@
 export { buildActualRows } from "./actual";
-export { buildReloadScheduleContext, buildScheduledRows } from "./schedule";
+export type { ReloadBoundaryContext } from "./boundaries";
+export { buildReloadBoundaryContext } from "./boundaries";
+export { buildScheduledRows } from "./schedule";

@@ -1,7 +1,7 @@
 /**
  * Projects reload boundary records into scheduled dock rows.
  *
- * Boundary construction already resolves direct per-segment terminal metadata.
+ * The boundary stage already resolves direct per-segment terminal metadata.
  * This module keeps projection small: copy the boundary shape into the table
  * row shape and mark the final arrival independently for each vessel day.
  */

@@ -1,10 +1,10 @@
 /**
- * Builds vessel-scoped reload boundary events from direct schedule segments.
+ * Builds vessel-scoped reload boundary events from direct physical seed segments.
  *
- * Reload still persists a full sailing day at once, but schedule assembly is
- * easier to reason about per vessel and sailing day. Each direct segment emits
- * one departure and one arrival boundary, history actuals overlay by key, and
- * same-terminal turnaround policy is applied while the next segment is local.
+ * Reload persists a full sailing day at once; this module groups seeds by vessel
+ * and sailing day. Each direct segment emits one departure and one arrival
+ * boundary, history actuals overlay by key, and same-terminal turnaround policy
+ * applies when the next segment departs from the arrival terminal.
  */
 
 import type { TerminalIdentity, VesselIdentity } from "adapters";
@@ -17,12 +17,13 @@ import { mapHistoryActualsToEventKeys } from "./mapHistoryActualsToEventKeys";
 const MINIMUM_SAME_TERMINAL_TURNAROUND_MS = 5 * 60 * 1000;
 
 /**
- * Builds schedule-derived boundary events for one reload batch.
+ * Builds boundary events for one reload batch from resolved direct seeds.
  *
  * The outer reload mutation replaces a whole sailing day, but this helper
- * groups direct seed segments by vessel and sailing day before building rows.
+ * groups direct seed segments by vessel and sailing day before emitting rows.
  * That keeps same-vessel continuity decisions, including minimum dock
- * turnaround handling, local to the schedule where they are meaningful.
+ * turnaround handling, local to the boundary stage where they stay consistent
+ * for both scheduled projection and actual synthesis.
  *
  * @param seedSegments - Direct seed segments for the reload batch
  * @param historyRecords - WSF vessel history rows for the sailing day
@@ -179,13 +180,19 @@ const applyMinimumSameTerminalTurnaround = (
   scheduledArrival: number | undefined,
   segment: RawSeedSegment,
   nextSegment: RawSeedSegment | undefined
-): number | undefined =>
-  scheduledArrival !== undefined &&
-  nextSegment !== undefined &&
-  segment.ArrivingTerminalAbbrev === nextSegment.DepartingTerminalAbbrev &&
-  scheduledArrival === nextSegment.DepartingTime
-    ? scheduledArrival - MINIMUM_SAME_TERMINAL_TURNAROUND_MS
-    : scheduledArrival;
+): number | undefined => {
+  if (
+    scheduledArrival !== undefined &&
+    nextSegment !== undefined &&
+    segment.ArrivingTerminalAbbrev === nextSegment.DepartingTerminalAbbrev &&
+    scheduledArrival === nextSegment.DepartingTime
+  ) {
+    // Shift arrival earlier so identical same-terminal dep and arv stay ordered for the five-minute minimum turn.
+    return scheduledArrival - MINIMUM_SAME_TERMINAL_TURNAROUND_MS;
+  }
+
+  return scheduledArrival;
+};
 
 /**
  * Resolves the schedule-implied arrival time when the segment lacks one.

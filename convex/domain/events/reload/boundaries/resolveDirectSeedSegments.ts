@@ -1,9 +1,9 @@
 /**
  * Resolves WSF schedule segments into direct physical seed segments.
  *
- * Filters the WSF schedule wire shape down to the rows reload uses for boundary
- * projection, then attaches canonical vessel and terminal abbreviations plus a
- * stable segment key so later stages can join history, trips, and pings without
+ * Filters the WSF schedule wire shape down to the rows the reload boundary stage
+ * needs, then attaches canonical vessel and terminal abbreviations plus a stable
+ * segment key so later stages can join history, trips, and pings without
  * re-resolving identities.
  */
 

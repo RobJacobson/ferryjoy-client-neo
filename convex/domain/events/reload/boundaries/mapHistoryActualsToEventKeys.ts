@@ -1,9 +1,9 @@
 /**
  * Maps WSF vessel history onto reload boundary event keys for actual-time hydration.
  *
- * Consumed by the dock-events reload pipeline so scheduled boundaries can pick up
- * observed departures and arrival proxies when only history captured them. Pure;
- * callers merge the returned map into seeded boundary rows.
+ * Consumed by the boundary stage so seeded boundary records pick up observed
+ * departures and arrival proxies when only history captured them. Pure; callers
+ * merge the returned map into seeded boundary rows.
  */
 
 import {
