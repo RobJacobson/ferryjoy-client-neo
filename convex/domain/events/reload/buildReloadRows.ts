@@ -7,21 +7,11 @@
  */
 
 import {
-  buildActualIndexes,
   buildActualRows,
   buildPreserveAbsentTripKeys,
-  buildTripFieldEvidence,
-  isDefined,
-  toTripWithKey,
 } from "./buildActualRows";
-import { buildHistoryEvidence } from "./buildHistoryEvidence";
 import { buildScheduledBoundaries } from "./buildScheduledBoundaries";
 import { buildScheduledRows } from "./buildScheduledRows";
-import {
-  buildPhysicalOnlyTrackingEvidence,
-  buildScheduleAlignedTrackingEvidence,
-  trackingLocationMatchesSailingDay,
-} from "./buildTrackingEvidence";
 import { resolveSeedLegs } from "./resolveSeedLegs";
 import type { BuildReloadRowsArgs, BuildReloadRowsResult } from "./types";
 
@@ -50,41 +40,23 @@ const buildReloadRows = ({
 }: BuildReloadRowsArgs): BuildReloadRowsResult => {
   const seedLegs = resolveSeedLegs(scheduleSegments, vessels, terminals);
   const boundaries = buildScheduledBoundaries(seedLegs);
-  const tripsWithKeys = [...activeTrips, ...completedTrips]
-    .map(toTripWithKey)
-    .filter(isDefined);
-  const activeTripsWithKeys = activeTrips.map(toTripWithKey).filter(isDefined);
-  const indexes = buildActualIndexes(
-    boundaries,
-    tripsWithKeys,
-    activeTripsWithKeys
-  );
-  const locations = vesselLocations.filter((location) =>
-    trackingLocationMatchesSailingDay(location, sailingDay)
-  );
-  const evidence = [
-    ...buildHistoryEvidence({
-      seedLegs,
-      boundaries,
-      historyRecords,
-      tripKeyBySegmentKey: indexes.tripKeyBySegmentKey,
-      vessels,
-      terminals,
-    }),
-    ...buildTripFieldEvidence(indexes.physicalOnlyTrips),
-    ...buildScheduleAlignedTrackingEvidence(
-      locations,
-      indexes.boundariesByVessel,
-      indexes.tripKeyBySegmentKey
-    ),
-    ...buildPhysicalOnlyTrackingEvidence(
-      locations,
-      indexes.activePhysicalOnlyTripsByVessel
-    ),
-  ];
   const scheduledRows = buildScheduledRows(boundaries, updatedAt);
-  const actualRows = buildActualRows(evidence, updatedAt);
-  const preserveAbsentTripKeys = buildPreserveAbsentTripKeys(tripsWithKeys);
+  const actualRows = buildActualRows({
+    sailingDay,
+    seedLegs,
+    boundaries,
+    historyRecords,
+    activeTrips,
+    completedTrips,
+    vesselLocations,
+    vessels,
+    terminals,
+    updatedAt,
+  });
+  const preserveAbsentTripKeys = buildPreserveAbsentTripKeys(
+    activeTrips,
+    completedTrips
+  );
   const reloadRows = {
     scheduledRows,
     actualRows,

@@ -14,7 +14,7 @@ import {
 } from "adapters";
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
-import { isDefined, toBoundaryEvidence } from "./buildActualRows";
+import { isDefined, toBoundaryEvidence } from "./actualEvidence";
 import type { WsfVesselHistory } from "./schemas";
 import type { ActualEvidence, ScheduledBoundary, SeedLeg } from "./types";
 

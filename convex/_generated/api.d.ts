@@ -28,6 +28,7 @@ import type * as crons from "../crons.js";
 import type * as domain_events_actual from "../domain/events/actual.js";
 import type * as domain_events_dedupeActualRows from "../domain/events/dedupeActualRows.js";
 import type * as domain_events_predicted from "../domain/events/predicted.js";
+import type * as domain_events_reload_actualEvidence from "../domain/events/reload/actualEvidence.js";
 import type * as domain_events_reload_buildActualRows from "../domain/events/reload/buildActualRows.js";
 import type * as domain_events_reload_buildHistoryEvidence from "../domain/events/reload/buildHistoryEvidence.js";
 import type * as domain_events_reload_buildReloadRows from "../domain/events/reload/buildReloadRows.js";
@@ -247,6 +248,7 @@ declare const fullApi: ApiFromModules<{
   "domain/events/actual": typeof domain_events_actual;
   "domain/events/dedupeActualRows": typeof domain_events_dedupeActualRows;
   "domain/events/predicted": typeof domain_events_predicted;
+  "domain/events/reload/actualEvidence": typeof domain_events_reload_actualEvidence;
   "domain/events/reload/buildActualRows": typeof domain_events_reload_buildActualRows;
   "domain/events/reload/buildHistoryEvidence": typeof domain_events_reload_buildHistoryEvidence;
   "domain/events/reload/buildReloadRows": typeof domain_events_reload_buildReloadRows;

@@ -1,21 +1,129 @@
 /**
- * Materialize actual dock-event rows from ordered evidence.
+ * Build actual dock-event rows from reload evidence sources.
  *
- * Actual evidence builders produce source-neutral evidence rows. This module
- * owns precedence, TripKey indexes, physical-only trip fields, and conversion
- * into the persisted eventsActual row shape.
+ * Actual-row assembly owns TripKey indexes, evidence-source precedence, and
+ * conversion into the persisted eventsActual row shape. Callers pass raw reload
+ * inputs and do not need to understand evidence ordering.
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
+import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
+import type { VesselIdentity } from "functions/vessels/schemas";
 import { groupBy } from "shared/groupBy";
 import { buildActualDockEventFromWrite } from "../actual";
 import { dedupeActualRowsByEventKey } from "../dedupeActualRows";
+import { isDefined, toTripEvidence } from "./actualEvidence";
+import { buildHistoryEvidence } from "./buildHistoryEvidence";
+import {
+  buildPhysicalOnlyTrackingEvidence,
+  buildScheduleAlignedTrackingEvidence,
+  trackingLocationMatchesSailingDay,
+} from "./buildTrackingEvidence";
+import type { WsfVesselHistory } from "./schemas";
 import type {
   ActualEvidence,
   ReloadTripInput,
   ReloadTripWithTripKey,
   ScheduledBoundary,
+  SeedLeg,
 } from "./types";
+
+type BuildActualRowsArgs = {
+  sailingDay: string;
+  seedLegs: SeedLeg[];
+  boundaries: ScheduledBoundary[];
+  historyRecords: WsfVesselHistory[];
+  activeTrips: ReloadTripInput[];
+  completedTrips: ReloadTripInput[];
+  vesselLocations: ConvexVesselLocation[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
+  updatedAt: number;
+};
+
+/**
+ * Builds actual dock rows from raw reload inputs.
+ *
+ * Evidence source precedence is explicit through named arrays: WSF history
+ * evidence wins first, durable trip fields second, scheduled tracking third,
+ * and physical-only tracking last.
+ *
+ * @param args - Reload schedule, history, trip, tracking, identity, and timestamp inputs
+ * @returns Deduped actual dock-event rows ready for persistence
+ */
+const buildActualRows = ({
+  sailingDay,
+  seedLegs,
+  boundaries,
+  historyRecords,
+  activeTrips,
+  completedTrips,
+  vesselLocations,
+  vessels,
+  terminals,
+  updatedAt,
+}: BuildActualRowsArgs): ConvexActualDockEvent[] => {
+  const tripsWithKeys = [...activeTrips, ...completedTrips]
+    .map(toTripWithKey)
+    .filter(isDefined);
+  const activeTripsWithKeys = activeTrips.map(toTripWithKey).filter(isDefined);
+  const indexes = buildActualIndexes(
+    boundaries,
+    tripsWithKeys,
+    activeTripsWithKeys
+  );
+  const locations = vesselLocations.filter((location) =>
+    trackingLocationMatchesSailingDay(location, sailingDay)
+  );
+  const historyEvidence = buildHistoryEvidence({
+    seedLegs,
+    boundaries,
+    historyRecords,
+    tripKeyBySegmentKey: indexes.tripKeyBySegmentKey,
+    vessels,
+    terminals,
+  });
+  const tripFieldEvidence = buildTripFieldEvidence(indexes.physicalOnlyTrips);
+  const scheduledTrackingEvidence = buildScheduleAlignedTrackingEvidence(
+    locations,
+    indexes.boundariesByVessel,
+    indexes.tripKeyBySegmentKey
+  );
+  const physicalOnlyTrackingEvidence = buildPhysicalOnlyTrackingEvidence(
+    locations,
+    indexes.activePhysicalOnlyTripsByVessel
+  );
+  const orderedEvidence = historyEvidence.concat(
+    tripFieldEvidence,
+    scheduledTrackingEvidence,
+    physicalOnlyTrackingEvidence
+  );
+  const actualRows = materializeActualRows(orderedEvidence, updatedAt);
+
+  return actualRows;
+};
+
+/**
+ * Builds the preserve set for physical-only actual replacement.
+ *
+ * @param activeTrips - Active trip rows that may include physical-only TripKeys
+ * @param completedTrips - Completed trip rows that may include physical-only TripKeys
+ * @returns Physical-only TripKeys whose absent rows should be preserved
+ */
+const buildPreserveAbsentTripKeys = (
+  activeTrips: ReloadTripInput[],
+  completedTrips: ReloadTripInput[]
+): Set<string> => {
+  const tripsWithKeys = [...activeTrips, ...completedTrips]
+    .map(toTripWithKey)
+    .filter(isDefined);
+  const preserveAbsentTripKeys = new Set(
+    tripsWithKeys.filter(isPhysicalOnlyTrip).map((trip) => trip.TripKey)
+  );
+
+  return preserveAbsentTripKeys;
+};
 
 /**
  * Builds actual rows from ordered evidence.
@@ -24,7 +132,7 @@ import type {
  * @param updatedAt - UpdatedAt timestamp for produced rows
  * @returns Deduped actual dock-event rows ready for persistence
  */
-const buildActualRows = (
+const materializeActualRows = (
   evidence: ActualEvidence[],
   updatedAt: number
 ): ConvexActualDockEvent[] =>
@@ -111,72 +219,6 @@ const buildTripFieldEvidence = (
   );
 
 /**
- * Builds the preserve set for physical-only actual replacement.
- *
- * @param trips - Active and completed trips that carry TripKey
- * @returns Physical-only TripKeys whose absent rows should be preserved
- */
-const buildPreserveAbsentTripKeys = (
-  trips: ReloadTripWithTripKey[]
-): Set<string> =>
-  new Set(trips.filter(isPhysicalOnlyTrip).map((trip) => trip.TripKey));
-
-/**
- * Builds evidence from a scheduled boundary and TripKey.
- *
- * @param boundary - Scheduled boundary matched by evidence
- * @param tripKey - Physical TripKey joined to the boundary segment
- * @param actualTime - Observed boundary time when known
- * @param source - Evidence source label for precedence and debugging
- * @returns Actual evidence or undefined when required values are absent
- */
-const toBoundaryEvidence = (
-  boundary: ScheduledBoundary,
-  tripKey: string | undefined,
-  actualTime: number | undefined,
-  source: ActualEvidence["source"]
-): ActualEvidence | undefined =>
-  tripKey === undefined || (source === "history" && actualTime === undefined)
-    ? undefined
-    : {
-        tripKey,
-        vesselAbbrev: boundary.VesselAbbrev,
-        sailingDay: boundary.SailingDay,
-        scheduledDeparture: boundary.ScheduledDeparture,
-        terminalAbbrev: boundary.TerminalAbbrev,
-        eventType: boundary.EventType,
-        actualTime,
-        source,
-      };
-
-/**
- * Builds evidence from a physical-only trip and observed boundary.
- *
- * @param trip - Physical-only trip carrying TripKey
- * @param terminalAbbrev - Boundary terminal abbrev
- * @param eventType - Dock boundary type
- * @param actualTime - Observed boundary time
- * @param source - Evidence source label for precedence and debugging
- * @returns Actual evidence anchored by scheduled departure or actual time
- */
-const toTripEvidence = (
-  trip: ReloadTripWithTripKey,
-  terminalAbbrev: string,
-  eventType: ActualEvidence["eventType"],
-  actualTime: number,
-  source: ActualEvidence["source"]
-): ActualEvidence => ({
-  tripKey: trip.TripKey,
-  vesselAbbrev: trip.VesselAbbrev,
-  sailingDay: trip.SailingDay,
-  scheduledDeparture: trip.ScheduledDeparture ?? actualTime,
-  terminalAbbrev,
-  eventType,
-  actualTime,
-  source,
-});
-
-/**
  * Narrows a trip to rows that carry TripKey.
  *
  * @param trip - Active or completed trip input
@@ -215,15 +257,6 @@ const isPhysicalOnlyTrip = (trip: ReloadTripWithTripKey): boolean =>
   trip.ScheduleKey === undefined;
 
 /**
- * Returns whether a candidate value is defined.
- *
- * @param value - Optional projection result
- * @returns True when the value is present
- */
-const isDefined = <TValue>(value: TValue | undefined): value is TValue =>
-  value !== undefined;
-
-/**
  * Builds the composite TripKey and boundary type key.
  *
  * @param evidence - Actual evidence with TripKey and event type
@@ -233,13 +266,4 @@ const toTripBoundaryKey = (
   evidence: Pick<ActualEvidence, "tripKey" | "eventType">
 ) => `${evidence.tripKey}|${evidence.eventType}`;
 
-export {
-  buildActualIndexes,
-  buildActualRows,
-  buildPreserveAbsentTripKeys,
-  buildTripFieldEvidence,
-  isDefined,
-  toBoundaryEvidence,
-  toTripEvidence,
-  toTripWithKey,
-};
+export { buildActualRows, buildPreserveAbsentTripKeys };
