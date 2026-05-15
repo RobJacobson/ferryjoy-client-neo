@@ -10,7 +10,7 @@ import type { DockEventType } from "functions/events/common/schemas";
 import type { ConvexActualDockWritePersistable } from "../../actual";
 import { addMapListValue } from "../shared";
 import type {
-  DockStatusEventRecord,
+  ReloadScheduledBoundary,
   ReloadTripContext,
   ReloadTripWithTripKey,
 } from "../types";
@@ -19,7 +19,7 @@ type ActualDockEventContext = {
   tripKeyBySegmentKey: Map<string, string>;
   physicalOnlyTrips: ReloadTripWithTripKey[];
   activePhysicalOnlyTripsByVessel: Map<string, ReloadTripWithTripKey>;
-  eventsByVessel: Map<string, DockStatusEventRecord[]>;
+  eventsByVessel: Map<string, ReloadScheduledBoundary[]>;
 };
 
 /**
@@ -30,12 +30,12 @@ type ActualDockEventContext = {
  * stage to re-walk the boundary array.
  *
  * @param tripContext - Trip-key indexes and physical-only collections from the orchestrator
- * @param boundaryEvents - Hydrated boundary records sorted in timeline order
+ * @param boundaryEvents - Scheduled boundary records sorted in timeline order
  * @returns Composite lookups used by every actual source module
  */
 const buildActualDockEventContext = (
   tripContext: ReloadTripContext,
-  boundaryEvents: DockStatusEventRecord[]
+  boundaryEvents: ReloadScheduledBoundary[]
 ): ActualDockEventContext => ({
   tripKeyBySegmentKey: tripContext.tripKeyBySegmentKey,
   physicalOnlyTrips: tripContext.physicalOnlyTrips,
@@ -44,18 +44,18 @@ const buildActualDockEventContext = (
 });
 
 /**
- * Groups boundary records by vessel abbrev for location ping correlation.
+ * Groups scheduled boundaries by vessel abbrev for tracking correlation.
  *
- * @param events - Hydrated boundary records for one sailing day
- * @returns Map from vessel abbrev to events for that vessel across terminals
+ * @param events - Scheduled boundary records for one sailing day
+ * @returns Map from vessel abbrev to boundaries for that vessel across terminals
  */
 const groupEventsByVessel = (
-  events: DockStatusEventRecord[]
-): Map<string, DockStatusEventRecord[]> => {
+  events: ReloadScheduledBoundary[]
+): Map<string, ReloadScheduledBoundary[]> => {
   const eventsByVesselAbbrev = events.reduce(
     (eventsByVessel, event) =>
       addMapListValue(eventsByVessel, event.VesselAbbrev, event),
-    new Map<string, DockStatusEventRecord[]>()
+    new Map<string, ReloadScheduledBoundary[]>()
   );
 
   return eventsByVesselAbbrev;
@@ -64,8 +64,8 @@ const groupEventsByVessel = (
 /**
  * Shapes one physical-only actual write from a trip and observed time.
  *
- * Used by both the physical-only trip projection and the physical-only location
- * fallback so the persisted write carries the same identity fields regardless
+ * Used by both the physical-only trip projection and physical-only tracking
+ * evidence so the persisted write carries the same identity fields regardless
  * of which evidence path emitted it.
  *
  * @param trip - Physical-only trip with TripKey

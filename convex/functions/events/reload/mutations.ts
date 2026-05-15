@@ -78,7 +78,6 @@ const reseedDockStatusEventsForSailingDayRows = async (
 
   const boundaryContext = buildReloadBoundaryContext({
     scheduleSegments: args.ScheduleSegments,
-    historyRecords: args.HistoryRecords,
     vessels: args.Vessels,
     terminals: args.Terminals,
   });
@@ -88,10 +87,14 @@ const reseedDockStatusEventsForSailingDayRows = async (
   );
   const actualRows = buildActualRows({
     sailingDay,
+    seedSegments: boundaryContext.seedSegments,
     boundaryEvents: boundaryContext.boundaryEvents,
+    historyRecords: args.HistoryRecords,
     activeTrips,
     completedTrips,
     vesselLocations,
+    vessels: args.Vessels,
+    terminals: args.Terminals,
     updatedAt,
   });
   const preserveAbsentTripKeys = new Set(

@@ -1,8 +1,8 @@
 /**
  * Type shapes for dock-event reload assembly.
  *
- * Hydrated dock status event records, direct WSF reload seed rows, and trip
- * context used by the actual subtree.
+ * Direct WSF reload seed rows, pure scheduled boundaries, history evidence,
+ * and trip context used by the actual subtree.
  */
 
 import type { DockEventType } from "functions/events/common/schemas";
@@ -19,7 +19,7 @@ type RawSeedSegment = {
   RouteAbbrev: string;
 };
 
-type DockStatusEventRecord = {
+type ReloadScheduledBoundary = {
   SegmentKey: string;
   Key: string;
   VesselAbbrev: string;
@@ -29,9 +29,11 @@ type DockStatusEventRecord = {
   NextTerminalAbbrev: string;
   EventType: DockEventType;
   EventScheduledTime?: number;
-  EventPredictedTime?: number;
-  EventOccurred?: true;
-  EventActualTime?: number;
+};
+
+type ReloadHistoryActualEvidence = {
+  eventKey: string;
+  actualTime: number;
 };
 
 type ReloadTripForActuals = {
@@ -55,8 +57,9 @@ type ReloadTripContext = {
 };
 
 export type {
-  DockStatusEventRecord,
   RawSeedSegment,
+  ReloadHistoryActualEvidence,
+  ReloadScheduledBoundary,
   ReloadTripContext,
   ReloadTripForActuals,
   ReloadTripWithTripKey,

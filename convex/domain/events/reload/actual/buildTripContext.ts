@@ -18,7 +18,7 @@ import type {
  *
  * Filters trips that carry a TripKey, indexes them by schedule segment key for
  * boundary joins, and isolates physical-only trips (those without ScheduleKey)
- * for fallback row emission.
+ * for tracking-derived row emission.
  *
  * @param activeTrips - Active Convex trip rows contributing actual evidence
  * @param completedTrips - Completed Convex trip rows contributing actual evidence
@@ -84,7 +84,7 @@ const buildTripKeyBySegmentKey = (
 };
 
 /**
- * Indexes active physical-only trips by vessel abbrev for live-location fallback.
+ * Indexes active physical-only trips by vessel abbrev for tracking evidence.
  *
  * Later vessel wins when multiple active physical-only rows share a vessel,
  * matching Map last-write semantics used when building the map.

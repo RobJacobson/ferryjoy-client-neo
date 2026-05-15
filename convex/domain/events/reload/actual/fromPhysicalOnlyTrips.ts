@@ -4,8 +4,8 @@
  * Physical-only trips have no scheduled boundary to anchor onto, so reload
  * derives departure and arrival rows from the trip's own LeftDockActual and
  * TripEnd fields. The rows emitted here represent the strongest evidence the
- * actual pipeline can produce for these trips and run before any live-ping
- * fallbacks.
+ * actual pipeline can produce for these trips and run before tracking-derived
+ * state evidence.
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";

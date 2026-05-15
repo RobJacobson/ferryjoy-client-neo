@@ -1,10 +1,10 @@
 /**
  * Tests for scheduled and actual dock-event reload assembly.
  *
- * Exercises boundary context resolution, boundary hydration and seam handling,
- * scheduled-row projection, and actual-row synthesis from history, trip fields,
- * and live locations. Helpers build small WSF-shaped fixtures so cases stay
- * focused on reload behavior instead of adapter details.
+ * Exercises pure boundary context resolution, seam handling, scheduled-row
+ * projection, and actual-row synthesis from history, trip fields, and current
+ * tracking data. Helpers build small WSF-shaped fixtures so cases stay focused
+ * on reload behavior instead of adapter details.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -18,7 +18,7 @@ import type {
   WsfVesselHistory,
 } from "domain/events/reload/schemas";
 import type {
-  DockStatusEventRecord,
+  ReloadScheduledBoundary,
   ReloadTripForActuals,
 } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
@@ -63,7 +63,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
 
     const boundaryContext = buildReloadBoundaryContext({
       scheduleSegments: scheduledSegments,
-      historyRecords: [],
       vessels,
       terminals,
     });
@@ -85,7 +84,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
   });
 
   it("copies next terminal from boundary records without arrival lookup", () => {
-    const boundaryEvent: DockStatusEventRecord = {
+    const boundaryEvent: ReloadScheduledBoundary = {
       SegmentKey: "segment-without-arrival",
       Key: "segment-without-arrival--dep-dock",
       VesselAbbrev: "WEN",
@@ -218,20 +217,26 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
+    const historyRecords: WsfVesselHistory[] = [
+      {
+        VesselId: 1,
+        Vessel: "Wenatchee",
+        Departing: "Seattle",
+        Arriving: "Bainbridge Island",
+        ScheduledDepart: departure,
+        ActualDepart: actualDeparture,
+        EstArrival: estimatedArrival,
+      },
+    ];
+    const boundaryContext = buildReloadBoundaryContext({
+      scheduleSegments: [scheduleSegment({ departure, arrival })],
+      vessels,
+      terminals,
+    });
     const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
-      historyRecords: [
-        {
-          VesselId: 1,
-          Vessel: "Wenatchee",
-          Departing: "Seattle",
-          Arriving: "Bainbridge Island",
-          ScheduledDepart: departure,
-          ActualDepart: actualDeparture,
-          EstArrival: estimatedArrival,
-        },
-      ],
+      historyRecords,
       vessels,
       terminals,
       activeTrips: [],
@@ -253,6 +258,15 @@ describe("reload dock sailing day rows from schedule and history", () => {
     expect(result.scheduledRows.map((row) => row.EventType)).toEqual([
       "dep-dock",
       "arv-dock",
+    ]);
+    expect(
+      boundaryContext.boundaryEvents.map((event) => [
+        "EventActualTime" in event,
+        "EventOccurred" in event,
+      ])
+    ).toEqual([
+      [false, false],
+      [false, false],
     ]);
     expect(
       result.actualRows.map((row) => [
@@ -529,7 +543,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-physical--arv-dock", "arv-dock", timestamp]]);
   });
 
-  it("does not duplicate physical-only location rows already emitted from trip fields", () => {
+  it("does not duplicate physical-only tracking rows already emitted from trip fields", () => {
     const tripActual = at(18, 5);
     const locationActual = at(18, 8);
     const result = buildReloadResult({
@@ -568,7 +582,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-physical--dep-dock", "dep-dock", tripActual]]);
   });
 
-  it("keeps base actual rows before physical-only location fallback in mixed batches", () => {
+  it("keeps durable actual rows before physical-only tracking rows in mixed batches", () => {
     const departure = at(13, 20);
     const arrival = at(13, 55);
     const historyActual = at(13, 24);
@@ -734,7 +748,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     expect(result.actualRows).toEqual([]);
   });
 
-  it("emits a scheduled departure row from an away-from-dock location", () => {
+  it("emits a scheduled departure row from away-from-dock tracking evidence", () => {
     const departure = at(22, 0);
     const arrival = at(22, 35);
     const segmentKey = buildSegmentKey(
@@ -785,7 +799,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-scheduled--dep-dock", "dep-dock", undefined]]);
   });
 
-  it("emits an eligible prior scheduled arrival row from an at-dock location", () => {
+  it("emits an eligible prior scheduled arrival row from at-dock tracking evidence", () => {
     const firstDeparture = at(15, 0);
     const firstArrival = at(15, 35);
     const secondDeparture = at(16, 0);
@@ -986,7 +1000,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-newer--arv-dock", "arv-dock", undefined]]);
   });
 
-  it("does not duplicate scheduled location rows already actualized by history", () => {
+  it("does not duplicate scheduled tracking rows already actualized by history", () => {
     const departure = at(23, 0);
     const arrival = at(23, 35);
     const actualDeparture = at(23, 4);
@@ -1071,7 +1085,6 @@ const buildReloadResult = ({
 }) => {
   const boundaryContext = buildReloadBoundaryContext({
     scheduleSegments,
-    historyRecords,
     vessels,
     terminals,
   });
@@ -1083,10 +1096,14 @@ const buildReloadResult = ({
     ),
     actualRows: buildActualRows({
       sailingDay,
+      seedSegments: boundaryContext.seedSegments,
       boundaryEvents: boundaryContext.boundaryEvents,
+      historyRecords,
       activeTrips,
       completedTrips,
       vesselLocations,
+      vessels,
+      terminals,
       updatedAt,
     }),
   };

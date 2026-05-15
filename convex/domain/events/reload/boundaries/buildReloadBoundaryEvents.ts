@@ -1,62 +1,39 @@
 /**
- * Builds vessel-scoped reload boundary events from direct physical seed segments.
+ * Builds vessel-scoped scheduled boundaries from direct physical seed segments.
  *
  * Reload persists a full sailing day at once; this module groups seeds by vessel
  * and sailing day. Each direct segment emits one departure and one arrival
- * boundary, history actuals overlay by key, and same-terminal turnaround policy
- * applies when the next segment departs from the arrival terminal.
+ * boundary. Same-terminal turnaround policy lives here so scheduled and actual
+ * projections share the same boundary timing without carrying actual evidence.
  */
 
-import type { TerminalIdentity, VesselIdentity } from "adapters";
 import { buildBoundaryKey } from "shared/keys";
 import { getOfficialCrossingTimeMinutes } from "../../../scheduledTrips";
-import type { WsfVesselHistory } from "../schemas";
-import type { DockStatusEventRecord, RawSeedSegment } from "../types";
-import { mapHistoryActualsToEventKeys } from "./mapHistoryActualsToEventKeys";
+import type { RawSeedSegment, ReloadScheduledBoundary } from "../types";
 
 const MINIMUM_SAME_TERMINAL_TURNAROUND_MS = 5 * 60 * 1000;
 
 /**
- * Builds boundary events for one reload batch from resolved direct seeds.
+ * Builds scheduled boundaries for one reload batch from resolved direct seeds.
  *
  * The outer reload mutation replaces a whole sailing day, but this helper
  * groups direct seed segments by vessel and sailing day before emitting rows.
  * That keeps same-vessel continuity decisions, including minimum dock
  * turnaround handling, local to the boundary stage where they stay consistent
- * for both scheduled projection and actual synthesis.
+ * for both scheduled projection and actual synthesis without mixing in actual
+ * event evidence.
  *
  * @param seedSegments - Direct seed segments for the reload batch
- * @param historyRecords - WSF vessel history rows for the sailing day
- * @param vessels - Vessel identities for adapter resolution of history rows
- * @param terminals - Terminal identities for adapter resolution of history rows
- * @returns Boundary records grouped by vessel day with history actuals overlaid
+ * @returns Scheduled boundary records grouped by vessel day
  */
 const buildReloadBoundaryEvents = ({
   seedSegments,
-  historyRecords,
-  vessels,
-  terminals,
 }: {
   seedSegments: RawSeedSegment[];
-  historyRecords: WsfVesselHistory[];
-  vessels: ReadonlyArray<VesselIdentity>;
-  terminals: ReadonlyArray<TerminalIdentity>;
-}): DockStatusEventRecord[] => {
-  const historyActualsByEventKey = mapHistoryActualsToEventKeys(
-    seedSegments,
-    historyRecords,
-    vessels,
-    terminals
+}): ReloadScheduledBoundary[] =>
+  [...groupSeedSegmentsByVesselDay(seedSegments).values()].flatMap(
+    (vesselDaySegments) => buildBoundaryEventsForVesselDay(vesselDaySegments)
   );
-
-  return [...groupSeedSegmentsByVesselDay(seedSegments).values()].flatMap(
-    (vesselDaySegments) =>
-      buildBoundaryEventsForVesselDay(
-        vesselDaySegments,
-        historyActualsByEventKey
-      )
-  );
-};
 
 /**
  * Groups seed segments by vessel and sailing day.
@@ -81,22 +58,18 @@ const groupSeedSegmentsByVesselDay = (
 };
 
 /**
- * Builds boundary records for one vessel and sailing day.
+ * Builds scheduled boundary records for one vessel and sailing day.
  *
  * @param seedSegments - Direct seed segments sharing a vessel and sailing day
- * @param historyActualsByEventKey - History actual times indexed by boundary key
  * @returns Departure and arrival records in scheduled departure order
  */
 const buildBoundaryEventsForVesselDay = (
-  seedSegments: RawSeedSegment[],
-  historyActualsByEventKey: Map<string, number>
-): DockStatusEventRecord[] => {
+  seedSegments: RawSeedSegment[]
+): ReloadScheduledBoundary[] => {
   const sortedSegments = [...seedSegments].sort(compareSeedSegmentsByDeparture);
 
   return sortedSegments.flatMap((segment, index) =>
-    buildSeedEventsForSegment(segment, sortedSegments[index + 1]).map((event) =>
-      overlayHistoryActual(event, historyActualsByEventKey.get(event.Key))
-    )
+    buildSeedEventsForSegment(segment, sortedSegments[index + 1])
   );
 };
 
@@ -110,7 +83,7 @@ const buildBoundaryEventsForVesselDay = (
 const buildSeedEventsForSegment = (
   segment: RawSeedSegment,
   nextSegment: RawSeedSegment | undefined
-): [DockStatusEventRecord, DockStatusEventRecord] => {
+): [ReloadScheduledBoundary, ReloadScheduledBoundary] => {
   const scheduledArrival = resolveArrivalScheduledTimeWithTurnaround(
     segment,
     nextSegment
@@ -216,29 +189,6 @@ const getOfficialScheduledArrivalTime = (
   return duration === undefined
     ? undefined
     : segment.DepartingTime + duration * 60 * 1000;
-};
-
-/**
- * Overlays a history-derived actual time onto a seeded boundary record.
- *
- * @param event - Boundary record built from the seed segment
- * @param historyActualTime - Observed instant from history, when matched to this key
- * @returns Original event when no history matched, otherwise a copy carrying the actual
- */
-const overlayHistoryActual = (
-  event: DockStatusEventRecord,
-  historyActualTime: number | undefined
-): DockStatusEventRecord => {
-  if (historyActualTime === undefined) {
-    return event;
-  }
-
-  return {
-    ...event,
-    EventOccurred: true,
-    EventActualTime: historyActualTime,
-    EventPredictedTime: undefined,
-  };
 };
 
 /**

@@ -7,38 +7,60 @@
  */
 
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
+import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import type { DockStatusEventRecord, ReloadTripForActuals } from "../types";
+import type { VesselIdentity } from "functions/vessels/schemas";
+import type { WsfVesselHistory } from "../schemas";
+import type {
+  RawSeedSegment,
+  ReloadScheduledBoundary,
+  ReloadTripForActuals,
+} from "../types";
 import { buildReloadActualDockRows } from "./buildReloadActualDockRows";
 import { buildActualTripContext } from "./buildTripContext";
+import { mapHistoryActualsToEventKeys } from "./mapHistoryActualsToEventKeys";
 
 /**
- * Computes the actual dock rows for one sailing-day reload.
+ * Computes actual dock rows for one sailing-day reload.
  *
  * Builds trip-key joins and physical-only collections from active and completed
- * Convex trips, then hands the hydrated boundary tape plus same-day vessel
- * locations to the actual composer. That keeps scheduled and actual reload
- * stages on one shared boundary list while still hiding actual subtree imports
- * behind this single entry for orchestrators and mutations.
+ * Convex trips, indexes WSF history as durable actual evidence, then hands
+ * pure scheduled boundaries and same-day tracking rows to the actual composer.
+ * This keeps boundary construction schedule-only while preserving tracking as a
+ * first-class event source.
  *
- * @param params - Sailing day, hydrated boundary tape, trip evidence, vessel locations, and updatedAt stamp
+ * @param params - Sailing day, seed segments, scheduled boundaries, history, trip evidence, tracking rows, identity tables, and updatedAt stamp
  * @returns Unique actual dock rows for the sailing-day reload
  */
 const buildActualRows = ({
   activeTrips,
   completedTrips,
+  seedSegments,
+  historyRecords,
+  vessels,
+  terminals,
   ...params
 }: {
   sailingDay: string;
-  boundaryEvents: DockStatusEventRecord[];
+  seedSegments: RawSeedSegment[];
+  boundaryEvents: ReloadScheduledBoundary[];
+  historyRecords: WsfVesselHistory[];
   activeTrips: ReloadTripForActuals[];
   completedTrips: ReloadTripForActuals[];
   vesselLocations: ConvexVesselLocation[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
   updatedAt: number;
 }): ConvexActualDockEvent[] =>
   buildReloadActualDockRows({
     ...params,
     tripContext: buildActualTripContext(activeTrips, completedTrips),
+    historyActualsByEventKey: mapHistoryActualsToEventKeys(
+      seedSegments,
+      historyRecords,
+      vessels,
+      terminals
+    ),
   });
 
 export { buildActualRows };

@@ -1,9 +1,9 @@
 /**
- * Maps WSF vessel history onto reload boundary event keys for actual-time hydration.
+ * Maps WSF vessel history onto scheduled boundary keys for actual evidence.
  *
- * Consumed by the boundary stage so seeded boundary records pick up observed
- * departures and arrival proxies when only history captured them. Pure; callers
- * merge the returned map into seeded boundary rows.
+ * Reload keeps scheduled boundaries pure, so WSF history is resolved into an
+ * evidence index consumed by actual-row projection. This preserves the strict
+ * separation between schedule shape and observed departure or arrival times.
  */
 
 import {
@@ -15,12 +15,7 @@ import {
 import { buildBoundaryKey, buildSegmentKey } from "shared/keys";
 import type { VesselHistory } from "ws-dottie/wsf-vessels/schemas";
 import type { WsfVesselHistory } from "../schemas";
-import type { RawSeedSegment } from "../types";
-
-type HistoryActualEntry = {
-  eventKey: string;
-  actualTime: number;
-};
+import type { RawSeedSegment, ReloadHistoryActualEvidence } from "../types";
 
 type HistorySeedLookup = {
   directSegmentKeys: Set<string>;
@@ -28,13 +23,12 @@ type HistorySeedLookup = {
 };
 
 /**
- * Indexes history-derived actual depart and arrival-proxy times by boundary event key.
+ * Indexes history-derived actual departure and arrival-proxy times by boundary key.
  *
- * Reload merges WSF vessel history into seeded boundary records to obtain
- * actual times when the live ping stream missed an arrival or departure.
- * Strict adapter resolution is tried first; rows that fail strict resolution
- * fall back to vessel abbrev plus scheduled departure to recover history
- * that names a vessel ambiguously.
+ * Strict adapter resolution is tried first, then vessel plus scheduled
+ * departure is used as a recovery path for ambiguous history rows. The returned
+ * map is actual evidence only; callers decide how to join it to trips and
+ * whether tracking-derived rows are still needed.
  *
  * @param directSeedSegments - Same-day raw seed segments for the reload batch
  * @param historyRecords - WSF vessel history rows for the sailing day
@@ -87,7 +81,7 @@ const buildHistoryActualEntries = ({
   seedLookup: HistorySeedLookup;
   vessels: ReadonlyArray<VesselIdentity>;
   terminals: ReadonlyArray<TerminalIdentity>;
-}): HistoryActualEntry[] => {
+}): ReloadHistoryActualEvidence[] => {
   if (!canHydrateHistoryActuals(record)) {
     return [];
   }
@@ -146,13 +140,13 @@ const toHistoryActualEntry = (
   tripKey: string,
   eventType: "dep-dock" | "arv-dock",
   actualTime: number | undefined
-): HistoryActualEntry | undefined => {
+): ReloadHistoryActualEvidence | undefined => {
   if (actualTime === undefined) {
     return undefined;
   }
 
   const boundaryEventKey = buildBoundaryKey(tripKey, eventType);
-  const historyActualEntry: HistoryActualEntry = {
+  const historyActualEntry: ReloadHistoryActualEvidence = {
     eventKey: boundaryEventKey,
     actualTime,
   };
