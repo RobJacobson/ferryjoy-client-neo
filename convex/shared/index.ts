@@ -5,6 +5,7 @@
 export * from "./convertDates";
 export * from "./deepEqual";
 export * from "./durationUtils";
+export * from "./groupBy";
 export * from "./keys";
 export * from "./stripConvexMeta";
 // Note: time.ts functions are exported individually to avoid conflicts

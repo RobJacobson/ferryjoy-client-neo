@@ -6,6 +6,7 @@
  * physical leg for that vessel.
  */
 
+import { groupBy } from "shared/groupBy";
 import { buildBoundaryKey } from "shared/keys";
 import { getOfficialCrossingTimeMinutes } from "../../scheduledTrips";
 import type { ScheduledBoundary, SeedLeg } from "./types";
@@ -125,26 +126,6 @@ const getOfficialScheduledArrivalTime = (leg: SeedLeg): number | undefined => {
 
   return officialScheduledArrival;
 };
-
-/**
- * Groups values by a string key.
- *
- * @param values - Values to group
- * @param toKey - Key projection for each value
- * @returns Map from projected key to grouped values
- */
-const groupBy = <TValue>(
-  values: TValue[],
-  toKey: (value: TValue) => string
-): Map<string, TValue[]> =>
-  values.reduce(
-    (groups, value) =>
-      new Map(groups).set(toKey(value), [
-        ...(groups.get(toKey(value)) ?? []),
-        value,
-      ]),
-    new Map<string, TValue[]>()
-  );
 
 /**
  * Builds the vessel-day grouping key for a seed leg.
