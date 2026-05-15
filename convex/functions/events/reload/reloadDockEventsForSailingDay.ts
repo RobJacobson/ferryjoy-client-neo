@@ -46,7 +46,7 @@ const runReloadDockEventsForSailingDay = async (
   const vessels = await loadVesselIdentities(ctx);
   const terminals = await loadTerminalIdentities(ctx);
 
-  // Fetch WSF scheduled trips for the target day and flatten across routes.
+  // Flatten per-route bundles so the mutation receives one segment list without re-walking routes.
   const { routeData } = await fetchAndTransformScheduledTrips(
     targetDate,
     vessels,
@@ -54,7 +54,7 @@ const runReloadDockEventsForSailingDay = async (
   );
   const adapterScheduleSegments = routeData.flatMap((data) => data.segments);
 
-  // Fetch vessel history and convert all times to epoch ms for the mutation.
+  // Normalize schedule and history timestamps to epoch ms at the action boundary because mutation args cannot carry Date values.
   const { scheduledSegments, historyRecords } = await fetchReloadWsfInputs(
     adapterScheduleSegments,
     targetDate

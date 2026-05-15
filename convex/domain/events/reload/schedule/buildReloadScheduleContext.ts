@@ -20,7 +20,15 @@ type ReloadScheduleContext = {
 /**
  * Builds resolved seed segments and hydrated boundary events for one reload.
  *
- * @param args - Schedule, history, and identity inputs from the reload action
+ * Runs schedule resolution first so every downstream stage shares the same
+ * direct physical seed set and the same timeline-sorted boundary tape. The
+ * boundary list already carries history overlays where WSF history matched a
+ * seeded leg, which keeps scheduled-table projection and actual synthesis
+ * aligned without duplicating hydration rules in each branch.
+ *
+ * @param args - Schedule, history, and identity inputs from the reload action,
+ * including scheduleSegments and historyRecords for the sailing day plus
+ * vessels and terminals for adapter resolution
  * @returns Direct seed segments and canonical boundary events
  */
 const buildReloadScheduleContext = ({

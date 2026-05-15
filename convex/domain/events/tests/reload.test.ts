@@ -1,5 +1,10 @@
 /**
  * Tests for scheduled and actual dock-event reload assembly.
+ *
+ * Exercises schedule context resolution, boundary hydration and seam handling,
+ * scheduled-row projection, and actual-row synthesis from history, trip fields,
+ * and live locations. Helpers build small WSF-shaped fixtures so cases stay
+ * focused on reload behavior instead of adapter details.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -989,7 +994,10 @@ const buildReloadResult = ({
   });
 
   return {
-    scheduledRows: buildScheduledRows(scheduleContext.boundaryEvents, updatedAt),
+    scheduledRows: buildScheduledRows(
+      scheduleContext.boundaryEvents,
+      updatedAt
+    ),
     actualRows: buildActualRows({
       sailingDay,
       boundaryEvents: scheduleContext.boundaryEvents,

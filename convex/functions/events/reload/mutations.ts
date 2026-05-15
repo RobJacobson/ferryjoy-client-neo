@@ -71,7 +71,7 @@ const reseedDockStatusEventsForSailingDayRows = async (
   const updatedAt = Date.now();
   const sailingDay = args.SailingDay;
 
-  // Read Convex-side trip and location context the domain reload needs.
+  // Load trips and live locations from Convex because the action payload omits those tables.
   const { activeTrips, completedTrips, vesselLocations } =
     await loadReloadDbInput(ctx, sailingDay);
 
@@ -105,14 +105,9 @@ const reseedDockStatusEventsForSailingDayRows = async (
   await upsertScheduledRowsForSailingDay(ctx, sailingDay, scheduledRows);
 
   // Replace actuals while preserving rows for physical-only trips.
-  await replaceActualRowsForSailingDay(
-    ctx,
-    sailingDay,
-    actualRows,
-    {
-      preserveAbsentTripKeys,
-    }
-  );
+  await replaceActualRowsForSailingDay(ctx, sailingDay, actualRows, {
+    preserveAbsentTripKeys,
+  });
 
   return {
     scheduledCount: scheduledRows.length,

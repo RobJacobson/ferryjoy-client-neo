@@ -78,8 +78,9 @@ const buildScheduleAlignedLocationFallbackRows = ({
 /**
  * Builds schedule-aligned actual rows from one live location ping.
  *
- * @param options - Location ping, same-vessel boundary list, updatedAt stamp,
- * tripKeyBySegmentKey join map from segment to TripKey
+ * @param options - Location ping and lookup inputs: location is the live ping,
+ * events lists same-vessel boundaries, updatedAt stamps emitted rows, and
+ * tripKeyBySegmentKey maps each segment key to TripKey for joins
  * @returns Zero to two rows for departure and arrival candidates tied to the ping
  */
 const buildScheduleAlignedLocationRows = ({
@@ -304,9 +305,10 @@ const appendUnrepresentedActualRows = (
     ...accumulator.representedTripBoundaryKeys,
     ...rows.map(toTripBoundaryKey),
   ]);
+  const mergedRowsAfterAppend = [...accumulator.rows, ...rows];
 
   return {
-    rows: [...accumulator.rows, ...rows],
+    rows: mergedRowsAfterAppend,
     representedTripBoundaryKeys,
   };
 };
@@ -347,13 +349,15 @@ const getLocationAnchoredEvent = (
     }
   }
 
-  return events.find(
+  const scheduleAnchoredEvent = events.find(
     (event) =>
       event.EventType === eventType &&
       event.ScheduledDeparture === location.ScheduledDeparture &&
       (eventType === "arv-dock" ||
         event.TerminalAbbrev === location.DepartingTerminalAbbrev)
   );
+
+  return scheduleAnchoredEvent;
 };
 
 /**
@@ -376,31 +380,35 @@ const findArrivalEventForLocation = (
     return undefined;
   }
 
-  return events
-    .filter(
-      (event) =>
-        event.EventType === "arv-dock" &&
-        event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
-        event.ScheduledDeparture < scheduledDepartureUpperBound &&
-        event.EventOccurred !== true &&
-        Math.min(
-          event.ScheduledDeparture,
-          event.EventPredictedTime ?? Number.POSITIVE_INFINITY,
-          event.EventScheduledTime ?? Number.POSITIVE_INFINITY
-        ) <= location.TimeStamp
-    )
-    .reduce<DockStatusEventRecord | undefined>(
-      (latest, event) =>
-        latest === undefined ||
-        event.ScheduledDeparture > latest.ScheduledDeparture
-          ? event
-          : latest,
-      undefined
-    );
+  // Narrow to unoccurred arrivals before the bound and no later than the ping.
+  const eligibleArrivalsForAtDockInference = events.filter(
+    (event) =>
+      event.EventType === "arv-dock" &&
+      event.TerminalAbbrev === location.DepartingTerminalAbbrev &&
+      event.ScheduledDeparture < scheduledDepartureUpperBound &&
+      event.EventOccurred !== true &&
+      Math.min(
+        event.ScheduledDeparture,
+        event.EventPredictedTime ?? Number.POSITIVE_INFINITY,
+        event.EventScheduledTime ?? Number.POSITIVE_INFINITY
+      ) <= location.TimeStamp
+  );
+
+  // Order eligibles by scheduled departure; the last entry is the latest prior arrival.
+  const eligibleSortedByScheduledDeparture = [
+    ...eligibleArrivalsForAtDockInference,
+  ].sort((left, right) => left.ScheduledDeparture - right.ScheduledDeparture);
+
+  return eligibleSortedByScheduledDeparture.at(-1);
 };
 
 /**
  * Builds the dedupe set for live-location fallback rows.
+ *
+ * Physical-only ping fallback must skip boundaries already covered by history,
+ * trip fields, or schedule-aligned pings. This set captures TripKey plus
+ * boundary kind so the reducer can treat each trip boundary at most once
+ * before emitting weaker physical-only evidence.
  *
  * @param rows - Actual rows carrying TripKey and EventType fields
  * @returns Set of composite TripKey/EventType boundary keys

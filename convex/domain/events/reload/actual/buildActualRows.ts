@@ -9,14 +9,17 @@
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { DockStatusEventRecord, ReloadTripForActuals } from "../types";
-import { buildActualTripContext } from "./buildTripContext";
 import { buildReloadActualDockRows } from "./buildReloadActualDockRows";
+import { buildActualTripContext } from "./buildTripContext";
 
 /**
  * Computes the actual dock rows for one sailing-day reload.
  *
- * Builds trip lookups privately before delegating to the actual composer so
- * callers can pass the raw trip evidence they already loaded.
+ * Builds trip-key joins and physical-only collections from active and completed
+ * Convex trips, then hands the hydrated boundary tape plus same-day vessel
+ * locations to the actual composer. That keeps scheduled and actual reload
+ * stages on one shared boundary list while still hiding actual subtree imports
+ * behind this single entry for orchestrators and mutations.
  *
  * @param params - Sailing day, hydrated boundary tape, trip evidence, vessel locations, and updatedAt stamp
  * @returns Unique actual dock rows for the sailing-day reload
