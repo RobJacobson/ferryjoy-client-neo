@@ -45,7 +45,6 @@ type BuildActualRowsArgs = {
 };
 
 type ActualRowsByBoundary = Map<string, ConvexActualDockEvent>;
-
 type ActualRowDraft = {
   TripKey: string;
   VesselAbbrev: string;
@@ -111,65 +110,57 @@ const buildActualRows = ({
   const locations = vesselLocations.filter((location) =>
     trackingLocationMatchesSailingDay(location, sailingDay)
   );
-  const actualRows = new Map<string, ConvexActualDockEvent>();
   const historyActuals = mapHistoryActualsToBoundaryKeys(
     seedLegs,
     historyRecords,
     vessels,
     terminals
   );
-
-  for (const boundary of boundaries) {
+  const historyRows = boundaries.flatMap((boundary): ActualRowDraft[] => {
     const actualTime = historyActuals.get(boundary.Key);
     const tripKey = tripKeyBySegmentKey.get(boundary.SegmentKey);
-    if (actualTime === undefined || tripKey === undefined) {
-      continue;
-    }
 
-    addRowIfAbsent(
-      actualRows,
-      {
-        TripKey: tripKey,
-        VesselAbbrev: boundary.VesselAbbrev,
-        SailingDay: boundary.SailingDay,
-        ScheduledDeparture: boundary.ScheduledDeparture,
-        TerminalAbbrev: boundary.TerminalAbbrev,
-        EventType: boundary.EventType,
-        EventActualTime: actualTime,
-      },
-      updatedAt
-    );
-  }
-
-  for (const trip of physicalOnlyTrips) {
-    addPhysicalTripRow(
-      actualRows,
-      trip,
-      "dep-dock",
-      trip.DepartingTerminalAbbrev,
-      trip.LeftDockActual,
-      updatedAt
-    );
-    addPhysicalTripRow(
-      actualRows,
-      trip,
-      "arv-dock",
-      trip.ArrivingTerminalAbbrev,
-      trip.TripEnd,
-      updatedAt
-    );
-  }
-
-  for (const location of locations) {
+    return actualTime === undefined || tripKey === undefined
+      ? []
+      : [
+          {
+            TripKey: tripKey,
+            VesselAbbrev: boundary.VesselAbbrev,
+            SailingDay: boundary.SailingDay,
+            ScheduledDeparture: boundary.ScheduledDeparture,
+            TerminalAbbrev: boundary.TerminalAbbrev,
+            EventType: boundary.EventType,
+            EventActualTime: actualTime,
+          },
+        ];
+  });
+  const physicalFieldRows = physicalOnlyTrips.flatMap((trip) =>
+    [
+      toPhysicalTripDraft(
+        trip,
+        "dep-dock",
+        trip.DepartingTerminalAbbrev,
+        trip.LeftDockActual
+      ),
+      toPhysicalTripDraft(
+        trip,
+        "arv-dock",
+        trip.ArrivingTerminalAbbrev,
+        trip.TripEnd
+      ),
+    ].flatMap((draft) => (draft === undefined ? [] : [draft]))
+  );
+  const scheduledTrackingRows = locations.flatMap((location) => {
     const vesselBoundaries =
       boundariesByVessel.get(location.VesselAbbrev) ?? [];
     if (vesselBoundaries.length === 0 || location.InService !== true) {
-      continue;
+      return [];
     }
 
     const departureBoundary =
       getTrackingKeyedBoundary(vesselBoundaries, location, "dep-dock") ??
       getTrackingScheduleBoundary(vesselBoundaries, location, "dep-dock");
+
     const trackingBoundaries: Array<
       [ScheduledBoundary | undefined, number | undefined]
     > = [
@@ -184,68 +175,51 @@ const buildActualRows = ({
       ],
     ];
 
-    for (const [boundary, actualTime] of trackingBoundaries) {
-      const supportsBoundary =
-        boundary?.EventType === "dep-dock"
-          ? location.LeftDock !== undefined || location.AtDock === false
-          : location.AtDock === true;
-      const tripKey =
-        boundary === undefined
-          ? undefined
-          : tripKeyBySegmentKey.get(boundary.SegmentKey);
-
-      if (
-        boundary === undefined ||
-        !supportsBoundary ||
-        tripKey === undefined
-      ) {
-        continue;
-      }
-
-      addRowIfAbsent(
-        actualRows,
-        {
-          TripKey: tripKey,
-          VesselAbbrev: boundary.VesselAbbrev,
-          SailingDay: boundary.SailingDay,
-          ScheduledDeparture: boundary.ScheduledDeparture,
-          TerminalAbbrev: boundary.TerminalAbbrev,
-          EventType: boundary.EventType,
-          EventActualTime: actualTime,
-        },
-        updatedAt
+    return trackingBoundaries.flatMap(([boundary, actualTime]) => {
+      const draft = toTrackingBoundaryDraft(
+        boundary,
+        location,
+        tripKeyBySegmentKey,
+        actualTime
       );
-    }
-  }
 
-  for (const location of locations) {
+      return draft === undefined ? [] : [draft];
+    });
+  });
+  const physicalTrackingRows = locations.flatMap((location) => {
     const trip = activePhysicalOnlyTripsByVessel.get(location.VesselAbbrev);
     if (location.InService !== true || trip === undefined) {
-      continue;
+      return [];
     }
 
-    if (location.AtDock === false) {
-      addPhysicalTripRow(
-        actualRows,
-        trip,
-        "dep-dock",
-        trip.DepartingTerminalAbbrev,
-        location.LeftDock ?? location.TimeStamp,
-        updatedAt
-      );
-    }
-
-    if (location.AtDock === true) {
-      addPhysicalTripRow(
-        actualRows,
-        trip,
-        "arv-dock",
-        trip.ArrivingTerminalAbbrev,
-        location.TimeStamp,
-        updatedAt
-      );
-    }
-  }
+    return [
+      location.AtDock === false
+        ? toPhysicalTripDraft(
+            trip,
+            "dep-dock",
+            trip.DepartingTerminalAbbrev,
+            location.LeftDock ?? location.TimeStamp
+          )
+        : undefined,
+      location.AtDock === true
+        ? toPhysicalTripDraft(
+            trip,
+            "arv-dock",
+            trip.ArrivingTerminalAbbrev,
+            location.TimeStamp
+          )
+        : undefined,
+    ].flatMap((draft) => (draft === undefined ? [] : [draft]));
+  });
+  const actualRows = [
+    ...historyRows,
+    ...physicalFieldRows,
+    ...scheduledTrackingRows,
+    ...physicalTrackingRows,
+  ].reduce(
+    (rows, draft) => addRowIfAbsent(rows, draft, updatedAt),
+    new Map<string, ConvexActualDockEvent>()
+  );
 
   return [...actualRows.values()];
 };
@@ -274,40 +248,65 @@ const buildPreserveAbsentTripKeys = (
   );
 
 /**
- * Adds a physical-only trip boundary row when all required fields are present.
- * @param actualRows - Winning rows keyed by TripKey and event type
+ * Builds a physical-only trip boundary row draft when required fields exist.
  * @param trip - Physical-only trip carrying row identity
- * @param eventType - Dock boundary type to write
+ * @param eventType - Dock boundary type represented by the draft
  * @param terminalAbbrev - Terminal abbreviation for the boundary
  * @param actualTime - Observed boundary time
- * @param updatedAt - UpdatedAt timestamp for produced rows
- * @returns No payload; mutates the provided accumulator
+ * @returns Row draft, or undefined when terminal or actual time is absent
  */
-const addPhysicalTripRow = (
-  actualRows: ActualRowsByBoundary,
+const toPhysicalTripDraft = (
   trip: ReloadTripWithTripKey,
   eventType: DockEventType,
   terminalAbbrev: string | undefined,
-  actualTime: number | undefined,
-  updatedAt: number
-): void => {
-  if (terminalAbbrev === undefined || actualTime === undefined) {
-    return;
-  }
+  actualTime: number | undefined
+): ActualRowDraft | undefined =>
+  terminalAbbrev === undefined || actualTime === undefined
+    ? undefined
+    : {
+        TripKey: trip.TripKey,
+        VesselAbbrev: trip.VesselAbbrev,
+        SailingDay: trip.SailingDay,
+        ScheduledDeparture: trip.ScheduledDeparture,
+        TerminalAbbrev: terminalAbbrev,
+        EventType: eventType,
+        EventActualTime: actualTime,
+      };
 
-  addRowIfAbsent(
-    actualRows,
-    {
-      TripKey: trip.TripKey,
-      VesselAbbrev: trip.VesselAbbrev,
-      SailingDay: trip.SailingDay,
-      ScheduledDeparture: trip.ScheduledDeparture,
-      TerminalAbbrev: terminalAbbrev,
-      EventType: eventType,
-      EventActualTime: actualTime,
-    },
-    updatedAt
-  );
+/**
+ * Builds a scheduled tracking row draft when vessel state supports a boundary.
+ * @param boundary - Matched scheduled boundary
+ * @param location - Current tracking row
+ * @param tripKeyBySegmentKey - TripKey lookup by scheduled segment key
+ * @param actualTime - Observed boundary time when tracking carries one
+ * @returns Row draft, or undefined when the boundary is unsupported
+ */
+const toTrackingBoundaryDraft = (
+  boundary: ScheduledBoundary | undefined,
+  location: ConvexVesselLocation,
+  tripKeyBySegmentKey: Map<string, string>,
+  actualTime: number | undefined
+): ActualRowDraft | undefined => {
+  const supportsBoundary =
+    boundary?.EventType === "dep-dock"
+      ? location.LeftDock !== undefined || location.AtDock === false
+      : location.AtDock === true;
+  const tripKey =
+    boundary === undefined
+      ? undefined
+      : tripKeyBySegmentKey.get(boundary.SegmentKey);
+
+  return boundary === undefined || !supportsBoundary || tripKey === undefined
+    ? undefined
+    : {
+        TripKey: tripKey,
+        VesselAbbrev: boundary.VesselAbbrev,
+        SailingDay: boundary.SailingDay,
+        ScheduledDeparture: boundary.ScheduledDeparture,
+        TerminalAbbrev: boundary.TerminalAbbrev,
+        EventType: boundary.EventType,
+        EventActualTime: actualTime,
+      };
 };
 
 /**
@@ -315,23 +314,23 @@ const addPhysicalTripRow = (
  * @param actualRows - Winning rows keyed by TripKey and event type
  * @param draft - Sparse actual row fields with at least one time anchor
  * @param updatedAt - UpdatedAt timestamp for produced rows
- * @returns No payload; mutates the provided accumulator
+ * @returns Accumulator with the draft added when the key was absent
  */
 const addRowIfAbsent = (
   actualRows: ActualRowsByBoundary,
   draft: ActualRowDraft,
   updatedAt: number
-): void => {
+): ActualRowsByBoundary => {
   const key = `${draft.TripKey}|${draft.EventType}`;
   if (actualRows.has(key)) {
-    return;
+    return actualRows;
   }
 
   if (
     draft.EventActualTime === undefined &&
     draft.ScheduledDeparture === undefined
   ) {
-    return;
+    return actualRows;
   }
 
   actualRows.set(
@@ -350,6 +349,7 @@ const addRowIfAbsent = (
       updatedAt
     )
   );
+  return actualRows;
 };
 
 /**
