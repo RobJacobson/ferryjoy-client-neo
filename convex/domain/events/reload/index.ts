@@ -1,1 +1,1 @@
-export { computeDockEventsReload } from "./computeDockEventsReload";
+export { buildReloadRows } from "./buildReloadRows";

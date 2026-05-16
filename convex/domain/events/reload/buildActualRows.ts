@@ -1,33 +1,120 @@
 /**
- * Orchestrator-facing entry point for actual-row synthesis.
+ * Builds reload actual dock-event rows through priority source phases.
  *
- * Hides the actuals subtree behind a single function so the orchestrator never
- * imports from actuals internal modules. The actual composition runs inside
- * actuals; this wrapper only narrows the public surface.
+ * The reload path resolves scheduled and physical-only boundaries, then adds
+ * each source type to event-keyed rows in priority order.
  */
 
+import type { TerminalIdentity, VesselIdentity } from "adapters";
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
-import { buildReloadActualDockRows } from "./actuals";
-import type { DockStatusEventRecord, ReloadTripContext } from "./types";
+import { buildActualBoundaryIndex } from "./buildActualBoundaryIndex";
+import {
+  applyHistoryActualRows,
+  applyPhysicalFieldActualRows,
+  applyPhysicalTrackingActualRows,
+  applyScheduledTrackingActualRows,
+  filterActualTrackingLocations,
+} from "./buildActualRowSources";
+import type { ActualRowsByEventKey } from "./buildActualRowsByEventKey";
+import {
+  isTripWithTripKey,
+  resolveActualTripScope,
+} from "./resolveActualTripScope";
+import type { WsfVesselHistory } from "./schemas";
+import type { ReloadTripInput, ScheduledBoundary, SeedLeg } from "./types";
+
+type BuildActualRowsArgs = {
+  sailingDay: string;
+  seedLegs: SeedLeg[];
+  boundaries: ScheduledBoundary[];
+  historyRecords: WsfVesselHistory[];
+  activeTrips: ReloadTripInput[];
+  completedTrips: ReloadTripInput[];
+  vesselLocations: ConvexVesselLocation[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
+  updatedAt: number;
+};
 
 /**
- * Computes the actual dock rows for one sailing-day reload.
+ * Builds actual dock rows from raw reload inputs.
  *
- * Delegates to the actuals composer so the orchestrator can sequence trip
- * context, boundary events, scheduled rows, and actual rows in a single
- * readable file. Keeping this entry point at the reload root lets the
- * actuals folder evolve internal structure without touching the orchestrator.
+ * The function applies source precedence by running each source phase against
+ * rowsByEventKey: WSF history first, durable physical trip fields second,
+ * scheduled tracking third, and physical-only tracking last. Row helpers retain
+ * the first event key so priority is explicit in the call sequence.
  *
- * @param params - Sailing day, hydrated boundary tape, vessel locations, updatedAt stamp, and trip context
- * @returns Unique actual dock rows for the sailing-day reload
+ * @param args - Reload schedule, history, trip, tracking, identity, and timestamp inputs
+ * @returns Deduped actual dock-event rows ready for persistence
  */
-const buildActualRows = (params: {
-  sailingDay: string;
-  boundaryEvents: DockStatusEventRecord[];
-  vesselLocations: ConvexVesselLocation[];
-  updatedAt: number;
-  tripContext: ReloadTripContext;
-}): ConvexActualDockEvent[] => buildReloadActualDockRows(params);
+const buildActualRows = ({
+  sailingDay,
+  seedLegs,
+  boundaries,
+  historyRecords,
+  activeTrips,
+  completedTrips,
+  vesselLocations,
+  vessels,
+  terminals,
+  updatedAt,
+}: BuildActualRowsArgs): ConvexActualDockEvent[] => {
+  const tripScope = resolveActualTripScope(activeTrips, completedTrips);
+  const index = buildActualBoundaryIndex(boundaries, tripScope);
+  const locations = filterActualTrackingLocations(vesselLocations, sailingDay);
+  const rowsByEventKey: ActualRowsByEventKey = {};
 
-export { buildActualRows };
+  applyHistoryActualRows({
+    seedLegs,
+    historyRecords,
+    index,
+    vessels,
+    terminals,
+    rowsByEventKey,
+    updatedAt,
+  });
+  applyPhysicalFieldActualRows({
+    tripsWithKeys: tripScope.tripsWithKeys,
+    index,
+    rowsByEventKey,
+    updatedAt,
+  });
+  applyScheduledTrackingActualRows({
+    locations,
+    index,
+    rowsByEventKey,
+    updatedAt,
+  });
+  applyPhysicalTrackingActualRows({
+    locations,
+    index,
+    rowsByEventKey,
+    updatedAt,
+  });
+
+  return Object.values(rowsByEventKey);
+};
+
+/**
+ * Builds the preserve set for physical-only actual replacement.
+ *
+ * Physical-only trips are not fully represented by the scheduled reload slice,
+ * so replacement persistence needs to retain absent rows for their TripKeys.
+ *
+ * @param activeTrips - Active trip rows that may include physical-only TripKeys
+ * @param completedTrips - Completed trip rows that may include physical-only TripKeys
+ * @returns Physical-only TripKeys whose absent rows should be preserved
+ */
+const buildPreserveAbsentTripKeys = (
+  activeTrips: ReloadTripInput[],
+  completedTrips: ReloadTripInput[]
+): Set<string> =>
+  new Set(
+    [...activeTrips, ...completedTrips]
+      .filter(isTripWithTripKey)
+      .filter((trip) => trip.ScheduleKey === undefined)
+      .map((trip) => trip.TripKey)
+  );
+
+export { buildActualRows, buildPreserveAbsentTripKeys };

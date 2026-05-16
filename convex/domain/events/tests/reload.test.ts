@@ -1,10 +1,18 @@
 /**
  * Tests for scheduled and actual dock-event reload assembly.
+ *
+ * Exercises the public reload transform across schedule rows, durable actual
+ * candidates, physical-only trips, and current tracking data. Helpers build small
+ * WSF-shaped fixtures so cases stay focused on behavior instead of adapters.
  */
 
 import { describe, expect, it } from "bun:test";
-import { computeDockEventsReload } from "domain/events/reload";
-import type { WsfScheduledSegment } from "domain/events/reload/schemas";
+import { buildReloadRows } from "domain/events/reload";
+import type {
+  WsfScheduledSegment,
+  WsfVesselHistory,
+} from "domain/events/reload/schemas";
+import type { ReloadTripInput } from "domain/events/reload/types";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -18,6 +26,11 @@ const vessels: VesselIdentity[] = [
     VesselID: 1,
     VesselName: "Wenatchee",
     VesselAbbrev: "WEN",
+  },
+  {
+    VesselID: 2,
+    VesselName: "Tacoma",
+    VesselAbbrev: "TAC",
   },
 ];
 
@@ -35,11 +48,67 @@ const terminals: TerminalIdentity[] = [
 ];
 
 describe("reload dock sailing day rows from schedule and history", () => {
-  it("nudges only the arrival side of identical scheduled dock seams", () => {
+  it("projects scheduled rows from direct schedule segments", () => {
+    const departure = at(8, 20);
+    const arrival = at(8, 55);
+    const segmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(departure)
+    );
+    const scheduledSegments = [scheduleSegment({ departure, arrival })];
+
+    if (segmentKey === undefined) {
+      throw new Error("Expected fixture segment key.");
+    }
+
+    const result = buildReloadResult({
+      sailingDay: "2026-03-25",
+      scheduleSegments: scheduledSegments,
+      historyRecords: [],
+      vessels,
+      terminals,
+      activeTrips: [],
+      completedTrips: [],
+      vesselLocations: [],
+      updatedAt: 42,
+    });
+
+    expect(result.scheduledRows).toEqual([
+      {
+        Key: `${segmentKey}--dep-dock`,
+        VesselAbbrev: "WEN",
+        SailingDay: "2026-03-25",
+        UpdatedAt: 42,
+        ScheduledDeparture: departure,
+        TerminalAbbrev: "P52",
+        NextTerminalAbbrev: "BBI",
+        EventType: "dep-dock",
+        EventScheduledTime: departure,
+        IsLastArrivalOfSailingDay: false,
+      },
+      {
+        Key: `${segmentKey}--arv-dock`,
+        VesselAbbrev: "WEN",
+        SailingDay: "2026-03-25",
+        UpdatedAt: 42,
+        ScheduledDeparture: departure,
+        TerminalAbbrev: "BBI",
+        NextTerminalAbbrev: "BBI",
+        EventType: "arv-dock",
+        EventScheduledTime: arrival,
+        IsLastArrivalOfSailingDay: true,
+      },
+    ]);
+    expect(result.actualRows).toEqual([]);
+  });
+
+  it("applies minimum same-terminal turnaround to the arrival side", () => {
     const firstDeparture = at(9, 0);
     const sharedSeamTime = at(9, 35);
     const secondArrival = at(10, 10);
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [
         scheduleSegment({
@@ -78,6 +147,52 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ]);
   });
 
+  it("marks the final arrival for each vessel sailing day", () => {
+    const result = buildReloadResult({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: at(8, 0),
+          arrival: at(8, 35),
+        }),
+        scheduleSegment({
+          departure: at(9, 0),
+          arrival: at(9, 35),
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+        scheduleSegment({
+          vesselName: "Tacoma",
+          departure: at(8, 15),
+          arrival: at(8, 50),
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      activeTrips: [],
+      completedTrips: [],
+      vesselLocations: [],
+      updatedAt: 42,
+    });
+
+    expect(
+      result.scheduledRows
+        .filter((row) => row.EventType === "arv-dock")
+        .map((row) => [
+          row.VesselAbbrev,
+          row.ScheduledDeparture,
+          row.IsLastArrivalOfSailingDay,
+        ])
+    ).toEqual([
+      ["WEN", at(8, 0), false],
+      ["WEN", at(9, 0), true],
+      ["TAC", at(8, 15), true],
+    ]);
+  });
+
   it("maps matching history timestamps directly onto scheduled actual rows", () => {
     const departure = at(9, 10);
     const arrival = at(9, 45);
@@ -94,20 +209,21 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = computeDockEventsReload({
+    const historyRecords: WsfVesselHistory[] = [
+      {
+        VesselId: 1,
+        Vessel: "Wenatchee",
+        Departing: "Seattle",
+        Arriving: "Bainbridge Island",
+        ScheduledDepart: departure,
+        ActualDepart: actualDeparture,
+        EstArrival: estimatedArrival,
+      },
+    ];
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
-      historyRecords: [
-        {
-          VesselId: 1,
-          Vessel: "Wenatchee",
-          Departing: "Seattle",
-          Arriving: "Bainbridge Island",
-          ScheduledDepart: departure,
-          ActualDepart: actualDeparture,
-          EstArrival: estimatedArrival,
-        },
-      ],
+      historyRecords,
       vessels,
       terminals,
       activeTrips: [],
@@ -158,7 +274,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
       historyRecords: [
@@ -217,7 +333,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
       historyRecords: [
@@ -257,7 +373,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-scheduled--dep-dock", "dep-dock", actualDeparture]]);
   });
 
-  it("hydrates history actuals and keeps physical-only evidence", () => {
+  it("hydrates history actuals and keeps physical-only candidates", () => {
     const departure = at(12, 20);
     const arrival = at(12, 55);
     const segmentKey = buildSegmentKey(
@@ -283,7 +399,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
         EstArrival: at(13, 0),
       },
     ];
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments,
       historyRecords,
@@ -317,9 +433,6 @@ describe("reload dock sailing day rows from schedule and history", () => {
     });
 
     expect(result.actualRows).toHaveLength(4);
-    expect(result.physicalOnlyTripKeysToPreserve).toEqual(
-      new Set(["trip-physical"])
-    );
     expect(
       result.actualRows.map((row) => [
         row.EventKey,
@@ -336,7 +449,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
 
   it("emits only a departure row for a physical-only active trip away from dock", () => {
     const timestamp = at(16, 10);
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [],
       historyRecords: [],
@@ -373,7 +486,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
 
   it("emits only an arrival row for a physical-only active trip at dock", () => {
     const timestamp = at(17, 0);
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [],
       historyRecords: [],
@@ -408,10 +521,10 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-physical--arv-dock", "arv-dock", timestamp]]);
   });
 
-  it("does not duplicate physical-only location rows already emitted from trip fields", () => {
+  it("does not duplicate physical-only tracking rows already emitted from trip fields", () => {
     const tripActual = at(18, 5);
     const locationActual = at(18, 8);
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [],
       historyRecords: [],
@@ -447,7 +560,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-physical--dep-dock", "dep-dock", tripActual]]);
   });
 
-  it("keeps base actual rows before physical-only location fallback in mixed batches", () => {
+  it("keeps durable actual rows before physical-only tracking rows in mixed batches", () => {
     const departure = at(13, 20);
     const arrival = at(13, 55);
     const historyActual = at(13, 24);
@@ -464,7 +577,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
       historyRecords: [
@@ -522,9 +635,9 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ]);
   });
 
-  it("emits only a departure row for physical-only trip left-dock evidence", () => {
+  it("emits only a departure row for physical-only trip left-dock actual", () => {
     const leftDockActual = at(19, 4);
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [],
       historyRecords: [],
@@ -555,9 +668,9 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-physical--dep-dock", "dep-dock", leftDockActual]]);
   });
 
-  it("emits only an arrival row for physical-only trip-end evidence", () => {
+  it("emits only an arrival row for physical-only trip-end actual", () => {
     const tripEnd = at(20, 35);
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [],
       historyRecords: [],
@@ -589,7 +702,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
   });
 
   it("suppresses physical-only trip-end rows without an arrival terminal", () => {
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [],
       historyRecords: [],
@@ -613,7 +726,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     expect(result.actualRows).toEqual([]);
   });
 
-  it("emits a scheduled departure row from an away-from-dock location", () => {
+  it("emits a scheduled departure row from away-from-dock tracking", () => {
     const departure = at(22, 0);
     const arrival = at(22, 35);
     const segmentKey = buildSegmentKey(
@@ -627,7 +740,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
       historyRecords: [],
@@ -664,7 +777,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-scheduled--dep-dock", "dep-dock", undefined]]);
   });
 
-  it("emits an eligible prior scheduled arrival row from an at-dock location", () => {
+  it("emits an eligible prior scheduled arrival row from at-dock tracking", () => {
     const firstDeparture = at(15, 0);
     const firstArrival = at(15, 35);
     const secondDeparture = at(16, 0);
@@ -686,7 +799,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment keys.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [
         scheduleSegment({
@@ -752,6 +865,88 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-previous--arv-dock", "arv-dock", undefined]]);
   });
 
+  it("does not infer a scheduled arrival before its arrival boundary time", () => {
+    const firstDeparture = at(15, 0);
+    const firstArrival = at(15, 35);
+    const secondDeparture = at(16, 0);
+    const secondArrival = at(16, 35);
+    const firstSegmentKey = buildSegmentKey(
+      "WEN",
+      "P52",
+      "BBI",
+      new Date(firstDeparture)
+    );
+    const secondSegmentKey = buildSegmentKey(
+      "WEN",
+      "BBI",
+      "P52",
+      new Date(secondDeparture)
+    );
+
+    if (firstSegmentKey === undefined || secondSegmentKey === undefined) {
+      throw new Error("Expected fixture segment keys.");
+    }
+
+    const result = buildReloadResult({
+      sailingDay: "2026-03-25",
+      scheduleSegments: [
+        scheduleSegment({
+          departure: firstDeparture,
+          arrival: firstArrival,
+        }),
+        scheduleSegment({
+          departure: secondDeparture,
+          arrival: secondArrival,
+          departingTerminalID: 2,
+          departingTerminalName: "Bainbridge Island",
+          arrivingTerminalID: 1,
+          arrivingTerminalName: "Seattle",
+        }),
+      ],
+      historyRecords: [],
+      vessels,
+      terminals,
+      activeTrips: [
+        {
+          TripKey: "trip-next",
+          ScheduleKey: secondSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+        },
+      ],
+      completedTrips: [
+        {
+          TripKey: "trip-previous",
+          ScheduleKey: firstSegmentKey,
+          VesselAbbrev: "WEN",
+          SailingDay: "2026-03-25",
+          DepartingTerminalAbbrev: "P52",
+          ArrivingTerminalAbbrev: "BBI",
+          ScheduledDeparture: firstDeparture,
+        },
+      ],
+      vesselLocations: [
+        vesselLocation({
+          AtDock: true,
+          DepartingTerminalID: 2,
+          DepartingTerminalName: "Bainbridge Island",
+          DepartingTerminalAbbrev: "BBI",
+          ArrivingTerminalID: 1,
+          ArrivingTerminalName: "Seattle",
+          ArrivingTerminalAbbrev: "P52",
+          ScheduledDeparture: secondDeparture,
+          TimeStamp: at(15, 20),
+        }),
+      ],
+      updatedAt: 42,
+    });
+
+    expect(result.actualRows).toEqual([]);
+  });
+
   it("chooses the most recent eligible prior scheduled arrival row", () => {
     const firstDeparture = at(14, 0);
     const firstArrival = at(14, 35);
@@ -786,7 +981,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment keys.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [
         scheduleSegment({
@@ -865,7 +1060,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
     ).toEqual([["trip-newer--arv-dock", "arv-dock", undefined]]);
   });
 
-  it("does not duplicate scheduled location rows already actualized by history", () => {
+  it("does not duplicate scheduled tracking rows already actualized by history", () => {
     const departure = at(23, 0);
     const arrival = at(23, 35);
     const actualDeparture = at(23, 4);
@@ -880,7 +1075,7 @@ describe("reload dock sailing day rows from schedule and history", () => {
       throw new Error("Expected fixture segment key.");
     }
 
-    const result = computeDockEventsReload({
+    const result = buildReloadResult({
       sailingDay: "2026-03-25",
       scheduleSegments: [scheduleSegment({ departure, arrival })],
       historyRecords: [
@@ -927,7 +1122,41 @@ describe("reload dock sailing day rows from schedule and history", () => {
   });
 });
 
+const buildReloadResult = ({
+  sailingDay,
+  scheduleSegments,
+  historyRecords,
+  vessels,
+  terminals,
+  activeTrips,
+  completedTrips,
+  vesselLocations,
+  updatedAt,
+}: {
+  sailingDay: string;
+  scheduleSegments: WsfScheduledSegment[];
+  historyRecords: WsfVesselHistory[];
+  vessels: ReadonlyArray<VesselIdentity>;
+  terminals: ReadonlyArray<TerminalIdentity>;
+  activeTrips: ReloadTripInput[];
+  completedTrips: ReloadTripInput[];
+  vesselLocations: ConvexVesselLocation[];
+  updatedAt: number;
+}) =>
+  buildReloadRows({
+    sailingDay,
+    scheduleSegments,
+    historyRecords,
+    activeTrips,
+    completedTrips,
+    vesselLocations,
+    vessels,
+    terminals,
+    updatedAt,
+  });
+
 const scheduleSegment = ({
+  vesselName = "Wenatchee",
   departure,
   arrival,
   departingTerminalID = 1,
@@ -935,6 +1164,7 @@ const scheduleSegment = ({
   arrivingTerminalID = 2,
   arrivingTerminalName = "Bainbridge Island",
 }: {
+  vesselName?: string;
   departure: number;
   arrival: number;
   departingTerminalID?: number;
@@ -942,7 +1172,7 @@ const scheduleSegment = ({
   arrivingTerminalID?: number;
   arrivingTerminalName?: string;
 }): WsfScheduledSegment => ({
-  VesselName: "Wenatchee",
+  VesselName: vesselName,
   DepartingTerminalID: departingTerminalID,
   ArrivingTerminalID: arrivingTerminalID,
   DepartingTerminalName: departingTerminalName,

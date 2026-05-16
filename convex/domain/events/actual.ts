@@ -1,11 +1,3 @@
-/**
- * Minimal actual event domain primitives used by vessel orchestration.
- *
- * Realtime trip updates emit sparse actual dock writes before persistence. This
- * module normalizes only that write shape into eventsActual rows; scheduled
- * reload sailing-day row assembly lives in domain/events/reload.
- */
-
 import type { ConvexActualDockEvent } from "functions/events/eventsActual/schemas";
 import { buildPhysicalActualEventKey } from "shared/physicalTripIdentity";
 import { getSailingDay } from "shared/time";
@@ -13,6 +5,17 @@ import { getSailingDay } from "shared/time";
 type ActualDockWriteAnchor =
   | { EventActualTime: number; ScheduledDeparture?: number }
   | { EventActualTime?: number; ScheduledDeparture: number };
+
+type ActualDockEventInput = {
+  EventKey: string;
+  TripKey: string;
+  VesselAbbrev: string;
+  SailingDay?: string;
+  ScheduledDeparture?: number;
+  TerminalAbbrev: string;
+  EventType: ConvexActualDockEvent["EventType"];
+  EventActualTime?: number;
+};
 
 type ConvexActualDockWritePersistable = {
   TripKey: string;
@@ -25,14 +28,38 @@ type ConvexActualDockWritePersistable = {
   EventKey?: string;
 } & ActualDockWriteAnchor;
 
+const buildActualDockEvent = (
+  input: ActualDockEventInput,
+  updatedAt: number
+): ConvexActualDockEvent => {
+  const anchorMs = input.EventActualTime ?? input.ScheduledDeparture;
+  if (anchorMs === undefined) {
+    throw new Error("Actual dock event requires an anchor timestamp.");
+  }
+
+  const sailingDay = input.SailingDay ?? getSailingDay(new Date(anchorMs));
+  const scheduledDeparture =
+    input.ScheduledDeparture ?? input.EventActualTime ?? anchorMs;
+
+  return {
+    EventKey: input.EventKey,
+    TripKey: input.TripKey,
+    EventType: input.EventType,
+    VesselAbbrev: input.VesselAbbrev,
+    SailingDay: sailingDay,
+    UpdatedAt: updatedAt,
+    ScheduledDeparture: scheduledDeparture,
+    TerminalAbbrev: input.TerminalAbbrev,
+    EventOccurred: true,
+    EventActualTime: input.EventActualTime,
+  };
+};
+
 /**
- * Builds one persisted actual dock event from a sparse write.
+ * Builds one persisted actual dock event from a sparse orchestrator write.
  *
- * EventKey defaults from TripKey and EventType when omitted. SailingDay derives
- * from EventActualTime first, then ScheduledDeparture. Row ScheduledDeparture
- * prefers write.ScheduledDeparture, then EventActualTime, then the anchor ms.
- * At least one of EventActualTime or ScheduledDeparture must be present for
- * the calendar anchor (runtime guard; the persistable type encodes this).
+ * EventKey defaults from TripKey and EventType when omitted. Other row timing
+ * normalization is delegated to the canonical materializer.
  *
  * @param write - Persistable sparse actual dock write
  * @param updatedAt - Timestamp to stamp onto the normalized row
@@ -41,38 +68,16 @@ type ConvexActualDockWritePersistable = {
 const buildActualDockEventFromWrite = (
   write: ConvexActualDockWritePersistable,
   updatedAt: number
-): ConvexActualDockEvent => {
-  let anchorMs: number;
-  if (write.EventActualTime !== undefined) {
-    anchorMs = write.EventActualTime;
-  } else if (write.ScheduledDeparture !== undefined) {
-    anchorMs = write.ScheduledDeparture;
-  } else {
-    throw new Error(
-      "Persistable actual dock write requires an anchor timestamp."
-    );
-  }
-
-  const eventKey =
-    write.EventKey ??
-    buildPhysicalActualEventKey(write.TripKey, write.EventType);
-  const sailingDay = write.SailingDay ?? getSailingDay(new Date(anchorMs));
-  const scheduledDeparture =
-    write.ScheduledDeparture ?? write.EventActualTime ?? anchorMs;
-
-  return {
-    EventKey: eventKey,
-    TripKey: write.TripKey,
-    EventType: write.EventType,
-    VesselAbbrev: write.VesselAbbrev,
-    SailingDay: sailingDay,
-    UpdatedAt: updatedAt,
-    ScheduledDeparture: scheduledDeparture,
-    TerminalAbbrev: write.TerminalAbbrev,
-    EventOccurred: true,
-    EventActualTime: write.EventActualTime,
-  };
-};
+): ConvexActualDockEvent =>
+  buildActualDockEvent(
+    {
+      ...write,
+      EventKey:
+        write.EventKey ??
+        buildPhysicalActualEventKey(write.TripKey, write.EventType),
+    },
+    updatedAt
+  );
 
 export type { ConvexActualDockWritePersistable };
-export { buildActualDockEventFromWrite };
+export { buildActualDockEvent, buildActualDockEventFromWrite };
