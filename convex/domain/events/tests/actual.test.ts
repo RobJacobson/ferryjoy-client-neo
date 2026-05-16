@@ -105,6 +105,6 @@ describe("buildActualDockEventFromWrite", () => {
         } as ConvexActualDockWritePersistable,
         at(15, 0)
       )
-    ).toThrow("Persistable actual dock write requires an anchor timestamp.");
+    ).toThrow("Actual dock event requires an anchor timestamp.");
   });
 });
