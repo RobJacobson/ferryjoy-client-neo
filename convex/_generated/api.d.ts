@@ -81,10 +81,8 @@ import type * as domain_vesselOrchestration_updateEvents_contracts from "../doma
 import type * as domain_vesselOrchestration_updateEvents_index from "../domain/vesselOrchestration/updateEvents/index.js";
 import type * as domain_vesselOrchestration_updateEvents_projectEventsFromTripDelta from "../domain/vesselOrchestration/updateEvents/projectEventsFromTripDelta.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_addAtDockObserved from "../domain/vesselOrchestration/updateVesselLocations/addAtDockObserved.js";
-import type * as domain_vesselOrchestration_updateVesselLocations_contracts from "../domain/vesselOrchestration/updateVesselLocations/contracts.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_index from "../domain/vesselOrchestration/updateVesselLocations/index.js";
 import type * as domain_vesselOrchestration_updateVesselLocations_mapWsfVesselLocations from "../domain/vesselOrchestration/updateVesselLocations/mapWsfVesselLocations.js";
-import type * as domain_vesselOrchestration_updateVesselLocations_updateVesselLocations from "../domain/vesselOrchestration/updateVesselLocations/updateVesselLocations.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_appendPredictions from "../domain/vesselOrchestration/updateVesselPredictions/appendPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_applyVesselPredictions from "../domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions.js";
 import type * as domain_vesselOrchestration_updateVesselPredictions_getPredictionModelParametersFromTripUpdate from "../domain/vesselOrchestration/updateVesselPredictions/getPredictionModelParametersFromTripUpdate.js";
@@ -294,10 +292,8 @@ declare const fullApi: ApiFromModules<{
   "domain/vesselOrchestration/updateEvents/index": typeof domain_vesselOrchestration_updateEvents_index;
   "domain/vesselOrchestration/updateEvents/projectEventsFromTripDelta": typeof domain_vesselOrchestration_updateEvents_projectEventsFromTripDelta;
   "domain/vesselOrchestration/updateVesselLocations/addAtDockObserved": typeof domain_vesselOrchestration_updateVesselLocations_addAtDockObserved;
-  "domain/vesselOrchestration/updateVesselLocations/contracts": typeof domain_vesselOrchestration_updateVesselLocations_contracts;
   "domain/vesselOrchestration/updateVesselLocations/index": typeof domain_vesselOrchestration_updateVesselLocations_index;
   "domain/vesselOrchestration/updateVesselLocations/mapWsfVesselLocations": typeof domain_vesselOrchestration_updateVesselLocations_mapWsfVesselLocations;
-  "domain/vesselOrchestration/updateVesselLocations/updateVesselLocations": typeof domain_vesselOrchestration_updateVesselLocations_updateVesselLocations;
   "domain/vesselOrchestration/updateVesselPredictions/appendPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_appendPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/applyVesselPredictions": typeof domain_vesselOrchestration_updateVesselPredictions_applyVesselPredictions;
   "domain/vesselOrchestration/updateVesselPredictions/getPredictionModelParametersFromTripUpdate": typeof domain_vesselOrchestration_updateVesselPredictions_getPredictionModelParametersFromTripUpdate;

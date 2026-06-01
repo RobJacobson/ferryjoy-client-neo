@@ -7,7 +7,7 @@ import { internalAction } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
 import { v } from "convex/values";
 import {
-  updateVesselLocations,
+  mapWsfVesselLocations,
   withAtDockObserved,
 } from "domain/vesselOrchestration/updateVesselLocations";
 import { loadTerminalIdentities } from "functions/terminals/actions";
@@ -31,7 +31,7 @@ type HistoricCleanupResult = {
 /**
  * Captures a historic snapshot of normalized vessel locations for debugging.
  *
- * Normalizes raw WSF feed rows with domain `updateVesselLocations`, enriches with
+ * Normalizes raw WSF feed rows with domain `mapWsfVesselLocations`, enriches with
  * `withAtDockObserved`, attaches `SailingDay`, then appends via `insertSnapshotBatch`.
  *
  * @param ctx - Convex action context
@@ -46,11 +46,11 @@ export const captureHistoricVesselLocations = internalAction({
     const vesselIdentities = await loadVesselIdentities(ctx);
     const terminalIdentities = await loadTerminalIdentities(ctx);
     const rawFeedLocations = await fetchRawWsfVesselLocations();
-    const { vesselLocations: convexLocations } = updateVesselLocations({
+    const convexLocations = mapWsfVesselLocations(
       rawFeedLocations,
-      vesselsIdentity: vesselIdentities,
-      terminalsIdentity: terminalIdentities,
-    });
+      vesselIdentities,
+      terminalIdentities
+    );
     const locationsWithObserved = withAtDockObserved(convexLocations);
 
     const locations: ConvexHistoricVesselLocation[] =

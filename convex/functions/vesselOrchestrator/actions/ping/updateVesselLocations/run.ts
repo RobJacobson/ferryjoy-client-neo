@@ -8,7 +8,7 @@
 
 import type { ActionCtx } from "_generated/server";
 import { fetchRawWsfVesselLocations } from "adapters";
-import { updateVesselLocations as normalizeVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import { mapWsfVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
@@ -43,11 +43,11 @@ export const runUpdateVesselLocations = async (
   { terminalsIdentity, vesselsIdentity }: RunStage1UpdateVesselLocationsArgs
 ): Promise<RunUpdateVesselLocationsResult> => {
   const rawFeedLocations = await fetchRawWsfVesselLocations();
-  const { vesselLocations: normalizedLocations } = normalizeVesselLocations({
+  const normalizedLocations = mapWsfVesselLocations(
     rawFeedLocations,
     vesselsIdentity,
-    terminalsIdentity,
-  });
+    terminalsIdentity
+  );
   const { changedLocations, activeTripsForChanged } =
     await persistVesselLocationBatch(ctx, normalizedLocations);
   const activeTripsByVesselAbbrev = new Map(
