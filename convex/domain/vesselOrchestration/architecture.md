@@ -13,17 +13,13 @@ updateVesselOrchestrator (functions/vesselOrchestrator/actions/updateVesselOrche
   -> bulkUpsertVesselLocations (dedupe + upsert; returns changed rows + activeTripsForChanged in same transaction)
   -> createUpdateVesselTripDbAccess for the ping (targeted updateVesselTrip reads via ctx.runQuery)
   -> per changed vessel:
-       updateVesselTrip -> VesselTripUpdate | null
-       getVesselTripPredictionsFromTripUpdate (injected loadPredictionModelParameters → getPredictionModelParameters when needed)
-       updateEvents ({ pingStartedAt, tripUpdate, enrichedActiveVesselTrip })
-       persistVesselUpdates (one atomic mutation for trip, event, actualization)
+       computeVesselUpdatePlan -> VesselUpdatePlan | null
+         (updateVesselTrip, getVesselTripPredictionsFromTripUpdate, projectEventsFromTripDelta)
+       persistVesselUpdates (one atomic mutation for trip, event, and optional leave-dock patch)
 ```
 
-The trip and prediction stages run in the action per changed location row.
-Location dedupe and post-write **`activeTripsForChanged`** reads run in `bulkUpsertVesselLocations`; the action consumes that mutation's **`changedLocations`** and **`activeTripsForChanged`** return. Event projection (`updateEvents`) runs
-in the action **before** persistence; `persistVesselUpdates` applies trip
-lifecycle writes, projected actual/predicted dock rows, and optional
-depart-next actualization in one transaction per vessel.
+The per-vessel plan runs in the action for each changed location row.
+Location dedupe and post-write **`activeTripsForChanged`** reads run in `bulkUpsertVesselLocations`; the action consumes that mutation's **`changedLocations`** and **`activeTripsForChanged`** return. Event projection runs inside **`computeVesselUpdatePlan`** before persistence; `persistVesselUpdates` applies trip lifecycle writes, projected actual/predicted dock rows, and optional depart-next actualization in one transaction per vessel.
 
 ## Timestamp semantics (current code)
 
@@ -98,10 +94,8 @@ Cross-module contracts are owned by the domain modules that consume them:
 - Dock transition facts are defined in
   `updateVesselTrip/dockTransitionEvents.ts` and exported via the
   `updateVesselTrip` barrel.
-- Event handoff DTOs live in `updateEvents/handoffTypes.ts`.
-- Event projection wire helpers live in `updateEvents/projectionWire.ts`.
-- Completed-handoff key helper lives in
-  `updateEvents/completedHandoffKey.ts`.
+- Event projection input/output types live in `updateEvents/contracts.ts`.
+- Direct event projection lives in `updateEvents/projectEventsFromTripDelta.ts`.
 
 ### Schedule continuity (production vs tests)
 
@@ -112,20 +106,19 @@ Cross-module contracts are owned by the domain modules that consume them:
 
 ## Contracts between stages
 
-Trip stage output to downstream domain callers:
+Per changed vessel, the action coordinator produces:
 
-- **`VesselTripUpdate | null`** per changed location row (orchestrator skips the vessel when null)
-
-Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTripUpdate`** and return **`enrichedActiveVesselTrip`**. Event handoff and prediction overlays are derived inside **`updateEvents`** from the same trip shape plus that enriched trip
-(**`eventHandoffFromTripUpdate`**) with DTOs in
-**`updateEvents/handoffTypes.ts`**.
+- **`VesselUpdatePlan | null`** from **`computeVesselUpdatePlan`**
+- Internally: **`VesselTripUpdate | null`**, then **`enrichedActiveVesselTrip`**, then **`projectEventsFromTripDelta`** output
 
 ## Current ownership
 
 - `functions/vesselOrchestrator/actions/updateVesselOrchestrator.ts`
   - top-level ping orchestration (`updateVesselOrchestrator`, `runOrchestratorPing`)
+- `functions/vesselOrchestrator/actions/ping/computeVesselUpdatePlan.ts`
+  - per-vessel action coordinator (`computeVesselUpdatePlan`, `persistVesselUpdatePlan`)
 - `functions/vesselOrchestrator/actions/ping/*`
-  - identity snapshot (**`loadOrchestratorSnapshot`** / **`getOrchestratorIdentities`**), locations stage (**`updateVesselLocations`** / **`bulkUpsertVesselLocations`** including **`activeTripsForChanged`**), schedule DB access (**`updateVesselTrip/updateVesselTripDbAccess.ts`**), prediction-parameter load (**`loadPredictionModelParameters`** in **`actions/ping/updateVesselPredictions/load.ts`**)
+  - identity snapshot, locations stage, schedule DB access, prediction-parameter load
 - `functions/vesselOrchestrator/mutations/orchestratorPersistMutations.ts`
   - aggregate per-vessel persistence (`persistVesselUpdates`)
 - `domain/vesselOrchestration/updateVesselTrip/`
@@ -133,7 +126,7 @@ Predictions consume **`VesselTripUpdate`** via **`getVesselTripPredictionsFromTr
 - `domain/vesselOrchestration/updateVesselPredictions/`
   - ML overlay from trip rows
 - `domain/vesselOrchestration/updateEvents/`
-  - actual/predicted dock event assembly (pure); orchestrator calls it before aggregate persistence
+  - direct trip-delta event projection (`projectEventsFromTripDelta`)
 
 ## Key design rules
 

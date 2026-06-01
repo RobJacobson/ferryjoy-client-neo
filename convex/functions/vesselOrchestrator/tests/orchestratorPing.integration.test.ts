@@ -1,6 +1,6 @@
 /**
- * Integration-style tests for updateVesselOrchestrator: verifies stage wiring
- * (locations mutation, optional per-vessel persist) with mocked domain branches.
+ * Integration-style tests for updateVesselOrchestrator: end-to-end wiring through
+ * real domain modules with mocked Convex I/O and external fetch only.
  */
 
 import {
@@ -14,8 +14,6 @@ import {
 } from "bun:test";
 import type { ActionCtx } from "_generated/server";
 import * as adapters from "adapters";
-import * as updateEventsModule from "domain/vesselOrchestration/updateEvents";
-import * as updateVesselPredictionsModule from "domain/vesselOrchestration/updateVesselPredictions";
 import * as updateVesselTripModule from "domain/vesselOrchestration/updateVesselTrip";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
@@ -123,36 +121,6 @@ describe("updateVesselOrchestrator ping integration", () => {
       makeRawLocation(),
     ]);
 
-    const activeTripWithMl = {
-      ...makeTrip("CHE"),
-      AtDockDepartNext: {
-        PredTime: ms("2026-03-13T05:35:00-07:00"),
-        MinTime: ms("2026-03-13T05:30:00-07:00"),
-        MaxTime: ms("2026-03-13T05:40:00-07:00"),
-        MAE: 3,
-        StdDev: 2,
-      },
-    } as unknown as ConvexVesselTrip;
-
-    const tripSpy = spyOn(
-      updateVesselTripModule,
-      "updateVesselTrip"
-    ).mockResolvedValue({
-      vesselAbbrev: "CHE",
-      existingVesselTrip: undefined,
-      activeVesselTrip: activeTripWithMl,
-    });
-    const predictionSpy = spyOn(
-      updateVesselPredictionsModule,
-      "getVesselTripPredictionsFromTripUpdate"
-    ).mockResolvedValue({
-      enrichedActiveVesselTrip: activeTripWithMl,
-    });
-    const eventSpy = spyOn(updateEventsModule, "updateEvents").mockReturnValue({
-      actualEvents: [],
-      predictedEvents: [],
-    });
-
     const mutationCalls: unknown[] = [];
     let runQueryCalls = 0;
     const ctx = {
@@ -164,7 +132,7 @@ describe("updateVesselOrchestrator ping integration", () => {
             terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
           };
         }
-        return [];
+        return {};
       },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
@@ -181,15 +149,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    // Identities snapshot only; prediction stage uses a mocked domain branch here.
-    expect(runQueryCalls).toBe(1);
-    expect(tripSpy).toHaveBeenCalledTimes(1);
-    expect(predictionSpy).toHaveBeenCalledTimes(1);
-    expect(eventSpy).toHaveBeenCalledTimes(1);
-    expect(eventSpy.mock.calls[0]?.[0]).toMatchObject({
-      enrichedActiveVesselTrip: activeTripWithMl,
-    });
-
+    expect(runQueryCalls).toBeGreaterThanOrEqual(1);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string; AtDockDepartNext?: unknown };
@@ -200,34 +160,14 @@ describe("updateVesselOrchestrator ping integration", () => {
 
   it("passes updateLeaveDockEventPatch to persist after leave-dock transition", async () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
-      makeRawLocation(),
+      makeRawLocation({ AtDock: false, Speed: 12 }),
     ]);
 
     const existingActiveTrip = makeTrip("CHE", {
       AtDock: true,
       LeftDockActual: undefined,
       LeftDock: undefined,
-    });
-    spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue({
-      vesselAbbrev: "CHE",
-      existingVesselTrip: existingActiveTrip,
-      activeVesselTrip: makeTrip("CHE", {
-        AtDock: false,
-        LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
-      }),
-    });
-    spyOn(
-      updateVesselPredictionsModule,
-      "getVesselTripPredictionsFromTripUpdate"
-    ).mockResolvedValue({
-      enrichedActiveVesselTrip: makeTrip("CHE", {
-        AtDock: false,
-        LeftDockActual: ms("2026-03-13T06:40:00.321-07:00"),
-      }),
-    });
-    spyOn(updateEventsModule, "updateEvents").mockReturnValue({
-      actualEvents: [],
-      predictedEvents: [],
+      TimeStamp: ms("2026-03-31T11:59:00-07:00"),
     });
 
     const mutationCalls: unknown[] = [];
@@ -241,13 +181,22 @@ describe("updateVesselOrchestrator ping integration", () => {
             terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
           };
         }
-        return [];
+        return {};
       },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
         return mutationCalls.length === 1
           ? {
-              changedLocations: [makeNormalizedCheLocation()],
+              changedLocations: [
+                {
+                  ...makeNormalizedCheLocation(),
+                  AtDock: false,
+                  AtDockObserved: false,
+                  LeftDock: undefined,
+                  Speed: 12,
+                  TimeStamp: ms("2026-03-31T12:00:00-07:00"),
+                },
+              ],
               activeTripsForChanged: [existingActiveTrip],
             }
           : null;
@@ -258,7 +207,6 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(1);
     expect(mutationCalls).toHaveLength(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };
@@ -272,7 +220,7 @@ describe("updateVesselOrchestrator ping integration", () => {
     expect(vesselUpdateArgs.updateLeaveDockEventPatch).toEqual({
       vesselAbbrev: "CHE",
       depBoundaryKey: "CHE--2026-03-13--05:30--ANA-ORI--dep-dock",
-      actualDepartMs: ms("2026-03-13T06:40:00.000-07:00"),
+      actualDepartMs: ms("2026-03-31T12:00:00.000-07:00"),
     });
   });
 
@@ -280,13 +228,6 @@ describe("updateVesselOrchestrator ping integration", () => {
     spyOn(adapters, "fetchRawWsfVesselLocations").mockResolvedValue([
       makeRawLocation(),
     ]);
-
-    spyOn(updateVesselTripModule, "updateVesselTrip").mockResolvedValue(null);
-    const predictionSpy = spyOn(
-      updateVesselPredictionsModule,
-      "getVesselTripPredictionsFromTripUpdate"
-    );
-    const eventSpy = spyOn(updateEventsModule, "updateEvents");
 
     const mutationCalls: unknown[] = [];
     const ctx = {
@@ -305,8 +246,6 @@ describe("updateVesselOrchestrator ping integration", () => {
     )._handler(ctx, {});
 
     expect(mutationCalls).toHaveLength(1);
-    expect(predictionSpy).toHaveBeenCalledTimes(0);
-    expect(eventSpy).toHaveBeenCalledTimes(0);
   });
 
   it("continues other vessels when one vessel pipeline throws", async () => {
@@ -331,19 +270,13 @@ describe("updateVesselOrchestrator ping integration", () => {
           vesselAbbrev: "TAC",
           existingVesselTrip: undefined,
           activeVesselTrip: makeTrip("TAC"),
+          dockTransitions: {
+            didJustLeaveDock: false,
+            didJustArriveAtDock: false,
+          },
         };
       }
     );
-    spyOn(
-      updateVesselPredictionsModule,
-      "getVesselTripPredictionsFromTripUpdate"
-    ).mockResolvedValue({
-      enrichedActiveVesselTrip: makeTrip("TAC"),
-    });
-    spyOn(updateEventsModule, "updateEvents").mockReturnValue({
-      actualEvents: [],
-      predictedEvents: [],
-    });
 
     const consoleErrorSpy = spyOn(console, "error").mockImplementation(
       () => {}
@@ -360,7 +293,7 @@ describe("updateVesselOrchestrator ping integration", () => {
             terminalsIdentity: orchestratorSnapshot.terminalsIdentity,
           };
         }
-        return [];
+        return {};
       },
       runMutation: async (_mutation: unknown, args: unknown) => {
         mutationCalls.push(args);
@@ -381,7 +314,7 @@ describe("updateVesselOrchestrator ping integration", () => {
       updateVesselOrchestrator as unknown as { _handler: InternalActionHandler }
     )._handler(ctx, {});
 
-    expect(runQueryCalls).toBe(1);
+    expect(runQueryCalls).toBeGreaterThanOrEqual(1);
     expect(mutationCalls.length).toBe(2);
     const vesselUpdateArgs = mutationCalls[1] as {
       activeVesselTrip: { VesselAbbrev: string };

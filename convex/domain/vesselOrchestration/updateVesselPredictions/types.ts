@@ -41,7 +41,7 @@ export type VesselTripPredictionDeps = {
 
 /**
  * Outcome of enriching the active trip from prediction parameters.
- * Event overlay construction belongs to updateEvents.
+ * Event overlay construction belongs to projectEventsFromTripDelta.
  */
 export type VesselTripPredictionsFromTripUpdateResult = {
   enrichedActiveVesselTrip: ConvexVesselTripWithML;

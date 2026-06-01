@@ -14,8 +14,8 @@ VesselTripUpdate
   -> enrichedActiveVesselTrip
 ```
 
-Completion ticks predict the replacement active trip once. **`updateEvents`**
-reuses that same enriched trip for completed/current overlay projection.
+Completion ticks predict the replacement active trip once. **`projectEventsFromTripDelta`**
+reuses that same enriched trip for completed/current predicted batches.
 
 ## Stage 4 control flow
 
@@ -45,7 +45,7 @@ reuses that same enriched trip for completed/current overlay projection.
 - **`ConvexVesselTrip`** (schedule + lifecycle from **`updateVesselTrip`**) —
   trip immediately before prediction enrichment in **`applyVesselPredictionsFromLoadedModels`**.
 - **`ConvexVesselTripWithML`** — enriched active trip returned to the orchestrator
-  and passed into **`updateEvents`**.
+  and passed into **`projectEventsFromTripDelta`**.
 
 ## Persistence vs event merge
 

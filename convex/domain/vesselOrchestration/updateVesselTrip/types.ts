@@ -8,6 +8,7 @@ import type {
 } from "domain/events/scheduled";
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
+import type { DockTransitionEvents } from "./dockTransitionEvents";
 
 /**
  * Canonical Stage 2 per-vessel write intents for the orchestrator pipeline.
@@ -22,6 +23,7 @@ export type VesselTripUpdate = {
   existingVesselTrip?: ConvexVesselTrip;
   activeVesselTrip: ConvexVesselTrip;
   completedVesselTrip?: ConvexVesselTrip;
+  dockTransitions: DockTransitionEvents;
 };
 
 export type GetScheduleRolloverDockEventsArgs = {

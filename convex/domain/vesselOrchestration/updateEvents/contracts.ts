@@ -1,5 +1,5 @@
 /**
- * Canonical Stage A public contracts for the event concern.
+ * Public contracts for direct trip-delta event projection.
  */
 
 import type { VesselTripUpdate } from "domain/vesselOrchestration/updateVesselTrip";
@@ -8,18 +8,34 @@ import type { ConvexPredictedDockWriteBatch } from "functions/events/eventsPredi
 import type { ConvexVesselTripWithML } from "functions/vesselTrips/schemas";
 
 /**
- * Direct same-ping event projection from upstream trip rows plus ML overlay.
- *
- * The handoff used by the projection step is derived inside `updateEvents`
- * from `tripUpdate`; callers do not need to construct it manually.
+ * Optional leave-dock ML patch forwarded through persistVesselUpdates.
  */
-export type RunUpdateVesselEventsFromAssemblyInput = {
+type UpdateLeaveDockEventPatch = {
+  vesselAbbrev: string;
+  depBoundaryKey: string;
+  actualDepartMs: number;
+};
+
+/**
+ * Input for direct event projection from one sparse trip update.
+ */
+type ProjectEventsFromTripDeltaInput = {
   pingStartedAt: number;
   tripUpdate: VesselTripUpdate;
   enrichedActiveVesselTrip: ConvexVesselTripWithML;
 };
 
-export type RunUpdateVesselEventsOutput = {
+/**
+ * Persistence-ready event rows and optional leave-dock patch for one vessel ping.
+ */
+type ProjectEventsFromTripDeltaResult = {
   actualEvents: ConvexActualDockEvent[];
   predictedEvents: ConvexPredictedDockWriteBatch[];
+  updateLeaveDockEventPatch?: UpdateLeaveDockEventPatch;
+};
+
+export type {
+  ProjectEventsFromTripDeltaInput,
+  ProjectEventsFromTripDeltaResult,
+  UpdateLeaveDockEventPatch,
 };

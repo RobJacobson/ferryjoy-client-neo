@@ -2,6 +2,7 @@ export { stripVesselTripPredictions } from "./comparison/stripTripPredictionsFor
 export {
   type DockTransitionEvents,
   getDockTransitionEvents,
+  isAtDockToAtSeaTransition,
 } from "./dockTransitionEvents";
 export type {
   GetScheduleRolloverDockEventsArgs,

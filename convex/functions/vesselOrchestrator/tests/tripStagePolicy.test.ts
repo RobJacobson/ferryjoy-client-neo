@@ -127,6 +127,10 @@ describe("updateVesselTrip sparse-write policy", () => {
           vesselAbbrev: "TAC",
           activeVesselTrip: healthyActiveTrip,
           completedVesselTrip: undefined,
+          dockTransitions: {
+            didJustLeaveDock: false,
+            didJustArriveAtDock: false,
+          },
         };
       }
     );

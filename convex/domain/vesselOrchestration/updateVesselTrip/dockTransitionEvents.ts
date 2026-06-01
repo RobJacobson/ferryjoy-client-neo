@@ -1,10 +1,8 @@
 /**
  * Detects dock-boundary transitions between stored and computed trip rows.
  *
- * Downstream event projection uses these booleans to decide whether a trip
- * update should write actual departure or arrival boundary events. This module
- * does not drive trip lifecycle; it only reports transition facts after row
- * construction.
+ * Shared predicates are used during active-trip construction (LeftDockActual)
+ * and after row finalization for event projection and ML actualization.
  */
 
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
@@ -30,10 +28,21 @@ const getDockTransitionEvents = (
     nextTrip.AtDock === true &&
     nextTrip.TripEnd !== undefined,
   didJustLeaveDock:
-    existingTrip?.AtDock === true &&
-    nextTrip.AtDock !== true &&
+    isAtDockToAtSeaTransition(existingTrip?.AtDock, nextTrip.AtDock === true) &&
     nextTrip.LeftDockActual !== undefined,
 });
 
+/**
+ * Returns whether the vessel transitioned from docked to at-sea on this ping.
+ *
+ * @param prevAtDock - Prior trip row AtDock, when a row existed
+ * @param currAtDockObserved - Stabilized observed dock phase from the location ping
+ * @returns True when the prior row was docked and the current ping is at-sea
+ */
+const isAtDockToAtSeaTransition = (
+  prevAtDock: boolean | undefined,
+  currAtDockObserved: boolean
+): boolean => prevAtDock === true && currAtDockObserved === false;
+
 export type { DockTransitionEvents };
-export { getDockTransitionEvents };
+export { getDockTransitionEvents, isAtDockToAtSeaTransition };
