@@ -9,6 +9,7 @@
 import type { ConvexVesselLocation } from "functions/vesselLocation/schemas";
 import type { ConvexVesselTrip } from "functions/vesselTrips/schemas";
 import { isSameVesselTripData } from "./comparison/isSameVesselTripData";
+import { getDockTransitionEvents } from "./dockTransitionEvents";
 import { applyScheduleToActiveTrip } from "./schedule/applyScheduleToActiveTrip";
 import { buildActiveTrip } from "./tripRows/buildActiveTrip";
 import { buildCompleteTrip } from "./tripRows/buildCompleteTrip";
@@ -16,6 +17,10 @@ import type { UpdateVesselTripDbAccess, VesselTripUpdate } from "./types";
 
 /**
  * Computes storage and lifecycle changes for one vessel ping.
+ *
+ * Returns null when there is no substantive durable change. Unexpected failures
+ * are logged with trip context and rethrown so callers do not treat errors as
+ * no-op updates; per-vessel isolation belongs in runOrchestratorPing.
  *
  * @param currLocation - Latest location ping for one vessel
  * @param prevTrip - Existing active trip row for that vessel, when present
@@ -35,7 +40,7 @@ const updateVesselTrip = async (
         ? buildCompleteTrip(prevTrip, currLocation)
         : undefined;
 
-    // Build the active trip row for this ping.
+    // Shape the next active row from feed fields and cold/new/continuing lifecycle mode.
     const activeTrip = buildActiveTrip({
       prev: prevTrip,
       completedVesselTrip,
@@ -43,7 +48,7 @@ const updateVesselTrip = async (
       isNewTrip,
     });
 
-    // Schedule reads run only for new in-service rollover; complete WSF fields use sync merge instead.
+    // Merge schedule evidence and canonical TripKey when replacement rows need inference.
     const activeVesselTrip = await applyScheduleToActiveTrip({
       activeTrip,
       prevTrip: prevTrip,
@@ -52,6 +57,7 @@ const updateVesselTrip = async (
       dbAccess,
     });
 
+    // Compare durable trip fields so TimeStamp-only churn can skip persistence.
     const isActiveVesselTripUnchanged = isSameVesselTripData(
       prevTrip,
       activeVesselTrip
@@ -62,12 +68,12 @@ const updateVesselTrip = async (
       return null;
     }
 
-    // Return the completed vessel trip update (if any) and the active vessel trip update (if any).
     return {
       vesselAbbrev: currLocation.VesselAbbrev,
       existingVesselTrip: prevTrip,
       activeVesselTrip,
       completedVesselTrip,
+      dockTransitions: getDockTransitionEvents(prevTrip, activeVesselTrip),
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -79,7 +85,7 @@ const updateVesselTrip = async (
       message: err.message,
       stack: err.stack,
     });
-    return null;
+    throw err;
   }
 };
 

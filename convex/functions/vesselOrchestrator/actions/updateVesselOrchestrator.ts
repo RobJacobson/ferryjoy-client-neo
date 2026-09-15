@@ -29,14 +29,7 @@ export const updateVesselOrchestrator = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx): Promise<null> => {
-    try {
-      await runOrchestratorPing(ctx);
-    } catch (error) {
-      // Rethrow after logging so cron and observability see fatal ping failures.
-      const err = error instanceof Error ? error : new Error(String(error));
-      console.error("[updateVesselOrchestrator]", err);
-      throw err;
-    }
+    await runOrchestratorPing(ctx);
     return null;
   },
 });

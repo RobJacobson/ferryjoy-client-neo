@@ -1,13 +1,9 @@
 /**
- * Public entry for **updateVesselLocations**.
+ * Public entry for vessel-location normalization.
  *
- * Stage A freezes the plain-data contract here while the functions layer
- * continues to own external fetch and persistence sequencing.
+ * The functions layer owns external fetch and persistence sequencing; this
+ * folder exposes raw-feed mapping and mutation-side AtDockObserved enrichment.
  */
 
 export { addAtDockObserved as withAtDockObserved } from "./addAtDockObserved";
-export type {
-  RunUpdateVesselLocationsInput,
-  RunUpdateVesselLocationsOutput,
-} from "./contracts";
-export { updateVesselLocations } from "./updateVesselLocations";
+export { mapWsfVesselLocations } from "./mapWsfVesselLocations";

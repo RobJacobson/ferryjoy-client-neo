@@ -4,6 +4,11 @@ import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/sche
 
 const ms = (iso: string) => new Date(iso).getTime();
 
+const NO_DOCK_TRANSITIONS = {
+  didJustLeaveDock: false,
+  didJustArriveAtDock: false,
+} as const;
+
 const makeTrip = (
   overrides: Partial<ConvexVesselTripWithPredictions> = {}
 ): ConvexVesselTripWithPredictions => ({
@@ -83,6 +88,7 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       depsWithModels
     );
@@ -112,6 +118,7 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
         existingVesselTrip: trip,
         activeVesselTrip: replacementTrip,
         completedVesselTrip: completedTrip,
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       depsWithModels
     );
@@ -133,6 +140,7 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       depsEmptyModels
     );
@@ -152,6 +160,7 @@ describe("getVesselTripPredictionsFromTripUpdate", () => {
         existingVesselTrip: undefined,
         activeVesselTrip: trip,
         completedVesselTrip: undefined,
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       {
         loadPredictionModelParameters: mock(async () => {

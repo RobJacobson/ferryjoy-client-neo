@@ -14,6 +14,11 @@ import type { ConvexVesselTripWithPredictions } from "functions/vesselTrips/sche
 
 const ms = (iso: string) => new Date(iso).getTime();
 
+const NO_DOCK_TRANSITIONS = {
+  didJustLeaveDock: false,
+  didJustArriveAtDock: false,
+} as const;
+
 /**
  * Minimal at-dock trip with a deliberately incomplete route so the domain
  * skips loading prediction model parameters.
@@ -93,6 +98,7 @@ describe("prediction stage fetch policy", () => {
       {
         vesselAbbrev: "CHE",
         activeVesselTrip: tripMissingRoutePair(),
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       { loadPredictionModelParameters }
     );
@@ -113,6 +119,7 @@ describe("prediction stage fetch policy", () => {
         activeVesselTrip: predictionReadyAtDockTrip({
           PrevScheduledDeparture: undefined,
         }),
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       { loadPredictionModelParameters }
     );
@@ -135,6 +142,7 @@ describe("prediction stage fetch policy", () => {
           LeftDockActual: undefined,
           LeftDock: ms("2026-03-13T09:31:00-07:00"),
         }),
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       { loadPredictionModelParameters }
     );
@@ -156,6 +164,7 @@ describe("prediction stage fetch policy", () => {
           NextScheduledDeparture: undefined,
           NextScheduleKey: undefined,
         }),
+        dockTransitions: NO_DOCK_TRANSITIONS,
       },
       { loadPredictionModelParameters }
     );

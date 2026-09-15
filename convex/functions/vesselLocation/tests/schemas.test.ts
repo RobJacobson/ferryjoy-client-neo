@@ -4,11 +4,11 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { updateVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
+import { mapWsfVesselLocations } from "domain/vesselOrchestration/updateVesselLocations";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
 
-describe("updateVesselLocations ScheduleKey behavior", () => {
+describe("mapWsfVesselLocations ScheduleKey behavior", () => {
   it("stamps the canonical key when arriving terminal and scheduled departure are present", () => {
     const location = convertOne(
       makeRawLocation({
@@ -110,19 +110,19 @@ const convertOne = (
   rawFeedLocation: WsfVesselLocation,
   terminalsIdentity: ReadonlyArray<TerminalIdentity>
 ) => {
-  const result = updateVesselLocations({
-    rawFeedLocations: [rawFeedLocation],
-    vesselsIdentity: [
+  const result = mapWsfVesselLocations(
+    [rawFeedLocation],
+    [
       {
         VesselID: 2,
         VesselName: "Chelan",
         VesselAbbrev: "CHE",
       },
     ],
-    terminalsIdentity,
-  });
+    terminalsIdentity
+  );
 
-  const location = result.vesselLocations[0];
+  const location = result[0];
 
   if (!location) {
     throw new Error("Expected one vessel location to convert.");

@@ -9,7 +9,7 @@ hot path in `convex/functions/vesselOrchestrator`.
 - Core flow: `runOrchestratorPing`
 - Mutations per ping:
   - one `bulkUpsertVesselLocations` for locations **and** subset `activeVesselTrips` reads (same transaction)
-  - one atomic `persistVesselUpdates` write per changed vessel whose trip stage returns updates
+  - one atomic `persistVesselUpdates` write per changed vessel whose plan is non-null
 
 ## Single-ping stages
 
@@ -28,7 +28,7 @@ hot path in `convex/functions/vesselOrchestrator`.
   - Phase contract: this stage derives `AtDockObserved`; downstream trip
      `AtDock` is persisted from that observed phase
   - Behavior: mutation-side dedupe (`VesselAbbrev` + unchanged `TimeStamp`); when there are changed rows, **`loadActiveTripsForChanged`** runs in the **same mutation** after writes (`activeVesselTrips` by `by_vessel_abbrev`, `.first()` per distinct changed abbrev)
-  - Semantics: `existingVesselTrip` for Stage 4 reflects DB state **after** this ping’s location writes for those vessels
+  - Semantics: `existingVesselTrip` for trip compute reflects DB state **after** this ping’s location writes for those vessels
   - Failure policy: per-vessel upsert failures are logged and do not abort
      writes for other vessels in the same batch
 
@@ -38,14 +38,11 @@ hot path in `convex/functions/vesselOrchestrator`.
     only when key continuity is unavailable or stale
   - Output: `UpdateVesselTripDbAccess`
 
-4. **Sequential per-vessel sparse pipeline (changed rows only)**
+4. **Sequential per-vessel plan compute and persist (changed rows only)**
    - Loop: `for (const vesselLocation of dedupedLocationUpdates)`
    - For each vessel:
-     1. Domain **`updateVesselTrip`** computes a sparse **`VesselTripUpdate | null`** (skip when `null`)
-     2. Domain **`updateLeaveDockEventPatch`** (`domain/vesselOrchestration/updateLeaveDockEventPatch`) produces an optional **`updateLeaveDockEventPatch`** payload on observed leave-dock transitions
-     3. Domain **`getVesselTripPredictionsFromTripUpdate`** loads prediction model parameters when **`getPredictionModelParametersFromTripUpdate`** is non-null (**`loadPredictionModelParameters`**) and returns **`enrichedActiveVesselTrip`**
-     4. Domain **`updateEvents`** takes **`{ pingStartedAt, tripUpdate, enrichedActiveVesselTrip }`**; it derives **`PersistedTripEventHandoff`** internally (**`eventHandoffFromTripUpdate`**), builds prediction overlay handoffs, then projects **`actualEvents`** / **`predictedEvents`**
-     5. **`persistVesselUpdates`** applies trip, event, and optional **`updateLeaveDockEventPatch`** (depart-next ML on `eventsPredicted`) in one mutation transaction
+     1. **`computeVesselUpdatePlan`** — trip compute, prediction enrichment, direct event projection, storage stripping; returns **`VesselUpdatePlan | null`** (skip when `null`)
+     2. **`persistVesselUpdates`** — applies trip, event, and optional leave-dock ML patch in one mutation transaction
    - Failure policy: per-vessel failures are logged and the loop continues
 
 ## Invariants
@@ -53,14 +50,14 @@ hot path in `convex/functions/vesselOrchestrator`.
 - One WSF fetch per ping.
 - One identity read-model query per ping (`getOrchestratorIdentities`).
 - One locations mutation per ping (`bulkUpsertVesselLocations`) that includes active-trip reads for changed abbrevs when `changedLocations` is non-empty; **no** separate `getActiveTripsForVesselAbbrevs` query.
-- One atomic per-vessel persistence mutation whose trip stage returns a non-null `VesselTripUpdate`.
+- One atomic per-vessel persistence mutation per non-null `VesselUpdatePlan`.
 - Trip compute runs against changed location rows returned by location-upsert dedupe.
 - Schedule continuity reads are targeted and new-trip-gated: primary
   `NextScheduleKey` lookup first, rollover fallback only when needed.
-- Prediction model loading is gated per vessel by runnable Stage 4 specs derived
+- Prediction model loading is gated per vessel by runnable specs derived
   from changed durable trip facts.
-- Event projection runs in action memory using same-ping
-  **`enrichedActiveVesselTrip`**, and **`persistVesselUpdates`** only
+- Event projection runs inside `computeVesselUpdatePlan` using same-ping
+  **`enrichedActiveVesselTrip`**; **`persistVesselUpdates`** only
   applies supplied rows.
 - Location dedupe is mutation-side in `bulkUpsertVesselLocations`
   (`VesselAbbrev` + `TimeStamp` skip).

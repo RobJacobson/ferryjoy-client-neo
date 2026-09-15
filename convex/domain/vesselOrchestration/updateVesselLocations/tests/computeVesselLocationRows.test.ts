@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { TerminalIdentity } from "functions/terminals/schemas";
 import type { VesselIdentity } from "functions/vessels/schemas";
 import type { VesselLocation as WsfVesselLocation } from "ws-dottie/wsf-vessels/core";
-import { updateVesselLocations } from "../updateVesselLocations";
+import { mapWsfVesselLocations } from "../mapWsfVesselLocations";
 
 const vesselsFixture: VesselIdentity[] = [
   { VesselID: 101, VesselName: "Kittitas", VesselAbbrev: "KIT" },
@@ -34,53 +34,51 @@ afterEach(() => {
   mock.restore();
 });
 
-describe("updateVesselLocations", () => {
+describe("mapWsfVesselLocations", () => {
   it("returns one location and skips rows that fail conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = updateVesselLocations({
-      rawFeedLocations: [validRawRow(), unknownVesselRow()],
-      vesselsIdentity: vesselsFixture,
-      terminalsIdentity: terminalsFixture,
-    });
+    const result = mapWsfVesselLocations(
+      [validRawRow(), unknownVesselRow()],
+      vesselsFixture,
+      terminalsFixture
+    );
 
-    expect(result.vesselLocations).toHaveLength(1);
-    expect(result.vesselLocations[0]?.VesselAbbrev).toBe("KIT");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.VesselAbbrev).toBe("KIT");
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
   it("returns an empty result when every row fails conversion", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = updateVesselLocations({
-      rawFeedLocations: [unknownVesselRow(998), unknownVesselRow(999)],
-      vesselsIdentity: vesselsFixture,
-      terminalsIdentity: terminalsFixture,
-    });
+    const result = mapWsfVesselLocations(
+      [unknownVesselRow(998), unknownVesselRow(999)],
+      vesselsFixture,
+      terminalsFixture
+    );
 
-    expect(result.vesselLocations).toHaveLength(0);
+    expect(result).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledTimes(2);
   });
 
   it("preserves raw marine terminal values when the terminal abbrev is unknown", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = updateVesselLocations({
-      rawFeedLocations: [
+    const result = mapWsfVesselLocations(
+      [
         validRawRow({
           DepartingTerminalAbbrev: "QQQ",
           DepartingTerminalName: "Mystery Yard",
         }),
       ],
-      vesselsIdentity: vesselsFixture,
-      terminalsIdentity: terminalsFixture,
-    });
-
-    expect(result.vesselLocations[0]?.DepartingTerminalAbbrev).toBe("QQQ");
-    expect(result.vesselLocations[0]?.DepartingTerminalName).toBe(
-      "Mystery Yard"
+      vesselsFixture,
+      terminalsFixture
     );
-    expect(result.vesselLocations[0]?.DepartingDistance).toBeUndefined();
+
+    expect(result[0]?.DepartingTerminalAbbrev).toBe("QQQ");
+    expect(result[0]?.DepartingTerminalName).toBe("Mystery Yard");
+    expect(result[0]?.DepartingDistance).toBeUndefined();
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -88,35 +86,35 @@ describe("updateVesselLocations", () => {
     const t1 = new Date("2025-01-01T12:00:00.000Z");
     const t2 = new Date("2025-01-01T12:00:30.000Z");
 
-    const result = updateVesselLocations({
-      rawFeedLocations: [
+    const result = mapWsfVesselLocations(
+      [
         validRawRow({ TimeStamp: t1, Speed: 1 }),
         validRawRow({ TimeStamp: t2, Speed: 2 }),
       ],
-      vesselsIdentity: vesselsFixture,
-      terminalsIdentity: terminalsFixture,
-    });
+      vesselsFixture,
+      terminalsFixture
+    );
 
-    expect(result.vesselLocations).toHaveLength(1);
-    expect(result.vesselLocations[0]?.TimeStamp).toBe(t2.getTime());
-    expect(result.vesselLocations[0]?.Speed).toBe(2);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.TimeStamp).toBe(t2.getTime());
+    expect(result[0]?.Speed).toBe(2);
   });
 
   it("skips rows missing a departing terminal abbreviation", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = updateVesselLocations({
-      rawFeedLocations: [
+    const result = mapWsfVesselLocations(
+      [
         validRawRow({
           DepartingTerminalAbbrev: "",
         }),
         validRawRow({ VesselID: 102, VesselName: "Yakima" }),
       ],
-      vesselsIdentity: vesselsFixture,
-      terminalsIdentity: terminalsFixture,
-    });
+      vesselsFixture,
+      terminalsFixture
+    );
 
-    expect(result.vesselLocations).toHaveLength(1);
+    expect(result).toHaveLength(1);
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy.mock.calls[0]?.[0]).toMatch(
       /Missing departing terminal abbreviation/
